@@ -11,6 +11,7 @@ program define weights_dnn, rclass
         s(integer 0)                     ///  kernel order (0 = auto)
         Generate(name)                   ///  new variable to store weights
         Distance(string)                 ///  l2 (default) | mahalanobis
+        Method(string)                   ///  exact (default) | asymp
         ]
 
     // ── mark sample ──────────────────────────────────────────────────
@@ -49,34 +50,70 @@ program define weights_dnn, rclass
         exit 198
     }
 
-    // ── load Mata library ─────────────────────────────────────────────
+    if "`method'" == "" local method "exact"
+    if !inlist("`method'", "exact", "asymp") {
+        di as error "method() must be exact or asymp."
+        exit 198
+    }
+
+    // ── load Mata library (also attempts plugin declaration) ──────────
     quietly run "_rdistnn_mata.ado"
 
-    // ── build covariate matrix in Mata ────────────────────────────────
-    // Parse x0 numlist into a Mata row vector
+    // ── build x0 string for Mata and plugin ───────────────────────────
     local x0_mata ""
     foreach v of local x0 {
         local x0_mata `x0_mata' `v',
     }
     local x0_mata = substr("`x0_mata'", 1, length("`x0_mata'") - 1)
 
-    mata {
-        _X   = st_data(., "`xvars'", "`touse'")
-        _x0  = (`x0_mata')
-        _k   = `k'
-        _s   = `s'
-        _w   = rdistnn_weights(_X, _x0, _k, _s)
+    // ── compute weights (plugin fast path, then Mata fallback) ────────
+    // Weights are written to a temp var (or directly to generate if set).
+    // The plugin reads all observations satisfying `touse'; Mata does the
+    // same via st_data.
+
+    if ${rdistnn_plugin_ok} {
+        // create the output weight variable up front
+        if "`generate'" != "" {
+            quietly gen double `generate' = .
+            capture noisily plugin call rdistnn_plugin `xvars' `generate' ///
+                if `touse', weights_l2 `method' `k' `s' `x0'
+        }
+        else {
+            tempvar __wvar
+            quietly gen double `__wvar' = .
+            capture noisily plugin call rdistnn_plugin `xvars' `__wvar' ///
+                if `touse', weights_l2 `method' `k' `s' `x0'
+        }
+        local __plugin_ok = (_rc == 0)
+    }
+    else {
+        local __plugin_ok 0
     }
 
-    // ── store weights ─────────────────────────────────────────────────
-    if "`generate'" != "" {
-        quietly gen double `generate' = .
-        mata: st_store(., "`generate'", "`touse'", _w)
-        di as text "DNN weights stored in `generate'."
+    if `__plugin_ok' {
+        // neff from the stored weight variable
+        if "`generate'" != "" {
+            mata: st_numscalar("r(neff)", 1 / sum(st_data(., "`generate'", "`touse'") :^2))
+            di as text "DNN weights stored in `generate'."
+        }
+        else {
+            mata: st_numscalar("r(neff)", 1 / sum(st_data(., "`__wvar'", "`touse'") :^2))
+        }
     }
-
-    // ── return scalars ────────────────────────────────────────────────
-    mata: st_numscalar("r(neff)", 1 / sum(_w :^2))
+    else {
+        // Pure-Mata fallback
+        mata {
+            _X = st_data(., "`xvars'", "`touse'")
+            _x0 = (`x0_mata')
+            _w  = rdistnn_weights(_X, _x0, `k', `s', "`method'")
+        }
+        if "`generate'" != "" {
+            quietly gen double `generate' = .
+            mata: st_store(., "`generate'", "`touse'", _w)
+            di as text "DNN weights stored in `generate'."
+        }
+        mata: st_numscalar("r(neff)", 1 / sum(_w :^2))
+    }
     return scalar neff = r(neff)
     return scalar n    = `n'
     return scalar k    = `k'

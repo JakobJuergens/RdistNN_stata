@@ -22,6 +22,7 @@ program define cate_dnn, eclass
         k(integer 5)                     ///  # nearest neighbors
         s(integer 0)                     ///  kernel order (0 = auto)
         Distance(string)                 ///  l2 (default) | mahalanobis
+        Method(string)                   ///  exact (default) | asymp
         Level(cilevel)                   ///  CI level (default 95)
         noCONStant                       ///  (reserved; absorbed silently)
         ]
@@ -56,6 +57,12 @@ program define cate_dnn, eclass
     if "`distance'" == "" local distance "l2"
     if !inlist("`distance'", "l2", "mahalanobis") {
         di as error "distance() must be l2 or mahalanobis."
+        exit 198
+    }
+
+    if "`method'" == "" local method "exact"
+    if !inlist("`method'", "exact", "asymp") {
+        di as error "method() must be exact or asymp."
         exit 198
     }
 
@@ -111,10 +118,28 @@ program define cate_dnn, eclass
     }
     local x0_mata = substr("`x0_mata'", 1, length("`x0_mata'") - 1)
 
+    // ── plugin fast path for weight computation ───────────────────────
+    local __plugin_ok 0
+    if ${rdistnn_plugin_ok} {
+        tempvar __wvar
+        quietly gen double `__wvar' = .
+        capture noisily plugin call rdistnn_plugin `xvars' `__wvar' ///
+            if `touse', weights_l2 `method' `k' `s' `x0'
+        local __plugin_ok = (_rc == 0)
+    }
+
     mata {
         _X   = st_data(., "`xvars'", "`touse'")
         _x0  = (`x0_mata')
-        _w   = rdistnn_weights(_X, _x0, `k', `s')
+
+        // weights: from plugin if available, else Mata
+        if (`__plugin_ok') {
+            _w = st_data(., "`__wvar'", "`touse'")
+        }
+        else {
+            _w = rdistnn_weights(_X, _x0, `k', `s', "`method'")
+        }
+
         _rho = st_data(., "`rho_var'", "`touse'")
 
         // Point estimate: weighted mean of pseudo-outcomes
@@ -156,9 +181,10 @@ program define cate_dnn, eclass
     ereturn scalar k      = `k'
     ereturn scalar s      = `s'
     ereturn scalar kx     = `kx'
-    ereturn local  x0     "`x0'"
-    ereturn local  xvars  "`xvars'"
+    ereturn local  x0       "`x0'"
+    ereturn local  xvars    "`xvars'"
     ereturn local  distance "`distance'"
+    ereturn local  method   "`method'"
     ereturn local  cmd    "cate_dnn"
     ereturn local  cmdline "cate_dnn `0'"
 

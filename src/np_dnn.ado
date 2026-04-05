@@ -17,6 +17,7 @@ program define np_dnn, eclass
         k(integer 5)                     ///  # nearest neighbors
         s(integer 0)                     ///  kernel order (0 = auto)
         Distance(string)                 ///  l2 (default) | mahalanobis
+        Method(string)                   ///  exact (default) | asymp
         Level(cilevel)                   ///
         ]
 
@@ -38,6 +39,11 @@ program define np_dnn, eclass
     }
 
     if "`distance'" == "" local distance "l2"
+    if "`method'"   == "" local method   "exact"
+    if !inlist("`method'", "exact", "asymp") {
+        di as error "method() must be exact or asymp."
+        exit 198
+    }
     if `s' == 0  local s = floor(`n'^((`kx' + 1) / (`kx' + 2)))
     if `s' < `k' {
         di as error "s(`s') < k(`k')."
@@ -52,11 +58,28 @@ program define np_dnn, eclass
     }
     local x0_mata = substr("`x0_mata'", 1, length("`x0_mata'") - 1)
 
+    // ── plugin fast path for weight computation ───────────────────────
+    local __plugin_ok 0
+    if ${rdistnn_plugin_ok} {
+        tempvar __wvar
+        quietly gen double `__wvar' = .
+        capture noisily plugin call rdistnn_plugin `xvars' `__wvar' ///
+            if `touse', weights_l2 `method' `k' `s' `x0'
+        local __plugin_ok = (_rc == 0)
+    }
+
     mata {
         _X   = st_data(., "`xvars'", "`touse'")
         _y   = st_data(., "`outcome'", "`touse'")
         _x0  = (`x0_mata')
-        _w   = rdistnn_weights(_X, _x0, `k', `s')
+
+        // weights: from plugin if available, else Mata
+        if (`__plugin_ok') {
+            _w = st_data(., "`__wvar'", "`touse'")
+        }
+        else {
+            _w = rdistnn_weights(_X, _x0, `k', `s', "`method'")
+        }
 
         _mu_hat = sum(_w :* _y)
 
@@ -91,6 +114,7 @@ program define np_dnn, eclass
     ereturn scalar kx     = `kx'
     ereturn local  x0     "`x0'"
     ereturn local  xvars  "`xvars'"
+    ereturn local  method "`method'"
     ereturn local  cmd    "np_dnn"
     ereturn local  cmdline "np_dnn `0'"
 
