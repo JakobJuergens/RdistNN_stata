@@ -1,0 +1,104 @@
+name: Package source snapshot
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - 'archives/**'
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: archive-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  zip-and-commit:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create zip (src, package manifest, README)
+        id: makezip
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _dist
+
+          paths=()
+          for d in src; do
+            [[ -d "$d" ]] && paths+=("$d/")
+          done
+          for f in rdistnn.pkg stata.toc README.md; do
+            [[ -f "$f" ]] && paths+=("$f")
+          done
+
+          if [[ ${#paths[@]} -eq 0 ]]; then
+            echo "No inputs found."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          zip -r _dist/source.zip "${paths[@]}" \
+            -x ".git/**" "archives/**" ".github/**"
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "zip_path=_dist/source.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        if: steps.makezip.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: source.zip
+          path: ${{ steps.makezip.outputs.zip_path }}
+          retention-days: 7
+
+      - name: Replace the single archive in archives/source.zip
+        if: steps.makezip.outputs.skip == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p archives
+          find archives -mindepth 1 -not -name '.gitkeep' -print -delete || true
+          cp "${{ steps.makezip.outputs.zip_path }}" "archives/source.zip"
+
+      - name: Commit and push
+        if: steps.makezip.outputs.skip == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add archives/source.zip
+          git commit -m "chore(archive): update source.zip [skip ci]" || exit 0
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          git push origin "HEAD:$BRANCH"
+
+      - name: Upload debug artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-package-snapshot-state
+          path: |
+            _dist
+            archives
+          if-no-files-found: warn
+          retention-days: 14
+
+  save_logs:
+    if: ${{ always() && needs.zip-and-commit.result != 'success' && github.actor != 'github-actions[bot]' }}
+    needs: [zip-and-commit]
+    uses: ./.github/workflows/harvest-failure-logs.yml
+    with:
+      logs_dir: GH_logs/package-snapshot
+      artifact_pattern: debug-package-snapshot-*
+      harvested_artifact_name: harvested-package-snapshot-logs
+      commit_logs: true
+    secrets: inherit

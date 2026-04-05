@@ -1,0 +1,45 @@
+name: pkg-check
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  pkg-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run package integrity check
+        id: check
+        shell: bash
+        run: bash tools/ci/pkg_check.sh
+
+      - name: Upload debug artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-pkg-check
+          path: |
+            rdistnn.pkg
+            stata.toc
+            src/
+          if-no-files-found: warn
+          retention-days: 14
+
+  save_logs:
+    if: ${{ always() && needs.pkg-check.result != 'success' && github.actor != 'github-actions[bot]' }}
+    needs: [pkg-check]
+    uses: ./.github/workflows/harvest-failure-logs.yml
+    with:
+      logs_dir: GH_logs/pkg-check
+      artifact_pattern: debug-pkg-check*
+      harvested_artifact_name: harvested-pkg-check-logs
+      commit_logs: ${{ github.event_name != 'pull_request' }}
+    secrets: inherit

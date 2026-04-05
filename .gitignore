@@ -9,6 +9,7 @@ profile.do
 
 # Build output
 build/
+_dist/
 
 # OS
 .DS_Store
