@@ -1,0 +1,23 @@
+d 'RDISTNN': Distributional nearest-neighbor local estimation
+d
+d Stata implementation of the DNN (distributional nearest neighbors)
+d estimator for conditional Z-estimation.  Provides pointwise inference
+d for parameters defined by localized conditional estimating equations,
+d exploiting the generalized-U-statistic / L-statistic structure of DNN
+d rank weights.
+d
+d Companion to the R package RdistNN and the paper:
+d   "Robust Inference for Conditional Z-Estimation via Distributional
+d    Nearest Neighbors" (Juergens)
+d
+d Author: Jakob Juergens
+d
+f rdistnn.pkg
+f stata.toc
+f src/cate_dnn.ado
+f src/cate_dnn.sthlp
+f src/np_dnn.ado
+f src/np_dnn.sthlp
+f src/weights_dnn.ado
+f src/weights_dnn.sthlp
+f src/_rdistnn_mata.ado

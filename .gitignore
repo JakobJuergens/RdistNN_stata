@@ -1,0 +1,15 @@
+# Stata compiled Mata libraries
+src/*.mlib
+src/*.mo
+
+# Stata session files
+*.smcl
+*.log
+profile.do
+
+# Build output
+build/
+
+# OS
+.DS_Store
+Thumbs.db

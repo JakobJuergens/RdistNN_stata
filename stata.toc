@@ -1,0 +1,4 @@
+v 3
+d Stata User-Written Packages by Jakob Juergens
+d
+p rdistnn Distributional nearest-neighbor local estimation
