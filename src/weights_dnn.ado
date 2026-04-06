@@ -57,7 +57,8 @@ program define weights_dnn, rclass
     }
 
     // ── load Mata library (also attempts plugin declaration) ──────────
-    quietly run "_rdistnn_mata.ado"
+    findfile "_rdistnn_mata.ado"
+    quietly run "`r(fn)'"
 
     // ── build x0 string for Mata and plugin ───────────────────────────
     local x0_mata ""

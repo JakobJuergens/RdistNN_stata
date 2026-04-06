@@ -50,7 +50,8 @@ program define np_dnn, eclass
         exit 198
     }
 
-    quietly run "_rdistnn_mata.ado"
+    findfile "_rdistnn_mata.ado"
+    quietly run "`r(fn)'"
 
     local x0_mata ""
     foreach v of local x0 {
@@ -68,47 +69,36 @@ program define np_dnn, eclass
         local __plugin_ok = (_rc == 0)
     }
 
-    mata {
-        _X   = st_data(., "`xvars'", "`touse'")
-        _y   = st_data(., "`outcome'", "`touse'")
-        _x0  = (`x0_mata')
+    // ── compute weights ───────────────────────────────────────────────
+    if `__plugin_ok'  mata: _np_w = st_data(., "`__wvar'", "`touse'")
+    if !`__plugin_ok' mata: _np_w = rdistnn_weights(st_data(., "`xvars'", "`touse'"), (`x0_mata'), `k', `s', "`method'")
 
-        // weights: from plugin if available, else Mata
-        if (`__plugin_ok') {
-            _w = st_data(., "`__wvar'", "`touse'")
-        }
-        else {
-            _w = rdistnn_weights(_X, _x0, `k', `s', "`method'")
-        }
+    // ── point estimate and LOO jackknife SE ───────────────────────────
+    mata: _np_y    = st_data(., "`outcome'", "`touse'")
+    mata: _np_mu   = sum(_np_w :* _np_y)
+    mata: _np_nn   = rows(_np_w)
+    mata: _np_den  = 1 :- _np_w
+    mata: _np_safe = (_np_den :> 1e-10)
+    mata: _np_loo  = J(_np_nn, 1, _np_mu)
+    mata: _np_idx  = selectindex(_np_safe)
+    mata: _np_loo[_np_idx] = (_np_mu :- _np_w[_np_idx] :* _np_y[_np_idx]) :/ _np_den[_np_idx]
+    mata: _np_sejk = sqrt((_np_nn-1) / _np_nn * sum((_np_loo :- _np_mu):^2))
+    mata: _np_neff = 1 / sum(_np_w:^2)
 
-        _mu_hat = sum(_w :* _y)
-
-        // LOO jackknife SE
-        _n     = rows(_w)
-        _denom = 1 :- _w
-        _safe  = (_denom :> 1e-10)
-        _mu_loo = J(_n, 1, _mu_hat)
-        _mu_loo[selectindex(_safe)] = ///
-            (_mu_hat :- _w[selectindex(_safe)] :* _y[selectindex(_safe)]) ///
-            :/ _denom[selectindex(_safe)]
-
-        _se_jk = sqrt((_n - 1) / _n * sum((_mu_loo :- _mu_hat):^2))
-        _neff  = 1 / sum(_w:^2)
-
-        st_numscalar("r(_mu_hat)", _mu_hat)
-        st_numscalar("r(_se_jk)",  _se_jk)
-        st_numscalar("r(_neff)",   _neff)
-    }
+    mata: st_numscalar("r(mu_hat)", _np_mu)
+    mata: st_numscalar("r(se_jk)",  _np_sejk)
+    mata: st_numscalar("r(neff)",   _np_neff)
 
     tempname b V
-    matrix `b' = (r(_mu_hat))
-    matrix `V' = (r(_se_jk)^2)
+    matrix `b' = (r(mu_hat))
+    matrix `V' = (r(se_jk)^2)
     matrix colnames `b' = mu
     matrix rownames `V' = mu
     matrix colnames `V' = mu
 
-    ereturn post `b' `V', obs(`n') esample(`touse')
-    ereturn scalar neff   = r(_neff)
+    ereturn post `b' `V', esample(`touse')
+    ereturn scalar N = `n'
+    ereturn scalar neff   = r(neff)
     ereturn scalar k      = `k'
     ereturn scalar s      = `s'
     ereturn scalar kx     = `kx'

@@ -110,7 +110,8 @@ program define cate_dnn, eclass
         max(`e_var' * (1 - `e_var'), 1e-8) if `touse'
 
     // ── load Mata and compute weights ─────────────────────────────────
-    quietly run "_rdistnn_mata.ado"
+    findfile "_rdistnn_mata.ado"
+    quietly run "`r(fn)'"
 
     local x0_mata ""
     foreach v of local x0 {
@@ -128,56 +129,37 @@ program define cate_dnn, eclass
         local __plugin_ok = (_rc == 0)
     }
 
-    mata {
-        _X   = st_data(., "`xvars'", "`touse'")
-        _x0  = (`x0_mata')
+    // ── compute weights ───────────────────────────────────────────────
+    if `__plugin_ok'  mata: _ct_w = st_data(., "`__wvar'", "`touse'")
+    if !`__plugin_ok' mata: _ct_w = rdistnn_weights(st_data(., "`xvars'", "`touse'"), (`x0_mata'), `k', `s', "`method'")
 
-        // weights: from plugin if available, else Mata
-        if (`__plugin_ok') {
-            _w = st_data(., "`__wvar'", "`touse'")
-        }
-        else {
-            _w = rdistnn_weights(_X, _x0, `k', `s', "`method'")
-        }
+    // ── point estimate and LOO jackknife SE ───────────────────────────
+    mata: _ct_rho  = st_data(., "`rho_var'", "`touse'")
+    mata: _ct_tau  = sum(_ct_w :* _ct_rho)
+    mata: _ct_nn   = rows(_ct_w)
+    mata: _ct_den  = 1 :- _ct_w
+    mata: _ct_safe = (_ct_den :> 1e-10)
+    mata: _ct_loo  = J(_ct_nn, 1, _ct_tau)
+    mata: _ct_idx  = selectindex(_ct_safe)
+    mata: _ct_loo[_ct_idx] = (_ct_tau :- _ct_w[_ct_idx] :* _ct_rho[_ct_idx]) :/ _ct_den[_ct_idx]
+    mata: _ct_sejk = sqrt((_ct_nn-1) / _ct_nn * sum((_ct_loo :- _ct_tau):^2))
+    mata: _ct_neff = 1 / sum(_ct_w:^2)
 
-        _rho = st_data(., "`rho_var'", "`touse'")
-
-        // Point estimate: weighted mean of pseudo-outcomes
-        _tau_hat = sum(_w :* _rho)
-
-        // ── Jackknife SE ──────────────────────────────────────────────
-        // Fast LOO: tau_loo[i] = (tau_hat - w[i]*rho[i]) / (1 - w[i])
-        // for obs with w[i] < 1; otherwise use tau_hat.
-        _n    = rows(_w)
-        _denom = 1 :- _w
-        _safe  = (_denom :> 1e-10)
-        _tau_loo = J(_n, 1, _tau_hat)
-        _tau_loo[selectindex(_safe)] = ///
-            (_tau_hat :- _w[selectindex(_safe)] :* _rho[selectindex(_safe)]) ///
-            :/ _denom[selectindex(_safe)]
-
-        _se_jk = sqrt((_n - 1) / _n * sum((_tau_loo :- _tau_hat):^2))
-        _neff  = 1 / sum(_w:^2)
-
-        st_numscalar("r(_tau_hat)", _tau_hat)
-        st_numscalar("r(_se_jk)",   _se_jk)
-        st_numscalar("r(_neff)",    _neff)
-    }
-
-    local tau_hat = r(_tau_hat)
-    local se_jk   = r(_se_jk)
-    local neff     = r(_neff)
+    mata: st_numscalar("r(tau_hat)", _ct_tau)
+    mata: st_numscalar("r(se_jk)",   _ct_sejk)
+    mata: st_numscalar("r(neff)",    _ct_neff)
 
     // ── store eclass results ─────────────────────────────────────────
     tempname b V
-    matrix `b' = (`tau_hat')
-    matrix `V' = (`se_jk'^2)
+    matrix `b' = (r(tau_hat))
+    matrix `V' = (r(se_jk)^2)
     matrix colnames `b' = tau
     matrix rownames `V' = tau
     matrix colnames `V' = tau
 
-    ereturn post `b' `V', obs(`n') esample(`touse')
-    ereturn scalar neff   = `neff'
+    ereturn post `b' `V', esample(`touse')
+    ereturn scalar N = `n'
+    ereturn scalar neff   = r(neff)
     ereturn scalar k      = `k'
     ereturn scalar s      = `s'
     ereturn scalar kx     = `kx'

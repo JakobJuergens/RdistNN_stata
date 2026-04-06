@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------
 // Guard: only compile once per session
 // ---------------------------------------------------------------------
-capture mata: mata drop rdistnn_weights()
+capture mata: mata describe rdistnn_weights()
 if _rc == 0 {
     // Already loaded; nothing to do.
     exit
@@ -40,6 +40,15 @@ if ("$rdistnn_plugin_ok" == "") {
 }
 
 mata:
+
+// ── lncomb ────────────────────────────────────────────────────────────
+// Log binomial coefficient ln(C(n,k)) via lnfactorial().
+// Returns -1e300 (effectively -inf) for out-of-support inputs.
+real scalar lncomb(real scalar n, real scalar k)
+{
+    if (k < 0 | k > n | n < 0) return(-1e300)
+    return(lnfactorial(n) - lnfactorial(k) - lnfactorial(n-k))
+}
 
 // ── rdistnn_l2dist ────────────────────────────────────────────────────
 // Compute squared L2 distances from each row of X to the vector x0.
