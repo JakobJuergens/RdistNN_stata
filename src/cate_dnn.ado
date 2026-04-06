@@ -1,4 +1,4 @@
-*! version 0.0.1  2026-04-05  Jakob Juergens
+*! version 0.0.2  2026-04-06  Jakob Juergens
 *! Conditional average treatment effect via distributional nearest neighbors
 
 program define cate_dnn, eclass
@@ -7,7 +7,7 @@ program define cate_dnn, eclass
     // ── replay ────────────────────────────────────────────────────────
     if replay() {
         if "`e(cmd)'" != "cate_dnn" error 301
-        Display `0'
+        _cate_dnn_Display `0'
         exit
     }
 
@@ -74,10 +74,18 @@ program define cate_dnn, eclass
         di as error "s(`s') < k(`k'). Increase n, increase s(), or decrease k()."
         exit 198
     }
+    if `s' >= `n' {
+        di as error "s(`s') must be less than n(`n') for jackknife SE."
+        exit 198
+    }
 
     // ── pseudo-outcome ────────────────────────────────────────────────
-    // Robinson (1988) pseudo-outcome:  rho_i = (D_i - e_i)(Y_i - m_i) / (e_i(1-e_i))
-    // Requires propensity + one of {m0, m1} or their combination m = m0 + e*(m1-m0).
+    // Full AIPW (doubly robust) when both m0 and m1 are provided:
+    //   phi_i = D*(Y-m1)/den - (1-D)*(Y-m0)/den + (m1-m0)
+    // where den = max(e*(1-e), 1e-8).
+    //
+    // Fallback to Robinson form when only one nuisance is available:
+    //   phi_i = (D-e)*(Y-m)/den
     if "`propensity'" == "" {
         di as error "propensity() is required.  Provide oracle or estimated propensity scores."
         exit 198
@@ -87,29 +95,34 @@ program define cate_dnn, eclass
         exit 198
     }
 
-    // Construct m = E[Y|X] = m0 + e*(m1-m0)
-    tempvar e_var m_var rho_var w_var
+    tempvar den_var rho_var
 
-    quietly gen double `e_var' = `propensity' if `touse'
+    quietly gen double `den_var' = max(`propensity' * (1 - `propensity'), 1e-8) if `touse'
 
     if "`m0'" != "" & "`m1'" != "" {
-        quietly gen double `m_var' = `m0' + `e_var' * (`m1' - `m0') if `touse'
-    }
-    else if "`m0'" != "" {
-        // m = m0 + e*(Y_bar - m0) approximation -- user should supply m1
-        di as text "(note: m1() not supplied; using m_i = m0_i as outcome model)"
-        quietly gen double `m_var' = `m0' if `touse'
+        // Full AIPW pseudo-outcome
+        quietly gen double `rho_var' = ///
+            `treat' * (`outcome' - `m1') / `den_var'       ///
+            - (1 - `treat') * (`outcome' - `m0') / `den_var' ///
+            + (`m1' - `m0')                                ///
+            if `touse'
     }
     else {
-        di as text "(note: m0() not supplied; using m_i = m1_i as outcome model)"
-        quietly gen double `m_var' = `m1' if `touse'
+        // Single nuisance: Robinson form  phi_i = (D-e)*(Y-m)/den
+        if "`m0'" != "" {
+            di as text "(note: m1() not supplied; using Robinson form with m0)"
+            local m_use `m0'
+        }
+        else {
+            di as text "(note: m0() not supplied; using Robinson form with m1)"
+            local m_use `m1'
+        }
+        quietly gen double `rho_var' = ///
+            (`treat' - `propensity') * (`outcome' - `m_use') / `den_var' ///
+            if `touse'
     }
 
-    quietly gen double `rho_var' = ///
-        (`treat' - `e_var') * (`outcome' - `m_var') / ///
-        max(`e_var' * (1 - `e_var'), 1e-8) if `touse'
-
-    // ── load Mata and compute weights ─────────────────────────────────
+    // ── load Mata ────────────────────────────────────────────────────
     findfile "_rdistnn_mata.ado"
     quietly run "`r(fn)'"
 
@@ -119,35 +132,23 @@ program define cate_dnn, eclass
     }
     local x0_mata = substr("`x0_mata'", 1, length("`x0_mata'") - 1)
 
-    // ── plugin fast path for weight computation ───────────────────────
-    local __plugin_ok 0
-    if ${rdistnn_plugin_ok} {
-        tempvar __wvar
-        quietly gen double `__wvar' = .
-        capture noisily plugin call rdistnn_plugin `xvars' `__wvar' ///
-            if `touse', weights_l2 `method' `k' `s' `x0'
-        local __plugin_ok = (_rc == 0)
+    // ── compute ranks, weights, point estimate, and true delete-1 JK SE ─
+    // Always use the Mata path so ranks are available for the JK.
+    // rdistnn_ranks() handles L2/Mahalanobis dispatch internally, avoiding
+    // if-else braces inside the inline mata { } block (Stata parser limit).
+    mata {
+        _ct_X     = st_data(., "`xvars'", "`touse'")
+        _ct_x0    = (`x0_mata')
+        _ct_ranks = rdistnn_ranks(_ct_X, _ct_x0, "`distance'")
+        _ct_w     = rdistnn_weights_from_ranks(_ct_ranks, `k', `s', "`method'")
+        _ct_rho   = st_data(., "`rho_var'", "`touse'")
+        _ct_tau   = sum(_ct_w :* _ct_rho)
+        _ct_sejk  = rdistnn_jk_se_from_ranks(_ct_ranks, _ct_rho, `k', `s', "`method'")
+        _ct_neff  = 1 / sum(_ct_w :^2)
+        st_numscalar("r(tau_hat)", _ct_tau)
+        st_numscalar("r(se_jk)",   _ct_sejk)
+        st_numscalar("r(neff)",    _ct_neff)
     }
-
-    // ── compute weights ───────────────────────────────────────────────
-    if `__plugin_ok'  mata: _ct_w = st_data(., "`__wvar'", "`touse'")
-    if !`__plugin_ok' mata: _ct_w = rdistnn_weights(st_data(., "`xvars'", "`touse'"), (`x0_mata'), `k', `s', "`method'")
-
-    // ── point estimate and LOO jackknife SE ───────────────────────────
-    mata: _ct_rho  = st_data(., "`rho_var'", "`touse'")
-    mata: _ct_tau  = sum(_ct_w :* _ct_rho)
-    mata: _ct_nn   = rows(_ct_w)
-    mata: _ct_den  = 1 :- _ct_w
-    mata: _ct_safe = (_ct_den :> 1e-10)
-    mata: _ct_loo  = J(_ct_nn, 1, _ct_tau)
-    mata: _ct_idx  = selectindex(_ct_safe)
-    mata: _ct_loo[_ct_idx] = (_ct_tau :- _ct_w[_ct_idx] :* _ct_rho[_ct_idx]) :/ _ct_den[_ct_idx]
-    mata: _ct_sejk = sqrt((_ct_nn-1) / _ct_nn * sum((_ct_loo :- _ct_tau):^2))
-    mata: _ct_neff = 1 / sum(_ct_w:^2)
-
-    mata: st_numscalar("r(tau_hat)", _ct_tau)
-    mata: st_numscalar("r(se_jk)",   _ct_sejk)
-    mata: st_numscalar("r(neff)",    _ct_neff)
 
     // ── store eclass results ─────────────────────────────────────────
     tempname b V
@@ -158,7 +159,7 @@ program define cate_dnn, eclass
     matrix colnames `V' = tau
 
     ereturn post `b' `V', esample(`touse')
-    ereturn scalar N = `n'
+    ereturn scalar N      = `n'
     ereturn scalar neff   = r(neff)
     ereturn scalar k      = `k'
     ereturn scalar s      = `s'
@@ -167,21 +168,23 @@ program define cate_dnn, eclass
     ereturn local  xvars    "`xvars'"
     ereturn local  distance "`distance'"
     ereturn local  method   "`method'"
-    ereturn local  cmd    "cate_dnn"
-    ereturn local  cmdline "cate_dnn `0'"
+    ereturn local  cmd      "cate_dnn"
+    ereturn local  cmdline  "cate_dnn `0'"
 
-    Display, level(`level')
+    _cate_dnn_Display, level(`level')
 end
 
 // ── display subroutine ────────────────────────────────────────────────
-program define Display
+program define _cate_dnn_Display
     syntax [, Level(cilevel)]
 
     di ""
     di as text "DNN Conditional Average Treatment Effect Estimator"
     di as text "Evaluation point x0: " as result "`e(x0)'"
     di as text "Covariates: "          as result "`e(xvars)'"
-    di as text "k = " as result e(k) as text "  s = " as result e(s) ///
+    di as text "Distance: " as result "`e(distance)'" ///
+       as text "  k = " as result e(k) ///
+       as text "  s = " as result e(s) ///
        as text "  neff = " as result %6.2f e(neff)
     di ""
     ereturn display, level(`level')

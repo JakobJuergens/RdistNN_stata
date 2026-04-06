@@ -1,20 +1,24 @@
 // dev-setup.do
-// Run once per machine to add the src/ directory to Stata's adopath so
+// Run once per session to add the src/ directory to Stata's adopath so
 // that cate_dnn, np_dnn, weights_dnn etc. are found during development.
 //
-// Usage (from Stata command line or do-file editor):
-//   do "D:\Jakob_Clouds\Dropbox\Research\Individual_Projects\U_Statistics\02_Code\RdistNN_stata\dev-setup.do"
+// Usage: cd to the repo root, then:
+//   do dev-setup.do
 //
 // To make permanent across sessions, paste the adopath line into your
 // profile.do (found via: di c(sysdir_personal)).
 
-local pkg_src `"D:\Jakob_Clouds\Dropbox\Research\Individual_Projects\U_Statistics\02_Code\RdistNN_stata\src"'
+// Resolve path relative to the current working directory so this script
+// works on any machine without hardcoded paths.
+local here "`c(pwd)'"
+local pkg_src `"`here'/src"'
 
 // Check src/ exists before modifying adopath
 capture confirm file `"`pkg_src'/_rdistnn_mata.ado"'
 if _rc {
-    di as error "src/ directory not found at expected path."
-    di as error "Edit the local pkg_src path in this script."
+    di as error "src/ directory not found at `pkg_src'."
+    di as error "Run this script from the repository root (cd to the folder"
+    di as error "that contains dev-setup.do and the src/ subdirectory)."
     exit 601
 }
 

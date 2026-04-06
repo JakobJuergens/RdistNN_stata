@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.1  2026-04-05}{...}
+{* *! version 0.0.2  2026-04-06}{...}
 {viewerjumpto "Syntax"         "weights_dnn##syntax"}{...}
 {viewerjumpto "Description"    "weights_dnn##description"}{...}
 {viewerjumpto "Stored results" "weights_dnn##results"}{...}
@@ -15,13 +15,14 @@
 
 {p 8 17 2}
 {cmdab:weights_dnn}
-{it:x1 x2 ...}
+{it:x1} [{it:x2} {it:...}]
 {ifin}{cmd:,}
 {opt x0(numlist)}
 {opt k(#)}
 [{opt s(#)}
 {opt generate(newvar)}
-{opt distance(string)}]
+{opt distance(string)}
+{opt method(string)}]
 
 {marker description}{...}
 {title:Description}
@@ -32,8 +33,30 @@ observation.  These are the core localization weights used by
 {helpb cate_dnn} and {helpb np_dnn}.
 
 {pstd}
+A single covariate is permitted when using {cmd:distance(l2)} (the default).
+{cmd:distance(mahalanobis)} requires at least 2 covariates to form a
+covariance matrix.
+
+{pstd}
 Use {opt generate()} to store the weights as a new variable for
 inspection or downstream use.
+
+{marker options}{...}
+{title:Options}
+
+{phang}{opt x0(numlist)} evaluation point; one value per covariate.
+
+{phang}{opt k(#)} number of nearest neighbors (integer >= 1).
+
+{phang}{opt s(#)} kernel order; must satisfy k <= s < n.
+Default {cmd:s(0)} uses floor(n^((kx+1)/(kx+2))).
+
+{phang}{opt generate(newvar)} name of new variable to store the weights.
+
+{phang}{opt distance(string)} {cmd:l2} (default, Euclidean) or
+{cmd:mahalanobis} (ellipsoidal, requires >= 2 covariates).
+
+{phang}{opt method(string)} {cmd:exact} (default) or {cmd:asymp}.
 
 {marker results}{...}
 {title:Stored results}
@@ -52,3 +75,5 @@ inspection or downstream use.
 
 {phang2}{cmd:. weights_dnn x1 x2, x0(0 0) k(5) generate(w)}{p_end}
 {phang2}{cmd:. summarize w}{p_end}
+{phang2}{cmd:. weights_dnn x1, x0(0) k(5) generate(w)}{p_end}
+{phang2}{cmd:. weights_dnn x1 x2, x0(0 0) k(5) distance(mahalanobis)}{p_end}

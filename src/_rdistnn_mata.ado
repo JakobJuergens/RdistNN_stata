@@ -1,7 +1,7 @@
 // _rdistnn_mata.ado
-// Mata library for RdistNN: distance computation, rank ordering, and
-// DNN weight calculation.  Loaded automatically when any rdistnn command
-// is first called.
+// Mata library for RdistNN: distance computation, rank ordering, DNN weight
+// calculation, and true delete-1 jackknife SE.  Loaded automatically when any
+// rdistnn command is first called.
 //
 // Compile and save the .mlib via:
 //   do dev-setup.do
@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------
 // Guard: only compile once per session
 // ---------------------------------------------------------------------
-capture mata: mata describe rdistnn_weights()
+capture mata: mata describe rdistnn_ranks()
 if _rc == 0 {
     // Already loaded; nothing to do.
     exit
@@ -25,6 +25,8 @@ if _rc == 0 {
 // Sets global $rdistnn_plugin_ok = 1 if the compiled plugin is found
 // on adopath, 0 otherwise.  The main .ado commands check this global
 // before falling back to the pure-Mata path.
+// Note: the plugin only implements L2 distance.  Mahalanobis always
+// uses the Mata path regardless of this global.
 // ---------------------------------------------------------------------
 if ("$rdistnn_plugin_ok" == "") {
     // _rc == 0   : declared for the first time
@@ -52,7 +54,7 @@ real scalar lncomb(real scalar n, real scalar k)
 
 // ── rdistnn_l2dist ────────────────────────────────────────────────────
 // Compute squared L2 distances from each row of X to the vector x0.
-// Returns an n-vector of distances (unsorted).
+// Returns an n-vector of squared distances (unsorted).
 //
 // Arguments:
 //   X  : n x kx real matrix of covariate values
@@ -63,6 +65,48 @@ real colvector rdistnn_l2dist(real matrix X, real rowvector x0)
     real matrix  D
     D = X :- x0
     return(rowsum(D :* D))
+}
+
+// ── rdistnn_mahal_cov_inv ─────────────────────────────────────────────
+// Compute the (generalized) inverse of the sample covariance matrix of X.
+// Uses invsym() which applies the sweep operator and handles singular
+// covariance gracefully (zeros out linearly dependent directions).
+//
+// Arguments:
+//   X : n x kx matrix (kx >= 2)
+//
+// Returns: kx x kx inverse covariance matrix.
+//
+real matrix rdistnn_mahal_cov_inv(real matrix X)
+{
+    real matrix     Xc, S
+    real scalar     n
+
+    n  = rows(X)
+    Xc = X :- mean(X)                // center each column
+    S  = cross(Xc, Xc) / (n - 1)    // kx x kx sample covariance
+    return(invsym(S))
+}
+
+// ── rdistnn_mahal_dist ────────────────────────────────────────────────
+// Compute Mahalanobis distances from each row of X to the vector x0,
+// given a precomputed inverse covariance matrix Sinv.
+//
+// d_i = sqrt( (x_i - x0)' * Sinv * (x_i - x0) )
+//
+// Arguments:
+//   X    : n x kx matrix
+//   x0   : 1 x kx evaluation point
+//   Sinv : kx x kx inverse covariance (from rdistnn_mahal_cov_inv)
+//
+// Returns: n-vector of Mahalanobis distances (unsorted).
+//
+real colvector rdistnn_mahal_dist(real matrix X, real rowvector x0,
+                                   real matrix Sinv)
+{
+    real matrix Z
+    Z = X :- x0                        // broadcast row subtraction
+    return(sqrt(rowsum((Z * Sinv) :* Z)))
 }
 
 // ── rdistnn_order ─────────────────────────────────────────────────────
@@ -94,11 +138,6 @@ real colvector rdistnn_order(real colvector dist2)
 //
 // Support: r = 1, ..., n-s+k  (NOT 1..s).  For k=1 this equals
 //   C(n-r, s-1) / C(n, s), which is the standard Steele formula.
-//
-// Derivation: draw a uniformly random s-subset from all n observations;
-// find the k nearest to x0 within that subset.  The weight for obs i is
-// the marginal probability that it is among those k nearest, summed over
-// all C(n,s) equally-likely subsets.
 //
 // Arguments:
 //   ranks : n-vector of integer ranks (1 = nearest); n = rows(ranks)
@@ -196,35 +235,145 @@ real colvector rdistnn_weights_asymp(real colvector ranks,
     return(w)
 }
 
-// ── rdistnn_weights ───────────────────────────────────────────────────
-// Top-level: compute DNN weights for X evaluated at x0.
+// ── rdistnn_ranks ─────────────────────────────────────────────────────
+// Compute the integer rank vector for X evaluated at x0, dispatching
+// on the distance metric.  Encapsulates the L2 / Mahalanobis branch so
+// that inline mata { } blocks in .ado files need no if-else braces.
 //
 // Arguments:
-//   X      : n x kx matrix
-//   x0     : 1 x kx evaluation point
+//   X        : n x kx matrix
+//   x0       : 1 x kx evaluation point
+//   distance : "l2" (default) or "mahalanobis"
+//
+// Returns: n-vector of integer ranks (1 = nearest).
+//
+real colvector rdistnn_ranks(real matrix X, real rowvector x0,
+                              | string scalar distance)
+{
+    real matrix Sinv
+    if (args() < 3 | distance == "" | distance == "l2") {
+        return(rdistnn_order(rdistnn_l2dist(X, x0)))
+    }
+    else if (distance == "mahalanobis") {
+        Sinv = rdistnn_mahal_cov_inv(X)
+        return(rdistnn_order(rdistnn_mahal_dist(X, x0, Sinv)))
+    }
+    else {
+        errprintf("rdistnn_ranks: unknown distance '%s'. Use 'l2' or 'mahalanobis'.\n", distance)
+        exit(error(198))
+    }
+}
+
+// ── rdistnn_weights_from_ranks ────────────────────────────────────────
+// Compute DNN weights directly from a precomputed rank vector.
+// Factored out of rdistnn_weights() so the jackknife can reuse it
+// without recomputing distances.
+//
+// Arguments:
+//   ranks  : n-vector of integer ranks (1 = nearest)
 //   k      : number of nearest neighbors
 //   s      : kernel order
 //   method : "exact" (default) or "asymp"
 //
 // Returns: n-vector of DNN weights.
 //
-real colvector rdistnn_weights(real matrix X, real rowvector x0,
-                                real scalar k, real scalar s,
-                                | string scalar method)
+real colvector rdistnn_weights_from_ranks(real colvector ranks,
+                                           real scalar k,
+                                           real scalar s,
+                                           | string scalar method)
 {
-    real colvector ranks
-    if (args() < 5 | method == "" | method == "exact") {
-        ranks = rdistnn_order(rdistnn_l2dist(X, x0))
+    if (args() < 4 | method == "" | method == "exact") {
         return(rdistnn_weights_exact(ranks, k, s))
     }
     else if (method == "asymp") {
-        ranks = rdistnn_order(rdistnn_l2dist(X, x0))
         return(rdistnn_weights_asymp(ranks, k, s))
     }
     else {
-        errprintf("rdistnn_weights: unknown method '%s'. Use 'exact' or 'asymp'.\n", method)
+        errprintf("rdistnn_weights_from_ranks: unknown method '%s'. Use 'exact' or 'asymp'.\n", method)
         exit(error(198))
     }
+}
+
+// ── rdistnn_weights ───────────────────────────────────────────────────
+// Top-level: compute DNN weights for X evaluated at x0.
+//
+// Arguments:
+//   X        : n x kx matrix
+//   x0       : 1 x kx evaluation point
+//   k        : number of nearest neighbors
+//   s        : kernel order
+//   method   : "exact" (default) or "asymp"
+//   distance : "l2" (default) or "mahalanobis"
+//   Sinv     : precomputed inverse covariance (optional; computed if not supplied
+//              and distance == "mahalanobis")
+//
+// Returns: n-vector of DNN weights.
+//
+real colvector rdistnn_weights(real matrix X, real rowvector x0,
+                                real scalar k, real scalar s,
+                                | string scalar method,
+                                  string scalar distance,
+                                  real matrix Sinv)
+{
+    real colvector dist, ranks
+
+    if (args() < 5 | method == "")   method   = "exact"
+    if (args() < 6 | distance == "") distance = "l2"
+
+    if (distance == "mahalanobis") {
+        if (args() < 7 | rows(Sinv) == 0) Sinv = rdistnn_mahal_cov_inv(X)
+        dist = rdistnn_mahal_dist(X, x0, Sinv)
+    }
+    else {
+        dist = rdistnn_l2dist(X, x0)
+    }
+    ranks = rdistnn_order(dist)
+    return(rdistnn_weights_from_ranks(ranks, k, s, method))
+}
+
+// ── rdistnn_jk_se_from_ranks ──────────────────────────────────────────
+// True delete-1 jackknife SE for a DNN-weighted sum, using the rank-shift
+// approach.  When observation i (with rank r_i) is deleted, all remaining
+// observations with rank > r_i are shifted down by 1, preserving the
+// relative ordering without recomputing distances.
+//
+// This matches the "fast" jackknife in the R reference (jackknife_rank_full).
+//
+// Arguments:
+//   ranks   : n-vector of integer ranks from the full sample (1 = nearest)
+//   signal  : n-vector of per-observation contributions (pseudo-outcomes, Y, ...)
+//   k       : number of nearest neighbors
+//   s       : kernel order
+//   method  : "exact" (default) or "asymp"
+//
+// Returns: jackknife SE (scalar).
+//
+real scalar rdistnn_jk_se_from_ranks(real colvector ranks,
+                                      real colvector signal,
+                                      real scalar k,
+                                      real scalar s,
+                                      | string scalar method)
+{
+    real scalar     n, i, r_i
+    real colvector  idx, kept, ranks_m1, signal_m1, w_m1, loo
+
+    if (args() < 5 | method == "") method = "exact"
+
+    n   = rows(ranks)
+    loo = J(n, 1, .)
+    idx = (1::n)
+
+    for (i = 1; i <= n; i++) {
+        r_i      = ranks[i]
+        kept     = (idx :!= i)                            // n x 1 logical (0/1)
+        ranks_m1 = select(ranks, kept)                    // n-1 ranks in 1..n with gap at r_i
+        ranks_m1 = ranks_m1 :- (ranks_m1 :> r_i)         // shift down: now 1..n-1
+        signal_m1 = select(signal, kept)
+        w_m1     = rdistnn_weights_from_ranks(ranks_m1, k, s, method)
+        loo[i]   = sum(w_m1 :* signal_m1)
+    }
+
+    return(sqrt((n-1) / n * sum((loo :- mean(loo)):^2)))
 }
 
 end

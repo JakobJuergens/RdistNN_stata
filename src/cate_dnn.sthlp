@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.1  2026-04-05}{...}
+{* *! version 0.0.2  2026-04-06}{...}
 {viewerjumpto "Syntax"          "cate_dnn##syntax"}{...}
 {viewerjumpto "Description"     "cate_dnn##description"}{...}
 {viewerjumpto "Options"         "cate_dnn##options"}{...}
@@ -57,12 +57,22 @@ tau(x0) = E[Y(1) - Y(0) | X = x0] at a fixed covariate point {opt x0}
 using the distributional nearest-neighbor (DNN) estimator of Juergens (2025).
 
 {pstd}
-The estimator applies DNN rank weights w_i(x0) to the Robinson (1988)
-pseudo-outcomes rho_i = (D_i - e_i)(Y_i - m_i) / (e_i(1-e_i)),
-yielding a localized weighted mean.  Standard errors are computed via
-the fast leave-one-out jackknife.  The DNN weights exploit the
-generalized-U-statistic / L-statistic structure to deliver valid
-same-sample inference without cross-fitting.
+The estimator applies DNN rank weights w_i(x0) to per-observation
+pseudo-outcomes, yielding a localized weighted mean.  When both {opt m0()}
+and {opt m1()} are supplied, the doubly-robust AIPW pseudo-outcome is used:
+
+{phang2}phi_i = D_i*(Y_i-m1_i)/den_i - (1-D_i)*(Y_i-m0_i)/den_i + (m1_i-m0_i){p_end}
+
+{pstd}
+where den_i = max(e_i*(1-e_i), 1e-8).  When only one outcome model is
+available, the Robinson (1988) form phi_i = (D_i-e_i)*(Y_i-m_i)/den_i is
+used instead (a warning is displayed).
+
+{pstd}
+Standard errors are computed via the true delete-1 jackknife using the
+rank-shift algorithm: when observation i is removed, all remaining ranks
+exceeding rank_i are shifted down by 1, preserving the relative ordering
+without recomputing distances.
 
 {pstd}
 Nuisance functions (propensity score and outcome models) must be supplied
@@ -113,8 +123,9 @@ undersmoothing rule floor(n^((kx+1)/(kx+2))).
 {phang}
 {opt distance(string)} selects the distance metric.  {cmd:l2} (default)
 uses Euclidean distance.  {cmd:mahalanobis} uses the sample covariance
-matrix to form an ellipsoidal neighborhood; recommended when covariates
-are strongly correlated ({it:cf.} DGP 5 of Juergens 2025).
+matrix (via {cmd:invsym()}) to form an ellipsoidal neighborhood;
+recommended when covariates are strongly correlated
+({it:cf.} DGP 5 of Juergens 2025).  Requires at least 2 covariates.
 
 {marker results}{...}
 {title:Stored results}
