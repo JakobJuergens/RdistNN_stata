@@ -12,13 +12,20 @@
 //   quietly cd ..
 
 // ---------------------------------------------------------------------
-// Guard: only compile once per session
+// Reload hygiene: if these functions already exist in the Mata session,
+// drop them so this file can redefine the latest source version.
 // ---------------------------------------------------------------------
-capture mata: mata describe rdistnn_ranks()
-if _rc == 0 {
-    // Already loaded; nothing to do.
-    exit
-}
+capture mata: mata drop lncomb()
+capture mata: mata drop rdistnn_l2dist()
+capture mata: mata drop rdistnn_mahal_cov_inv()
+capture mata: mata drop rdistnn_mahal_dist()
+capture mata: mata drop rdistnn_order()
+capture mata: mata drop rdistnn_weights_exact()
+capture mata: mata drop rdistnn_weights_asymp()
+capture mata: mata drop rdistnn_ranks()
+capture mata: mata drop rdistnn_weights_from_ranks()
+capture mata: mata drop rdistnn_weights()
+capture mata: mata drop rdistnn_jk_se_from_ranks()
 
 // ---------------------------------------------------------------------
 // Plugin fast path: try to declare rdistnn_plugin once per session.
@@ -104,9 +111,13 @@ real matrix rdistnn_mahal_cov_inv(real matrix X)
 real colvector rdistnn_mahal_dist(real matrix X, real rowvector x0,
                                    real matrix Sinv)
 {
-    real matrix Z
+    real matrix     Z
+    real colvector  qform
     Z = X :- x0                        // broadcast row subtraction
-    return(sqrt(rowsum((Z * Sinv) :* Z)))
+    qform = rowsum((Z * Sinv) :* Z)
+    // Clamp tiny negative roundoff to zero before sqrt().
+    qform = qform :* (qform :>= 0)
+    return(sqrt(qform))
 }
 
 // ── rdistnn_order ─────────────────────────────────────────────────────

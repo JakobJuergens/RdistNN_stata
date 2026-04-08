@@ -89,7 +89,7 @@ program define weights_dnn, rclass
             if `touse', weights_l2 `method' `k' `s' `x0'
         local __plugin_ok = (_rc == 0)
         if `__plugin_ok' {
-            mata: st_numscalar("r(neff)", 1 / sum(st_data(., "`__wvar'", "`touse'") :^2))
+            mata: st_local("wt_neff", strofreal(1 / sum(st_data(., "`__wvar'", "`touse'") :^2), "%21.0g"))
             if "`generate'" != "" {
                 quietly gen double `generate' = `__wvar' if `touse'
                 di as text "DNN weights stored in `generate'."
@@ -106,7 +106,7 @@ program define weights_dnn, rclass
             _x0    = (`x0_mata')
             _ranks = rdistnn_ranks(_X, _x0, "`distance'")
             _w     = rdistnn_weights_from_ranks(_ranks, `k', `s', "`method'")
-            st_numscalar("r(neff)", 1 / sum(_w :^2))
+            st_local("wt_neff", strofreal(1 / sum(_w :^2), "%21.0g"))
         }
         if "`generate'" != "" {
             quietly gen double `generate' = .
@@ -115,12 +115,12 @@ program define weights_dnn, rclass
         }
     }
 
-    return scalar neff = r(neff)
+    return scalar neff = `wt_neff'
     return scalar n    = `n'
     return scalar k    = `k'
     return scalar s    = `s'
     return scalar kx   = `kx'
 
-    di as text "Effective sample size (neff): " as result %8.2f r(neff)
+    di as text "Effective sample size (neff): " as result %8.2f `wt_neff'
 
 end

@@ -22,14 +22,17 @@ program define np_dnn, eclass
         ]
 
     marksample touse
-    markout `touse' `x'
+    markout `touse' `x' `varlist'
 
     local outcome `varlist'
     local xvars   `x'
     local kx : word count `xvars'
 
     quietly count if `touse'
-    if r(N) == 0 { di as error "No observations."; exit 2000 }
+    if r(N) == 0 {
+        di as error "No observations."
+        exit 2000
+    }
     local n = r(N)
 
     local nx0 : word count `x0'
@@ -78,6 +81,7 @@ program define np_dnn, eclass
     // Always use the Mata path so ranks are available for the JK.
     // rdistnn_ranks() handles L2/Mahalanobis dispatch internally, avoiding
     // if-else braces inside the inline mata { } block (Stata parser limit).
+    tempname b V
     mata {
         _np_X     = st_data(., "`xvars'", "`touse'")
         _np_x0    = (`x0_mata')
@@ -87,21 +91,17 @@ program define np_dnn, eclass
         _np_mu    = sum(_np_w :* _np_y)
         _np_sejk  = rdistnn_jk_se_from_ranks(_np_ranks, _np_y, `k', `s', "`method'")
         _np_neff  = 1 / sum(_np_w :^2)
-        st_numscalar("r(mu_hat)", _np_mu)
-        st_numscalar("r(se_jk)",  _np_sejk)
-        st_numscalar("r(neff)",   _np_neff)
+        st_matrix("`b'", _np_mu)
+        st_matrix("`V'", _np_sejk^2)
+        st_numscalar("r(neff)", _np_neff)
     }
-
-    tempname b V
-    matrix `b' = (r(mu_hat))
-    matrix `V' = (r(se_jk)^2)
     matrix colnames `b' = mu
     matrix rownames `V' = mu
     matrix colnames `V' = mu
 
     ereturn post `b' `V', esample(`touse')
     ereturn scalar N      = `n'
-    ereturn scalar neff   = r(neff)
+    ereturn scalar neff   = scalar(r(neff))
     ereturn scalar k      = `k'
     ereturn scalar s      = `s'
     ereturn scalar kx     = `kx'

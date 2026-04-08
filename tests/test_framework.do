@@ -11,14 +11,18 @@
 //   test_section "label"
 //
 // Counters:
-//   $__tf_pass / $__tf_fail accumulate across all files in a session.
+//   $tf_pass / $tf_fail accumulate across all files in a session.
 //   tests.do reports the grand total.
 
 version 16
 
 // ── global counters (safe to initialise multiple times) ───────────────────
-if "$__tf_pass" == "" global __tf_pass 0
-if "$__tf_fail" == "" global __tf_fail 0
+if "$tf_pass" == "" {
+    global tf_pass 0
+}
+if "$tf_fail" == "" {
+    global tf_fail 0
+}
 
 // ── test_assert ────────────────────────────────────────────────────────────
 // Usage: test_assert "message" condition
@@ -32,15 +36,15 @@ if "$__tf_fail" == "" global __tf_fail 0
 //     test_assert "[smoke] weights sum to 1" abs(`wsum' - 1) < 1e-8
 cap program drop test_assert
 program define test_assert
-    gettoken msg cond : 0, qsyntax
+    gettoken msg cond : 0, quotes
     cap assert `cond'
     if _rc == 0 {
         di as result "    PASS " as text `"`msg'"'
-        global __tf_pass = $__tf_pass + 1
+        global tf_pass = $tf_pass + 1
     }
     else {
         di as error "    FAIL " as text `"`msg'"'
-        global __tf_fail = $__tf_fail + 1
+        global tf_fail = $tf_fail + 1
     }
 end
 
@@ -48,7 +52,8 @@ end
 // Prints a section banner for visual grouping in the results window.
 cap program drop test_section
 program define test_section
-    di _n as text "  ── `0' ──"
+    local label `"`0'"'
+    di _n as text `"  -- `label' --"'
 end
 
 // ── DGP programs ──────────────────────────────────────────────────────────

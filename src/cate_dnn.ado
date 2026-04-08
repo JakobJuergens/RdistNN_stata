@@ -29,7 +29,7 @@ program define cate_dnn, eclass
 
     // ── mark sample ──────────────────────────────────────────────────
     marksample touse
-    markout `touse' `treat' `x' `propensity' `m0' `m1'
+    markout `touse' `varlist' `treat' `x' `propensity' `m0' `m1'
 
     local outcome `varlist'
     local xvars   `x'
@@ -136,6 +136,7 @@ program define cate_dnn, eclass
     // Always use the Mata path so ranks are available for the JK.
     // rdistnn_ranks() handles L2/Mahalanobis dispatch internally, avoiding
     // if-else braces inside the inline mata { } block (Stata parser limit).
+    tempname b V
     mata {
         _ct_X     = st_data(., "`xvars'", "`touse'")
         _ct_x0    = (`x0_mata')
@@ -145,22 +146,19 @@ program define cate_dnn, eclass
         _ct_tau   = sum(_ct_w :* _ct_rho)
         _ct_sejk  = rdistnn_jk_se_from_ranks(_ct_ranks, _ct_rho, `k', `s', "`method'")
         _ct_neff  = 1 / sum(_ct_w :^2)
-        st_numscalar("r(tau_hat)", _ct_tau)
-        st_numscalar("r(se_jk)",   _ct_sejk)
-        st_numscalar("r(neff)",    _ct_neff)
+        st_matrix("`b'", _ct_tau)
+        st_matrix("`V'", _ct_sejk^2)
+        st_numscalar("r(neff)", _ct_neff)
     }
 
     // ── store eclass results ─────────────────────────────────────────
-    tempname b V
-    matrix `b' = (r(tau_hat))
-    matrix `V' = (r(se_jk)^2)
     matrix colnames `b' = tau
     matrix rownames `V' = tau
     matrix colnames `V' = tau
 
     ereturn post `b' `V', esample(`touse')
     ereturn scalar N      = `n'
-    ereturn scalar neff   = r(neff)
+    ereturn scalar neff   = scalar(r(neff))
     ereturn scalar k      = `k'
     ereturn scalar s      = `s'
     ereturn scalar kx     = `kx'

@@ -6,7 +6,7 @@
 //
 // The runner sources the framework once, pre-loads the Mata library, then
 // executes each test-*.do file in order.  Each file updates the shared
-// globals $__tf_pass / $__tf_fail.  A grand total is printed at the end.
+// globals $tf_pass / $tf_fail.  A grand total is printed at the end.
 // Exit code 1 is returned if any test failed (useful for CI).
 
 version 16
@@ -45,20 +45,20 @@ foreach f of local test_files {
     cap noisily do "tests/`f'.do"
     if _rc {
         di as error "  [runner] `f'.do aborted unexpectedly (rc=`_rc')"
-        global __tf_fail = $__tf_fail + 1
+        global tf_fail = $tf_fail + 1
     }
 }
 
 // ── grand total ───────────────────────────────────────────────────────────
-local total = $__tf_pass + $__tf_fail
+local total = $tf_pass + $tf_fail
 di ""
 di as text _dup(55) "─"
-if $__tf_fail == 0 {
-    di as result "All $__tf_pass tests passed."
+if $tf_fail == 0 {
+    di as result "All $tf_pass tests passed."
 }
 else {
-    di as error "$__tf_fail of `total' tests FAILED."
+    di as error "$tf_fail of `total' tests FAILED."
 }
 di as text _dup(55) "─"
 
-if $__tf_fail > 0 exit 1
+if $tf_fail > 0 exit 1
