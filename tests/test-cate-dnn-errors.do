@@ -17,9 +17,15 @@ test_section "cate_dnn: [errors] required options missing"
 cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) m0(m0) m1(m1)
 test_assert "[errors] missing propensity() rejected (rc=198)" _rc == 198
 
-// [errors] at least one of m0() / m1() is required
+// [errors] both m0() and m1() are required
 cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e)
 test_assert "[errors] missing both m0() and m1() rejected (rc=198)" _rc == 198
+
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e) m0(m0)
+test_assert "[errors] missing m1() rejected (rc=198)" _rc == 198
+
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e) m1(m1)
+test_assert "[errors] missing m0() rejected (rc=198)" _rc == 198
 
 // ════════════════════════════════════════════════════════════
 test_section "cate_dnn: [errors] x0 and k/s validation"
@@ -56,6 +62,33 @@ test_assert "[errors] invalid distance rejected (rc=198)" _rc == 198
 cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) ///
     propensity(e) m0(m0) m1(m1) method(bootstrap)
 test_assert "[errors] invalid method rejected (rc=198)" _rc == 198
+
+// ════════════════════════════════════════════════════════════
+test_section "cate_dnn: [errors] treatment and propensity validation"
+// ════════════════════════════════════════════════════════════
+
+// [errors] treatment must be coded 0/1
+preserve
+replace D = 2 in 1
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e) m0(m0) m1(m1)
+local rc_bad_treat = _rc
+restore
+test_assert "[errors] non-binary treat() rejected (rc=198)" `rc_bad_treat' == 198
+
+// [errors] propensity must lie in [0,1]
+preserve
+replace e = -0.1 in 1
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e) m0(m0) m1(m1)
+local rc_low_e = _rc
+restore
+test_assert "[errors] negative propensity rejected (rc=198)" `rc_low_e' == 198
+
+preserve
+replace e = 1.1 in 1
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e) m0(m0) m1(m1)
+local rc_high_e = _rc
+restore
+test_assert "[errors] propensity above one rejected (rc=198)" `rc_high_e' == 198
 
 // ════════════════════════════════════════════════════════════
 test_section "cate_dnn: [errors] empty sample"

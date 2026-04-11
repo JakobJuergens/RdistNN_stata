@@ -35,7 +35,7 @@ test_section "integration: [e2e] cate_dnn with zero treatment effect"
 // ════════════════════════════════════════════════════════════
 
 // [e2e] If treatment has no effect (m0 = m1), AIPW phi reduces to
-//   (D - e)(y - m0)/den which has conditional mean 0 under the null.
+//   D*(y-m0)/e - (1-D)*(y-m0)/(1-e), which has conditional mean 0.
 //   With large n and oracle nuisances, |tau_hat| should be small.
 clear
 set obs 500

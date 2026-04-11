@@ -1,6 +1,17 @@
 # Stata implementation: what needs to be fixed next
 
-This note focuses only on the remaining issues in the revised Stata implementation and on the most sensible way to fix them.
+Status update, 2026-04-11: the first implementation pass has addressed the
+highest-priority estimator issues described below: `cate_dnn` now uses
+arm-specific AIPW denominators, requires `propensity()`, `m0()`, and `m1()`,
+rejects non-binary treatment and out-of-range propensity values, and the
+package manifest/help files have been updated.  The Mahalanobis jackknife is
+now documented as a full-sample fixed-metric rank-shift jackknife rather than
+as a changing-covariance leave-one-out recomputation.  The remaining strategic
+question is whether to later implement a slower true leave-one-out
+Mahalanobis jackknife.
+
+The rest of this note is retained as historical context for the review that
+motivated the 2026-04-11 implementation pass.
 
 ## 1. Fix the `cate_dnn` pseudo-outcome first
 

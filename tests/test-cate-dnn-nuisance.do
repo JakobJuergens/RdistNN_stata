@@ -1,5 +1,5 @@
 // test-cate-dnn-nuisance.do
-// Tests for cate_dnn nuisance-handling: full AIPW vs Robinson forms,
+// Tests for cate_dnn nuisance-handling: full AIPW nuisances,
 // propensity clipping, oracle recovery, and method/distance options.
 //
 // Tags: [nuisance] [double-robust] [opts]
@@ -10,7 +10,7 @@ do "tests/test_framework.do"
 rdnn_dgp_basic, n(200) seed(42)
 
 // ════════════════════════════════════════════════════════════
-test_section "cate_dnn: [nuisance] pseudo-outcome forms"
+test_section "cate_dnn: [nuisance] required full AIPW inputs"
 // ════════════════════════════════════════════════════════════
 
 // [nuisance] Full AIPW (both m0 and m1 provided)
@@ -20,24 +20,12 @@ local se_full  = _se[tau]
 test_assert "[nuisance] full AIPW: finite tau"   (`tau_full' < .)
 test_assert "[nuisance] full AIPW: se >= 0"       `se_full'  >= 0
 
-// [nuisance] Robinson form: m0 only (note from command should print)
-quietly cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(5) propensity(e) m0(m0)
-local tau_rob0 = _b[tau]
-local se_rob0  = _se[tau]
-test_assert "[nuisance] Robinson m0-only: finite tau"   (`tau_rob0' < .)
-test_assert "[nuisance] Robinson m0-only: se >= 0"       `se_rob0'  >= 0
+// [nuisance] Partial outcome nuisances are not supported.
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(5) propensity(e) m0(m0)
+test_assert "[nuisance] missing m1() rejected (rc=198)" _rc == 198
 
-// [nuisance] Robinson form: m1 only
-quietly cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(5) propensity(e) m1(m1)
-local tau_rob1 = _b[tau]
-local se_rob1  = _se[tau]
-test_assert "[nuisance] Robinson m1-only: finite tau"   (`tau_rob1' < .)
-test_assert "[nuisance] Robinson m1-only: se >= 0"       `se_rob1'  >= 0
-
-// [nuisance] full AIPW and Robinson forms give different estimates
-//   (same oracle nuisances but different pseudo-outcome)
-local diff_forms = abs(`tau_full' - `tau_rob0')
-test_assert "[nuisance] full AIPW != Robinson m0-only" `diff_forms' > 0
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(5) propensity(e) m1(m1)
+test_assert "[nuisance] missing m0() rejected (rc=198)" _rc == 198
 
 // ════════════════════════════════════════════════════════════
 test_section "cate_dnn: [double-robust] oracle nuisances"
@@ -61,7 +49,7 @@ test_section "cate_dnn: [nuisance] propensity clipping at 1e-8"
 // ════════════════════════════════════════════════════════════
 
 // [nuisance] Even with propensity very close to 0 or 1, the command
-//   should run without error (denominator clips at 1e-8).
+//   should run without error (residual denominators clip at 1e-8).
 rdnn_dgp_basic, n(100) seed(7)
 replace e = 1e-9 in 1      // force a near-zero propensity
 replace e = 1 - 1e-9 in 2  // force a near-one propensity

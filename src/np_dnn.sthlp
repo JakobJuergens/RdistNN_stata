@@ -47,9 +47,11 @@ using DNN rank weights.  This is the building block for {helpb cate_dnn}
 when applied to pseudo-outcomes directly.
 
 {pstd}
-Standard errors are computed via the true delete-1 jackknife using the
-rank-shift algorithm: removing observation i shifts all ranks above rank_i
-down by 1, so distances need not be recomputed.
+Standard errors are computed via the rank-shift jackknife.  For
+{cmd:distance(l2)}, this is the exact delete-1 recomputation because the
+remaining distances do not change.  For {cmd:distance(mahalanobis)}, the
+sample covariance metric is computed from the full estimation sample and
+held fixed across jackknife deletions.
 
 {marker options}{...}
 {title:Options}

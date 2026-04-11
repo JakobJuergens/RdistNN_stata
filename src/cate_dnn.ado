@@ -80,47 +80,37 @@ program define cate_dnn, eclass
     }
 
     // ── pseudo-outcome ────────────────────────────────────────────────
-    // Full AIPW (doubly robust) when both m0 and m1 are provided:
-    //   phi_i = D*(Y-m1)/den - (1-D)*(Y-m0)/den + (m1-m0)
-    // where den = max(e*(1-e), 1e-8).
-    //
-    // Fallback to Robinson form when only one nuisance is available:
-    //   phi_i = (D-e)*(Y-m)/den
+    // AIPW / doubly robust CATE signal:
+    //   phi_i = D*(Y-m1)/e - (1-D)*(Y-m0)/(1-e) + (m1-m0)
     if "`propensity'" == "" {
         di as error "propensity() is required.  Provide oracle or estimated propensity scores."
         exit 198
     }
-    if "`m0'" == "" & "`m1'" == "" {
-        di as error "m0() or m1() (or both) is required."
+    if "`m0'" == "" | "`m1'" == "" {
+        di as error "m0() and m1() are required."
         exit 198
     }
 
-    tempvar den_var rho_var
-
-    quietly gen double `den_var' = max(`propensity' * (1 - `propensity'), 1e-8) if `touse'
-
-    if "`m0'" != "" & "`m1'" != "" {
-        // Full AIPW pseudo-outcome
-        quietly gen double `rho_var' = ///
-            `treat' * (`outcome' - `m1') / `den_var'       ///
-            - (1 - `treat') * (`outcome' - `m0') / `den_var' ///
-            + (`m1' - `m0')                                ///
-            if `touse'
+    quietly count if `touse' & !inlist(`treat', 0, 1)
+    if r(N) > 0 {
+        di as error "treat() must be coded 0/1."
+        exit 198
     }
-    else {
-        // Single nuisance: Robinson form  phi_i = (D-e)*(Y-m)/den
-        if "`m0'" != "" {
-            di as text "(note: m1() not supplied; using Robinson form with m0)"
-            local m_use `m0'
-        }
-        else {
-            di as text "(note: m0() not supplied; using Robinson form with m1)"
-            local m_use `m1'
-        }
-        quietly gen double `rho_var' = ///
-            (`treat' - `propensity') * (`outcome' - `m_use') / `den_var' ///
-            if `touse'
+
+    quietly count if `touse' & (`propensity' < 0 | `propensity' > 1)
+    if r(N) > 0 {
+        di as error "propensity() must lie in [0,1]."
+        exit 198
     }
+
+    tempvar eclip rho_var
+
+    quietly gen double `eclip' = min(max(`propensity', 1e-8), 1 - 1e-8) if `touse'
+    quietly gen double `rho_var' = ///
+        `treat' * (`outcome' - `m1') / `eclip' ///
+        - (1 - `treat') * (`outcome' - `m0') / (1 - `eclip') ///
+        + (`m1' - `m0') ///
+        if `touse'
 
     // ── load Mata ────────────────────────────────────────────────────
     findfile "_rdistnn_mata.ado"
@@ -132,7 +122,7 @@ program define cate_dnn, eclass
     }
     local x0_mata = substr("`x0_mata'", 1, length("`x0_mata'") - 1)
 
-    // ── compute ranks, weights, point estimate, and true delete-1 JK SE ─
+    // ── compute ranks, weights, point estimate, and rank-shift JK SE ─
     // Always use the Mata path so ranks are available for the JK.
     // rdistnn_ranks() handles L2/Mahalanobis dispatch internally, avoiding
     // if-else braces inside the inline mata { } block (Stata parser limit).

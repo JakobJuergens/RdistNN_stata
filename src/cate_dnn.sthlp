@@ -33,7 +33,7 @@ distributional nearest neighbors
 {synopt:{opth x(varlist)}}covariates used to define the neighborhood{p_end}
 {synopt:{opt x0(numlist)}}evaluation point; one value per covariate{p_end}
 
-{syntab:Nuisances (at least propensity + one outcome model required)}
+{syntab:Nuisances (propensity and both outcome models required)}
 {synopt:{opth propensity(varname)}}estimated or oracle propensity score e(X){p_end}
 {synopt:{opth m0(varname)}}estimated or oracle E[Y|X, D=0]{p_end}
 {synopt:{opth m1(varname)}}estimated or oracle E[Y|X, D=1]{p_end}
@@ -58,21 +58,21 @@ using the distributional nearest-neighbor (DNN) estimator of Juergens (2025).
 
 {pstd}
 The estimator applies DNN rank weights w_i(x0) to per-observation
-pseudo-outcomes, yielding a localized weighted mean.  When both {opt m0()}
-and {opt m1()} are supplied, the doubly-robust AIPW pseudo-outcome is used:
+pseudo-outcomes, yielding a localized weighted mean.  The doubly-robust
+AIPW pseudo-outcome is
 
-{phang2}phi_i = D_i*(Y_i-m1_i)/den_i - (1-D_i)*(Y_i-m0_i)/den_i + (m1_i-m0_i){p_end}
-
-{pstd}
-where den_i = max(e_i*(1-e_i), 1e-8).  When only one outcome model is
-available, the Robinson (1988) form phi_i = (D_i-e_i)*(Y_i-m_i)/den_i is
-used instead (a warning is displayed).
+{phang2}phi_i = D_i*(Y_i-m1_i)/eclip_i - (1-D_i)*(Y_i-m0_i)/(1-eclip_i) + (m1_i-m0_i){p_end}
 
 {pstd}
-Standard errors are computed via the true delete-1 jackknife using the
-rank-shift algorithm: when observation i is removed, all remaining ranks
-exceeding rank_i are shifted down by 1, preserving the relative ordering
-without recomputing distances.
+where eclip_i = min(max(e_i, 1e-8), 1-1e-8).  The command requires
+{opt propensity()}, {opt m0()}, and {opt m1()}.
+
+{pstd}
+Standard errors are computed via the rank-shift jackknife.  For
+{cmd:distance(l2)}, this is the exact delete-1 recomputation because the
+remaining distances do not change.  For {cmd:distance(mahalanobis)}, the
+sample covariance metric is computed from the full estimation sample and
+held fixed across jackknife deletions.
 
 {pstd}
 Nuisance functions (propensity score and outcome models) must be supplied
@@ -101,13 +101,16 @@ the two-dimensional origin.
 
 {phang}
 {opth propensity(varname)} provides the propensity score e(X) = P(D=1|X).
-Values should lie strictly in (0, 1).
+Values must lie in [0, 1].  Values at or very near the endpoints are clipped
+only inside the residual denominators.
 
 {phang}
 {opth m0(varname)} provides the conditional outcome mean E[Y|X, D=0].
+This option is required.
 
 {phang}
 {opth m1(varname)} provides the conditional outcome mean E[Y|X, D=1].
+This option is required.
 
 {dlgtab:Tuning}
 
@@ -163,15 +166,16 @@ recommended when covariates are strongly correlated
 {phang2}{cmd:. gen D = (runiform() < e_oracle)}{p_end}
 {phang2}{cmd:. gen tau_true = 0.5 + 0.5*sin(x1)}{p_end}
 {phang2}{cmd:. gen m0_true = 1 + x1 - x2}{p_end}
-{phang2}{cmd:. gen Y = m0_true + D*tau_true + rnormal()*0.5}{p_end}
+{phang2}{cmd:. gen m1_true = m0_true + tau_true}{p_end}
+{phang2}{cmd:. gen Y = m0_true + D*(m1_true-m0_true) + rnormal()*0.5}{p_end}
 
 {pstd}Estimate CATE at the origin using oracle nuisances.{p_end}
 {phang2}{cmd:. cate_dnn Y, treat(D) x(x1 x2) x0(0 0)}{...}
-{phang2}{cmd:    propensity(e_oracle) m0(m0_true) m1(m0_true)}{p_end}
+{phang2}{cmd:    propensity(e_oracle) m0(m0_true) m1(m1_true)}{p_end}
 
 {pstd}With Mahalanobis distance (for correlated covariates).{p_end}
 {phang2}{cmd:. cate_dnn Y, treat(D) x(x1 x2) x0(0.75 0)}{...}
-{phang2}{cmd:    propensity(e_oracle) m0(m0_true) m1(m0_true)}{...}
+{phang2}{cmd:    propensity(e_oracle) m0(m0_true) m1(m1_true)}{...}
 {phang2}{cmd:    distance(mahalanobis)}{p_end}
 
 {marker references}{...}
@@ -181,8 +185,3 @@ recommended when covariates are strongly correlated
 Juergens, J. (2025).
 {it:Robust Inference for Conditional Z-Estimation via Distributional Nearest Neighbors}.
 Working paper.
-
-{phang}
-Robinson, P. M. (1988).
-Root-N-consistent semiparametric regression.
-{it:Econometrica}, 56(4), 931-954.

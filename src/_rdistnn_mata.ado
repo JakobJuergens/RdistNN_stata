@@ -1,6 +1,6 @@
 // _rdistnn_mata.ado
 // Mata library for RdistNN: distance computation, rank ordering, DNN weight
-// calculation, and true delete-1 jackknife SE.  Loaded automatically when any
+// calculation, and rank-shift jackknife SE.  Loaded automatically when any
 // rdistnn command is first called.
 //
 // Compile and save the .mlib via:
@@ -343,11 +343,13 @@ real colvector rdistnn_weights(real matrix X, real rowvector x0,
 }
 
 // ── rdistnn_jk_se_from_ranks ──────────────────────────────────────────
-// True delete-1 jackknife SE for a DNN-weighted sum, using the rank-shift
-// approach.  When observation i (with rank r_i) is deleted, all remaining
-// observations with rank > r_i are shifted down by 1, preserving the
-// relative ordering without recomputing distances.
+// Rank-shift jackknife SE for a DNN-weighted sum.  When observation i
+// (with rank r_i) is deleted, all remaining observations with rank > r_i
+// are shifted down by 1, preserving the relative ordering under a fixed
+// distance metric.
 //
+// This is exact delete-1 rank recomputation for L2.  For Mahalanobis, callers
+// interpret the covariance metric as fixed at the full estimation sample.
 // This matches the "fast" jackknife in the R reference (jackknife_rank_full).
 //
 // Arguments:

@@ -56,10 +56,10 @@ test_section "cate_dnn: [pseudo] tau = weighted mean of AIPW phi"
 rdnn_dgp_basic, n(200) seed(42)
 
 // Compute AIPW pseudo-outcome manually
-gen double den  = max(e * (1 - e), 1e-8)
-gen double phi  = D * (y - m1) / den  ///
-                - (1-D) * (y - m0) / den  ///
-                + (m1 - m0)
+gen double eclip = min(max(e, 1e-8), 1 - 1e-8)
+gen double phi   = D * (y - m1) / eclip  ///
+                 - (1-D) * (y - m0) / (1 - eclip)  ///
+                 + (m1 - m0)
 
 // Get DNN weights
 weights_dnn x1 x2, x0(0 0) k(5) generate(w_cate)
@@ -85,8 +85,8 @@ test_section "cate_dnn: [edge] constant pseudo-outcome => SE = 0"
 
 // [edge] If all pseudo-outcomes are constant, the LOO JK SE is 0.
 rdnn_dgp_basic, n(100) seed(11)
-replace m0 = y          // set m0 = y so phi = constant (m1-m0) = constant
-replace m1 = y + 2.0    // tau_true = 2.0
+replace m0 = y - 2.0 * D
+replace m1 = y + 2.0 * (1 - D)
 
 cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) ///
     propensity(e) m0(m0) m1(m1)

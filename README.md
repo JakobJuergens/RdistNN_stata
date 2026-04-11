@@ -77,6 +77,7 @@ RdistNN_stata/
     ├── cate_dnn.sthlp       ← help for cate_dnn
     ├── np_dnn.ado           ← nonparametric regression
     ├── np_dnn.sthlp         ← help for np_dnn
+    ├── rdistnn.plugin       ← optional fast path for L2 weights
     ├── weights_dnn.ado      ← weight utility
     └── weights_dnn.sthlp    ← help for weights_dnn
 ```
@@ -86,9 +87,9 @@ RdistNN_stata/
 ## Notes
 
 - **Nuisances**: `cate_dnn` requires user-supplied propensity scores and
-  outcome models.  These may be oracle values or first-stage estimates;
-  Neyman orthogonality ensures robustness to first-stage bias at the local
-  effective sample size scale.
+  both treatment-arm outcome models, `m0()` and `m1()`.  These may be
+  oracle values or first-stage estimates; Neyman orthogonality ensures
+  robustness to first-stage bias at the local effective sample size scale.
 
 - **Tuning**: `k` controls the number of nearest neighbors; `s` is the
   kernel order (bandwidth analog).  The default `s(0)` uses the
@@ -96,7 +97,8 @@ RdistNN_stata/
 
 - **Mahalanobis distance**: use `distance(mahalanobis)` when covariates
   are strongly correlated (corresponds to `dnn_oracle_mahal` in the R
-  simulation study).
+  simulation study).  Jackknife inference holds the full-sample covariance
+  metric fixed across leave-one-out deletions.
 
-- **Standard errors**: computed via the fast leave-one-out jackknife,
-  which exploits the L-statistic structure of the DNN estimator.
+- **Standard errors**: computed via the fast rank-shift jackknife, which
+  exploits the L-statistic structure of the DNN estimator.

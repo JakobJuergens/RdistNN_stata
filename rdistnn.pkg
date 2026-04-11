@@ -18,6 +18,7 @@ f src/cate_dnn.ado
 f src/cate_dnn.sthlp
 f src/np_dnn.ado
 f src/np_dnn.sthlp
+f src/rdistnn.plugin
 f src/weights_dnn.ado
 f src/weights_dnn.sthlp
 f src/_rdistnn_mata.ado

@@ -77,7 +77,7 @@ program define np_dnn, eclass
     }
     local x0_mata = substr("`x0_mata'", 1, length("`x0_mata'") - 1)
 
-    // ── compute ranks, weights, point estimate, and true delete-1 JK SE ─
+    // ── compute ranks, weights, point estimate, and rank-shift JK SE ─
     // Always use the Mata path so ranks are available for the JK.
     // rdistnn_ranks() handles L2/Mahalanobis dispatch internally, avoiding
     // if-else braces inside the inline mata { } block (Stata parser limit).
