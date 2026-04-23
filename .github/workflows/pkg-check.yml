@@ -9,6 +9,10 @@ permissions:
   contents: write
   actions: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pkg-check:
     runs-on: ubuntu-latest
@@ -34,7 +38,7 @@ jobs:
           retention-days: 14
 
   save_logs:
-    if: ${{ always() && needs.pkg-check.result != 'success' && github.actor != 'github-actions[bot]' }}
+    if: ${{ !cancelled() && always() && needs.pkg-check.result != 'success' && github.actor != 'github-actions[bot]' }}
     needs: [pkg-check]
     uses: ./.github/workflows/harvest-failure-logs.yml
     with:

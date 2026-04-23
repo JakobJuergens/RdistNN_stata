@@ -1,41 +1,32 @@
 # RdistNN_stata
 
-Stata implementation of the DNN (distributional nearest neighbors) estimator
-for conditional Z-estimation, companion to the R package
-[RdistNN](../RdistNN) and the paper:
+`RdistNN_stata` is a Stata package for distributional nearest-neighbor (DNN)
+local estimation and pointwise conditional Z-estimation. It is the Stata
+companion to the R package
+[RdistNN](https://github.com/JakobJuergens/RdistNN) and the paper
+[Robust Inference for Conditional Z-Estimation via Distributional Nearest Neighbors](https://github.com/JakobJuergens/Cond_Z_Estimation).
 
-> **Robust Inference for Conditional Z-Estimation via Distributional Nearest
-> Neighbors**  
-> Jakob Juergens
+The current package exposes three user-facing commands:
 
----
-
-## Commands
-
-| Command | Description |
+| Command | Purpose |
 |---|---|
-| `cate_dnn` | Conditional average treatment effect at a point x0 |
-| `np_dnn` | Nonparametric regression E[Y\|X=x0] at a point |
-| `weights_dnn` | Compute DNN rank weights (utility) |
+| `np_dnn` | Pointwise nonparametric regression at a target covariate profile |
+| `cate_dnn` | Pointwise conditional average treatment effect with user-supplied nuisance functions |
+| `weights_dnn` | Utility for computing and exporting exact DNN rank weights |
 
-All three commands require Stata 16 or later.
-
----
+Stata 16 or later is required.
 
 ## Installation (development)
 
-Clone or copy this repository, then run `dev-setup.do` once per Stata
-session to add `src/` to the adopath:
+Clone or copy this repository, then run `dev-setup.do` once per Stata session
+to add `src/` to the adopath:
 
 ```stata
 do "path\to\RdistNN_stata\dev-setup.do"
 ```
 
-To make the adopath addition permanent across sessions, add the
-`adopath ++` line to your `profile.do`
-(find it with `di c(sysdir_personal)`).
-
----
+To make the adopath addition permanent across sessions, add the `adopath ++`
+line to your `profile.do` (find it with `di c(sysdir_personal)`).
 
 ## Quick start
 
@@ -60,45 +51,40 @@ weights_dnn x1 x2, x0(0 0) k(5) generate(w)
 summarize w
 ```
 
----
+## Repository layout
 
-## Package structure
-
-```
+```text
 RdistNN_stata/
-├── .gitignore
-├── README.md
-├── rdistnn.pkg          ← package metadata (for net install)
-├── stata.toc            ← table of contents (for net install)
-├── dev-setup.do         ← adds src/ to adopath for development
-└── src/
-    ├── _rdistnn_mata.ado    ← Mata core: distances, ranks, weights
-    ├── cate_dnn.ado         ← CATE estimator
-    ├── cate_dnn.sthlp       ← help for cate_dnn
-    ├── np_dnn.ado           ← nonparametric regression
-    ├── np_dnn.sthlp         ← help for np_dnn
-    ├── rdistnn.plugin       ← optional fast path for L2 weights
-    ├── weights_dnn.ado      ← weight utility
-    └── weights_dnn.sthlp    ← help for weights_dnn
+|-- src/             Core ado, Mata, help, and plugin files
+|-- tests/           Stata-based regression and smoke tests
+|-- tools/           Development helpers
+|-- archives/        Historical snapshots and packaging artifacts
+|-- dev-setup.do     Adds src/ to the adopath for local development
+|-- rdistnn.pkg      Package metadata for net install workflows
+`-- stata.toc        Table of contents for Stata package distribution
 ```
-
----
 
 ## Notes
 
-- **Nuisances**: `cate_dnn` requires user-supplied propensity scores and
-  both treatment-arm outcome models, `m0()` and `m1()`.  These may be
-  oracle values or first-stage estimates; Neyman orthogonality ensures
-  robustness to first-stage bias at the local effective sample size scale.
+- `cate_dnn` requires user-supplied propensity scores and both treatment-arm
+  outcome models, `m0()` and `m1()`. These may be oracle values or first-stage
+  estimates; Neyman orthogonality protects against first-stage bias at the
+  local effective-sample-size scale.
+- `k` controls the number of nearest neighbors, while `s` is the DNN kernel
+  order. The default `s(0)` uses the undersmoothing rule
+  `floor(n^((kx+1)/(kx+2)))` from the paper.
+- Use `distance(mahalanobis)` when covariates are strongly correlated. The
+  jackknife keeps the full-sample covariance metric fixed across leave-one-out
+  deletions.
+- Standard errors are computed with the fast rank-shift jackknife, exploiting
+  the L-statistic structure of the DNN estimator.
 
-- **Tuning**: `k` controls the number of nearest neighbors; `s` is the
-  kernel order (bandwidth analog).  The default `s(0)` uses the
-  undersmoothing rule `floor(n^((kx+1)/(kx+2)))` from the paper.
+## Related repositories
 
-- **Mahalanobis distance**: use `distance(mahalanobis)` when covariates
-  are strongly correlated (corresponds to `dnn_oracle_mahal` in the R
-  simulation study).  Jackknife inference holds the full-sample covariance
-  metric fixed across leave-one-out deletions.
-
-- **Standard errors**: computed via the fast rank-shift jackknife, which
-  exploits the L-statistic structure of the DNN estimator.
+- [RdistNN](https://github.com/JakobJuergens/RdistNN): R package implementing
+  the broader DNN weighting and local-estimation framework.
+- [Cond_Z_Estimation](https://github.com/JakobJuergens/Cond_Z_Estimation):
+  paper repository for the conditional Z-estimation theory motivating these
+  commands.
+- [JK_GenUStat](https://github.com/JakobJuergens/JK_GenUStat): supporting
+  generalized U-statistic and jackknife variance theory.
