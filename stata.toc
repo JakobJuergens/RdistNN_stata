@@ -1,0 +1,7 @@
+v 3
+d RDISTNN: Distributional nearest-neighbor local estimation
+d
+d Stata companion package for RdistNN and conditional Z-estimation via
+d distributional nearest neighbors.
+d
+p rdistnn Distributional nearest-neighbor local estimation
