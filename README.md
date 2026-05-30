@@ -6,15 +6,16 @@ companion to the R package
 [RdistNN](https://github.com/JakobJuergens/RdistNN) and the paper
 [Robust Inference for Conditional Z-Estimation via Distributional Nearest Neighbors](https://github.com/JakobJuergens/Cond_Z_Estimation).
 
-The current package exposes three user-facing commands:
+The current package exposes four user-facing commands:
 
 | Command | Purpose |
 |---|---|
 | `np_dnn` | Pointwise nonparametric regression at a target covariate profile |
 | `cate_dnn` | Pointwise conditional average treatment effect with user-supplied nuisance functions |
+| `plqr_dnn` | Localized PLQR orthogonal moments at a supplied coefficient vector |
 | `weights_dnn` | Utility for computing and exporting exact DNN rank weights |
 
-Stata 16 or later is required.
+Stata 17 or later is required.
 
 ## Installation (development)
 
@@ -46,6 +47,16 @@ gen Y  = m0 + D*(m1 - m0) + rnormal()*0.5
 * Estimate CATE at the origin with oracle nuisances
 cate_dnn Y, treat(D) x(x1 x2) x0(0 0) propensity(e) m0(m0) m1(m1)
 
+* Local PLQR moments at a supplied beta with oracle nuisances
+gen md1 = 0.3*x1 - 0.2*x2
+gen md2 = -0.1*x1 + 0.4*x2
+gen d1  = md1 + rnormal()*0.4
+gen d2  = md2 + rnormal()*0.4
+gen q   = 0.25*x1 - 0.15*x2
+gen Yq  = d1 - 0.5*d2 + q + rnormal()*0.5
+plqr_dnn Yq, x(x1 x2) x0(0 0) d(d1 d2) q(q) md(md1 md2) ///
+    beta(1 -0.5) tau(0.5)
+
 * Inspect DNN weights
 weights_dnn x1 x2, x0(0 0) k(5) generate(w)
 summarize w
@@ -70,6 +81,10 @@ RdistNN_stata/
   outcome models, `m0()` and `m1()`. These may be oracle values or first-stage
   estimates; Neyman orthogonality protects against first-stage bias at the
   local effective-sample-size scale.
+- `plqr_dnn` requires user-supplied `q()` and `md()` nuisance variables and a
+  fixed `beta()` vector. It reports localized PLQR moments in `e(b)` and their
+  full jackknife covariance in `e(V)`; it does not solve for `beta`, estimate
+  nuisances, or perform GMM.
 - `k` controls the number of nearest neighbors, while `s` is the DNN kernel
   order. The default `s(0)` uses the undersmoothing rule
   `floor(n^((kx+1)/(kx+2)))` from the paper.

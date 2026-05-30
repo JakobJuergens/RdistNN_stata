@@ -8,7 +8,13 @@ package manifest/help files have been updated.  The Mahalanobis jackknife is
 now documented as a full-sample fixed-metric rank-shift jackknife rather than
 as a changing-covariance leave-one-out recomputation.  The remaining strategic
 question is whether to later implement a slower true leave-one-out
-Mahalanobis jackknife.
+Mahalanobis jackknife.  Status update, 2026-05-30: the Stata-version
+hygiene pass standardizes the active ado/test entry files and user-facing
+documentation to Stata 17 or later.  Status update, 2026-05-30: the next
+non-GMM Z-estimation layer is `plqr_dnn`, a fixed-beta localized PLQR
+moment evaluator backed by a vector rank-shift jackknife covariance helper.
+This keeps `gmm_dnn`, TDNN, automatic nuisance fitting, diagnostics, and true
+changing-metric Mahalanobis leave-one-out jackknife as later strategic layers.
 
 The rest of this note is retained as historical context for the review that
 motivated the 2026-04-11 implementation pass.
@@ -325,27 +331,21 @@ Broken setup references make the development workflow harder to reproduce.
 
 ---
 
-## 7. Decide on the supported Stata version and encode it consistently
+## 7. Supported Stata version is now encoded consistently
 
-This is not the most urgent issue, but it should be cleaned up soon.
+Status update, 2026-05-30: the active ado programs and test harness now target
+Stata 17 via `version 17`, and the README/help files document Stata 17 or
+later as the supported floor.
 
 ### Current situation
 
-The ado programs still declare:
+The intended support window, from prior discussion, is Stata 17, 18, and 19.
+The code now uses the oldest version in that window as the version target.
 
-```stata
-version 16
-```
+### Remaining release validation
 
-But the intended support window, from prior discussion, is Stata 17, 18, and 19.
-
-### What should be done
-
-If Stata 17 is the true minimum supported version, it would be better to:
-
-- change the program headers to `version 17`,
-- test under 17, 18, and 19,
-- and document that support window explicitly.
+Before a release, test under Stata 17, 18, and 19 when those runtimes are
+available.
 
 ### Why this matters
 
@@ -364,7 +364,7 @@ If the goal is to make the next revision substantively correct as quickly as pos
 5. **Resolve the Mahalanobis jackknife semantics**
 6. **Add the plugin to the package manifest**
 7. **Fix help-file / README inconsistencies**
-8. **Standardize version targeting and test across Stata 17/18/19**
+8. **Standardize version targeting and test across Stata 17/18/19** (source and docs now target Stata 17+; multi-version runtime validation remains a release check)
 
 ---
 

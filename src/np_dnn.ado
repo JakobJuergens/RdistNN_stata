@@ -2,7 +2,7 @@
 *! Nonparametric regression at a point via distributional nearest neighbors
 
 program define np_dnn, eclass
-    version 16
+    version 17
 
     if replay() {
         if "`e(cmd)'" != "np_dnn" error 301

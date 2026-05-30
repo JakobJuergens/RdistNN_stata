@@ -25,6 +25,7 @@ capture mata: mata drop rdistnn_weights_asymp()
 capture mata: mata drop rdistnn_ranks()
 capture mata: mata drop rdistnn_weights_from_ranks()
 capture mata: mata drop rdistnn_weights()
+capture mata: mata drop rdistnn_jk_cov_from_ranks()
 capture mata: mata drop rdistnn_jk_se_from_ranks()
 
 // ---------------------------------------------------------------------
@@ -342,8 +343,9 @@ real colvector rdistnn_weights(real matrix X, real rowvector x0,
     return(rdistnn_weights_from_ranks(ranks, k, s, method))
 }
 
-// ── rdistnn_jk_se_from_ranks ──────────────────────────────────────────
-// Rank-shift jackknife SE for a DNN-weighted sum.  When observation i
+// ── rdistnn_jk_cov_from_ranks ─────────────────────────────────────────
+// Rank-shift jackknife covariance for a DNN-weighted signal matrix.  When
+// observation i
 // (with rank r_i) is deleted, all remaining observations with rank > r_i
 // are shifted down by 1, preserving the relative ordering under a fixed
 // distance metric.
@@ -354,26 +356,38 @@ real colvector rdistnn_weights(real matrix X, real rowvector x0,
 //
 // Arguments:
 //   ranks   : n-vector of integer ranks from the full sample (1 = nearest)
-//   signal  : n-vector of per-observation contributions (pseudo-outcomes, Y, ...)
+//   signal  : n x q matrix of per-observation contributions
 //   k       : number of nearest neighbors
 //   s       : kernel order
 //   method  : "exact" (default) or "asymp"
 //
-// Returns: jackknife SE (scalar).
+// Returns: q x q jackknife covariance matrix.
 //
-real scalar rdistnn_jk_se_from_ranks(real colvector ranks,
-                                      real colvector signal,
-                                      real scalar k,
-                                      real scalar s,
-                                      | string scalar method)
+real matrix rdistnn_jk_cov_from_ranks(real colvector ranks,
+                                       real matrix signal,
+                                       real scalar k,
+                                       real scalar s,
+                                       | string scalar method)
 {
-    real scalar     n, i, r_i
-    real colvector  idx, kept, ranks_m1, signal_m1, w_m1, loo
+    real scalar     n, q, i, r_i
+    real colvector  idx, kept, ranks_m1, w_m1
+    real matrix     signal_m1, loo, centered, V
 
     if (args() < 5 | method == "") method = "exact"
 
-    n   = rows(ranks)
-    loo = J(n, 1, .)
+    n = rows(ranks)
+    if (rows(signal) != n) {
+        errprintf("rdistnn_jk_cov_from_ranks: rows(signal) must equal rows(ranks).\n")
+        exit(error(198))
+    }
+
+    q = cols(signal)
+    if (q < 1) {
+        errprintf("rdistnn_jk_cov_from_ranks: signal must have at least one column.\n")
+        exit(error(198))
+    }
+
+    loo = J(n, q, .)
     idx = (1::n)
 
     for (i = 1; i <= n; i++) {
@@ -383,10 +397,29 @@ real scalar rdistnn_jk_se_from_ranks(real colvector ranks,
         ranks_m1 = ranks_m1 :- (ranks_m1 :> r_i)         // shift down: now 1..n-1
         signal_m1 = select(signal, kept)
         w_m1     = rdistnn_weights_from_ranks(ranks_m1, k, s, method)
-        loo[i]   = sum(w_m1 :* signal_m1)
+        loo[i,.] = cross(w_m1, signal_m1)
     }
 
-    return(sqrt((n-1) / n * sum((loo :- mean(loo)):^2)))
+    centered = loo :- mean(loo)
+    V = ((n - 1) / n) * cross(centered, centered)
+    return((V + V') / 2)
+}
+
+// ── rdistnn_jk_se_from_ranks ──────────────────────────────────────────
+// Scalar compatibility wrapper for callers that only need the marginal
+// jackknife SE of one signal column.
+//
+real scalar rdistnn_jk_se_from_ranks(real colvector ranks,
+                                      real colvector signal,
+                                      real scalar k,
+                                      real scalar s,
+                                      | string scalar method)
+{
+    real matrix V
+
+    if (args() < 5 | method == "") method = "exact"
+    V = rdistnn_jk_cov_from_ranks(ranks, signal, k, s, method)
+    return(sqrt(max((V[1,1], 0))))
 }
 
 end

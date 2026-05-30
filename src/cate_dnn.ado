@@ -2,7 +2,7 @@
 *! Conditional average treatment effect via distributional nearest neighbors
 
 program define cate_dnn, eclass
-    version 16
+    version 17
 
     // ── replay ────────────────────────────────────────────────────────
     if replay() {

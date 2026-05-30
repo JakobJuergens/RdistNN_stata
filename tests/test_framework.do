@@ -14,7 +14,7 @@
 //   $tf_pass / $tf_fail accumulate across all files in a session.
 //   tests.do reports the grand total.
 
-version 16
+version 17
 
 // ── global counters (safe to initialise multiple times) ───────────────────
 if "$tf_pass" == "" {
@@ -97,4 +97,24 @@ program define rdnn_dgp_const
     gen double x1 = rnormal()
     gen double x2 = rnormal()
     gen double y  = `yval'
+end
+
+// rdnn_dgp_plqr: bivariate X, two PLQR regressors, oracle q_tau(X), and m_D(X)
+cap program drop rdnn_dgp_plqr
+program define rdnn_dgp_plqr, rclass
+    syntax [, n(integer 140) seed(integer 31)]
+    clear
+    set obs `n'
+    set seed `seed'
+    gen double x1  = rnormal()
+    gen double x2  = rnormal()
+    gen double md1 = 0.30 * x1 - 0.20 * x2
+    gen double md2 = -0.10 * x1 + 0.40 * x2
+    gen double d1  = md1 + rnormal() * 0.40
+    gen double d2  = md2 + rnormal() * 0.40
+    gen double q   = 0.25 * x1 - 0.15 * x2
+    gen double y   = d1 - 0.50 * d2 + q + rnormal() * 0.50
+    return scalar beta1 = 1
+    return scalar beta2 = -0.5
+    return scalar tau   = 0.5
 end

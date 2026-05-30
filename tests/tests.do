@@ -9,7 +9,7 @@
 // globals $tf_pass / $tf_fail.  A grand total is printed at the end.
 // Exit code 1 is returned if any test failed (useful for CI).
 
-version 16
+version 17
 set more off
 
 // ── adopath: give src/ priority so commands resolve to the local package ──
@@ -28,6 +28,7 @@ local test_files ///
     test-mata-weights-exact  ///
     test-mata-weights-asymp  ///
     test-mata-jackknife      ///
+    test-mata-jackknife-vector ///
     test-weights-dnn-smoke   ///
     test-weights-dnn-options ///
     test-weights-dnn-errors  ///
@@ -37,6 +38,9 @@ local test_files ///
     test-cate-dnn-core       ///
     test-cate-dnn-nuisance   ///
     test-cate-dnn-errors     ///
+    test-plqr-dnn-core       ///
+    test-plqr-dnn-methods    ///
+    test-plqr-dnn-errors     ///
     test-integration
 
 // ── run each file ─────────────────────────────────────────────────────────

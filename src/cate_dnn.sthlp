@@ -13,6 +13,9 @@
 {bf:cate_dnn} {hline 2} Conditional average treatment effect via
 distributional nearest neighbors
 
+{pstd}
+Stata 17 or later is required.
+
 {marker syntax}{...}
 {title:Syntax}
 

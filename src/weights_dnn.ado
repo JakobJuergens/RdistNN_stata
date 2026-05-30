@@ -2,7 +2,7 @@
 *! DNN rank weights at a fixed covariate point x0
 
 program define weights_dnn, rclass
-    version 16
+    version 17
 
     syntax varlist(min=1) [if] [in] ,   ///
         x0(numlist)                      ///  evaluation point (length = # vars)

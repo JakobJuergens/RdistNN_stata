@@ -10,6 +10,9 @@
 {phang}
 {bf:weights_dnn} {hline 2} Compute DNN rank weights at a fixed point
 
+{pstd}
+Stata 17 or later is required.
+
 {marker syntax}{...}
 {title:Syntax}
 
@@ -30,7 +33,7 @@
 {pstd}
 {cmd:weights_dnn} computes the DNN rank weights w_i(x0) for each
 observation.  These are the core localization weights used by
-{helpb cate_dnn} and {helpb np_dnn}.
+{helpb cate_dnn}, {helpb np_dnn}, and {helpb plqr_dnn}.
 
 {pstd}
 A single covariate is permitted when using {cmd:distance(l2)} (the default).

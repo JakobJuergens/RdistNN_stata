@@ -12,6 +12,9 @@
 {bf:np_dnn} {hline 2} Nonparametric regression at a point via
 distributional nearest neighbors
 
+{pstd}
+Stata 17 or later is required.
+
 {marker syntax}{...}
 {title:Syntax}
 
