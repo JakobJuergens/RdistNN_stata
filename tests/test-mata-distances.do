@@ -105,7 +105,7 @@ mata {
     _d    = rdistnn_mahal_dist(_X, _x0, _Sinv)
     st_numscalar("_rmin", min(_d))
     st_numscalar("_rmax", max(_d))
-    st_numscalar("_rfin", sum(!missing(_d)) == rows(_d))
+    st_numscalar("_rfin", sum(_d :< .) == rows(_d))
 }
 test_assert "[smoke] Mahal distances non-negative" scalar(_rmin) >= 0
 test_assert "[smoke] Mahal distances all finite"   scalar(_rfin) == 1

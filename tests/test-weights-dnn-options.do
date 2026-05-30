@@ -72,8 +72,9 @@ local neff1 = r(neff)
 
 weights_dnn x1 x2, x0(1 0) k(5) s(15) generate(w_check)
 local neff2 = r(neff)
-quietly summarize w_check
-local neff_from_w = 1 / r(sumsq)
+gen double w_check_sq = w_check^2
+quietly summarize w_check_sq, meanonly
+local neff_from_w = 1 / r(sum)
 
 local diff12 = abs(`neff1' - `neff2')
 local diff1w = abs(`neff1' - `neff_from_w')

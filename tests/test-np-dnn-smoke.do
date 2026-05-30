@@ -42,9 +42,9 @@ local k_r  = e(k)
 local s_r  = e(s)
 local kx_r = e(kx)
 
-test_assert "[meta] e(cmd) = np_dnn"         "``cmd''" == "np_dnn"
-test_assert "[meta] e(distance) = l2"        "``dist''" == "l2"
-test_assert "[meta] e(method) = exact"       "``meth''" == "exact"
+test_assert "[meta] e(cmd) = np_dnn"         "`cmd'" == "np_dnn"
+test_assert "[meta] e(distance) = l2"        "`dist'" == "l2"
+test_assert "[meta] e(method) = exact"       "`meth'" == "exact"
 test_assert "[meta] e(k) = 3"               `k_r'  == 3
 test_assert "[meta] e(s) = 15"              `s_r'  == 15
 test_assert "[meta] e(kx) = 2"              `kx_r' == 2

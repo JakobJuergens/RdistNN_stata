@@ -154,24 +154,10 @@ test_assert "[inv] w[i] = w_rank[ranks[i]] for all i" scalar(_r) == 10
 test_section "rdistnn_weights_exact: [errors] out-of-range inputs"
 // ════════════════════════════════════════════════════════════
 
-// [errors] k > s should trigger an error (exit 198)
-mata {
-    _rc_got = _error(0)    // initialise (will be overwritten)
-    _rc_got = 0
-    cap {
-        n = 6; k = 4; s = 3   // k > s: invalid
-        _w = rdistnn_weights_exact((1::n), k, s)
-    }
-    // Capture _rc from the outer Stata context — just store a flag
-}
-// Use Stata-level cap to test the error condition
-cap {
-    mata: _w2 = rdistnn_weights_exact((1::6), 4, 3)
-}
+// [errors] k > s should trigger an error
+capture mata: _w2 = rdistnn_weights_exact((1::6), 4, 3)
 test_assert "[errors] k > s triggers error" _rc != 0
 
 // [errors] s > n should trigger an error
-cap {
-    mata: _w2 = rdistnn_weights_exact((1::6), 1, 7)
-}
+capture mata: _w2 = rdistnn_weights_exact((1::6), 1, 7)
 test_assert "[errors] s > n triggers error" _rc != 0

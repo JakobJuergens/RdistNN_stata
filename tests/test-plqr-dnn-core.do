@@ -14,25 +14,25 @@ rdnn_dgp_plqr, n(120) seed(401)
 plqr_dnn y, x(x1 x2) x0(0 0) d(d1 d2) q(q) md(md1 md2) ///
     beta(1 -0.5) tau(0.5) k(4) s(12)
 
-matrix _b = e(b)
-matrix _V = e(V)
-matrix _beta = e(beta)
+matrix B = e(b)
+matrix V = e(V)
+matrix Beta = e(beta)
 local cmd "`e(cmd)'"
 local kd = e(kd)
 local tau = e(tau)
-local nb = colsof(_b)
-local bcols : colnames _b
-local brows : rownames _V
-local bcolsV : colnames _V
+local nb = colsof(B)
+local bcols : colnames B
+local brows : rownames V
+local bcolsV : colnames V
 
-scalar _b1 = _b[1,1]
-scalar _b2 = _b[1,2]
-scalar _v11 = _V[1,1]
-scalar _v22 = _V[2,2]
-scalar _v12 = _V[1,2]
-scalar _v21 = _V[2,1]
-scalar _beta1 = _beta[1,1]
-scalar _beta2 = _beta[1,2]
+scalar _b1 = B[1,1]
+scalar _b2 = B[1,2]
+scalar _v11 = V[1,1]
+scalar _v22 = V[2,2]
+scalar _v12 = V[1,2]
+scalar _v21 = V[2,1]
+scalar _beta1 = Beta[1,1]
+scalar _beta2 = Beta[1,2]
 
 test_assert "[smoke] e(cmd) = plqr_dnn" "`cmd'" == "plqr_dnn"
 test_assert "[smoke] e(b) has two moment components" `nb' == 2
@@ -69,9 +69,9 @@ local m2 = r(sum)
 
 plqr_dnn y, x(x1 x2) x0(0 0) d(d1 d2) q(q) md(md1 md2) ///
     beta(1 -0.5) tau(0.5) k(4) s(10)
-matrix _b = e(b)
-scalar _r1 = abs(_b[1,1] - `m1')
-scalar _r2 = abs(_b[1,2] - `m2')
+matrix B = e(b)
+scalar _r1 = abs(B[1,1] - `m1')
+scalar _r2 = abs(B[1,2] - `m2')
 test_assert "[identity] first moment equals manual weighted sum" scalar(_r1) < 1e-8
 test_assert "[identity] second moment equals manual weighted sum" scalar(_r2) < 1e-8
 
@@ -82,7 +82,7 @@ test_section "plqr_dnn: [identity] covariance equals direct Mata helper"
 rdnn_dgp_plqr, n(80) seed(403)
 plqr_dnn y, x(x1 x2) x0(0.2 -0.1) d(d1 d2) q(q) md(md1 md2) ///
     beta(1 -0.5) tau(0.5) k(3) s(8)
-matrix _V_cmd = e(V)
+matrix V_cmd = e(V)
 
 mata {
     _X     = st_data(., "x1 x2")
@@ -96,8 +96,8 @@ mata {
     _resid = 0.5 :- (_y :<= (_D * _beta :+ _q))
     _g     = (_D :- _md) :* (_resid * J(1, cols(_D), 1))
     _V_dir = rdistnn_jk_cov_from_ranks(_ranks, _g, 3, 8, "exact")
-    st_matrix("_V_dir", _V_dir)
+    st_matrix("V_dir", _V_dir)
 }
-matrix _V_diff = _V_cmd - _V_dir
-mata: st_numscalar("_r_vdiff", max(abs(st_matrix("_V_diff"))))
+matrix V_diff = V_cmd - V_dir
+mata: st_numscalar("_r_vdiff", max(abs(st_matrix("V_diff"))))
 test_assert "[identity] e(V) equals direct vector jackknife covariance" scalar(_r_vdiff) < 1e-10

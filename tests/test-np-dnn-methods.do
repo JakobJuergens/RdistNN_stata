@@ -45,7 +45,7 @@ test_assert "[distance] mahal: neff > 1"     `ne_mh' > 1
 
 // [distance] mahal e(distance) field is set correctly
 local dist_mh "`e(distance)'"
-test_assert "[distance] mahal: e(distance) = mahalanobis" "``dist_mh''" == "mahalanobis"
+test_assert "[distance] mahal: e(distance) = mahalanobis" "`dist_mh'" == "mahalanobis"
 
 // ════════════════════════════════════════════════════════════
 test_section "np_dnn: [opts] method=asymp with mahalanobis distance"
