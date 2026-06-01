@@ -31,16 +31,16 @@ capture mata: mata drop rdistnn_jk_se_from_ranks()
 // ---------------------------------------------------------------------
 // Plugin fast path: try to declare rdistnn_plugin once per session.
 // Sets global $rdistnn_plugin_ok = 1 if the compiled plugin is found
-// on adopath, 0 otherwise.  The main .ado commands check this global
-// before falling back to the pure-Mata path.
+// on adopath, 0 otherwise.  Commands may still choose the pure-Mata path
+// unless plugin use is explicitly enabled for parity testing.
 // Note: the plugin only implements L2 distance.  Mahalanobis always
 // uses the Mata path regardless of this global.
 // ---------------------------------------------------------------------
 if ("$rdistnn_plugin_ok" == "") {
     // _rc == 0   : declared for the first time
     // _rc == 110 : already declared in this session
-    // anything else: .plugin file not found on adopath
-    capture program define rdistnn_plugin, plugin
+    // anything else: rdistnn.plugin file not found on adopath
+    capture program define rdistnn_plugin, plugin using(rdistnn.plugin)
     if _rc == 0 | _rc == 110 {
         global rdistnn_plugin_ok 1
     }

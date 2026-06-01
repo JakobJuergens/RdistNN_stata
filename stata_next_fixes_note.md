@@ -15,6 +15,15 @@ non-GMM Z-estimation layer is `plqr_dnn`, a fixed-beta localized PLQR
 moment evaluator backed by a vector rank-shift jackknife covariance helper.
 This keeps `gmm_dnn`, TDNN, automatic nuisance fitting, diagnostics, and true
 changing-metric Mahalanobis leave-one-out jackknife as later strategic layers.
+Status update, 2026-06-01: the active next layer is install and release
+hardening: repeatable local Stata runtime wrappers, fresh `net install`
+smoke checks outside the development adopath, and source-archive validation.
+This remains a non-estimator layer; `gmm_dnn`, TDNN, automatic nuisance
+fitting, diagnostics, and true changing-metric Mahalanobis leave-one-out
+jackknife remain later strategic layers.  During this pass, the installed
+plugin was made discoverable by name, but computation continues to default to
+the Mata path; plugin fast-path parity for all `x0()` values is a separate
+future hardening item.
 
 The rest of this note is retained as historical context for the review that
 motivated the 2026-04-11 implementation pass.

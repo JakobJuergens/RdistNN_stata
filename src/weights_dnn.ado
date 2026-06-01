@@ -79,10 +79,12 @@ program define weights_dnn, rclass
     local x0_mata = substr("`x0_mata'", 1, length("`x0_mata'") - 1)
 
     // ── compute weights ───────────────────────────────────────────────
-    // Plugin fast path: only for L2; use a tempvar to avoid double-creation
-    // on fallback.  If the plugin fails, we fall through to Mata.
+    // Plugin fast path: only for L2 and only when explicitly enabled.
+    // The pure-Mata path remains the default because it is the tested
+    // reference path for all x0() values and sample restrictions.
     local __plugin_ok 0
-    if ${rdistnn_plugin_ok} & "`distance'" == "l2" {
+    local __use_plugin = ("${rdistnn_use_plugin}" == "1")
+    if `__use_plugin' & ${rdistnn_plugin_ok} & "`distance'" == "l2" {
         tempvar __wvar
         quietly gen double `__wvar' = .
         capture noisily plugin call rdistnn_plugin `xvars' `__wvar' ///
@@ -97,22 +99,31 @@ program define weights_dnn, rclass
         }
     }
 
-    if !`__plugin_ok' {
-        // Pure-Mata fallback — handles both L2 and Mahalanobis.
-        // rdistnn_ranks() does the L2/Mahal dispatch internally to avoid
-        // if-else braces in the inline mata { } block (Stata parser limit).
-        mata {
-            _X     = st_data(., "`xvars'", "`touse'")
-            _x0    = (`x0_mata')
-            _ranks = rdistnn_ranks(_X, _x0, "`distance'")
-            _w     = rdistnn_weights_from_ranks(_ranks, `k', `s', "`method'")
-            st_local("wt_neff", strofreal(1 / sum(_w :^2), "%21.0g"))
-        }
-        if "`generate'" != "" {
-            quietly gen double `generate' = .
-            mata: st_store(., "`generate'", "`touse'", _w)
-            di as text "DNN weights stored in `generate'."
-        }
+    if `__plugin_ok' {
+        return scalar neff = `wt_neff'
+        return scalar n    = `n'
+        return scalar k    = `k'
+        return scalar s    = `s'
+        return scalar kx   = `kx'
+
+        di as text "Effective sample size (neff): " as result %8.2f `wt_neff'
+        exit
+    }
+
+    // Pure-Mata fallback — handles both L2 and Mahalanobis.
+    // rdistnn_ranks() does the L2/Mahal dispatch internally to avoid
+    // if-else braces in the inline mata { } block (Stata parser limit).
+    mata {
+        _X     = st_data(., "`xvars'", "`touse'")
+        _x0    = (`x0_mata')
+        _ranks = rdistnn_ranks(_X, _x0, "`distance'")
+        _w     = rdistnn_weights_from_ranks(_ranks, `k', `s', "`method'")
+        st_local("wt_neff", strofreal(1 / sum(_w :^2), "%21.0g"))
+    }
+    if "`generate'" != "" {
+        quietly gen double `generate' = .
+        mata: st_store(., "`generate'", "`touse'", _w)
+        di as text "DNN weights stored in `generate'."
     }
 
     return scalar neff = `wt_neff'

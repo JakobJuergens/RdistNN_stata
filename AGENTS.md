@@ -40,7 +40,17 @@ The parent Windows workspace has these tools on `PATH` as of 2026-05-06:
 
 - Keep ado/Mata/plugin behavior aligned with the documented command contracts
   in `README.md`.
+- Use `bash tools/ci/pkg_check.sh` for static package integrity checks.
+- Use `bash tools/ci/archive_check.sh archives/source.zip` to validate the
+  generated source archive when checking packaging output.
+- Use `powershell -NoProfile -ExecutionPolicy Bypass -File
+  tools/ci/stata_runtime_check.ps1` for the full local Stata runtime suite.
+- Use `powershell -NoProfile -ExecutionPolicy Bypass -File
+  tools/ci/stata_install_check.ps1` to verify a clean `net install` into
+  temporary `PLUS`/`PERSONAL` directories.
 - Do not treat generated logs such as `tests.log` as source of truth unless the
   task is explicitly about test-output archaeology.
 - If Stata itself is needed for verification, first check whether a CLI command
   is available locally; otherwise record that Stata is not available on `PATH`.
+  On this Windows machine, the expected StataNow 19 executable is
+  `C:\Program Files\StataNow19\StataSE-64.exe`.

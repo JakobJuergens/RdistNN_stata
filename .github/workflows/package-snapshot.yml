@@ -9,6 +9,7 @@ on:
       - 'rdistnn.pkg'
       - 'stata.toc'
       - 'README.md'
+      - 'tools/ci/archive_check.sh'
       - '.github/workflows/package-snapshot.yml'
 
 permissions:
@@ -175,6 +176,11 @@ jobs:
 
           echo "skip=false" >> "$GITHUB_OUTPUT"
           echo "zip_path=_dist/source.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Validate source zip
+        if: steps.makezip.outputs.skip == 'false'
+        shell: bash
+        run: bash tools/ci/archive_check.sh "${{ steps.makezip.outputs.zip_path }}"
 
       - name: Upload artifact
         if: steps.makezip.outputs.skip == 'false'
