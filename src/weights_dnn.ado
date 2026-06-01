@@ -78,18 +78,45 @@ program define weights_dnn, rclass
     }
     local x0_mata = substr("`x0_mata'", 1, length("`x0_mata'") - 1)
 
+    // ── build plugin-safe x0 arglist ─────────────────────────────────
+    // Negative numeric args can be split at the plugin-call arglist
+    // boundary unless each component is passed as one quoted string.
+    local dq = char(34)
+    local x0_plugin ""
+    foreach v of local x0 {
+        local x0_plugin `"`x0_plugin' `dq'`v'`dq'"'
+    }
+
     // ── compute weights ───────────────────────────────────────────────
-    // Plugin fast path: only for L2 and only when explicitly enabled.
-    // The pure-Mata path remains the default because it is the tested
-    // reference path for all x0() values and sample restrictions.
+    // Plugin fast path: default for L2 when installed.  Developers can set
+    // global rdistnn_use_plugin to 0 for the Mata reference path, or 1 to
+    // require the plugin and fail rather than silently falling back.
     local __plugin_ok 0
-    local __use_plugin = ("${rdistnn_use_plugin}" == "1")
-    if `__use_plugin' & ${rdistnn_plugin_ok} & "`distance'" == "l2" {
+    local __plugin_mode "${rdistnn_use_plugin}"
+    local __require_plugin = ("`__plugin_mode'" == "1")
+    local __try_plugin = ("`distance'" == "l2" & "`__plugin_mode'" != "0")
+
+    if `__try_plugin' & !${rdistnn_plugin_ok} & `__require_plugin' {
+        di as error "rdistnn.plugin was requested but is not available."
+        exit 601
+    }
+
+    if `__try_plugin' & ${rdistnn_plugin_ok} {
         tempvar __wvar
         quietly gen double `__wvar' = .
-        capture noisily plugin call rdistnn_plugin `xvars' `__wvar' ///
-            if `touse', weights_l2 `method' `k' `s' `x0'
-        local __plugin_ok = (_rc == 0)
+        if `__require_plugin' {
+            capture noisily plugin call rdistnn_plugin `xvars' `__wvar' ///
+                if `touse', weights_l2 `method' `k' `s' `x0_plugin'
+        }
+        else {
+            capture plugin call rdistnn_plugin `xvars' `__wvar' ///
+                if `touse', weights_l2 `method' `k' `s' `x0_plugin'
+        }
+        local __plugin_rc = _rc
+        local __plugin_ok = (`__plugin_rc' == 0)
+        if !`__plugin_ok' & `__require_plugin' {
+            exit `__plugin_rc'
+        }
         if `__plugin_ok' {
             mata: st_local("wt_neff", strofreal(1 / sum(st_data(., "`__wvar'", "`touse'") :^2), "%21.0g"))
             if "`generate'" != "" {

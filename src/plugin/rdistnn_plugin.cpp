@@ -24,7 +24,10 @@
 #include "stplugin.h"
 #include "rdistnn_core.hpp"
 
-#include <cstdlib>    // atoi, atof
+#include <cerrno>     // errno, ERANGE
+#include <climits>    // INT_MIN, INT_MAX
+#include <cmath>      // isfinite
+#include <cstdlib>    // strtol, strtod
 #include <cstring>    // strcmp
 #include <cstdio>     // snprintf
 #include <vector>
@@ -58,6 +61,59 @@ static ST_retcode read_column(int j_stata, const std::vector<ST_int> &obs_list,
     return 0;
 }
 
+static bool parse_int_arg(const char *arg, const char *name, int *out)
+{
+    if (arg == nullptr || arg[0] == '\0') {
+        char msg[256];
+        std::snprintf(msg, sizeof(msg),
+            "rdistnn_plugin weights_l2: %s must be a nonempty integer.\n", name);
+        SF_error(msg);
+        return false;
+    }
+
+    errno = 0;
+    char *end = nullptr;
+    const long value = std::strtol(arg, &end, 10);
+    if (end == arg || *end != '\0' || errno == ERANGE ||
+        value < INT_MIN || value > INT_MAX) {
+        char msg[256];
+        std::snprintf(msg, sizeof(msg),
+            "rdistnn_plugin weights_l2: %s must be an integer, got '%s'.\n",
+            name, arg);
+        SF_error(msg);
+        return false;
+    }
+
+    *out = static_cast<int>(value);
+    return true;
+}
+
+static bool parse_double_arg(const char *arg, const char *name, double *out)
+{
+    if (arg == nullptr || arg[0] == '\0') {
+        char msg[256];
+        std::snprintf(msg, sizeof(msg),
+            "rdistnn_plugin weights_l2: %s must be a nonempty number.\n", name);
+        SF_error(msg);
+        return false;
+    }
+
+    errno = 0;
+    char *end = nullptr;
+    const double value = std::strtod(arg, &end);
+    if (end == arg || *end != '\0' || errno == ERANGE || !std::isfinite(value)) {
+        char msg[256];
+        std::snprintf(msg, sizeof(msg),
+            "rdistnn_plugin weights_l2: %s must be a finite number, got '%s'.\n",
+            name, arg);
+        SF_error(msg);
+        return false;
+    }
+
+    *out = value;
+    return true;
+}
+
 // ── "weights_l2" handler ───────────────────────────────────────────────────
 //
 // Reads kx covariate columns + x0 from argv, computes DNN L2 weights,
@@ -74,12 +130,13 @@ static ST_retcode do_weights_l2(int argc, char *argv[])
     const int kx   = nvars - 1;   // # covariates
     const int wvar = nvars;        // 1-based index of the output weight variable
 
-    // argc must be: function_name, method, k, s, x0_1, ..., x0_kx
-    if (argc < 4 + kx) {
+    // argc must be exactly: function_name, method, k, s, x0_1, ..., x0_kx
+    const int expected_argc = 4 + kx;
+    if (argc != expected_argc) {
         char msg[256];
         std::snprintf(msg, sizeof(msg),
-            "rdistnn_plugin weights_l2: need %d arguments (weights_l2 method k s x0_1 ... x0_%d), got %d.\n",
-            4 + kx, kx, argc);
+            "rdistnn_plugin weights_l2: need exactly %d arguments (weights_l2 method k s x0_1 ... x0_%d), got %d.\n",
+            expected_argc, kx, argc);
         SF_error(msg);
         return 198;
     }
@@ -94,8 +151,10 @@ static ST_retcode do_weights_l2(int argc, char *argv[])
         return 198;
     }
 
-    const int k = std::atoi(argv[2]);
-    const int s = std::atoi(argv[3]);
+    int k = 0;
+    int s = 0;
+    if (!parse_int_arg(argv[2], "k", &k)) return 198;
+    if (!parse_int_arg(argv[3], "s", &s)) return 198;
 
     if (k < 1) {
         SF_error((char *)"rdistnn_plugin weights_l2: k must be >= 1.\n");
@@ -107,7 +166,11 @@ static ST_retcode do_weights_l2(int argc, char *argv[])
     }
 
     std::vector<double> x0(kx);
-    for (int j = 0; j < kx; ++j) x0[j] = std::atof(argv[4 + j]);
+    for (int j = 0; j < kx; ++j) {
+        char name[32];
+        std::snprintf(name, sizeof(name), "x0_%d", j + 1);
+        if (!parse_double_arg(argv[4 + j], name, &x0[j])) return 198;
+    }
 
     // Collect in-sample observations (respects if/in + touse variable)
     const std::vector<ST_int> obs_list = collect_obs();

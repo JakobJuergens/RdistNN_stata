@@ -116,6 +116,9 @@ RdistNN_stata/
   fixed `beta()` vector. It reports localized PLQR moments in `e(b)` and their
   full jackknife covariance in `e(V)`; it does not solve for `beta`, estimate
   nuisances, or perform GMM.
+- `weights_dnn` uses the installed L2 plugin path by default when the plugin is
+  available. Set global `rdistnn_use_plugin` to `0` to force the Mata reference
+  path, or to `1` to require the plugin path and fail on plugin errors.
 - `k` controls the number of nearest neighbors, while `s` is the DNN kernel
   order. The default `s(0)` uses the undersmoothing rule
   `floor(n^((kx+1)/(kx+2)))` from the paper.

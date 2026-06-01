@@ -48,6 +48,9 @@ The parent Windows workspace has these tools on `PATH` as of 2026-05-06:
 - Use `powershell -NoProfile -ExecutionPolicy Bypass -File
   tools/ci/stata_install_check.ps1` to verify a clean `net install` into
   temporary `PLUS`/`PERSONAL` directories.
+- For `weights_dnn` plugin parity work, use `global rdistnn_use_plugin 0` to
+  force the Mata reference path and `global rdistnn_use_plugin 1` to require
+  the L2 plugin path.  The default is to use the plugin when installed.
 - Do not treat generated logs such as `tests.log` as source of truth unless the
   task is explicitly about test-output archaeology.
 - If Stata itself is needed for verification, first check whether a CLI command

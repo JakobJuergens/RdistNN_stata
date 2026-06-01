@@ -21,9 +21,14 @@ smoke checks outside the development adopath, and source-archive validation.
 This remains a non-estimator layer; `gmm_dnn`, TDNN, automatic nuisance
 fitting, diagnostics, and true changing-metric Mahalanobis leave-one-out
 jackknife remain later strategic layers.  During this pass, the installed
-plugin was made discoverable by name, but computation continues to default to
-the Mata path; plugin fast-path parity for all `x0()` values is a separate
-future hardening item.
+plugin was made discoverable by name, while signed-`x0()` plugin parity was
+left as the next hardening item.
+Status update, 2026-06-01: the signed-`x0()` plugin parity item has been
+resolved by quoting plugin `x0()` arguments at the Stata boundary, strict
+plugin-side argument parsing, forced Mata/plugin parity tests, and a fresh
+install parity check.  The L2 plugin path is again the default when the plugin
+is available; set global `rdistnn_use_plugin` to `0` for the Mata reference
+path or `1` to require the plugin path and fail on plugin errors.
 
 The rest of this note is retained as historical context for the review that
 motivated the 2026-04-11 implementation pass.

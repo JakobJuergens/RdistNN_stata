@@ -133,7 +133,7 @@ real colvector rdistnn_order(real colvector dist2)
     real scalar     n, i
 
     n   = rows(dist2)
-    idx = order(dist2, 1)   // ascending order
+    idx = order((dist2, (1::n)), (1, 2))   // ascending distance, then row index
     rnk = J(n, 1, .)
     for (i = 1; i <= n; i++) {
         rnk[idx[i]] = i

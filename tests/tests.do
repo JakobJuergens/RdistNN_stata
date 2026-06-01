@@ -25,22 +25,29 @@ quietly do "src/_rdistnn_mata.ado"
 // ── ordered list of test files ────────────────────────────────────────────
 local test_files ///
     test-mata-distances      ///
+    test-mata-rank-r-mirror  ///
     test-mata-weights-exact  ///
     test-mata-weights-asymp  ///
     test-mata-jackknife      ///
+    test-mata-jackknife-golden ///
     test-mata-jackknife-vector ///
     test-weights-dnn-smoke   ///
     test-weights-dnn-options ///
     test-weights-dnn-errors  ///
+    test-weights-dnn-plugin  ///
+    test-weights-dnn-r-invariants ///
     test-np-dnn-smoke        ///
     test-np-dnn-methods      ///
     test-np-dnn-errors       ///
+    test-np-dnn-r-identities ///
     test-cate-dnn-core       ///
     test-cate-dnn-nuisance   ///
     test-cate-dnn-errors     ///
+    test-cate-dnn-r-identities ///
     test-plqr-dnn-core       ///
     test-plqr-dnn-methods    ///
     test-plqr-dnn-errors     ///
+    test-plqr-dnn-r-identities ///
     test-integration
 
 // ── run each file ─────────────────────────────────────────────────────────

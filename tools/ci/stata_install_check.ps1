@@ -117,6 +117,19 @@ if r(neff) >= . | r(neff) <= 1 {
     exit 459
 }
 
+global rdistnn_use_plugin 0
+weights_dnn x1 x2, x0(0.2 -0.3) k(3) s(12) method(exact) generate(w_install_mata)
+global rdistnn_use_plugin 1
+weights_dnn x1 x2, x0(0.2 -0.3) k(3) s(12) method(exact) generate(w_install_plugin)
+capture macro drop rdistnn_use_plugin
+gen double w_install_diff = abs(w_install_mata - w_install_plugin) ///
+    if !missing(w_install_mata, w_install_plugin)
+quietly summarize w_install_diff, meanonly
+if r(N) == 0 | r(max) > 1e-12 {
+    di as error "installed plugin weights do not match Mata for signed x0()."
+    exit 459
+}
+
 np_dnn y, x(x1 x2) x0(0 0) k(3) s(12)
 if _b[mu] >= . | _se[mu] >= . {
     di as error "np_dnn returned non-finite results."
