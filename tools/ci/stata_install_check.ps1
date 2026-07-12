@@ -139,6 +139,11 @@ if _b[mu] >= . | _se[mu] >= . {
     di as error "np_dnn returned non-finite results."
     exit 459
 }
+np_dnn y, x(x1 x2) x0(0 0)
+if e(k) != 1 | e(s) != floor(160^(3/4)) {
+    di as error "installed np_dnn does not use the R/paper k and s defaults."
+    exit 459
+}
 
 cate_dnn y, treat(D) x(x1 x2) x0(0 0) propensity(e) m0(m0) m1(m1) k(3) s(12)
 if _b[tau] >= . | _se[tau] >= . {
@@ -153,6 +158,11 @@ gen double rho_aipw = D*(y-m1)/eclip - (1-D)*(y-m0)/(1-eclip) + m1-m0
 cate_dnn rho_aipw, x(x1 x2) x0(0 0) pseudooutcome k(3) s(12)
 if abs(_b[tau] - `tau_aipw') > 1e-10 | abs(_se[tau] - `se_aipw') > 1e-10 {
     di as error "installed cate_dnn pseudooutcome path does not match AIPW."
+    exit 459
+}
+cate_dnn rho_aipw, xcols(x1 x2) x0(0 0) pseudooutcome
+if e(k) != 1 | e(s) != floor(160^(3/4)) {
+    di as error "installed cate_dnn does not use the R/paper k and s defaults."
     exit 459
 }
 
@@ -272,6 +282,11 @@ matrix B = e(b)
 matrix V = e(V)
 if B[1,1] >= . | B[1,2] >= . | V[1,1] >= . | V[2,2] >= . {
     di as error "plqr_dnn returned non-finite results."
+    exit 459
+}
+plqr_dnn yq, x(x1 x2) x0(0 0) d(d1 d2) q(q) md(md1 md2) beta(1 -0.5)
+if e(k) != 1 | e(s) != floor(160^(3/4)) {
+    di as error "installed plqr_dnn does not use the R/paper k and s defaults."
     exit 459
 }
 

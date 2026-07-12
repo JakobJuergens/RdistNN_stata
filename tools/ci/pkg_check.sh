@@ -20,7 +20,7 @@ ERRORS=0
 echo "=== Checking rdistnn.pkg file entries ==="
 while IFS= read -r line; do
 	if [[ "$line" =~ ^f[[:space:]]+(.+)$ ]]; then
-		filepath="${BASH_REMATCH[1]}"
+		filepath="${BASH_REMATCH[1]%$'\r'}"
 		if [[ -f "$filepath" ]]; then
 			echo "  OK       $filepath"
 		else

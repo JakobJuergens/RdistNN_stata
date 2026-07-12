@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.1  2026-05-30}{...}
+{* *! version 0.0.2  2026-07-12}{...}
 {viewerjumpto "Syntax"          "plqr_dnn##syntax"}{...}
 {viewerjumpto "Description"     "plqr_dnn##description"}{...}
 {viewerjumpto "Options"         "plqr_dnn##options"}{...}
@@ -46,7 +46,7 @@ Stata 17 or later is required.
 {synopt:{opt tau(#)}}quantile index in (0,1); default {cmd:tau(0.5)}{p_end}
 
 {syntab:Tuning}
-{synopt:{opt k(#)}}nearest neighbors (>= 1); default {cmd:k(5)}{p_end}
+{synopt:{opt k(#)}}nearest neighbors (>= 1); default {cmd:k(1)}{p_end}
 {synopt:{opt s(#)}}kernel order (< n); default uses floor(n^((kx+1)/(kx+2))){p_end}
 {synopt:{opt distance(string)}}{cmd:l2} (default) or {cmd:mahalanobis}{p_end}
 {synopt:{opt method(string)}}{cmd:exact} (default) or {cmd:asymp}{p_end}
@@ -118,7 +118,7 @@ in {opt d()}.
 
 {phang}
 {opt k(#)} sets the number of nearest neighbors used in the DNN weights.
-Default is {cmd:k(5)}.
+Default is {cmd:k(1)}, matching the paper theory and the R package.
 
 {phang}
 {opt s(#)} sets the kernel order.  Default {cmd:s(0)} uses the undersmoothing

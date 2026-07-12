@@ -1,4 +1,4 @@
-*! version 0.0.1  2026-05-30  Jakob Juergens
+*! version 0.0.2  2026-07-12  Jakob Juergens
 *! PLQR orthogonal moments at a point via distributional nearest neighbors
 
 program define plqr_dnn, eclass
@@ -19,7 +19,7 @@ program define plqr_dnn, eclass
         beta(numlist)                    ///  fixed beta vector
         [                                ///
         tau(real 0.5)                    ///  quantile index
-        k(integer 5)                     ///  # nearest neighbors
+        k(integer 1)                     ///  # nearest neighbors (R/paper default)
         s(integer 0)                     ///  kernel order (0 = auto)
         Distance(string)                 ///  l2 (default) | mahalanobis
         Method(string)                   ///  exact (default) | asymp

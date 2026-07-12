@@ -121,6 +121,13 @@ Full Stata runtime tests on a machine with Stata 17 or later:
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_runtime_check.ps1
 ```
 
+The shared-contract crosswalk is in `tests/R_TEST_CROSSWALK.md`. Regenerate the
+fixed R golden values used by `test-r-parity-priority.do` with:
+
+```powershell
+Rscript tools/generate_r_priority_fixtures.R
+```
+
 Fresh install smoke test, using isolated temporary `PLUS` and `PERSONAL`
 directories:
 
@@ -201,7 +208,8 @@ RdistNN_stata/
   available. Set global `rdistnn_use_plugin` to `0` to force the Mata reference
   path, or to `1` to require the plugin path and fail on plugin errors.
 - `k` controls the number of nearest neighbors, while `s` is the DNN kernel
-  order. The default `s(0)` uses the undersmoothing rule
+  order. The estimator commands default to `k(1)`, matching the R package and
+  the paper theory. The default `s(0)` uses the undersmoothing rule
   `floor(n^((kx+1)/(kx+2)))` from the paper.
 - Use `distance(mahalanobis)` when covariates are strongly correlated. The
   jackknife keeps the full-sample covariance metric fixed across leave-one-out

@@ -1,4 +1,4 @@
-*! version 0.0.2  2026-04-06  Jakob Juergens
+*! version 0.0.3  2026-07-12  Jakob Juergens
 *! Nonparametric regression at a point via distributional nearest neighbors
 
 program define np_dnn, eclass
@@ -14,7 +14,7 @@ program define np_dnn, eclass
         x(varlist numeric)               ///  covariates
         x0(numlist)                      ///  evaluation point
         [                                ///
-        k(integer 5)                     ///  # nearest neighbors
+        k(integer 1)                     ///  # nearest neighbors (R/paper default)
         s(integer 0)                     ///  kernel order (0 = auto)
         Distance(string)                 ///  l2 (default) | mahalanobis
         Method(string)                   ///  exact (default) | asymp
