@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0  2026-07-12}{...}
+{* *! version 0.1.1  2026-07-12}{...}
 {viewerjumpto "Syntax" "cate_dnn_diagnostics##syntax"}{...}
 {viewerjumpto "Description" "cate_dnn_diagnostics##description"}{...}
 {viewerjumpto "Options" "cate_dnn_diagnostics##options"}{...}
@@ -27,13 +27,25 @@ and tuning diagnostics
 {cmd:cate_dnn_diagnostics} is a postestimation command for {help cate_dnn}.
 By default it reports the R-aligned per-target diagnostics stored by the
 active fit: effective sample size, weight concentration, localization radii,
-weighted distance, and treatment-overlap summaries.  {opt candidates()} or
-{opt allcandidates} instead reports tuning-grid diagnostics.
+weighted distance, treatment-overlap summaries, the ordinary-Euclidean radius
+containing 90 percent of DNN weight, normalized within-arm treated/control
+ESS, and top-five absolute score-contribution share.  The physical radius is
+not the rank-s radius; arm ESS is not overall ESS; score-contribution share is
+not top-five raw-weight share.  {opt candidates()} or {opt allcandidates}
+instead reports tuning-grid diagnostics.
+The default sensitivity grid is lambda = (.3, .4, .5, .75), with .4 marked
+as the finite-sample default candidate.
 
 {pstd}
 The command does not modify the active estimation results or dataset.  The
 full table is returned in {cmd:r(diagnostics)} even when the compact display
 is used.
+
+{pstd}
+Arm ESS is available only when {cmd:cate_dnn} received nuisance-based treatment
+inputs.  It is missing when an arm has zero local weight mass.  Physical radius
+and score-contribution concentration are available for both nuisance-based and
+precomputed-score fits.
 
 {marker options}{...}
 {title:Options}

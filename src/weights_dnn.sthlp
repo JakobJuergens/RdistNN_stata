@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.2  2026-04-06}{...}
+{* *! version 0.0.5  2026-07-12}{...}
 {viewerjumpto "Syntax"         "weights_dnn##syntax"}{...}
 {viewerjumpto "Description"    "weights_dnn##description"}{...}
 {viewerjumpto "Stored results" "weights_dnn##results"}{...}
@@ -21,7 +21,7 @@ Stata 17 or later is required.
 {it:x1} [{it:x2} {it:...}]
 {ifin}{cmd:,}
 {opt x0(numlist)}
-{opt k(#)}
+[{opt k(#)}]
 [{opt s(#)}
 {opt generate(newvar)}
 {opt distance(string)}
@@ -44,15 +44,31 @@ covariance matrix.
 Use {opt generate()} to store the weights as a new variable for
 inspection or downstream use.
 
+{pstd}
+For exact top-k DNN weights, positive support is global ranks 1 through
+n - s + k, so the support size is n - s + k.  With the paper-default
+{cmd:k(1)}, the edge and support size are n - s + 1.  The parameter k counts
+the nearest observations selected within each size-s subsample; it is not the
+full-sample positive-support size.
+
+{pstd}
+The order s is a localization or bandwidth analogue whose direction is
+opposite to the usual bandwidth convention.  Holding n and k fixed, larger s
+shrinks positive support and gives tighter localization.  Smaller s spreads
+weight across more observations and increases the effective local sample size.
+
 {marker options}{...}
 {title:Options}
 
 {phang}{opt x0(numlist)} evaluation point; one value per covariate.
 
-{phang}{opt k(#)} number of nearest neighbors (integer >= 1).
+{phang}{opt k(#)} number selected within each size-s subsample (integer >= 1);
+default {cmd:k(1)}.
 
-{phang}{opt s(#)} kernel order; must satisfy k <= s < n.
-Default {cmd:s(0)} uses floor(n^((kx+1)/(kx+2))).
+{phang}{opt s(#)} subset/kernel order; must satisfy k <= s <= n.  The endpoint
+{cmd:s(n)} is valid because {cmd:weights_dnn} does not compute a jackknife.
+Default {cmd:s(0)} uses the paper's finite-sample rule
+floor(0.4*n^((kx+1)/(kx+2))).
 
 {phang}{opt generate(newvar)} name of new variable to store the weights.
 

@@ -41,6 +41,7 @@ local test_files ///
     test-np-dnn-methods      ///
     test-np-dnn-errors       ///
     test-np-dnn-r-identities ///
+    test-np-dnn-parity       ///
     test-cate-dnn-core       ///
     test-cate-dnn-nuisance   ///
     test-cate-dnn-score-inputs ///

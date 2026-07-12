@@ -2,7 +2,7 @@
 # archive_check.sh -- validate an RdistNN_stata source archive.
 #
 # Usage:
-#   bash tools/ci/archive_check.sh archives/source.zip
+#   bash tools/ci/archive_check.sh /tmp/rdistnn-source.zip
 
 set -euo pipefail
 

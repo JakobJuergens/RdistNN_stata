@@ -13,8 +13,8 @@
 // argv[] after the comma (0-based):
 //   argv[0]           : function name, currently only "weights_l2"
 //   argv[1]           : method: "exact" or "asymp"
-//   argv[2]           : k  (integer, # nearest neighbors)
-//   argv[3]           : s  (integer, kernel order >= k)
+//   argv[2]           : k  (integer, # selected within each s-subset)
+//   argv[3]           : s  (integer, subset/kernel order >= k; larger is tighter)
 //   argv[4 .. 4+kx-1] : x0 components (one per covariate)
 //
 // Compiling:

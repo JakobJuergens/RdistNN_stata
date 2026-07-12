@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0  2026-07-12}{...}
+{* *! version 0.1.1  2026-07-12}{...}
 {viewerjumpto "Syntax" "cate_dnn_plot##syntax"}{...}
 {viewerjumpto "Description" "cate_dnn_plot##description"}{...}
 {viewerjumpto "Plot types" "cate_dnn_plot##types"}{...}
@@ -54,16 +54,21 @@ stored tuning grid without refitting.
 {phang}
 {cmd:type(diagnostics)} combines effective sample size, maximum weight, and
 top-five weight-share panels.  Add {opt allcandidates} or {opt candidates()}
-to plot tuning-candidate diagnostics against kernel order {it:s}.
+to plot tuning-candidate diagnostics against kernel order {it:s}.  For target
+plots, the command also annotates the 90-percent physical-radius and top-five
+absolute score-contribution-share ranges.
 
 {phang}
 {cmd:type(tuning)} plots candidate estimates against {it:s}, marks the fitted
-order, and reuses stored candidate standard errors.  It requires a grid fit.
+order, and reuses stored candidate standard errors.  It requires a grid fit;
+the built-in sensitivity grid is lambda = (.3, .4, .5, .75), with .4 fitted
+by default.
 
 {phang}
 {cmd:type(overlap)} supports {cmd:view(mass)} (default) for treated/control
-weighted mass and {cmd:view(propensity)} for weighted propensity means with
-q10-q90 ranges.  These views require a nuisance-based AIPW or Robinson fit.
+weighted mass, {cmd:view(armess)} for normalized within-arm treated/control
+ESS, and {cmd:view(propensity)} for weighted propensity means with q10-q90
+ranges.  These views require a nuisance-based AIPW or Robinson fit.
 
 {phang}
 {cmd:type(weights)} supports {cmd:view(profile)} (default),
@@ -90,6 +95,7 @@ cumulative weights, and tuning sensitivity into a two-column graph.
 
 {phang}
 {opt view(view_type)} selects the overlap or weight view described above.
+For overlap, choose {cmd:mass}, {cmd:armess}, or {cmd:propensity}.
 
 {phang}
 {opt style(style)} selects {cmd:auto}, {cmd:profile}, {cmd:pointrange}, or
@@ -147,6 +153,7 @@ semantics.  The default graph name is {cmd:cate_dnn_}{it:plot_type}.
 {phang2}{cmd:. cate_dnn_plot, type(diagnostics)}{p_end}
 {phang2}{cmd:. cate_dnn_plot, type(tuning) allcandidates}{p_end}
 {phang2}{cmd:. cate_dnn_plot, type(overlap) view(mass)}{p_end}
+{phang2}{cmd:. cate_dnn_plot, type(overlap) view(armess)}{p_end}
 {phang2}{cmd:. cate_dnn_plot, type(weights) view(kernel) targets(1 3)}{p_end}
 {phang2}{cmd:. cate_dnn_plot, type(influence) nlabel(3)}{p_end}
 {phang2}{cmd:. cate_dnn_plot, type(dashboard) saving(cate_dashboard.pdf) replace}{p_end}

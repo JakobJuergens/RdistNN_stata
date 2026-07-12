@@ -11,14 +11,14 @@ test_section "plqr_dnn: [opts] exact and asymp methods"
 // ════════════════════════════════════════════════════════════
 
 rdnn_dgp_plqr, n(130) seed(501)
-plqr_dnn y, x(x1 x2) x0(0 0) d(d1 d2) q(q) md(md1 md2) ///
-    beta(1 -0.5) tau(0.5) k(4) s(12) method(exact)
-matrix B_exact = e(b)
+plqr_dnn y, x(x1 x2) x0(0 0) d(d1 d2) g(q) md(md1 md2) ///
+    thetaeval(1 -0.5) tau(0.5) k(4) s(12) method(exact)
+matrix B_exact = e(moment)
 local meth_exact "`e(method)'"
 
-plqr_dnn y, x(x1 x2) x0(0 0) d(d1 d2) q(q) md(md1 md2) ///
-    beta(1 -0.5) tau(0.5) k(4) s(12) method(asymp)
-matrix B_asymp = e(b)
+plqr_dnn y, x(x1 x2) x0(0 0) d(d1 d2) g(q) md(md1 md2) ///
+    thetaeval(1 -0.5) tau(0.5) k(4) s(12) method(asymp)
+matrix B_asymp = e(moment)
 local meth_asymp "`e(method)'"
 
 scalar _exact_fin = (B_exact[1,1] < . & B_exact[1,2] < .)
@@ -34,14 +34,14 @@ test_section "plqr_dnn: [distance] l2 and mahalanobis"
 // ════════════════════════════════════════════════════════════
 
 rdnn_dgp_plqr, n(130) seed(502)
-plqr_dnn y, x(x1 x2) x0(0.1 -0.2) d(d1 d2) q(q) md(md1 md2) ///
-    beta(1 -0.5) tau(0.5) k(4) s(12) distance(l2)
-matrix B_l2 = e(b)
+plqr_dnn y, x(x1 x2) x0(0.1 -0.2) d(d1 d2) g(q) md(md1 md2) ///
+    thetaeval(1 -0.5) tau(0.5) k(4) s(12) distance(l2)
+matrix B_l2 = e(moment)
 local dist_l2 "`e(distance)'"
 
-plqr_dnn y, x(x1 x2) x0(0.1 -0.2) d(d1 d2) q(q) md(md1 md2) ///
-    beta(1 -0.5) tau(0.5) k(4) s(12) distance(mahalanobis)
-matrix B_mh = e(b)
+plqr_dnn y, x(x1 x2) x0(0.1 -0.2) d(d1 d2) g(q) md(md1 md2) ///
+    thetaeval(1 -0.5) tau(0.5) k(4) s(12) distance(mahalanobis)
+matrix B_mh = e(moment)
 local dist_mh "`e(distance)'"
 
 scalar _l2_fin = (B_l2[1,1] < . & B_l2[1,2] < .)
@@ -69,9 +69,9 @@ local m1 = r(sum)
 quietly summarize wg2 if keep_plqr, meanonly
 local m2 = r(sum)
 
-plqr_dnn y if keep_plqr, x(x1 x2) x0(0.3 -0.1) d(d1 d2) q(q) md(md1 md2) ///
-    beta(1 -0.5) tau(0.5) k(3) s(9)
-matrix B = e(b)
+plqr_dnn y if keep_plqr, x(x1 x2) x0(0.3 -0.1) d(d1 d2) g(q) md(md1 md2) ///
+    thetaeval(1 -0.5) tau(0.5) k(3) s(9)
+matrix B = e(moment)
 scalar _r1 = abs(B[1,1] - `m1')
 scalar _r2 = abs(B[1,2] - `m2')
 

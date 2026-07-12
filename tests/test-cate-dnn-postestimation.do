@@ -25,11 +25,13 @@ test_assert "[plot data] stored SEs produce positive confidence-band width" scal
 
 quietly cate_dnn_diagnostics
 matrix D_post = r(diagnostics)
+matrix D_post_compact = r(compact)
 local diag_scope "`r(scope)'"
 local diag_rows = r(n_rows)
 test_assert "[diagnostics command] target table has one row per target" `diag_rows' == 5
 test_assert "[diagnostics command] target scope is recorded" "`diag_scope'" == "targets"
-test_assert "[diagnostics command] full target table includes coordinates and diagnostics" colsof(D_post) == 22
+test_assert "[diagnostics command] full target table includes coordinates and diagnostics" colsof(D_post) == 28
+test_assert "[diagnostics command] compact table exposes paper diagnostics" colsof(D_post_compact) == 7
 
 quietly cate_dnn_diagnostics, allcandidates
 matrix C_post = r(diagnostics)
@@ -70,7 +72,7 @@ capture noisily cate_dnn_plot, type(diagnostics) allcandidates ///
     name(cate_post_diag_candidates) replace nodraw
 test_assert "[plot] candidate diagnostic comparison runs" _rc == 0
 
-foreach v in mass propensity {
+foreach v in mass armess propensity {
     capture noisily cate_dnn_plot, type(overlap) view(`v') ///
         name(cate_post_overlap_`v') replace nodraw
     test_assert "[plot] overlap `v' view runs" _rc == 0
@@ -134,6 +136,8 @@ quietly cate_dnn y, xcols(x1 x2) x0matrix(X0_post) ///
     pseudooutcome k(2) s(10)
 capture noisily cate_dnn_plot, type(overlap) view(mass)
 test_assert "[plot errors] overlap rejects precomputed-score fits" _rc == 498
+capture noisily cate_dnn_plot, type(overlap) view(armess)
+test_assert "[plot errors] arm ESS rejects precomputed-score fits" _rc == 498
 capture noisily cate_dnn_plot, type(tuning)
 test_assert "[plot errors] tuning requires a grid fit" _rc == 498
 capture noisily cate_dnn_diagnostics, allcandidates
@@ -147,7 +151,7 @@ test_assert "[diagnostics errors] active cate_dnn estimates are required" _rc ==
 
 capture graph drop cate_post_estimates cate_post_diagnostics cate_post_tuning ///
     cate_post_est_candidates cate_post_diag_candidates ///
-    cate_post_overlap_mass cate_post_overlap_propensity ///
+    cate_post_overlap_mass cate_post_overlap_armess cate_post_overlap_propensity ///
     cate_post_weights_profile cate_post_weights_cumulative ///
     cate_post_weights_kernel cate_post_weights_candidates ///
     cate_post_influence cate_post_dashboard cate_post_export

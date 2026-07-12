@@ -3,5 +3,7 @@ d RDISTNN: Distributional nearest-neighbor local estimation
 d
 d Stata companion package for RdistNN and conditional Z-estimation via
 d distributional nearest neighbors.
+d Experimental PLQR support evaluates moments at supplied theta; it is not a
+d coefficient estimator.
 d
 p rdistnn Distributional nearest-neighbor local estimation

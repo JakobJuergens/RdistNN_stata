@@ -137,8 +137,10 @@ inline void ranks_from_values(const double *x, int n, int *ranks_out)
 //
 //   w_r = (1/k) * Σ_{l=1}^{k} C(r-1, l-1) · C(n-r, s-l) / C(n, s)
 //
-// Support: r = 1, …, n-s+k  (NOT 1..s).
-// For k=1: w_r = C(n-r, s-1) / C(n, s)  (standard Steele formula).
+// Positive-weight support: r = 1, …, n-s+k  (NOT 1..s).  Larger s therefore
+// shrinks support and tightens localization; for k=1 the edge is n-s+1.
+// Here k counts the observations selected within each s-subset, not the global
+// support size.  For k=1, w_r = C(n-r, s-1) / C(n, s) (Steele formula).
 //
 // Derivation: w_r is the marginal probability that the obs at global rank r
 // is among the k nearest in a uniformly-random s-subset of all n obs.

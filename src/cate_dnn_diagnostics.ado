@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-07-12  Jakob Juergens
+*! version 0.1.1  2026-07-12  Jakob Juergens
 *! Postestimation diagnostics tables for cate_dnn
 
 program define cate_dnn_diagnostics, rclass
@@ -31,7 +31,7 @@ program define cate_dnn_diagnostics, rclass
         local m = rowsof(`raw')
         local p = colsof(`targets')
         mata: st_matrix("`out'", rdistnn_plot_target_diag(st_matrix("`raw'"), st_matrix("`targets'")))
-        mata: st_matrix("`compact'", st_matrix("`out'")[,(1, `p' + 2, `p' + 3, `p' + 5, `p' + 16, `p' + 18)])
+        mata: st_matrix("`compact'", st_matrix("`out'")[,(1, `p' + 2, `p' + 5, `p' + 21, `p' + 23, `p' + 24, `p' + 26)])
         local x0_names ""
         forvalues j = 1/`p' {
             local x0_names "`x0_names' x0_`j'"
@@ -43,10 +43,12 @@ program define cate_dnn_diagnostics, rclass
             weighted_median_distance overlap_available treated_mass ///
             control_mass treated_share propensity_available ///
             weighted_mean_propensity weighted_propensity_q10 ///
-            weighted_propensity_q90
+            weighted_propensity_q90 physical_radius_90 ///
+            arm_ess_available treated_ess control_ess ///
+            score_contribution_available top5_score_share
         matrix rownames `out' = `: rownames `raw''
-        matrix colnames `compact' = target_id ess max_weight ///
-            top5_weight_share treated_share weighted_mean_propensity
+        matrix colnames `compact' = target_id ess top5_weight_share ///
+            physical_radius_90 treated_ess control_ess top5_score_share
         matrix rownames `compact' = `: rownames `raw''
     }
     else {

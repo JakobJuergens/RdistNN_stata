@@ -1,5 +1,5 @@
-*! version 0.0.2  2026-07-12  Jakob Juergens
-*! PLQR orthogonal moments at a point via distributional nearest neighbors
+*! version 0.1.0  2026-07-12  Jakob Juergens
+*! Experimental PLQR localized-moment evaluation at supplied theta
 
 program define plqr_dnn, eclass
     version 17
@@ -14,30 +14,62 @@ program define plqr_dnn, eclass
         x(varlist numeric)               ///  covariates
         x0(numlist)                      ///  evaluation point
         D(varlist numeric)               ///  partially linear regressors
-        Q(varname numeric)               ///  supplied q_tau(X)
         MD(varlist numeric)              ///  supplied m_D(X), same order as d()
-        beta(numlist)                    ///  fixed beta vector
         [                                ///
+        G(varname numeric)               ///  canonical supplied g_tau(X)
+        Q(varname numeric)               ///  compatibility alias for g()
+        THETAEVAL(numlist)                ///  canonical supplied theta vector
+        beta(numlist)                    ///  compatibility alias for thetaeval()
         tau(real 0.5)                    ///  quantile index
-        k(integer 1)                     ///  # nearest neighbors (R/paper default)
-        s(integer 0)                     ///  kernel order (0 = auto)
+        k(integer 1)                     ///  # selected within each s-subset
+        s(integer 0)                     ///  subset/kernel order; larger = tighter
         Distance(string)                 ///  l2 (default) | mahalanobis
         Method(string)                   ///  exact (default) | asymp
         Level(cilevel)                   ///
         ]
 
+    if "`g'" != "" & "`q'" != "" {
+        di as error "Specify either g() or compatibility alias q(), not both."
+        exit 198
+    }
+    if "`g'`q'" == "" {
+        di as error "g() is required (compatibility alias: q())."
+        exit 198
+    }
+    if "`thetaeval'" != "" & "`beta'" != "" {
+        di as error "Specify either thetaeval() or compatibility alias beta(), not both."
+        exit 198
+    }
+    if "`thetaeval'`beta'" == "" {
+        di as error "thetaeval() is required (compatibility alias: beta())."
+        exit 198
+    }
+
+    local gvar `g'
+    local g_option "g"
+    if "`gvar'" == "" {
+        local gvar `q'
+        local g_option "q"
+    }
+    local theta `thetaeval'
+    local theta_option "thetaeval"
+    if "`theta'" == "" {
+        local theta `beta'
+        local theta_option "beta"
+    }
+
     marksample touse
-    markout `touse' `varlist' `x' `d' `q' `md'
+    markout `touse' `varlist' `x' `d' `gvar' `md'
 
     local outcome `varlist'
     local xvars   `x'
     local dvars   `d'
     local mdvars  `md'
-    local qvar    `q'
+    local gvar    `gvar'
     local kx : word count `xvars'
     local kd : word count `dvars'
     local kmd : word count `mdvars'
-    local nbeta : word count `beta'
+    local ntheta : word count `theta'
 
     quietly count if `touse'
     if r(N) == 0 {
@@ -57,8 +89,8 @@ program define plqr_dnn, eclass
         exit 198
     }
 
-    if `nbeta' != `kd' {
-        di as error "beta() must have `kd' elements (one per variable in d())."
+    if `ntheta' != `kd' {
+        di as error "thetaeval() must have `kd' elements (one per variable in d())."
         exit 198
     }
 
@@ -89,7 +121,7 @@ program define plqr_dnn, eclass
     }
 
     if `s' == 0 {
-        local s = floor(`n'^((`kx' + 1) / (`kx' + 2)))
+        local s = floor(.4 * `n'^((`kx' + 1) / (`kx' + 2)))
     }
     if `s' < `k' {
         di as error "s(`s') < k(`k')."
@@ -109,31 +141,31 @@ program define plqr_dnn, eclass
     }
     local x0_mata = substr("`x0_mata'", 1, length("`x0_mata'") - 1)
 
-    local beta_mata ""
-    foreach v of local beta {
-        local beta_mata `beta_mata' `v',
+    local theta_mata ""
+    foreach v of local theta {
+        local theta_mata `theta_mata' `v',
     }
-    local beta_mata = substr("`beta_mata'", 1, length("`beta_mata'") - 1)
+    local theta_mata = substr("`theta_mata'", 1, length("`theta_mata'") - 1)
 
-    tempname b V beta_mat
+    tempname b V theta_mat moment_mat moment_vcov_mat
     mata {
         _pl_X      = st_data(., "`xvars'", "`touse'")
         _pl_y      = st_data(., "`outcome'", "`touse'")
         _pl_D      = st_data(., "`dvars'", "`touse'")
-        _pl_q      = st_data(., "`qvar'", "`touse'")
+        _pl_g0     = st_data(., "`gvar'", "`touse'")
         _pl_md     = st_data(., "`mdvars'", "`touse'")
         _pl_x0     = (`x0_mata')
-        _pl_beta   = (`beta_mata')'
+        _pl_theta  = (`theta_mata')'
         _pl_ranks  = rdistnn_ranks(_pl_X, _pl_x0, "`distance'")
         _pl_w      = rdistnn_weights_from_ranks(_pl_ranks, `k', `s', "`method'")
-        _pl_resid  = `tau' :- (_pl_y :<= (_pl_D * _pl_beta :+ _pl_q))
-        _pl_g      = (_pl_D :- _pl_md) :* (_pl_resid * J(1, cols(_pl_D), 1))
-        _pl_moment = cross(_pl_w, _pl_g)
-        _pl_V      = rdistnn_jk_cov_from_ranks(_pl_ranks, _pl_g, `k', `s', "`method'")
+        _pl_resid  = `tau' :- (_pl_y :<= (_pl_D * _pl_theta :+ _pl_g0))
+        _pl_score  = (_pl_D :- _pl_md) :* (_pl_resid * J(1, cols(_pl_D), 1))
+        _pl_moment = cross(_pl_w, _pl_score)
+        _pl_V      = rdistnn_jk_cov_from_ranks(_pl_ranks, _pl_score, `k', `s', "`method'")
         _pl_neff   = 1 / sum(_pl_w :^2)
         st_matrix("`b'", _pl_moment)
         st_matrix("`V'", _pl_V)
-        st_matrix("`beta_mat'", _pl_beta')
+        st_matrix("`theta_mat'", _pl_theta')
         st_numscalar("r(neff)", _pl_neff)
     }
 
@@ -141,10 +173,15 @@ program define plqr_dnn, eclass
     matrix colnames `b' = `dvars'
     matrix rownames `V' = `dvars'
     matrix colnames `V' = `dvars'
-    matrix colnames `beta_mat' = `dvars'
+    matrix colnames `theta_mat' = `dvars'
+    matrix `moment_mat' = `b'
+    matrix `moment_vcov_mat' = `V'
 
     ereturn post `b' `V', esample(`touse')
-    ereturn matrix beta = `beta_mat'
+    ereturn matrix moment = `moment_mat', copy
+    ereturn matrix moment_vcov = `moment_vcov_mat', copy
+    ereturn matrix theta_eval = `theta_mat', copy
+    ereturn matrix beta = `theta_mat', copy
     ereturn scalar N      = `n'
     ereturn scalar neff   = scalar(r(neff))
     ereturn scalar k      = `k'
@@ -156,7 +193,13 @@ program define plqr_dnn, eclass
     ereturn local  xvars    "`xvars'"
     ereturn local  dvars    "`dvars'"
     ereturn local  mdvars   "`mdvars'"
-    ereturn local  qvar     "`qvar'"
+    ereturn local  gvar     "`gvar'"
+    ereturn local  qvar     "`gvar'"
+    ereturn local  g_option "`g_option'"
+    ereturn local  theta_option "`theta_option'"
+    ereturn local  theta_source "supplied"
+    ereturn local  inference_target "moment"
+    ereturn local  root_solver "none"
     ereturn local  yvar     "`outcome'"
     ereturn local  distance "`distance'"
     ereturn local  method   "`method'"
@@ -169,7 +212,7 @@ end
 program define _plqr_dnn_Display
     syntax [, Level(cilevel)]
     di ""
-    di as text "DNN PLQR Orthogonal Moments"
+    di as text "Experimental DNN PLQR Localized-Moment Evaluator"
     di as text "Evaluation point x0: " as result "`e(x0)'"
     di as text "Covariates: "          as result "`e(xvars)'"
     di as text "Regressors: "          as result "`e(dvars)'"
@@ -178,6 +221,12 @@ program define _plqr_dnn_Display
        as text "  s = " as result e(s) ///
        as text "  neff = " as result %6.2f e(neff)
     di as text "tau = " as result %6.3f e(tau)
+    di as text "Inference target: " as result "localized score moment"
+    di as text "Theta source: " as result "supplied"
+    di as text "No local root solving was performed."
     di ""
-    ereturn display, level(`level')
+    di as text "Localized score moment at theta_eval:"
+    matrix list e(moment), noheader format(%12.6g)
+    di as text "Rank-shift covariance of the localized score moment:"
+    matrix list e(moment_vcov), noheader format(%12.6g)
 end

@@ -6,14 +6,18 @@ d for parameters defined by localized conditional estimating equations,
 d exploiting the generalized-U-statistic / L-statistic structure of DNN
 d rank weights.
 d
-d Companion to the R package RdistNN and the paper:
-d   "Robust Inference for Conditional Z-Estimation via Distributional
-d    Nearest Neighbors" (Juergens)
+d plqr_dnn is experimental: it evaluates localized score moments at a
+d supplied theta vector and does not perform local root solving or coefficient
+d inference.
+d
+d Companion to the R package RdistNN and the conditional Z-estimation paper;
+d current working-paper citation metadata is maintained in RdistNN.
 d
 d Author: Jakob Juergens
 d
 f rdistnn.pkg
 f stata.toc
+f RELEASE_NOTES.md
 f src/cate_dnn.ado
 f src/cate_dnn.sthlp
 f src/cate_dnn_diagnostics.ado
@@ -22,6 +26,10 @@ f src/cate_dnn_plot.ado
 f src/cate_dnn_plot.sthlp
 f src/np_dnn.ado
 f src/np_dnn.sthlp
+f src/np_dnn_diagnostics.ado
+f src/np_dnn_diagnostics.sthlp
+f src/np_dnn_plot.ado
+f src/np_dnn_plot.sthlp
 f src/plqr_dnn.ado
 f src/plqr_dnn.sthlp
 f src/rdistnn.plugin

@@ -1,7 +1,8 @@
 {smcl}
-{* *! version 0.0.5  2026-07-11}{...}
+{* *! version 0.0.8  2026-07-12}{...}
 {viewerjumpto "Syntax"          "cate_dnn##syntax"}{...}
 {viewerjumpto "Description"     "cate_dnn##description"}{...}
+{viewerjumpto "Inference contract" "cate_dnn##inference_contract"}{...}
 {viewerjumpto "Options"         "cate_dnn##options"}{...}
 {viewerjumpto "Stored results"  "cate_dnn##results"}{...}
 {viewerjumpto "Examples"        "cate_dnn##examples"}{...}
@@ -45,11 +46,11 @@ Stata 17 or later is required.
 {synopt:{opth mcol(varname)}}pooled outcome mean, corresponding to R's {cmd:m_col}{p_end}
 
 {syntab:Tuning}
-{synopt:{opt k(#)}}number of nearest neighbors; default {cmd:k(1)}{p_end}
+{synopt:{opt k(#)}}nearest observations selected per size-s subsample; default {cmd:k(1)}{p_end}
 {synopt:{opt s(#)}}kernel order; default {cmd:s(0)} uses
-    floor(n^((kx+1)/(kx+2))){p_end}
+    floor(0.4*n^((kx+1)/(kx+2))){p_end}
 {synopt:{opt tuningmode(string)}}{cmd:default} (default) or integrated {cmd:grid}{p_end}
-{synopt:{opt lambda(#)}}default multiplier in the paper tuning rule; default 1{p_end}
+{synopt:{opt lambda(#)}}default multiplier in the paper tuning rule; default 0.4{p_end}
 {synopt:{opt lambdagrid(numlist)}}candidate multipliers for {cmd:tuningmode(grid)}{p_end}
 {synopt:{opt sgrid(numlist)}}direct integer candidate orders for grid mode{p_end}
 {synopt:{opt sdefault(#)}}default order for {cmd:sgrid()}; otherwise its first entry{p_end}
@@ -95,6 +96,11 @@ Supply {opt ecol()} and either {opt m0col()} with {opt m1col()} (AIPW),
 or {opt mcol()} (Robinson).
 
 {pstd}
+{bf:Inference warning:} Neyman orthogonality alone does not validate arbitrary
+same-sample nuisance estimates.  See {it:Inference contract} below before
+using full-sample predictions for inference.
+
+{pstd}
 Standard errors are computed via the rank-shift jackknife.  For
 {cmd:distance(l2)}, this is the exact delete-1 recomputation because the
 remaining distances do not change.  For {cmd:distance(mahalanobis)}, the
@@ -104,11 +110,26 @@ the full joint covariance of the leave-one-out target-estimate vector.  Its
 diagonal standard errors match separate single-target calls and the R package;
 its off-diagonal entries retain cross-target covariance for Stata inference.
 
+{marker inference_contract}{...}
+{title:Inference contract}
+
 {pstd}
-For nuisance-based paths, the propensity score and outcome models must be
-supplied by the user as variables in the dataset.  They may be oracle values,
-first-stage estimates computed on the same sample (Neyman orthogonality
-controls first-stage bias), or cross-fitted estimates.
+Orthogonality controls first-order population nuisance drift.  It does not, by
+itself, justify treating arbitrary nuisance predictions estimated on the same
+observations as valid inputs for the reported inference.
+
+{pstd}
+Valid full-sample reuse additionally requires the nuisance-rate and
+full-state stability conditions in the accompanying paper.  {cmd:cate_dnn}
+computes the localized estimator and rank-shift variance procedure, but it
+cannot diagnose whether an arbitrary learner satisfies those theoretical
+conditions.
+
+{pstd}
+Users may supply oracle quantities, cross-fitted or out-of-fold predictions,
+or full-sample predictions from learners for which the paper's rate and
+stability conditions are credible.  The design is deliberately modular:
+Stata does not automatically fit or select the nuisance models.
 
 {marker options}{...}
 {title:Options}
@@ -178,13 +199,20 @@ with their canonical counterparts.
 {dlgtab:Tuning}
 
 {phang}
-{opt k(#)} sets the number of nearest neighbors used in the DNN weights.
-Default is {cmd:k(1)}, matching the paper theory and the R package.
+{opt k(#)} sets how many nearest observations are selected within each
+size-s subsample.  It is not the number of observations receiving positive
+weight in the full-sample DNN rank-weight vector.  Default is {cmd:k(1)},
+matching the paper theory and the R package.
 
 {phang}
-{opt s(#)} sets the kernel order (bandwidth analog).  Larger s includes
-more observations with nonzero weight.  Default {cmd:s(0)} uses the
-undersmoothing rule floor(n^((kx+1)/(kx+2))).
+{opt s(#)} sets the subset/kernel order, a localization or bandwidth analogue
+whose direction is opposite to the usual bandwidth convention.  For exact
+top-k DNN weights, positive support ends at global rank n - s + k, so its size
+is n - s + k.  With the paper-default {cmd:k(1)}, the edge and support size are
+n - s + 1.  Holding n and k fixed, larger s shrinks the positive-weight support
+and produces tighter localization; smaller s spreads weight across more
+observations and increases the effective local sample size.  Default
+{cmd:s(0)} uses floor(0.4*n^((kx+1)/(kx+2))).
 
 {phang}
 {opt tuningmode(string)} selects {cmd:default}, which evaluates only the
@@ -196,11 +224,11 @@ anchored to the candidate marked as default.
 
 {phang}
 {opt lambda(#)} is the positive multiplier in
-floor(lambda*n^((kx+1)/(kx+2))).  Its default is 1.
+floor(lambda*n^((kx+1)/(kx+2))).  Its finite-sample default is 0.4.
 
 {phang}
 {opt lambdagrid(numlist)} provides paper-rule multipliers in grid mode.
-The default grid is {cmd:.75 1 1.25 1.5}.  Candidate rows are preserved even
+The default sensitivity grid is {cmd:.3 .4 .5 .75}.  Candidate rows are preserved even
 when rounding maps multiple multipliers to the same order; the common order
 is computed once.
 
@@ -285,6 +313,12 @@ size.  With {opt nose}, {opt s()} may equal that size.
 {marker examples}{...}
 {title:Examples}
 
+{pstd}
+{bf:Inference note:} The examples below use oracle quantities.  Orthogonality
+alone is not sufficient for arbitrary same-sample nuisance estimates; such
+reuse also requires the paper's nuisance-rate and full-state stability
+conditions.{p_end}
+
 {pstd}Setup: simulate data with oracle nuisances.{p_end}
 {phang2}{cmd:. clear}{p_end}
 {phang2}{cmd:. set obs 1000}{p_end}
@@ -337,8 +371,15 @@ weight, fixed top-1/top-5/top-10 weight shares, nonzero-weight count,
 distance-availability flag, rank-k and rank-s radii, weighted mean and median
 distance, overlap-availability flag, treated/control mass and treated share,
 propensity-availability flag, weighted mean propensity, and weighted
-propensity 10th/90th quantiles.  Overlap fields are missing for the
-precomputed-score path.
+propensity 10th/90th quantiles.  Paper diagnostics then report the ordinary
+Euclidean physical radius containing 90 percent of weight mass, an arm-ESS
+availability flag, treated/control ESS computed after normalizing weights
+within each arm, a score-contribution availability flag, and the share of
+total absolute {it:w_i(score_i-tau)} accounted for by the five largest
+contributions.  These are distinct from the rank-s radius, overall ESS, and
+top-five raw-weight share.  Arm-specific fields are missing for the
+precomputed-score path; physical-radius and score-contribution diagnostics
+remain available.
 
 {marker postestimation}{...}
 {title:Postestimation}
@@ -353,6 +394,5 @@ and dashboard plots.
 {title:References}
 
 {phang}
-Juergens, J. (2025).
-{it:Robust Inference for Conditional Z-Estimation via Distributional Nearest Neighbors}.
-Working paper.
+Juergens, J. (2026).  Companion conditional Z-estimation working paper;
+see the package README for current title and repository metadata.

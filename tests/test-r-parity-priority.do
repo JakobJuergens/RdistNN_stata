@@ -12,7 +12,7 @@ set obs 100
 gen double x1 = (_n - 50) / 20
 weights_dnn x1, x0(0) k(1)
 local s_kx1 = r(s)
-test_assert "[defaults] weights kx=1 uses floor(n^(2/3))" `s_kx1' == 21
+test_assert "[defaults] weights kx=1 uses floor(0.4*n^(2/3))" `s_kx1' == 8
 
 clear
 set obs 125
@@ -21,7 +21,7 @@ gen double x2 = cos(_n)
 gen double x3 = _n / 125
 weights_dnn x1 x2 x3, x0(0 0 0) k(1)
 local s_kx3 = r(s)
-test_assert "[defaults] weights kx=3 uses floor(n^(4/5))" `s_kx3' == 47
+test_assert "[defaults] weights kx=3 uses floor(0.4*n^(4/5))" `s_kx3' == 19
 
 clear
 input double x1 x2
@@ -58,20 +58,22 @@ quietly np_dnn y_np, x(x1 x2) x0(0.2 -0.1)
 local np_default_k = e(k)
 local np_default_s = e(s)
 test_assert "[defaults] np_dnn defaults to paper k=1" `np_default_k' == 1
-test_assert "[defaults] np_dnn default s follows paper rule" `np_default_s' == 6
+test_assert "[defaults] np_dnn default s uses lambda=0.4" `np_default_s' == 2
+test_assert "[defaults] np_dnn records lambda=0.4" abs(e(lambda)-.4) < 1e-12
 
 quietly cate_dnn rho, xcols(x1 x2) x0(0.2 -0.1) pseudooutcome
 local cate_default_k = e(k)
 local cate_default_s = e(s)
 test_assert "[defaults] cate_dnn defaults to paper k=1" `cate_default_k' == 1
-test_assert "[defaults] cate_dnn default s follows paper rule" `cate_default_s' == 6
+test_assert "[defaults] cate_dnn default s uses lambda=0.4" `cate_default_s' == 2
+test_assert "[defaults] cate_dnn records lambda=0.4" abs(e(lambda)-.4) < 1e-12
 
 quietly plqr_dnn y_plqr, x(x1 x2) x0(0.2 -0.1) d(d1 d2) ///
-    q(g) md(md1 md2) beta(0.6 -0.4)
+    g(g) md(md1 md2) thetaeval(0.6 -0.4)
 local plqr_default_k = e(k)
 local plqr_default_s = e(s)
 test_assert "[defaults] plqr_dnn defaults to paper k=1" `plqr_default_k' == 1
-test_assert "[defaults] plqr_dnn default s follows paper rule" `plqr_default_s' == 6
+test_assert "[defaults] plqr_dnn default s uses lambda=0.4" `plqr_default_s' == 2
 
 test_section "R parity priorities: [weights] k=s uniform boundary"
 
@@ -120,40 +122,61 @@ quietly cate_dnn rho, xcols(x1 x2) x0matrix(X0_priority) ///
 matrix B_cate_exact = e(b)
 matrix V_cate_exact = e(V)
 matrix N_cate_exact = e(neff_targets)
+matrix D_cate_exact = e(diagnostics)
 mata {
     st_numscalar("_cate_exact_b", max(abs(st_matrix("B_cate_exact") - st_matrix("R_cate_exact_tau")')))
     st_numscalar("_cate_exact_s", max(abs(sqrt(diagonal(st_matrix("V_cate_exact")))' - st_matrix("R_cate_exact_se")')))
     st_numscalar("_cate_exact_n", max(abs(st_matrix("N_cate_exact") - st_matrix("R_cate_exact_ess")')))
+    _cde = st_matrix("D_cate_exact")[,20..25]
+    _cdr = st_matrix("R_cate_exact_paper_diagnostics")
+    _cdmiss = sum(missing(_cde) :!= missing(_cdr))
+    _cdok = !missing(_cde) :& !missing(_cdr)
+    st_numscalar("_cate_exact_d", any(_cdok) ? max(abs(select(vec(_cde-_cdr), vec(_cdok)))) : 0)
+    st_numscalar("_cate_exact_dm", _cdmiss)
 }
 test_assert "[golden] exact batch CATE estimates match RdistNN" scalar(_cate_exact_b) < 1e-12
 test_assert "[golden] exact batch CATE SEs match RdistNN" scalar(_cate_exact_s) < 1e-12
 test_assert "[golden] exact batch CATE ESS matches RdistNN" scalar(_cate_exact_n) < 1e-12
+test_assert "[golden] exact CATE paper diagnostics match RdistNN" ///
+    scalar(_cate_exact_d) < 1e-12 & scalar(_cate_exact_dm) == 0
 
 quietly cate_dnn rho, xcols(x1 x2) x0matrix(X0_priority) ///
     pseudooutcome k(2) s(5) method(asymp)
 matrix B_cate_asymp = e(b)
 matrix V_cate_asymp = e(V)
 matrix N_cate_asymp = e(neff_targets)
+matrix D_cate_asymp = e(diagnostics)
 mata {
     st_numscalar("_cate_asymp_b", max(abs(st_matrix("B_cate_asymp") - st_matrix("R_cate_asymp_tau")')))
     st_numscalar("_cate_asymp_s", max(abs(sqrt(diagonal(st_matrix("V_cate_asymp")))' - st_matrix("R_cate_asymp_se")')))
     st_numscalar("_cate_asymp_n", max(abs(st_matrix("N_cate_asymp") - st_matrix("R_cate_asymp_ess")')))
+    _cda = st_matrix("D_cate_asymp")[,20..25]
+    _cdar = st_matrix("R_cate_asymp_paper_diagnostics")
+    _cdamiss = sum(missing(_cda) :!= missing(_cdar))
+    _cdaok = !missing(_cda) :& !missing(_cdar)
+    st_numscalar("_cate_asymp_d", any(_cdaok) ? max(abs(select(vec(_cda-_cdar), vec(_cdaok)))) : 0)
+    st_numscalar("_cate_asymp_dm", _cdamiss)
 }
 test_assert "[golden] asymp batch CATE estimates match RdistNN" scalar(_cate_asymp_b) < 1e-12
 test_assert "[golden] asymp batch CATE SEs match RdistNN" scalar(_cate_asymp_s) < 1e-12
 test_assert "[golden] asymp batch CATE ESS matches RdistNN" scalar(_cate_asymp_n) < 1e-12
+test_assert "[golden] asymp CATE paper diagnostics match RdistNN" ///
+    scalar(_cate_asymp_d) < 1e-12 & scalar(_cate_asymp_dm) == 0
 
 quietly cate_dnn y_cate, tcol(D) xcols(x1 x2) x0(0.2 -0.1) ///
     ecol(e) m0col(m0) m1col(m1) k(2) s(5) method(exact)
 local aipw_tau = _b[tau]
 local aipw_se = _se[tau]
 local aipw_ess = e(neff)
+matrix D_cate_aipw = e(diagnostics)
 test_assert "[golden] AIPW estimate matches RdistNN" ///
     abs(`aipw_tau' - R_cate_aipw_exact[1,1]) < 1e-12
 test_assert "[golden] AIPW SE matches RdistNN" ///
     abs(`aipw_se' - R_cate_aipw_exact[2,1]) < 1e-12
 test_assert "[golden] AIPW ESS matches RdistNN" ///
     abs(`aipw_ess' - R_cate_aipw_exact[3,1]) < 1e-12
+mata: st_numscalar("_cate_aipw_diag", max(abs(st_matrix("D_cate_aipw")[1,20..25] - st_matrix("R_cate_aipw_paper_diagnostics"))))
+test_assert "[golden] AIPW paper diagnostics match RdistNN" scalar(_cate_aipw_diag) < 1e-12
 
 quietly cate_dnn y_cate, tcol(D) xcols(x1 x2) x0(0.2 -0.1) ///
     ecol(e) mcol(m) k(2) s(5) method(exact)
@@ -170,29 +193,36 @@ test_assert "[golden] Robinson ESS matches RdistNN" ///
 test_section "R parity priorities: [golden] PLQR moments"
 
 quietly plqr_dnn y_plqr, x(x1 x2) x0(0.2 -0.1) d(d1 d2) ///
-    q(g) md(md1 md2) beta(0.6 -0.4) k(2) s(5) method(exact)
-matrix B_plqr_exact = e(b)
-matrix V_plqr_exact = e(V)
+    g(g) md(md1 md2) thetaeval(0.6 -0.4) k(2) s(5) method(exact)
+matrix B_plqr_exact = e(moment)
+matrix V_plqr_exact = e(moment_vcov)
+matrix T_plqr_exact = e(theta_eval)
 local plqr_exact_ess = e(neff)
 mata {
     st_numscalar("_plqr_exact_b", max(abs(st_matrix("B_plqr_exact") - st_matrix("R_plqr_exact_moment")')))
+    st_numscalar("_plqr_exact_v", max(abs(st_matrix("V_plqr_exact") - st_matrix("R_plqr_exact_moment_vcov"))))
     st_numscalar("_plqr_exact_s", max(abs(sqrt(diagonal(st_matrix("V_plqr_exact")))' - st_matrix("R_plqr_exact_se")')))
+    st_numscalar("_plqr_exact_t", max(abs(st_matrix("T_plqr_exact") - st_matrix("R_plqr_exact_theta_eval")')))
 }
 test_assert "[golden] exact PLQR moments match RdistNN" scalar(_plqr_exact_b) < 1e-12
+test_assert "[golden] exact PLQR moment covariance matches RdistNN" scalar(_plqr_exact_v) < 1e-12
 test_assert "[golden] exact PLQR SEs match RdistNN" scalar(_plqr_exact_s) < 1e-12
+test_assert "[golden] supplied PLQR theta matches RdistNN" scalar(_plqr_exact_t) < 1e-12
 test_assert "[golden] exact PLQR ESS matches RdistNN" ///
     abs(`plqr_exact_ess' - R_plqr_exact_ess[1,1]) < 1e-12
 
 quietly plqr_dnn y_plqr, x(x1 x2) x0(0.2 -0.1) d(d1 d2) ///
-    q(g) md(md1 md2) beta(0.6 -0.4) k(2) s(5) method(asymp)
-matrix B_plqr_asymp = e(b)
-matrix V_plqr_asymp = e(V)
+    g(g) md(md1 md2) thetaeval(0.6 -0.4) k(2) s(5) method(asymp)
+matrix B_plqr_asymp = e(moment)
+matrix V_plqr_asymp = e(moment_vcov)
 local plqr_asymp_ess = e(neff)
 mata {
     st_numscalar("_plqr_asymp_b", max(abs(st_matrix("B_plqr_asymp") - st_matrix("R_plqr_asymp_moment")')))
+    st_numscalar("_plqr_asymp_v", max(abs(st_matrix("V_plqr_asymp") - st_matrix("R_plqr_asymp_moment_vcov"))))
     st_numscalar("_plqr_asymp_s", max(abs(sqrt(diagonal(st_matrix("V_plqr_asymp")))' - st_matrix("R_plqr_asymp_se")')))
 }
 test_assert "[golden] asymp PLQR moments match RdistNN" scalar(_plqr_asymp_b) < 1e-12
+test_assert "[golden] asymp PLQR moment covariance matches RdistNN" scalar(_plqr_asymp_v) < 1e-12
 test_assert "[golden] asymp PLQR SEs match RdistNN" scalar(_plqr_asymp_s) < 1e-12
 test_assert "[golden] asymp PLQR ESS matches RdistNN" ///
     abs(`plqr_asymp_ess' - R_plqr_asymp_ess[1,1]) < 1e-12

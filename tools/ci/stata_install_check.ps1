@@ -86,6 +86,10 @@ which weights_dnn
 _rdistnn_assert_from_plus weights_dnn.ado, plusnorm("`plus_norm'")
 which np_dnn
 _rdistnn_assert_from_plus np_dnn.ado, plusnorm("`plus_norm'")
+which np_dnn_diagnostics
+_rdistnn_assert_from_plus np_dnn_diagnostics.ado, plusnorm("`plus_norm'")
+which np_dnn_plot
+_rdistnn_assert_from_plus np_dnn_plot.ado, plusnorm("`plus_norm'")
 which cate_dnn
 _rdistnn_assert_from_plus cate_dnn.ado, plusnorm("`plus_norm'")
 which cate_dnn_diagnostics
@@ -140,8 +144,44 @@ if _b[mu] >= . | _se[mu] >= . {
     exit 459
 }
 np_dnn y, x(x1 x2) x0(0 0)
-if e(k) != 1 | e(s) != floor(160^(3/4)) {
+if e(k) != 1 | e(s) != floor(.4*160^(3/4)) | abs(e(lambda)-.4) > 1e-12 {
     di as error "installed np_dnn does not use the R/paper k and s defaults."
+    exit 459
+}
+
+matrix X0_np_install = (0,0 \ 0.2,-0.3)
+np_dnn y, xcols(x1 x2) x0matrix(X0_np_install) k(3) tuningmode(grid)
+matrix B_np_batch = e(b)
+matrix V_np_batch = e(V)
+matrix D_np_batch = e(diagnostics)
+matrix C_np_grid = e(tuning_candidates)
+matrix E_np_grid = e(tuning_estimates)
+if e(m) != 2 | colsof(B_np_batch) != 2 | rowsof(V_np_batch) != 2 | ///
+    rowsof(D_np_batch) != 2 | colsof(D_np_batch) != 17 | ///
+    rowsof(C_np_grid) != 4 | rowsof(E_np_grid) != 4 | ///
+    e(tuning_default_candidate) != 2 | "`e(tuning_mode)'" != "grid" {
+    di as error "installed np_dnn batch, diagnostics, or tuning contract failed."
+    exit 459
+}
+np_dnn_diagnostics, allcandidates
+if r(n_rows) != 4 | "`r(scope)'" != "candidates" {
+    di as error "installed np_dnn_diagnostics candidate path failed."
+    exit 459
+}
+foreach p in estimates diagnostics tuning weights outcome dashboard {
+    local extra ""
+    if "`p'" == "weights" local extra "view(kernel)"
+    np_dnn_plot, type(`p') `extra' name(install_np_`p') replace nodraw
+    capture graph describe install_np_`p'
+    if _rc {
+        di as error "installed np_dnn_plot type(`p') failed."
+        exit 459
+    }
+}
+np_dnn y, xcols(x1 x2) x0matrix(X0_np_install) s(160) nose
+capture matrix list e(V)
+if _rc == 0 | "`e(se_method)'" != "none" {
+    di as error "installed np_dnn nose path unexpectedly posted inference."
     exit 459
 }
 
@@ -161,7 +201,7 @@ if abs(_b[tau] - `tau_aipw') > 1e-10 | abs(_se[tau] - `se_aipw') > 1e-10 {
     exit 459
 }
 cate_dnn rho_aipw, xcols(x1 x2) x0(0 0) pseudooutcome
-if e(k) != 1 | e(s) != floor(160^(3/4)) {
+if e(k) != 1 | e(s) != floor(.4*160^(3/4)) | abs(e(lambda)-.4) > 1e-12 {
     di as error "installed cate_dnn does not use the R/paper k and s defaults."
     exit 459
 }
@@ -176,7 +216,7 @@ matrix N_cate_batch = e(neff_targets)
 matrix D_cate_batch = e(diagnostics)
 if e(m) != 2 | colsof(B_cate_batch) != 2 | rowsof(V_cate_batch) != 2 | ///
     rowsof(T_cate_batch) != 2 | colsof(N_cate_batch) != 2 | ///
-    rowsof(D_cate_batch) != 2 | colsof(D_cate_batch) != 19 | ///
+    rowsof(D_cate_batch) != 2 | colsof(D_cate_batch) != 25 | ///
     D_cate_batch[1,12] != 1 | D_cate_batch[1,16] != 1 {
     di as error "installed cate_dnn x0matrix() path returned invalid result shapes."
     exit 459
@@ -246,7 +286,9 @@ if _rc {
     exit 459
 }
 capture graph drop install_estimates install_diagnostics install_overlap ///
-    install_weights install_influence install_tuning install_dashboard
+    install_weights install_influence install_tuning install_dashboard ///
+    install_np_estimates install_np_diagnostics install_np_tuning ///
+    install_np_weights install_np_outcome install_np_dashboard
 
 gen double mhat = e*m1 + (1-e)*m0
 gen double rho_robinson = (D-eclip)*(y-mhat)/(eclip*(1-eclip))
@@ -277,15 +319,15 @@ gen double d2 = md2 + rnormal()*0.4
 gen double q = 0.25*x1 - 0.15*x2
 gen double yq = d1 - 0.5*d2 + q + rnormal()*0.5
 
-plqr_dnn yq, x(x1 x2) x0(0 0) d(d1 d2) q(q) md(md1 md2) beta(1 -0.5) tau(0.5) k(3) s(12)
+plqr_dnn yq, x(x1 x2) x0(0 0) d(d1 d2) g(q) md(md1 md2) thetaeval(1 -0.5) tau(0.5) k(3) s(12)
 matrix B = e(b)
 matrix V = e(V)
 if B[1,1] >= . | B[1,2] >= . | V[1,1] >= . | V[2,2] >= . {
     di as error "plqr_dnn returned non-finite results."
     exit 459
 }
-plqr_dnn yq, x(x1 x2) x0(0 0) d(d1 d2) q(q) md(md1 md2) beta(1 -0.5)
-if e(k) != 1 | e(s) != floor(160^(3/4)) {
+plqr_dnn yq, x(x1 x2) x0(0 0) d(d1 d2) g(q) md(md1 md2) thetaeval(1 -0.5)
+if e(k) != 1 | e(s) != floor(.4*160^(3/4)) {
     di as error "installed plqr_dnn does not use the R/paper k and s defaults."
     exit 459
 }

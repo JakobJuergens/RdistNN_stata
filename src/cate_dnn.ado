@@ -1,4 +1,4 @@
-*! version 0.0.5  2026-07-11  Jakob Juergens
+*! version 0.0.8  2026-07-12  Jakob Juergens
 *! Conditional average treatment effect via distributional nearest neighbors
 
 program define cate_dnn, eclass
@@ -28,10 +28,10 @@ program define cate_dnn, eclass
         MHAT(varname numeric)            ///  estimated/oracle E[Y|X]
         MCOL(varname numeric)            ///  R-aligned m_col convention
         PSEUDOOutcome                    ///  positional variable is CATE signal
-        k(integer 1)                     ///  # nearest neighbors
-        s(integer 0)                     ///  kernel order (0 = auto)
+        k(integer 1)                     ///  # selected within each s-subset
+        s(integer 0)                     ///  subset/kernel order; larger = tighter
         TUNINGMode(string)               ///  default | grid (R tuning_mode)
-        LAMBDA(real 1)                   ///  paper-rule default multiplier
+        LAMBDA(real .4)                  ///  paper finite-sample multiplier
         LAMBDAGrid(numlist)              ///  paper-rule candidate multipliers
         SGRID(numlist)                   ///  direct Stata candidate orders
         SDEFAULT(integer 0)              ///  default order for sgrid()
@@ -298,7 +298,7 @@ program define cate_dnn, eclass
     }
     else {
         local tuning_source "lambda_grid"
-        if "`lambdagrid'" == "" local lambdagrid ".75 1 1.25 1.5"
+        if "`lambdagrid'" == "" local lambdagrid ".3 .4 .5 .75"
         foreach lg of local lambdagrid {
             if `lg' <= 0 | missing(`lg') {
                 di as error "lambdagrid() must contain positive finite numbers."
@@ -455,6 +455,7 @@ program define cate_dnn, eclass
         _ct_grid_diag = J(`ncandidates', 5, .)
 
         for (_ct_g = 1; _ct_g <= `ncandidates'; _ct_g++) {
+            _ct_grid_diag[_ct_g, 3] = min((5, `n'))
             if (_ct_candidates[_ct_g, 4] == 0) continue
             _ct_prior = 0
             if (_ct_g > 1) {
@@ -500,7 +501,7 @@ program define cate_dnn, eclass
 
         _ct_tau = _ct_grid_est[`default_index',.]
         _ct_neff = 1 :/ colsum(_ct_W :^ 2)
-        _ct_target_diag = J(`ntargets', 19, .)
+        _ct_target_diag = J(`ntargets', 25, .)
         if ("`score_method'" != "pseudo_outcome") {
             _ct_T = st_data(., "`treat_var'", "`touse'")
             _ct_E = st_data(., "`propensity_var'", "`touse'")
@@ -526,9 +527,15 @@ program define cate_dnn, eclass
                 quadsum(_ct_wj)
             _ct_target_diag[_ct_j, 11] = rdistnn_weighted_quantile(
                 _ct_dxj, _ct_wj, .5)
+            // Paper diagnostic: ordinary Euclidean radius in original X
+            // coordinates, regardless of the metric used to form ranks.
+            _ct_physical_dx = sqrt(rowsum((_ct_X :- _ct_X0[_ct_j,.]) :^ 2))
+            _ct_target_diag[_ct_j, 20] = rdistnn_weighted_quantile(
+                _ct_physical_dx, _ct_wj, .9)
             if ("`score_method'" == "pseudo_outcome") {
                 _ct_target_diag[_ct_j, 12] = 0
                 _ct_target_diag[_ct_j, 16] = 0
+                _ct_target_diag[_ct_j, 21] = 0
             }
             else {
                 _ct_tmass = cross(_ct_T, _ct_wj)
@@ -545,6 +552,26 @@ program define cate_dnn, eclass
                     _ct_E, _ct_wj, .1)
                 _ct_target_diag[_ct_j, 19] = rdistnn_weighted_quantile(
                     _ct_E, _ct_wj, .9)
+                _ct_target_diag[_ct_j, 21] = 1
+                _ct_tw = select(_ct_wj, _ct_T :== 1)
+                _ct_cw = select(_ct_wj, _ct_T :== 0)
+                if (rows(_ct_tw) > 0 & quadsum(_ct_tw :^ 2) > 0) {
+                    _ct_target_diag[_ct_j, 22] =
+                        quadsum(_ct_tw)^2 / quadsum(_ct_tw :^ 2)
+                }
+                if (rows(_ct_cw) > 0 & quadsum(_ct_cw :^ 2) > 0) {
+                    _ct_target_diag[_ct_j, 23] =
+                        quadsum(_ct_cw)^2 / quadsum(_ct_cw :^ 2)
+                }
+            }
+            _ct_target_diag[_ct_j, 24] = 1
+            _ct_abs_contrib = abs(_ct_wj :* (_ct_rho :- _ct_tau[_ct_j]))
+            _ct_contrib_total = quadsum(_ct_abs_contrib)
+            if (_ct_contrib_total > 0 & _ct_contrib_total < .) {
+                _ct_contrib_order = order((_ct_abs_contrib, (1::`n')), (-1, 2))
+                _ct_target_diag[_ct_j, 25] = quadsum(
+                    _ct_abs_contrib[_ct_contrib_order[1..min((5, `n'))]]) /
+                    _ct_contrib_total
             }
         }
         st_matrix("`b'", _ct_tau)
@@ -582,7 +609,9 @@ program define cate_dnn, eclass
         weighted_mean_distance weighted_median_distance overlap_available ///
         treated_mass control_mass treated_share propensity_available ///
         weighted_mean_propensity weighted_propensity_q10 ///
-        weighted_propensity_q90
+        weighted_propensity_q90 physical_radius_90 arm_ess_available ///
+        treated_ess control_ess score_contribution_available ///
+        top5_score_share
     if "`se'" == "" {
         matrix rownames `V' = `coef_names'
         matrix colnames `V' = `coef_names'

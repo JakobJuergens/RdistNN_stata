@@ -1,4 +1,4 @@
-*! version 0.0.2  2026-04-06  Jakob Juergens
+*! version 0.0.5  2026-07-12  Jakob Juergens
 *! DNN rank weights at a fixed covariate point x0
 
 program define weights_dnn, rclass
@@ -6,9 +6,9 @@ program define weights_dnn, rclass
 
     syntax varlist(min=1) [if] [in] ,   ///
         x0(numlist)                      ///  evaluation point (length = # vars)
-        k(integer)                       ///  # nearest neighbors
         [                                ///
-        s(integer 0)                     ///  kernel order (0 = auto)
+        k(integer 1)                     ///  # selected within each s-subset
+        s(integer 0)                     ///  subset/kernel order; larger = tighter
         Generate(name)                   ///  new variable to store weights
         Distance(string)                 ///  l2 (default) | mahalanobis
         Method(string)                   ///  exact (default) | asymp
@@ -52,18 +52,18 @@ program define weights_dnn, rclass
         exit 198
     }
 
-    // Default s: floor(n^((kx+1)/(kx+2)))
+    // Paper finite-sample default: floor(0.4*n^((kx+1)/(kx+2)))
     quietly count if `touse'
     local n = r(N)
     if `s' == 0 {
-        local s = floor(`n'^((`kx' + 1) / (`kx' + 2)))
+        local s = floor(.4 * `n'^((`kx' + 1) / (`kx' + 2)))
     }
     if `s' < `k' {
         di as error "s(`s') < k(`k'); increase s or decrease k."
         exit 198
     }
-    if `s' >= `n' {
-        di as error "s(`s') must be less than n(`n')."
+    if `s' > `n' {
+        di as error "s(`s') must be no greater than n(`n')."
         exit 198
     }
 

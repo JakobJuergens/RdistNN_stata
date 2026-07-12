@@ -7,7 +7,11 @@
 #   3. Every public .ado/.sthlp surface is listed in rdistnn.pkg.
 #   4. The installable plugin is listed in rdistnn.pkg.
 #   5. Active ado/test entry files target Stata 17+.
-#   6. stata.toc references rdistnn.pkg.
+#   6. cate_dnn help retains the nuisance-inference contract.
+#   7. DNN kernel-order documentation retains the exact support direction.
+#   8. Experimental PLQR and CATE paper-diagnostic contracts remain explicit.
+#   9. Generated archives and CI logs are not tracked.
+#  10. stata.toc references rdistnn.pkg.
 #
 # Exit code: 0 = all checks passed, 1 = one or more failures.
 # Run from the repository root.
@@ -101,7 +105,125 @@ else
 	ERRORS=$((ERRORS + VERSION_ERRORS))
 fi
 
-# ── 6. stata.toc has a package entry for rdistnn ────────────────────────────
+# ── 6. cate_dnn nuisance-inference documentation contract ──────────────────
+echo ""
+echo "=== Checking cate_dnn inference documentation ==="
+DOC_CONTRACT_ERRORS=0
+for phrase in \
+	"{title:Inference contract}" \
+	"Orthogonality controls first-order population nuisance drift" \
+	"same-sample nuisance estimates" \
+	"Valid full-sample reuse additionally requires" \
+	"nuisance-rate" \
+	"full-state stability" \
+	"cannot diagnose"; do
+	if grep -qF "$phrase" src/cate_dnn.sthlp; then
+		echo "  OK       cate_dnn.sthlp contains: $phrase"
+	else
+		echo "  MISSING  cate_dnn.sthlp must contain: $phrase"
+		DOC_CONTRACT_ERRORS=$((DOC_CONTRACT_ERRORS + 1))
+	fi
+done
+
+if [[ $DOC_CONTRACT_ERRORS -gt 0 ]]; then
+	ERRORS=$((ERRORS + DOC_CONTRACT_ERRORS))
+fi
+
+# ── 7. exact DNN support-direction documentation ───────────────────────────
+echo ""
+echo "=== Checking DNN kernel-order documentation ==="
+DNN_DOC_ERRORS=0
+DNN_DOCS=(
+	README.md
+	src/cate_dnn.sthlp
+	src/np_dnn.sthlp
+	src/plqr_dnn.sthlp
+	src/weights_dnn.sthlp
+)
+for file in "${DNN_DOCS[@]}"; do
+	for phrase in "n - s + k" "n - s + 1" "opposite to the usual bandwidth convention"; do
+		if grep -qFi "$phrase" "$file"; then
+			echo "  OK       $file contains: $phrase"
+		else
+			echo "  MISSING  $file must contain: $phrase"
+			DNN_DOC_ERRORS=$((DNN_DOC_ERRORS + 1))
+		fi
+	done
+done
+
+DNN_DOC_TEXT=""
+for file in "${DNN_DOCS[@]}"; do
+	DNN_DOC_TEXT+=" $(tr -d '\r`' <"$file" | tr '\n' ' ')"
+done
+if printf '%s\n' "$DNN_DOC_TEXT" | grep -Eqi \
+	'larger[[:space:]]+s[[:space:]]+(includes|spreads|assigns|puts)[^.]{0,80}more'; then
+	echo "  INVALID  documentation says larger s spreads weight over more observations"
+	DNN_DOC_ERRORS=$((DNN_DOC_ERRORS + 1))
+fi
+if printf '%s\n' "$DNN_DOC_TEXT" | grep -Eqi \
+	'larger[[:space:]]+s[[:space:]]+(increases|expands|widens)[^.]{0,40}support'; then
+	echo "  INVALID  documentation says larger s expands positive-weight support"
+	DNN_DOC_ERRORS=$((DNN_DOC_ERRORS + 1))
+fi
+
+if [[ $DNN_DOC_ERRORS -eq 0 ]]; then
+	echo "  OK       larger s is documented as tighter localization"
+else
+	ERRORS=$((ERRORS + DNN_DOC_ERRORS))
+fi
+
+# ── 8. experimental PLQR and CATE paper-diagnostic contracts ───────────────
+echo ""
+echo "=== Checking estimator-surface documentation contracts ==="
+SURFACE_ERRORS=0
+for phrase in \
+	"Experimental status" \
+	"not a coefficient estimator" \
+	"No local root solving was performed" \
+	"thetaeval()" \
+	"Compatibility aliases"; do
+	if grep -qFi "$phrase" src/plqr_dnn.sthlp src/plqr_dnn.ado; then
+		echo "  OK       PLQR surface contains: $phrase"
+	else
+		echo "  MISSING  PLQR surface must contain: $phrase"
+		SURFACE_ERRORS=$((SURFACE_ERRORS + 1))
+	fi
+done
+if grep -q "ereturn display" src/plqr_dnn.ado; then
+	echo "  INVALID  experimental PLQR display must not use coefficient-style ereturn display"
+	SURFACE_ERRORS=$((SURFACE_ERRORS + 1))
+fi
+for phrase in physical_radius_90 treated_ess control_ess top5_score_share; do
+	if grep -qF "$phrase" src/cate_dnn.ado src/cate_dnn_diagnostics.ado; then
+		echo "  OK       CATE diagnostics contain: $phrase"
+	else
+		echo "  MISSING  CATE diagnostics must contain: $phrase"
+		SURFACE_ERRORS=$((SURFACE_ERRORS + 1))
+	fi
+done
+ERRORS=$((ERRORS + SURFACE_ERRORS))
+
+# ── 9. generated-artifact tracking hygiene ─────────────────────────────────
+echo ""
+echo "=== Checking generated-artifact tracking hygiene ==="
+TRACKED_GENERATED="$(git ls-files -- GH_logs archives/source.zip)"
+if [[ -n "$TRACKED_GENERATED" ]]; then
+	echo "  TRACKED  generated files must be removed:"
+	printf '%s\n' "$TRACKED_GENERATED" | sed 's/^/           /'
+	ERRORS=$((ERRORS + 1))
+else
+	echo "  OK       GH_logs and archives/source.zip are not tracked"
+fi
+for pattern in "GH_logs/" "archives/source.zip"; do
+	if grep -qFx "$pattern" .gitignore; then
+		echo "  OK       .gitignore contains: $pattern"
+	else
+		echo "  MISSING  .gitignore must contain: $pattern"
+		ERRORS=$((ERRORS + 1))
+	fi
+done
+
+# ── 10. stata.toc has a package entry for rdistnn ───────────────────────────
 # In stata.toc format, packages are listed as "p <name>" (no .pkg extension).
 echo ""
 echo "=== Checking stata.toc ==="

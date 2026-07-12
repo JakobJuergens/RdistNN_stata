@@ -56,6 +56,45 @@ mata {
 }
 test_assert "[edge] k=1 matches C(n-r,s-1)/C(n,s)" scalar(_r) < 1e-12
 
+// [support] Exact top-k support is ranks 1,...,n-s+k for varied n, s, and k.
+mata {
+    _support_cases = (10,4,1 \ 12,5,3 \ 20,14,2 \ 9,9,3 \ 9,3,3)
+    _support_count_err = 0
+    _support_edge_err  = 0
+    _support_tail_err  = 0
+    for (_case_i = 1; _case_i <= rows(_support_cases); _case_i++) {
+        n = _support_cases[_case_i, 1]
+        s = _support_cases[_case_i, 2]
+        k = _support_cases[_case_i, 3]
+        _edge = n - s + k
+        _w = rdistnn_weights_exact((1::n), k, s)
+        _support_count_err = max((_support_count_err, abs(sum(_w :> 0) - _edge)))
+        _support_edge_err  = max((_support_edge_err, _w[_edge] <= 0))
+        if (_edge < n) {
+            _support_tail_err = max((_support_tail_err, max(abs(_w[(_edge+1)..n]))))
+        }
+    }
+    st_numscalar("_support_count_err", _support_count_err)
+    st_numscalar("_support_edge_err",  _support_edge_err)
+    st_numscalar("_support_tail_err",  _support_tail_err)
+}
+test_assert "[support] positive-weight count equals n-s+k" scalar(_support_count_err) == 0
+test_assert "[support] rank n-s+k has positive weight" scalar(_support_edge_err) == 0
+test_assert "[support] ranks above n-s+k have zero weight" scalar(_support_tail_err) == 0
+
+// [support] Holding n and k fixed, larger s gives tighter support and lower ESS.
+mata {
+    n = 20; k = 2
+    _w_small_s = rdistnn_weights_exact((1::n), k, 5)
+    _w_large_s = rdistnn_weights_exact((1::n), k, 12)
+    st_numscalar("_support_small_s", sum(_w_small_s :> 0))
+    st_numscalar("_support_large_s", sum(_w_large_s :> 0))
+    st_numscalar("_ess_small_s", 1 / sum(_w_small_s:^2))
+    st_numscalar("_ess_large_s", 1 / sum(_w_large_s:^2))
+}
+test_assert "[support] larger s shrinks positive support" scalar(_support_large_s) < scalar(_support_small_s)
+test_assert "[support] smaller s increases effective local sample size" scalar(_ess_small_s) > scalar(_ess_large_s)
+
 // [edge] s = 1, k = 1: each obs is drawn alone; weight = 1/n uniformly
 mata {
     n = 9; k = 1; s = 1

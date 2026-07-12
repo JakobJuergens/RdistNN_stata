@@ -53,18 +53,45 @@ local s_ret = r(s)
 test_assert "[meta] explicit k passed through" `k_ret' == 3
 test_assert "[meta] explicit s passed through" `s_ret' == 10
 
-// [meta] auto-s default: floor(n^((kx+1)/(kx+2))) with kx=2, n=200
-//   = floor(200^(3/4)) = floor(53.19...) = 53
+// [meta] auto-s default: floor(0.4*n^((kx+1)/(kx+2))) with kx=2, n=200
+//   = floor(0.4*200^(3/4)) = floor(21.27...) = 21
 weights_dnn x1 x2, x0(0 0) k(3)
 local s_auto = r(s)
-test_assert "[meta] auto s = floor(n^(3/4))" `s_auto' == 53
+test_assert "[meta] auto s = floor(0.4*n^(3/4))" `s_auto' == 21
+
+// [meta] k defaults to the paper/R value 1 when omitted.
+weights_dnn x1 x2, x0(0 0) s(10)
+test_assert "[meta] omitted k defaults to 1" r(k) == 1
+
+// [edge] Weight construction permits the mathematical endpoint s=n.
+clear
+set obs 12
+gen double x1 = _n
+weights_dnn x1, x0(0) s(12) method(exact) generate(w_sn)
+quietly count if w_sn > 0
+local npos_sn = r(N)
+quietly summarize w_sn, meanonly
+test_assert "[edge] s=n with default k=1 selects only the nearest rank" `npos_sn' == 1
+test_assert "[edge] exact s=n weights remain normalized" abs(r(sum) - 1) < 1e-12
+
+drop w_sn
+weights_dnn x1, x0(0) k(5) s(5) method(exact) generate(w_ks)
+quietly summarize w_ks, meanonly
+test_assert "[edge] k=s gives uniform weights over the sample" ///
+    abs(r(min) - 1/12) < 1e-12 & abs(r(max) - 1/12) < 1e-12
+
+drop w_ks
+weights_dnn x1, x0(0) k(12) s(12) method(exact) generate(w_kn)
+quietly summarize w_kn, meanonly
+test_assert "[edge] k=s=n gives normalized uniform weights" ///
+    abs(r(sum) - 1) < 1e-12 & abs(r(min) - 1/12) < 1e-12
 
 // ════════════════════════════════════════════════════════════
 test_section "weights_dnn: [edge] single covariate"
 // ════════════════════════════════════════════════════════════
 
 // [edge] kx = 1 (one covariate): should run fine without mahal restriction
-weights_dnn x1, x0(0) k(3)
+weights_dnn x1, x0(0) k(3) s(3)
 local neff1 = r(neff)
 test_assert "[edge] kx=1 runs without error" `neff1' > 0
 

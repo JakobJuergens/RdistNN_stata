@@ -41,8 +41,12 @@ The parent Windows workspace has these tools on `PATH` as of 2026-05-06:
 - Keep ado/Mata/plugin behavior aligned with the documented command contracts
   in `README.md`.
 - Use `bash tools/ci/pkg_check.sh` for static package integrity checks.
-- Use `bash tools/ci/archive_check.sh archives/source.zip` to validate the
-  generated source archive when checking packaging output.
+- Generate source archives under a temporary or ignored build directory, then
+  run `bash tools/ci/archive_check.sh <path-to-source.zip>`. Validated release
+  archives are published as workflow artifacts and GitHub release assets, not
+  committed under `archives/`.
+- GitHub Actions failure logs are finite-retention workflow artifacts. Do not
+  commit generated `GH_logs/` content or downloaded debug copies.
 - Use `powershell -NoProfile -ExecutionPolicy Bypass -File
   tools/ci/stata_runtime_check.ps1` for the full local Stata runtime suite.
 - Use `powershell -NoProfile -ExecutionPolicy Bypass -File

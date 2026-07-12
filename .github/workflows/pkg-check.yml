@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 concurrency:
@@ -45,5 +45,4 @@ jobs:
       logs_dir: GH_logs/pkg-check
       artifact_pattern: debug-pkg-check*
       harvested_artifact_name: harvested-pkg-check-logs
-      commit_logs: ${{ github.event_name != 'pull_request' }}
     secrets: inherit

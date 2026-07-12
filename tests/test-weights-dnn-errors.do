@@ -37,9 +37,9 @@ test_assert "[errors] invalid method string rejected (rc=198)" _rc == 198
 cap weights_dnn x1 x2, x0(0 0) k(5) s(3)
 test_assert "[errors] s < k rejected (rc=198)" _rc == 198
 
-// [errors] s >= n: s at least as large as the sample
+// [endpoint] s = n is valid for standalone weight construction
 cap weights_dnn x1 x2, x0(0 0) k(3) s(100)
-test_assert "[errors] s >= n rejected (rc=198)" _rc == 198
+test_assert "[endpoint] s = n accepted" _rc == 0
 
 // [errors] s > n (explicit)
 cap weights_dnn x1 x2, x0(0 0) k(3) s(200)

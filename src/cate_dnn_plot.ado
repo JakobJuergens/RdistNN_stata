@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-07-12  Jakob Juergens
+*! version 0.1.1  2026-07-12  Jakob Juergens
 *! Stata-native postestimation plots for cate_dnn
 
 program define cate_dnn_plot, rclass
@@ -139,18 +139,27 @@ program define _cate_dnn_plot_estimates, rclass
     local xvars "`e(xvars)'"
     local z = invnormal(1 - (1 - `level'/100) / 2)
     local use_candidates = ("`candidates'`allcandidates'" != "")
+    local estimand "CATE"
+    local plot_title "DNN CATE estimates"
+    if "`e(cmd)'" == "np_dnn" {
+        local estimand "Conditional mean"
+        local plot_title "DNN nonparametric regression estimates"
+    }
 
     if !`use_candidates' {
         matrix `bmat' = e(b)'
         capture matrix `vmat' = e(V)
         if _rc matrix `semat' = J(`m', 1, .)
+        else if rowsof(`vmat') != `m' | colsof(`vmat') != `m' {
+            matrix `semat' = J(`m', 1, .)
+        }
         else mata: st_matrix("`semat'", sqrt(diagonal(st_matrix("`vmat'"))))
         mata: st_matrix("`plotmat'", rdistnn_plot_est_default(st_matrix("`targets_mat'"), st_matrix("`bmat'"), st_matrix("`semat'"), `=e(s)', `z'))
         local selected "0"
     }
     else {
         if "`e(tuning_mode)'" != "grid" {
-            di as error "Candidate estimate plots require cate_dnn, tuningmode(grid)."
+            di as error "Candidate estimate plots require the active estimator to use tuningmode(grid)."
             exit 498
         }
         matrix `candidate_meta' = e(tuning_candidates)
@@ -285,14 +294,14 @@ program define _cate_dnn_plot_estimates, rclass
     local subtitle "n = `=e(N)', k = `=e(k)', s = `=e(s)'"
     if "`style'" == "forest" {
         twoway `plots', xline(0, lpattern(dash) lcolor(gs8)) ///
-            xtitle("CATE estimate") ytitle("Target") ///
-            title("DNN CATE estimates") subtitle("`subtitle'") ///
+            xtitle("`estimand' estimate") ytitle("Target") ///
+            title("`plot_title'") subtitle("`subtitle'") ///
             `legendopt' `nameopt' `drawopt'
     }
     else {
         twoway `plots', yline(0, lpattern(dash) lcolor(gs8)) ///
-            xtitle("`axis_label'") ytitle("CATE estimate") ///
-            title("DNN CATE estimates") subtitle("`subtitle'") ///
+            xtitle("`axis_label'") ytitle("`estimand' estimate") ///
+            title("`plot_title'") subtitle("`subtitle'") ///
             `legendopt' `nameopt' `drawopt'
     }
     restore
@@ -306,7 +315,7 @@ program define _cate_dnn_plot_tuning, rclass
         CANDIDATES(numlist integer >=1) ALLCandidates REPLACE NODRAW]
 
     if "`e(tuning_mode)'" != "grid" {
-        di as error "type(tuning) requires cate_dnn, tuningmode(grid)."
+        di as error "type(tuning) requires the active estimator to use tuningmode(grid)."
         exit 498
     }
     local nameopt "name(`name')"
@@ -320,6 +329,12 @@ program define _cate_dnn_plot_tuning, rclass
     local gmax = rowsof(`meta')
     local m = e(m)
     local z = invnormal(1 - (1 - `level'/100) / 2)
+    local estimand "CATE"
+    local plot_title "CATE tuning sensitivity"
+    if "`e(cmd)'" == "np_dnn" {
+        local estimand "Conditional mean"
+        local plot_title "Nonparametric-regression tuning sensitivity"
+    }
     local selected "`candidates'"
     if "`allcandidates'" != "" | "`selected'" == "" {
         local selected ""
@@ -355,18 +370,18 @@ program define _cate_dnn_plot_tuning, rclass
         twoway (rcap ci_lower ci_upper s, lcolor(gs9)) ///
             (connected estimate s, sort mcolor(black) lcolor(black)) ///
             (scatter estimate s if is_default, msymbol(O) mcolor(navy)), ///
-            by(target_id, note("") title("CATE tuning sensitivity")) ///
+            by(target_id, note("") title("`plot_title'")) ///
             xline(`=e(s)', lpattern(dot) lcolor(gs8)) ///
-            xtitle("Kernel order s") ytitle("CATE estimate") ///
+            xtitle("Kernel order s") ytitle("`estimand' estimate") ///
             legend(order(2 "candidate path" 3 "fitted s")) ///
             `nameopt' `drawopt'
     }
     else {
         twoway (connected estimate s, sort mcolor(black) lcolor(black)) ///
             (scatter estimate s if is_default, msymbol(O) mcolor(navy)), ///
-            by(target_id, note("") title("CATE tuning sensitivity")) ///
+            by(target_id, note("") title("`plot_title'")) ///
             xline(`=e(s)', lpattern(dot) lcolor(gs8)) ///
-            xtitle("Kernel order s") ytitle("CATE estimate") ///
+            xtitle("Kernel order s") ytitle("`estimand' estimate") ///
             legend(order(1 "candidate path" 2 "fitted s")) ///
             `nameopt' `drawopt'
     }
@@ -390,8 +405,15 @@ program define _cate_dnn_plot_diagnostics, rclass
     if !`candidate_mode' {
         matrix `raw' = e(diagnostics)
         local m = rowsof(`raw')
-        mata: st_matrix("`plot'", ((1::rows(st_matrix("`raw'"))), st_matrix("`raw'")[,(1,2,4)], J(rows(st_matrix("`raw'")),1,0)))
-        matrix colnames `plot' = plot_id ess max_weight top5_weight_share is_default
+        if "`e(cmd)'" == "cate_dnn" {
+            mata: st_matrix("`plot'", ((1::rows(st_matrix("`raw'"))), st_matrix("`raw'")[,(1,2,4,20,25)], J(rows(st_matrix("`raw'")),1,0)))
+            matrix colnames `plot' = plot_id ess max_weight top5_weight_share ///
+                physical_radius_90 top5_score_share is_default
+        }
+        else {
+            mata: st_matrix("`plot'", ((1::rows(st_matrix("`raw'"))), st_matrix("`raw'")[,(1,2,4)], J(rows(st_matrix("`raw'")),1,0)))
+            matrix colnames `plot' = plot_id ess max_weight top5_weight_share is_default
+        }
         local xvar "plot_id"
         local xlabel "Target"
         local nplot = `m'
@@ -399,7 +421,7 @@ program define _cate_dnn_plot_diagnostics, rclass
     }
     else {
         if "`e(tuning_mode)'" != "grid" {
-            di as error "Candidate diagnostic plots require cate_dnn, tuningmode(grid)."
+            di as error "Candidate diagnostic plots require the active estimator to use tuningmode(grid)."
             exit 498
         }
         matrix `meta' = e(tuning_candidates)
@@ -446,8 +468,18 @@ program define _cate_dnn_plot_diagnostics, rclass
         yscale(range(0 1)) ylabel(0(.2)1) ///
         xtitle("`xlabel'") ytitle("Top-5 weight share") ///
         title("Weight concentration") legend(off) name(`g3', replace) nodraw
+    local plot_title "DNN CATE diagnostics"
+    if "`e(cmd)'" == "np_dnn" local plot_title "DNN nonparametric-regression diagnostics"
     graph combine `g1' `g2' `g3', cols(3) ///
-        title("DNN CATE diagnostics") `nameopt' `drawopt'
+        title("`plot_title'") `nameopt' `drawopt'
+    if !`candidate_mode' & "`e(cmd)'" == "cate_dnn" {
+        quietly summarize physical_radius_90, meanonly
+        di as text "90% physical-radius range: " as result %9.4g r(min) ///
+            as text " to " as result %9.4g r(max)
+        quietly summarize top5_score_share, meanonly
+        di as text "Top-5 absolute score-contribution share range: " ///
+            as result %6.3f r(min) as text " to " as result %6.3f r(max)
+    }
     restore
     return scalar n_plotted = `nplot'
     if `candidate_mode' return local view "candidates"
@@ -462,8 +494,8 @@ program define _cate_dnn_plot_overlap, rclass
 
     if "`view'" == "" local view "mass"
     local view = lower("`view'")
-    if !inlist("`view'", "mass", "propensity") {
-        di as error "For type(overlap), view() must be mass or propensity."
+    if !inlist("`view'", "mass", "armess", "propensity") {
+        di as error "For type(overlap), view() must be mass, armess, or propensity."
         exit 198
     }
     if "`sharelimits'" == "" local sharelimits ".1 .9"
@@ -488,6 +520,11 @@ program define _cate_dnn_plot_overlap, rclass
         mata: st_matrix("`plot'", rdistnn_plot_overlap(st_matrix("`diag'"), st_matrix("`targets_mat'"), (12,13,14,15)))
         matrix colnames `plot' = `: colnames `targets_mat'' target_id ///
             overlap_available treated_mass control_mass treated_share
+    }
+    else if "`view'" == "armess" {
+        mata: st_matrix("`plot'", rdistnn_plot_overlap(st_matrix("`diag'"), st_matrix("`targets_mat'"), (21,22,23)))
+        matrix colnames `plot' = `: colnames `targets_mat'' target_id ///
+            arm_ess_available treated_ess control_ess
     }
     else {
         mata: st_matrix("`plot'", rdistnn_plot_overlap(st_matrix("`diag'"), st_matrix("`targets_mat'"), (16,17,18,19)))
@@ -557,6 +594,18 @@ program define _cate_dnn_plot_overlap, rclass
         if r(N) > 0 di as text "note: " r(N) ///
             " target(s) have treated share outside [`lower', `upper']."
     }
+    else if "`view'" == "armess" {
+        quietly count if arm_ess_available == 1
+        if r(N) == 0 {
+            restore
+            di as error "Arm-specific ESS is unavailable for a precomputed pseudo-outcome fit."
+            exit 498
+        }
+        graph bar treated_ess control_ess, over(target_id) ///
+            ytitle("Normalized within-arm ESS") ///
+            title("Local treatment-arm effective sample sizes") ///
+            legend(order(1 "treated ESS" 2 "control ESS")) `nameopt' `drawopt'
+    }
     else {
         quietly count if propensity_available == 1
         if r(N) == 0 {
@@ -609,7 +658,7 @@ program define _cate_dnn_plot_weights, rclass
         local selected "0"
         if `candidate_mode' {
             if "`e(tuning_mode)'" != "grid" {
-                di as error "Candidate weight plots require cate_dnn, tuningmode(grid)."
+                di as error "Candidate weight plots require the active estimator to use tuningmode(grid)."
                 exit 498
             }
             matrix `meta' = e(tuning_candidates)
@@ -678,7 +727,7 @@ program define _cate_dnn_plot_weights, rclass
     foreach v of local xvars {
         capture confirm numeric variable `v'
         if _rc {
-            di as error "Current data do not contain numeric covariate `v'; refit cate_dnn before plotting kernels."
+            di as error "Current data do not contain numeric covariate `v'; refit `e(cmd)' before plotting kernels."
             exit 498
         }
     }
@@ -686,7 +735,7 @@ program define _cate_dnn_plot_weights, rclass
     quietly gen byte `esample' = e(sample)
     quietly count if `esample'
     if r(N) != e(N) {
-        di as error "The current estimation sample no longer matches the active cate_dnn fit."
+        di as error "The current estimation sample no longer matches the active `e(cmd)' fit."
         exit 498
     }
     matrix `targets_mat' = e(targets)

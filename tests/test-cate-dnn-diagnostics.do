@@ -65,11 +65,66 @@ test_assert "[R parity] overlap diagnostics match RdistNN" scalar(_diag_r_overla
 test_section "cate_dnn: [diagnostics] batch and grid default stability"
 
 quietly cate_dnn y, xcols(x1 x2) x0matrix(X0_diag) tcol(D) ecol(e) ///
-    m0col(m0) m1col(m1) k(2) tuningmode(grid)
+    m0col(m0) m1col(m1) k(1) tuningmode(grid)
 matrix D_grid_default = e(diagnostics)
 local s_default = e(s)
 quietly cate_dnn y, xcols(x1 x2) x0matrix(X0_diag) tcol(D) ecol(e) ///
-    m0col(m0) m1col(m1) k(2) s(`s_default')
+    m0col(m0) m1col(m1) k(1) s(`s_default')
 matrix D_scalar_default = e(diagnostics)
 mata: st_numscalar("_diag_grid_default", max(abs(st_matrix("D_grid_default") - st_matrix("D_scalar_default"))))
 test_assert "[diagnostics] grid target diagnostics stay at default candidate" scalar(_diag_grid_default) < 1e-12
+
+test_section "cate_dnn: [diagnostics] tied physical radii"
+
+clear
+input double x1 x2 rho_tie
+-1  0  1
+ 1  0  2
+ 0 -1  3
+ 0  1  4
+end
+quietly cate_dnn rho_tie, xcols(x1 x2) x0(0 0) ///
+    k(1) s(1) method(exact) pseudooutcome
+matrix D_tie_radius = e(diagnostics)
+test_assert "[diagnostics] tied 90-percent physical radius uses common Euclidean distance" ///
+    abs(D_tie_radius[1,20] - 1) < 1e-12
+test_assert "[diagnostics] score contribution diagnostics remain available for pseudo-outcomes" ///
+    D_tie_radius[1,24] == 1 & D_tie_radius[1,25] < .
+
+test_section "cate_dnn: [diagnostics] near-zero and zero arm mass"
+
+clear
+set obs 10
+gen double x1 = _n
+gen double y_arm = _n / 10
+gen byte D_arm = (_n == 6)
+gen double e_arm = .5
+gen double m0_arm = 0
+gen double m1_arm = 1
+quietly cate_dnn y_arm, xcols(x1) x0(0) tcol(D_arm) ecol(e_arm) ///
+    m0col(m0_arm) m1col(m1_arm) k(1) s(5)
+matrix D_arm_edge = e(diagnostics)
+test_assert "[diagnostics] tiny positive treated mass has normalized arm ESS one" ///
+    D_arm_edge[1,13] > 0 & D_arm_edge[1,13] < .01 & ///
+    abs(D_arm_edge[1,22] - 1) < 1e-12
+
+replace D_arm = (_n == 10)
+quietly cate_dnn y_arm, xcols(x1) x0(0) tcol(D_arm) ecol(e_arm) ///
+    m0col(m0_arm) m1col(m1_arm) k(1) s(5)
+matrix D_arm_zero = e(diagnostics)
+test_assert "[diagnostics] zero treated local mass posts unavailable treated ESS" ///
+    D_arm_zero[1,21] == 1 & D_arm_zero[1,13] == 0 & missing(D_arm_zero[1,22])
+
+test_section "cate_dnn: [diagnostics] concentrated score contributions"
+
+clear
+set obs 20
+gen double x1 = _n
+gen double rho_concentrated = cond(_n == 1, 1e6, 0)
+quietly cate_dnn rho_concentrated, xcols(x1) x0(0) ///
+    k(1) s(5) method(exact) pseudooutcome
+matrix D_score_concentrated = e(diagnostics)
+test_assert "[diagnostics] top-five absolute score share detects concentration" ///
+    D_score_concentrated[1,25] > .85
+test_assert "[diagnostics] score share remains distinct from top-five raw-weight share" ///
+    abs(D_score_concentrated[1,25] - D_score_concentrated[1,4]) > .01

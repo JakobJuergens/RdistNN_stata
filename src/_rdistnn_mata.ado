@@ -163,12 +163,14 @@ real colvector rdistnn_order(real colvector dist2)
 //
 //   w_r = (1/k) * sum_{l=1}^{k} C(r-1, l-1) * C(n-r, s-l) / C(n, s)
 //
-// Support: r = 1, ..., n-s+k  (NOT 1..s).  For k=1 this equals
-//   C(n-r, s-1) / C(n, s), which is the standard Steele formula.
+// Positive-weight support: r = 1, ..., n-s+k  (NOT 1..s).  Thus larger s
+// shrinks support and tightens localization; for k=1 the edge is n-s+1.
+// Here k is the number selected within each s-subset, not the global support
+// size.  For k=1 the weight equals C(n-r, s-1) / C(n, s), the Steele formula.
 //
 // Arguments:
 //   ranks : n-vector of integer ranks (1 = nearest); n = rows(ranks)
-//   k     : number of nearest neighbors (integer >= 1)
+//   k     : number selected within each s-subset (integer >= 1)
 //   s     : kernel order / subset size (integer, k <= s <= n)
 //
 // Returns: n-vector of weights summing to 1 (up to floating-point error).
@@ -227,7 +229,7 @@ real colvector rdistnn_weights_exact(real colvector ranks,
 //
 // Arguments:
 //   ranks : n-vector of integer ranks (1 = nearest)
-//   k     : number of nearest neighbors (integer >= 1)
+//   k     : number selected within each s-subset (integer >= 1)
 //   s     : kernel order (integer >= k)
 //
 // Returns: n-vector of weights summing to 1.
@@ -389,7 +391,7 @@ real scalar rdistnn_weighted_quantile(real colvector x,
 //
 // Arguments:
 //   ranks  : n-vector of integer ranks (1 = nearest)
-//   k      : number of nearest neighbors
+//   k      : number selected within each s-subset
 //   s      : kernel order
 //   method : "exact" (default) or "asymp"
 //
@@ -441,7 +443,7 @@ real matrix rdistnn_weights_from_rmat(real matrix ranks,
 // Arguments:
 //   X        : n x kx matrix
 //   x0       : 1 x kx evaluation point
-//   k        : number of nearest neighbors
+//   k        : number selected within each s-subset
 //   s        : kernel order
 //   method   : "exact" (default) or "asymp"
 //   distance : "l2" (default) or "mahalanobis"
@@ -486,7 +488,7 @@ real colvector rdistnn_weights(real matrix X, real rowvector x0,
 // Arguments:
 //   ranks   : n-vector of integer ranks from the full sample (1 = nearest)
 //   signal  : n x q matrix of per-observation contributions
-//   k       : number of nearest neighbors
+//   k       : number selected within each s-subset
 //   s       : kernel order
 //   method  : "exact" (default) or "asymp"
 //

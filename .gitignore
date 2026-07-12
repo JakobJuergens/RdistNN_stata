@@ -10,6 +10,9 @@ profile.do
 # Build output
 build/
 _dist/
+GH_logs/
+archives/source.zip
+archives/*.zip
 
 # OS
 .DS_Store
