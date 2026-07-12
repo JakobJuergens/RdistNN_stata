@@ -1,5 +1,31 @@
 # Stata implementation: what needs to be fixed next
 
+Status update, 2026-07-11: the CATE score-input surface now covers the R
+package's three core paths: full AIPW nuisances, the Robinson/R-learner score
+with `mcol()`, and a precomputed positional signal selected by
+`pseudooutcome`.  Canonical option names follow R by removing underscores only
+(`xcols`, `tcol`, `ecol`, `m0col`, `m1col`, and `mcol`), while the original
+Stata names remain compatibility aliases.  `cate_dnn` now defaults to the
+paper/R value `k(1)`, supports
+estimate-only `nose` fits (including `s = n`), records the score and inference
+routes in `e(score_method)` and `e(se_method)`, and has runtime parity tests for
+the score identities, validation rules, metadata, and estimation samples.
+Batch target evaluation is now available through `x0matrix()` (R's `X0`), with target-specific
+estimates/effective sample sizes and the full joint rank-shift covariance in
+`e(V)`.  Integrated paper-rule tuning is now available through
+`tuningmode(grid)`, `lambda()`, and `lambdagrid()`; direct Stata order grids use
+`sgrid()` and `sdefault()`.  Candidate estimates, marginal standard errors,
+and weight diagnostics are posted in `e()` while the ordinary fit remains
+anchored to the marked default.  Deterministic golden tests assert every
+paper-grid candidate against the R package, including estimates, standard
+errors, ESS, maximum weight, and top-five weight share.  Per-target
+`e(diagnostics)` now also matches R's weight concentration, distance-scale,
+and CATE overlap summaries.  Stata's native `ereturn display`, replay, and
+predict-by-refit workflow cover the corresponding scalar result operations;
+R-specific S3 object reconstruction and ggplot methods are intentionally not
+mirrored.  Automatic nuisance fitting remains out of scope unless a separate
+interface and cross-fitting design are agreed.
+
 Status update, 2026-04-11: the first implementation pass has addressed the
 highest-priority estimator issues described below: `cate_dnn` now uses
 arm-specific AIPW denominators, requires `propensity()`, `m0()`, and `m1()`,

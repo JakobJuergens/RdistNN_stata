@@ -23,9 +23,15 @@ capture mata: mata drop rdistnn_order()
 capture mata: mata drop rdistnn_weights_exact()
 capture mata: mata drop rdistnn_weights_asymp()
 capture mata: mata drop rdistnn_ranks()
+capture mata: mata drop rdistnn_distance_matrix()
+capture mata: mata drop rdistnn_ranks_from_dmat()
+capture mata: mata drop rdistnn_ranks_matrix()
+capture mata: mata drop rdistnn_weighted_quantile()
 capture mata: mata drop rdistnn_weights_from_ranks()
+capture mata: mata drop rdistnn_weights_from_rmat()
 capture mata: mata drop rdistnn_weights()
 capture mata: mata drop rdistnn_jk_cov_from_ranks()
+capture mata: mata drop rdistnn_jk_cov_multi_from_ranks()
 capture mata: mata drop rdistnn_jk_se_from_ranks()
 
 // ---------------------------------------------------------------------
@@ -276,6 +282,97 @@ real colvector rdistnn_ranks(real matrix X, real rowvector x0,
     }
 }
 
+// Compute an n x m matrix of ordinary distances for all target rows. L2
+// ranking may use squared distances, but user-facing diagnostics use the
+// Euclidean scale and therefore take the square root here.
+real matrix rdistnn_distance_matrix(real matrix X, real matrix X0,
+                                     | string scalar distance)
+{
+    real scalar j, m
+    real matrix dmat, Sinv
+
+    if (cols(X0) != cols(X)) {
+        errprintf("rdistnn_distance_matrix: cols(X0) must equal cols(X).\n")
+        exit(error(198))
+    }
+    m = rows(X0)
+    if (m < 1) {
+        errprintf("rdistnn_distance_matrix: X0 must contain at least one target row.\n")
+        exit(error(198))
+    }
+
+    dmat = J(rows(X), m, .)
+    if (args() < 3 | distance == "" | distance == "l2") {
+        for (j = 1; j <= m; j++) {
+            dmat[,j] = sqrt(rdistnn_l2dist(X, X0[j,.]))
+        }
+    }
+    else if (distance == "mahalanobis") {
+        Sinv = rdistnn_mahal_cov_inv(X)
+        for (j = 1; j <= m; j++) {
+            dmat[,j] = rdistnn_mahal_dist(X, X0[j,.], Sinv)
+        }
+    }
+    else {
+        errprintf("rdistnn_distance_matrix: unknown distance '%s'. Use 'l2' or 'mahalanobis'.\n", distance)
+        exit(error(198))
+    }
+    return(dmat)
+}
+
+// Convert each distance column to a full rank permutation.
+real matrix rdistnn_ranks_from_dmat(real matrix dmat)
+{
+    real scalar j
+    real matrix ranks
+
+    if (rows(dmat) < 1 | cols(dmat) < 1) {
+        errprintf("rdistnn_ranks_from_dmat: dmat must be nonempty.\n")
+        exit(error(198))
+    }
+    ranks = J(rows(dmat), cols(dmat), .)
+    for (j = 1; j <= cols(dmat); j++) {
+        ranks[,j] = rdistnn_order(dmat[,j])
+    }
+    return(ranks)
+}
+
+// Rank every observation separately for each row of X0. The returned n x m
+// matrix has one full rank permutation per target column.
+real matrix rdistnn_ranks_matrix(real matrix X, real matrix X0,
+                                  | string scalar distance)
+{
+    if (args() < 3) distance = "l2"
+    return(rdistnn_ranks_from_dmat(
+        rdistnn_distance_matrix(X, X0, distance)))
+}
+
+// Left-continuous weighted empirical quantile used by R diagnostics.
+real scalar rdistnn_weighted_quantile(real colvector x,
+                                       real colvector w,
+                                       real scalar prob)
+{
+    real scalar i, accum, wsum
+    real colvector ord
+
+    if (rows(x) != rows(w) | rows(x) < 1 | prob < 0 | prob > 1) {
+        errprintf("rdistnn_weighted_quantile: invalid x, w, or probability.\n")
+        exit(error(198))
+    }
+    wsum = quadsum(w)
+    if (wsum <= 0) return(.)
+    ord = order((x, (1::rows(x))), (1, 2))
+    accum = 0
+    for (i = 1; i <= rows(ord); i++) {
+        accum = accum + w[ord[i]] / wsum
+        // Treat floating equality as a boundary tie. This matches the
+        // R weight table, whose normalized cumulative mass can fall one ulp
+        // below the nominal probability.
+        if (accum >= prob + sqrt(epsilon(1))) return(x[ord[i]])
+    }
+    return(x[ord[rows(ord)]])
+}
+
 // ── rdistnn_weights_from_ranks ────────────────────────────────────────
 // Compute DNN weights directly from a precomputed rank vector.
 // Factored out of rdistnn_weights() so the jackknife can reuse it
@@ -304,6 +401,29 @@ real colvector rdistnn_weights_from_ranks(real colvector ranks,
         errprintf("rdistnn_weights_from_ranks: unknown method '%s'. Use 'exact' or 'asymp'.\n", method)
         exit(error(198))
     }
+}
+
+// Apply the rank-to-weight map independently to every target/rank column.
+real matrix rdistnn_weights_from_rmat(real matrix ranks,
+                                       real scalar k,
+                                       real scalar s,
+                                       | string scalar method)
+{
+    real scalar j, m
+    real matrix W
+
+    if (args() < 4 | method == "") method = "exact"
+    m = cols(ranks)
+    if (m < 1) {
+        errprintf("rdistnn_weights_from_rmat: ranks must have at least one column.\n")
+        exit(error(198))
+    }
+
+    W = J(rows(ranks), m, .)
+    for (j = 1; j <= m; j++) {
+        W[,j] = rdistnn_weights_from_ranks(ranks[,j], k, s, method)
+    }
+    return(W)
 }
 
 // ── rdistnn_weights ───────────────────────────────────────────────────
@@ -398,6 +518,50 @@ real matrix rdistnn_jk_cov_from_ranks(real colvector ranks,
         signal_m1 = select(signal, kept)
         w_m1     = rdistnn_weights_from_ranks(ranks_m1, k, s, method)
         loo[i,.] = cross(w_m1, signal_m1)
+    }
+
+    centered = loo :- mean(loo)
+    V = ((n - 1) / n) * cross(centered, centered)
+    return((V + V') / 2)
+}
+
+// Joint rank-shift jackknife covariance for a scalar signal evaluated at
+// multiple targets. Each ranks column is the full-sample rank permutation for
+// one target. The returned m x m matrix retains cross-target covariance.
+real matrix rdistnn_jk_cov_multi_from_ranks(real matrix ranks,
+                                             real colvector signal,
+                                             real scalar k,
+                                             real scalar s,
+                                             | string scalar method)
+{
+    real scalar     n, m, i, j, r_ij
+    real colvector  idx, kept, ranks_m1, signal_m1, w_m1
+    real matrix     loo, centered, V
+
+    if (args() < 5 | method == "") method = "exact"
+    n = rows(ranks)
+    m = cols(ranks)
+    if (rows(signal) != n | cols(signal) != 1) {
+        errprintf("rdistnn_jk_cov_multi_from_ranks: signal must be an n x 1 vector matching ranks.\n")
+        exit(error(198))
+    }
+    if (m < 1) {
+        errprintf("rdistnn_jk_cov_multi_from_ranks: ranks must have at least one target column.\n")
+        exit(error(198))
+    }
+
+    loo = J(n, m, .)
+    idx = (1::n)
+    for (i = 1; i <= n; i++) {
+        kept = (idx :!= i)
+        signal_m1 = select(signal, kept)
+        for (j = 1; j <= m; j++) {
+            r_ij = ranks[i,j]
+            ranks_m1 = select(ranks[,j], kept)
+            ranks_m1 = ranks_m1 :- (ranks_m1 :> r_ij)
+            w_m1 = rdistnn_weights_from_ranks(ranks_m1, k, s, method)
+            loo[i,j] = cross(w_m1, signal_m1)
+        }
     }
 
     centered = loo :- mean(loo)

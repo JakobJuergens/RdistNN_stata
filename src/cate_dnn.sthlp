@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.2  2026-04-06}{...}
+{* *! version 0.0.5  2026-07-11}{...}
 {viewerjumpto "Syntax"          "cate_dnn##syntax"}{...}
 {viewerjumpto "Description"     "cate_dnn##description"}{...}
 {viewerjumpto "Options"         "cate_dnn##options"}{...}
@@ -21,34 +21,43 @@ Stata 17 or later is required.
 
 {p 8 17 2}
 {cmdab:cate_dnn}
-{it:outcome}
+{it:outcome_or_signal}
 {ifin}{cmd:,}
-{opth treat(varname)}
-{opth x(varlist)}
-{opt x0(numlist)}
+{opth xcols(varlist)}
+{c -(}{opt x0(numlist)} | {opt x0matrix(matrix_name)}{c )-}
 [{it:options}]
 
 {synoptset 22 tabbed}{...}
 {synopthdr}
 {synoptline}
-{syntab:Required}
-{synopt:{opth treat(varname)}}binary treatment indicator (0/1){p_end}
-{synopt:{opth x(varlist)}}covariates used to define the neighborhood{p_end}
-{synopt:{opt x0(numlist)}}evaluation point; one value per covariate{p_end}
+{syntab:Localization (required)}
+{synopt:{opth xcols(varlist)}}covariates used to define the neighborhood{p_end}
+{synopt:{opt x0(numlist)}}single evaluation point; one value per covariate{p_end}
+{synopt:{opt x0matrix(matrix_name)}}named m x kx matrix corresponding to R's {cmd:X0}{p_end}
 
-{syntab:Nuisances (propensity and both outcome models required)}
-{synopt:{opth propensity(varname)}}estimated or oracle propensity score e(X){p_end}
-{synopt:{opth m0(varname)}}estimated or oracle E[Y|X, D=0]{p_end}
-{synopt:{opth m1(varname)}}estimated or oracle E[Y|X, D=1]{p_end}
+{syntab:Score input (choose one path)}
+{synopt:{opt pseudooutcome}}positional variable is R's {cmd:pseudo_outcome}{p_end}
+{synopt:{opth tcol(varname)}}binary treatment, corresponding to R's {cmd:t_col}{p_end}
+{synopt:{opth ecol(varname)}}propensity, corresponding to R's {cmd:e_col}{p_end}
+{synopt:{opth m0col(varname)}}control outcome mean, corresponding to R's {cmd:m0_col}{p_end}
+{synopt:{opth m1col(varname)}}treated outcome mean, corresponding to R's {cmd:m1_col}{p_end}
+{synopt:{opth mcol(varname)}}pooled outcome mean, corresponding to R's {cmd:m_col}{p_end}
 
 {syntab:Tuning}
-{synopt:{opt k(#)}}number of nearest neighbors; default {cmd:k(5)}{p_end}
+{synopt:{opt k(#)}}number of nearest neighbors; default {cmd:k(1)}{p_end}
 {synopt:{opt s(#)}}kernel order; default {cmd:s(0)} uses
     floor(n^((kx+1)/(kx+2))){p_end}
+{synopt:{opt tuningmode(string)}}{cmd:default} (default) or integrated {cmd:grid}{p_end}
+{synopt:{opt lambda(#)}}default multiplier in the paper tuning rule; default 1{p_end}
+{synopt:{opt lambdagrid(numlist)}}candidate multipliers for {cmd:tuningmode(grid)}{p_end}
+{synopt:{opt sgrid(numlist)}}direct integer candidate orders for grid mode{p_end}
+{synopt:{opt sdefault(#)}}default order for {cmd:sgrid()}; otherwise its first entry{p_end}
 {synopt:{opt distance(string)}}{cmd:l2} (default) or {cmd:mahalanobis}{p_end}
+{synopt:{opt method(string)}}{cmd:exact} (default) or {cmd:asymp}{p_end}
 
 {syntab:Reporting}
 {synopt:{opt level(#)}}set confidence level; default {cmd:level(95)}{p_end}
+{synopt:{opt nose}}skip the rank-shift jackknife standard error; permits s=n{p_end}
 {synoptline}
 
 {marker description}{...}
@@ -56,70 +65,120 @@ Stata 17 or later is required.
 
 {pstd}
 {cmd:cate_dnn} estimates the conditional average treatment effect
-tau(x0) = E[Y(1) - Y(0) | X = x0] at a fixed covariate point {opt x0}
-using the distributional nearest-neighbor (DNN) estimator of Juergens (2025).
+tau(x0) = E[Y(1) - Y(0) | X = x0] at one or more covariate points using the
+distributional nearest-neighbor (DNN) estimator of Juergens (2025).  Supply
+exactly one of {opt x0()} for a single target or {opt x0matrix()} for a named Stata
+matrix whose rows are targets and whose columns correspond to {opt xcols()}.
 
 {pstd}
 The estimator applies DNN rank weights w_i(x0) to per-observation
-pseudo-outcomes, yielding a localized weighted mean.  The doubly-robust
+pseudo-outcomes, yielding a localized weighted mean.  Three score-input paths
+mirror the R package: a precomputed pseudo-outcome, a full AIPW score, or a
+Robinson/R-learner score.
+
+{pstd}
+With {opt pseudooutcome}, the positional variable is used directly as R's
+{cmd:pseudo_outcome}; no outcome or nuisance variables are supplied.  The full
 AIPW pseudo-outcome is
 
 {phang2}phi_i = D_i*(Y_i-m1_i)/eclip_i - (1-D_i)*(Y_i-m0_i)/(1-eclip_i) + (m1_i-m0_i){p_end}
 
 {pstd}
-where eclip_i = min(max(e_i, 1e-8), 1-1e-8).  The command requires
-{opt propensity()}, {opt m0()}, and {opt m1()}.
+The Robinson pseudo-outcome is
+
+{phang2}phi_i = (D_i-eclip_i)*(Y_i-mhat_i)/(eclip_i*(1-eclip_i)).{p_end}
+
+{pstd}
+For nuisance-based paths, eclip_i = min(max(e_i, 1e-8), 1-1e-8).
+Supply {opt ecol()} and either {opt m0col()} with {opt m1col()} (AIPW),
+or {opt mcol()} (Robinson).
 
 {pstd}
 Standard errors are computed via the rank-shift jackknife.  For
 {cmd:distance(l2)}, this is the exact delete-1 recomputation because the
 remaining distances do not change.  For {cmd:distance(mahalanobis)}, the
 sample covariance metric is computed from the full estimation sample and
-held fixed across jackknife deletions.
+held fixed across jackknife deletions.  With multiple targets, {cmd:e(V)} is
+the full joint covariance of the leave-one-out target-estimate vector.  Its
+diagonal standard errors match separate single-target calls and the R package;
+its off-diagonal entries retain cross-target covariance for Stata inference.
 
 {pstd}
-Nuisance functions (propensity score and outcome models) must be supplied
-by the user as variables in the dataset.  They may be oracle values or
+For nuisance-based paths, the propensity score and outcome models must be
+supplied by the user as variables in the dataset.  They may be oracle values,
 first-stage estimates computed on the same sample (Neyman orthogonality
-controls first-stage bias) or from a cross-fitting procedure.
+controls first-stage bias), or cross-fitted estimates.
 
 {marker options}{...}
 {title:Options}
 
-{dlgtab:Required}
+{dlgtab:Localization}
 
 {phang}
-{opth treat(varname)} specifies the binary treatment indicator D (0 or 1).
-
-{phang}
-{opth x(varlist)} specifies the covariates X used to define the local
+{opth xcols(varlist)} specifies the covariates X used to define the local
 neighborhood around x0.
 
 {phang}
 {opt x0(numlist)} specifies the evaluation point.  Provide one number per
-variable in {opt x()}, separated by spaces.  Example: {cmd:x0(0 0)} for
+variable in {opt xcols()}, separated by spaces.  Example: {cmd:x0(0 0)} for
 the two-dimensional origin.
 
-{dlgtab:Nuisances}
+{phang}
+{opt x0matrix(matrix_name)} specifies a named numeric Stata matrix with one
+target per row and one column per variable in {opt xcols()}.  It corresponds
+to the R argument {cmd:X0}.  The matrix must exist before
+calling {cmd:cate_dnn}, have no missing entries, and have exactly kx columns.
+It is mutually exclusive with {opt x0()}.  Resolved values are stored in
+{cmd:e(targets)} with canonical covariate column names.
+
+{dlgtab:Score input}
 
 {phang}
-{opth propensity(varname)} provides the propensity score e(X) = P(D=1|X).
-Values must lie in [0, 1].  Values at or very near the endpoints are clipped
-only inside the residual denominators.
+{opt pseudooutcome} specifies that the positional variable is an already
+constructed CATE pseudo-outcome and corresponds to R's {cmd:pseudo_outcome}.
+Do not combine it with nuisance options.
 
 {phang}
-{opth m0(varname)} provides the conditional outcome mean E[Y|X, D=0].
-This option is required.
+{opth tcol(varname)} specifies the binary treatment indicator D (0 or 1),
+corresponding to R's {cmd:t_col}.
 
 {phang}
-{opth m1(varname)} provides the conditional outcome mean E[Y|X, D=1].
-This option is required.
+{opth ecol(varname)} provides e(X) = P(D=1|X), corresponding to R's
+{cmd:e_col}.  Values must lie in [0, 1].  Values at or very near the endpoints
+are clipped only inside the residual denominators.
+
+{phang}
+{opth m0col(varname)} provides E[Y|X, D=0], corresponding to R's
+{cmd:m0_col}.  Use it with {opt m1col()} for full AIPW.
+
+{phang}
+{opth m1col(varname)} provides E[Y|X, D=1], corresponding to R's
+{cmd:m1_col}.  Use it with {opt m0col()} for full AIPW.
+
+{phang}
+{opth mcol(varname)} provides E[Y|X] for the Robinson/R-learner path and
+corresponds to R's {cmd:m_col}.  It is mutually exclusive with {opt m0col()}
+and {opt m1col()}.
+
+{dlgtab:Compatibility aliases}
+
+{pstd}
+Stata option names cannot contain underscores.  The canonical mapping removes
+only R's underscores: {cmd:x_cols -> xcols()}, {cmd:t_col -> tcol()},
+{cmd:e_col -> ecol()}, {cmd:m0_col -> m0col()}, {cmd:m1_col -> m1col()},
+{cmd:m_col -> mcol()}, and {cmd:pseudo_outcome -> pseudooutcome}.  R's
+{cmd:X0} matrix is {cmd:x0matrix()}, {cmd:tuning_mode} is
+{cmd:tuningmode()}, and {cmd:lambda_grid} is {cmd:lambdagrid()}; {cmd:x0()}
+and {cmd:lambda()} are identical in both APIs.
+The earlier Stata names {cmd:x()}, {cmd:treat()}, {cmd:propensity()},
+{cmd:m0()}, {cmd:m1()}, and {cmd:mhat()} remain accepted but cannot be combined
+with their canonical counterparts.
 
 {dlgtab:Tuning}
 
 {phang}
 {opt k(#)} sets the number of nearest neighbors used in the DNN weights.
-Default is {cmd:k(5)}.
+Default is {cmd:k(1)}, matching the paper theory and the R package.
 
 {phang}
 {opt s(#)} sets the kernel order (bandwidth analog).  Larger s includes
@@ -127,11 +186,45 @@ more observations with nonzero weight.  Default {cmd:s(0)} uses the
 undersmoothing rule floor(n^((kx+1)/(kx+2))).
 
 {phang}
+{opt tuningmode(string)} selects {cmd:default}, which evaluates only the
+resolved default order and preserves the ordinary fit, or {cmd:grid}, which
+evaluates a candidate grid while reusing one target-rank calculation.  As in
+R, explicit {opt s()} cannot be combined with grid mode.  The main
+{cmd:e(b)}, {cmd:e(V)}, {cmd:e(s)}, and effective-sample-size results remain
+anchored to the candidate marked as default.
+
+{phang}
+{opt lambda(#)} is the positive multiplier in
+floor(lambda*n^((kx+1)/(kx+2))).  Its default is 1.
+
+{phang}
+{opt lambdagrid(numlist)} provides paper-rule multipliers in grid mode.
+The default grid is {cmd:.75 1 1.25 1.5}.  Candidate rows are preserved even
+when rounding maps multiple multipliers to the same order; the common order
+is computed once.
+
+{phang}
+{opt sgrid(numlist)} is the Stata-native alternative for supplying candidate
+orders directly.  Values must be positive integers.  {opt sdefault(#)} marks
+the default order; if omitted, the first entry is the default.  A requested
+default absent from {opt sgrid()} is prepended, matching R's synthetic-default
+behavior.
+
+{phang}
 {opt distance(string)} selects the distance metric.  {cmd:l2} (default)
 uses Euclidean distance.  {cmd:mahalanobis} uses the sample covariance
 matrix (via {cmd:invsym()}) to form an ellipsoidal neighborhood;
 recommended when covariates are strongly correlated
 ({it:cf.} DGP 5 of Juergens 2025).  Requires at least 2 covariates.
+
+{phang}
+{opt method(string)} selects {cmd:exact} finite-sample DNN weights (default)
+or the {cmd:asymp} approximation.
+
+{phang}
+{opt nose} skips the delete-1 rank-shift jackknife and posts only {cmd:e(b)}.
+Without {opt nose}, {opt s()} must be strictly less than the estimation-sample
+size.  With {opt nose}, {opt s()} may equal that size.
 
 {marker results}{...}
 {title:Stored results}
@@ -142,20 +235,51 @@ recommended when covariates are strongly correlated
 {synoptset 15 tabbed}{...}
 {p2col 5 15 19 2: Scalars}{p_end}
 {synopt:{cmd:e(N)}}number of observations{p_end}
-{synopt:{cmd:e(neff)}}effective sample size 1/sum(w_i^2){p_end}
+{synopt:{cmd:e(m)}}number of evaluation targets{p_end}
+{synopt:{cmd:e(neff)}}effective sample size for a one-target fit{p_end}
+{synopt:{cmd:e(ess)}}R-aligned alias of {cmd:e(neff)} for a one-target fit{p_end}
+{synopt:{cmd:e(neff_min)}}minimum target-specific effective sample size{p_end}
+{synopt:{cmd:e(neff_max)}}maximum target-specific effective sample size{p_end}
+{synopt:{cmd:e(ess_min)}, {cmd:e(ess_max)}}R-aligned aliases of the effective-sample-size range{p_end}
 {synopt:{cmd:e(k)}}neighbor count k{p_end}
 {synopt:{cmd:e(s)}}kernel order s{p_end}
+{synopt:{cmd:e(lambda)}}default paper-rule multiplier; missing for {cmd:sgrid()}{p_end}
 {synopt:{cmd:e(kx)}}covariate dimension{p_end}
+{synopt:{cmd:e(p)}}R-aligned alias of {cmd:e(kx)}{p_end}
 
 {p2col 5 15 19 2: Matrices}{p_end}
-{synopt:{cmd:e(b)}}point estimate (1x1: tau_hat){p_end}
-{synopt:{cmd:e(V)}}jackknife variance (1x1){p_end}
+{synopt:{cmd:e(b)}}1 x m vector of target-specific CATE estimates{p_end}
+{synopt:{cmd:e(V)}}m x m joint jackknife covariance; not posted with {cmd:nose}{p_end}
+{synopt:{cmd:e(targets)}}m x kx resolved target matrix{p_end}
+{synopt:{cmd:e(x0_matrix)}}R-aligned alias of {cmd:e(targets)}{p_end}
+{synopt:{cmd:e(neff_targets)}}1 x m target-specific effective sample sizes{p_end}
+{synopt:{cmd:e(ess_targets)}}R-aligned alias of {cmd:e(neff_targets)}{p_end}
+{synopt:{cmd:e(diagnostics)}}per-target weight, distance, and CATE-overlap diagnostics{p_end}
+{synopt:{cmd:e(target_diagnostics)}}explicit alias of {cmd:e(diagnostics)}{p_end}
+{synopt:{cmd:e(tuning_candidates)}}candidate schema in grid mode: ID, computed ID, default/feasible flags, reason/status codes, lambda, and s{p_end}
+{synopt:{cmd:e(tuning_estimates)}}candidate-by-target estimate matrix in grid mode{p_end}
+{synopt:{cmd:e(tuning_se)}}candidate-by-target marginal-SE matrix in grid mode{p_end}
+{synopt:{cmd:e(tuning_diagnostics)}}candidate diagnostics: ESS, maximum weight, top-n, top-five share, and degeneracy flag{p_end}
 
 {p2col 5 15 19 2: Macros}{p_end}
 {synopt:{cmd:e(cmd)}}{cmd:cate_dnn}{p_end}
-{synopt:{cmd:e(x0)}}evaluation point{p_end}
+{synopt:{cmd:e(x0)}}single evaluation point supplied through {cmd:x0()}{p_end}
+{synopt:{cmd:e(x0matrix)}}source matrix name supplied through {cmd:x0matrix()}{p_end}
+{synopt:{cmd:e(target_source)}}{cmd:x0} or {cmd:X0}{p_end}
 {synopt:{cmd:e(xvars)}}covariate variable names{p_end}
+{synopt:{cmd:e(x_cols)}}R-aligned alias of {cmd:e(xvars)}{p_end}
 {synopt:{cmd:e(distance)}}distance metric used{p_end}
+{synopt:{cmd:e(method)}}weight method used{p_end}
+{synopt:{cmd:e(score_method)}}{cmd:aipw}, {cmd:robinson}, or {cmd:pseudo_outcome}{p_end}
+{synopt:{cmd:e(se_method)}}{cmd:rank_shift} or {cmd:none}{p_end}
+{synopt:{cmd:e(jackknife)}}R-aligned {cmd:fast} or {cmd:none}{p_end}
+{synopt:{cmd:e(tuning_mode)}}{cmd:default} or {cmd:grid}{p_end}
+{synopt:{cmd:e(tuning_source)}}{cmd:paper}, {cmd:lambda_grid}, {cmd:sgrid}, or explicit {cmd:s}{p_end}
+{synopt:{cmd:e(tuning_status_codes)}}numeric status-code map used by {cmd:e(tuning_candidates)}{p_end}
+{synopt:{cmd:e(tuning_reason_codes)}}numeric reason-code map used by {cmd:e(tuning_candidates)}{p_end}
+{synopt:{cmd:e(signal)}}positional outcome or pseudo-outcome variable{p_end}
+{synopt:{cmd:e(t_col)}, {cmd:e(e_col)}}resolved treatment and propensity variables{p_end}
+{synopt:{cmd:e(m0_col)}, {cmd:e(m1_col)}, {cmd:e(m_col)}}resolved nuisance variables{p_end}
 
 {marker examples}{...}
 {title:Examples}
@@ -173,13 +297,47 @@ recommended when covariates are strongly correlated
 {phang2}{cmd:. gen Y = m0_true + D*(m1_true-m0_true) + rnormal()*0.5}{p_end}
 
 {pstd}Estimate CATE at the origin using oracle nuisances.{p_end}
-{phang2}{cmd:. cate_dnn Y, treat(D) x(x1 x2) x0(0 0)}{...}
-{phang2}{cmd:    propensity(e_oracle) m0(m0_true) m1(m1_true)}{p_end}
+{phang2}{cmd:. cate_dnn Y, tcol(D) xcols(x1 x2) x0(0 0)}{...}
+{phang2}{cmd:    ecol(e_oracle) m0col(m0_true) m1col(m1_true)}{p_end}
 
 {pstd}With Mahalanobis distance (for correlated covariates).{p_end}
-{phang2}{cmd:. cate_dnn Y, treat(D) x(x1 x2) x0(0.75 0)}{...}
-{phang2}{cmd:    propensity(e_oracle) m0(m0_true) m1(m1_true)}{...}
+{phang2}{cmd:. cate_dnn Y, tcol(D) xcols(x1 x2) x0(0.75 0)}{...}
+{phang2}{cmd:    ecol(e_oracle) m0col(m0_true) m1col(m1_true)}{...}
 {phang2}{cmd:    distance(mahalanobis)}{p_end}
+
+{pstd}Use a precomputed pseudo-outcome and skip standard errors.{p_end}
+{phang2}{cmd:. gen rho = D*(Y-m1_true)/e_oracle - (1-D)*(Y-m0_true)/(1-e_oracle) + m1_true-m0_true}{p_end}
+{phang2}{cmd:. cate_dnn rho, xcols(x1 x2) x0(0 0) pseudooutcome nose}{p_end}
+
+{pstd}Use the Robinson score with a pooled outcome regression.{p_end}
+{phang2}{cmd:. gen mhat_true = e_oracle*m1_true + (1-e_oracle)*m0_true}{p_end}
+{phang2}{cmd:. cate_dnn Y, tcol(D) xcols(x1 x2) x0(0 0)}{...}
+{phang2}{cmd:    ecol(e_oracle) mcol(mhat_true)}{p_end}
+
+{pstd}Evaluate the AIPW score at three targets in one call.{p_end}
+{phang2}{cmd:. matrix X0 = (0,0 \ 0.5,-0.25 \ -0.5,0.75)}{p_end}
+{phang2}{cmd:. cate_dnn Y, tcol(D) xcols(x1 x2) x0matrix(X0)}{...}
+{phang2}{cmd:    ecol(e_oracle) m0col(m0_true) m1col(m1_true)}{p_end}
+{phang2}{cmd:. matrix list e(targets)}{p_end}
+{phang2}{cmd:. matrix list e(V)}{p_end}
+
+{pstd}Evaluate the R paper tuning grid and inspect candidate results.{p_end}
+{phang2}{cmd:. cate_dnn rho, xcols(x1 x2) x0matrix(X0) pseudooutcome tuningmode(grid)}{p_end}
+{phang2}{cmd:. matrix list e(tuning_candidates)}{p_end}
+{phang2}{cmd:. matrix list e(tuning_estimates)}{p_end}
+{phang2}{cmd:. matrix list e(tuning_diagnostics)}{p_end}
+
+{pstd}Inspect R-aligned diagnostics for the default fit.{p_end}
+{phang2}{cmd:. matrix list e(diagnostics)}{p_end}
+
+{pstd}
+{cmd:e(diagnostics)} has one row per target.  Its columns are ESS, maximum
+weight, fixed top-1/top-5/top-10 weight shares, nonzero-weight count,
+distance-availability flag, rank-k and rank-s radii, weighted mean and median
+distance, overlap-availability flag, treated/control mass and treated share,
+propensity-availability flag, weighted mean propensity, and weighted
+propensity 10th/90th quantiles.  Overlap fields are missing for the
+precomputed-score path.
 
 {marker references}{...}
 {title:References}

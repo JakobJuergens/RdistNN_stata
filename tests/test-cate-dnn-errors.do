@@ -27,6 +27,46 @@ test_assert "[errors] missing m1() rejected (rc=198)" _rc == 198
 cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e) m1(m1)
 test_assert "[errors] missing m0() rejected (rc=198)" _rc == 198
 
+// [errors] outcome and nuisance interface are required without pseudooutcome()
+cap cate_dnn, x(x1 x2) x0(0 0)
+test_assert "[errors] missing score variable rejected" _rc != 0
+
+cap cate_dnn y, x(x1 x2) x0(0 0) propensity(e) m0(m0) m1(m1)
+test_assert "[errors] missing treat() rejected (rc=198)" _rc == 198
+
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) propensity(e) mhat(m0) m0(m0) m1(m1)
+test_assert "[errors] Robinson and AIPW nuisances rejected together (rc=198)" _rc == 198
+
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) propensity(e) m0(m0)
+test_assert "[errors] partial AIPW nuisances rejected (rc=198)" _rc == 198
+
+gen double rho_err = y
+cap cate_dnn rho_err, x(x1 x2) x0(0 0) pseudooutcome propensity(e)
+test_assert "[errors] nuisance rejected with pseudooutcome (rc=198)" _rc == 198
+
+// [errors] exactly one target interface is required
+matrix X0_ok = (0,0 \ 0.5,-0.5)
+cap cate_dnn y, treat(D) x(x1 x2) propensity(e) m0(m0) m1(m1)
+test_assert "[errors] missing x0()/x0matrix() rejected (rc=198)" _rc == 198
+
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) x0matrix(X0_ok) ///
+    propensity(e) m0(m0) m1(m1)
+test_assert "[errors] x0() and x0matrix() rejected together (rc=198)" _rc == 198
+
+cap cate_dnn y, treat(D) x(x1 x2) x0matrix(X0_missing_name) ///
+    propensity(e) m0(m0) m1(m1)
+test_assert "[errors] nonexistent x0matrix() rejected (rc=198)" _rc == 198
+
+matrix X0_wrong_cols = (0,0,0 \ 1,1,1)
+cap cate_dnn y, treat(D) x(x1 x2) x0matrix(X0_wrong_cols) ///
+    propensity(e) m0(m0) m1(m1)
+test_assert "[errors] x0matrix() column mismatch rejected (rc=198)" _rc == 198
+
+matrix X0_missing = (0,0 \ .,1)
+cap cate_dnn y, treat(D) x(x1 x2) x0matrix(X0_missing) ///
+    propensity(e) m0(m0) m1(m1)
+test_assert "[errors] missing target value rejected (rc=198)" _rc == 198
+
 // ════════════════════════════════════════════════════════════
 test_section "cate_dnn: [errors] x0 and k/s validation"
 // ════════════════════════════════════════════════════════════
@@ -48,6 +88,10 @@ test_assert "[errors] s < k rejected (rc=198)" _rc == 198
 cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) s(100) ///
     propensity(e) m0(m0) m1(m1)
 test_assert "[errors] s >= n rejected (rc=198)" _rc == 198
+
+// [errors] even estimate-only fits require s <= n
+cap cate_dnn rho_err, x(x1 x2) x0(0 0) k(1) s(101) pseudooutcome nose
+test_assert "[errors] s > n rejected with nose (rc=198)" _rc == 198
 
 // ════════════════════════════════════════════════════════════
 test_section "cate_dnn: [errors] distance and method strings"

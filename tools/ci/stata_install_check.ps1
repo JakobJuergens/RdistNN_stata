@@ -141,6 +141,87 @@ if _b[tau] >= . | _se[tau] >= . {
     di as error "cate_dnn returned non-finite results."
     exit 459
 }
+local tau_aipw = _b[tau]
+local se_aipw = _se[tau]
+
+gen double eclip = min(max(e, 1e-8), 1 - 1e-8)
+gen double rho_aipw = D*(y-m1)/eclip - (1-D)*(y-m0)/(1-eclip) + m1-m0
+cate_dnn rho_aipw, x(x1 x2) x0(0 0) pseudooutcome k(3) s(12)
+if abs(_b[tau] - `tau_aipw') > 1e-10 | abs(_se[tau] - `se_aipw') > 1e-10 {
+    di as error "installed cate_dnn pseudooutcome path does not match AIPW."
+    exit 459
+}
+
+matrix X0_install = (0,0 \ 0.2,-0.3)
+cate_dnn y, tcol(D) xcols(x1 x2) x0matrix(X0_install) ecol(e) ///
+    m0col(m0) m1col(m1) k(3) s(12)
+matrix B_cate_batch = e(b)
+matrix V_cate_batch = e(V)
+matrix T_cate_batch = e(targets)
+matrix N_cate_batch = e(neff_targets)
+matrix D_cate_batch = e(diagnostics)
+if e(m) != 2 | colsof(B_cate_batch) != 2 | rowsof(V_cate_batch) != 2 | ///
+    rowsof(T_cate_batch) != 2 | colsof(N_cate_batch) != 2 | ///
+    rowsof(D_cate_batch) != 2 | colsof(D_cate_batch) != 19 | ///
+    D_cate_batch[1,12] != 1 | D_cate_batch[1,16] != 1 {
+    di as error "installed cate_dnn x0matrix() path returned invalid result shapes."
+    exit 459
+}
+if abs(B_cate_batch[1,1] - `tau_aipw') > 1e-10 | ///
+    abs(sqrt(V_cate_batch[1,1]) - `se_aipw') > 1e-10 {
+    di as error "installed cate_dnn x0matrix() first target does not match x0()."
+    exit 459
+}
+
+cate_dnn rho_aipw, xcols(x1 x2) x0matrix(X0_install) pseudooutcome ///
+    tuningmode(grid)
+matrix C_cate_grid = e(tuning_candidates)
+matrix E_cate_grid = e(tuning_estimates)
+matrix S_cate_grid = e(tuning_se)
+matrix D_cate_grid = e(tuning_diagnostics)
+if rowsof(C_cate_grid) != 4 | rowsof(E_cate_grid) != 4 | ///
+    rowsof(S_cate_grid) != 4 | rowsof(D_cate_grid) != 4 | ///
+    e(tuning_default_candidate) != 2 | "`e(tuning_mode)'" != "grid" {
+    di as error "installed cate_dnn tuning-grid path returned invalid results."
+    exit 459
+}
+local s_grid_default = e(s)
+matrix B_grid_default = e(b)
+matrix V_grid_default = e(V)
+cate_dnn rho_aipw, xcols(x1 x2) x0matrix(X0_install) pseudooutcome ///
+    s(`s_grid_default')
+matrix B_grid_scalar = e(b)
+matrix V_grid_scalar = e(V)
+mata {
+    st_numscalar("_install_grid_b", max(abs(st_matrix("B_grid_default") - st_matrix("B_grid_scalar"))))
+    st_numscalar("_install_grid_v", max(abs(st_matrix("V_grid_default") - st_matrix("V_grid_scalar"))))
+}
+if scalar(_install_grid_b) > 1e-10 | scalar(_install_grid_v) > 1e-10 {
+    di as error "installed cate_dnn grid default does not match scalar fit."
+    exit 459
+}
+
+gen double mhat = e*m1 + (1-e)*m0
+gen double rho_robinson = (D-eclip)*(y-mhat)/(eclip*(1-eclip))
+cate_dnn y, treat(D) x(x1 x2) x0(0 0) propensity(e) mhat(mhat) k(3) s(12)
+local tau_robinson = _b[tau]
+local se_robinson = _se[tau]
+cate_dnn rho_robinson, x(x1 x2) x0(0 0) pseudooutcome k(3) s(12)
+if abs(_b[tau] - `tau_robinson') > 1e-10 | abs(_se[tau] - `se_robinson') > 1e-10 {
+    di as error "installed cate_dnn pseudooutcome path does not match Robinson."
+    exit 459
+}
+
+cate_dnn rho_aipw, x(x1 x2) x0(0 0) pseudooutcome s(160) nose
+if _b[tau] >= . | e(k) != 1 | "`e(se_method)'" != "none" {
+    di as error "installed cate_dnn nose/default-k path returned invalid results."
+    exit 459
+}
+capture matrix list e(V)
+if !_rc {
+    di as error "installed cate_dnn nose path unexpectedly posted e(V)."
+    exit 459
+}
 
 gen double md1 = 0.3*x1 - 0.2*x2
 gen double md2 = -0.1*x1 + 0.4*x2

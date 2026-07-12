@@ -126,3 +126,47 @@ mata {
 }
 test_assert "[shape] vector covariance is symmetric" scalar(_r_sym) < 1e-10
 test_assert "[shape] vector covariance is positive semidefinite" scalar(_r_psd) > -1e-8
+
+// ════════════════════════════════════════════════════════════
+test_section "rdistnn_jk_cov_multi_from_ranks: [bf] multiple targets"
+// ════════════════════════════════════════════════════════════
+
+mata {
+    rseed(306)
+    n = 16; m = 3; k = 2; s = 5
+    _X = rnormal(n, 2, 0, 1)
+    _X0 = (0,0 \ 0.5,-0.25 \ -0.4,0.3)
+    _R = rdistnn_ranks_matrix(_X, _X0, "l2")
+    _W = rdistnn_weights_from_rmat(_R, k, s, "exact")
+    _sig = rnormal(n, 1, 0, 1)
+    _V_fast = rdistnn_jk_cov_multi_from_ranks(_R, _sig, k, s, "exact")
+
+    _idx = (1::n)
+    _loo = J(n, m, .)
+    for (_i = 1; _i <= n; _i++) {
+        _kept = (_idx :!= _i)
+        _sig_m1 = select(_sig, _kept)
+        for (_j = 1; _j <= m; _j++) {
+            _rnk_m1 = select(_R[,_j], _kept)
+            _rnk_m1 = _rnk_m1 :- (_rnk_m1 :> _R[_i,_j])
+            _w_m1 = rdistnn_weights_from_ranks(_rnk_m1, k, s, "exact")
+            _loo[_i,_j] = cross(_w_m1, _sig_m1)
+        }
+    }
+    _centered = _loo :- mean(_loo)
+    _V_bf = ((n - 1) / n) * cross(_centered, _centered)
+
+    st_numscalar("_r_multi_bf", max(abs(_V_fast - _V_bf)))
+    st_numscalar("_r_multi_sym", max(abs(_V_fast - _V_fast')))
+    st_numscalar("_r_multi_wsum", max(abs(colsum(_W) :- 1)))
+}
+test_assert "[bf] multi-target covariance matches brute-force LOO" scalar(_r_multi_bf) < 1e-10
+test_assert "[shape] multi-target covariance is symmetric" scalar(_r_multi_sym) < 1e-10
+test_assert "[shape] batch weight columns sum to one" scalar(_r_multi_wsum) < 1e-10
+
+mata {
+    _V_one = rdistnn_jk_cov_multi_from_ranks(_R[,1], _sig, k, s, "exact")
+    _V_scalar = rdistnn_jk_cov_from_ranks(_R[,1], _sig, k, s, "exact")
+    st_numscalar("_r_multi_single", max(abs(_V_one - _V_scalar)))
+}
+test_assert "[compat] one-target multi covariance matches scalar helper" scalar(_r_multi_single) < 1e-10

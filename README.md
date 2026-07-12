@@ -11,7 +11,7 @@ The current package exposes four user-facing commands:
 | Command | Purpose |
 |---|---|
 | `np_dnn` | Pointwise nonparametric regression at a target covariate profile |
-| `cate_dnn` | Pointwise conditional average treatment effect with user-supplied nuisance functions |
+| `cate_dnn` | Pointwise conditional average treatment effect from AIPW, Robinson, or precomputed scores |
 | `plqr_dnn` | Localized PLQR orthogonal moments at a supplied coefficient vector |
 | `weights_dnn` | Utility for computing and exporting exact DNN rank weights |
 
@@ -45,7 +45,30 @@ gen m1 = m0 + 0.5 + 0.5*sin(x1)
 gen Y  = m0 + D*(m1 - m0) + rnormal()*0.5
 
 * Estimate CATE at the origin with oracle nuisances
-cate_dnn Y, treat(D) x(x1 x2) x0(0 0) propensity(e) m0(m0) m1(m1)
+cate_dnn Y, tcol(D) xcols(x1 x2) x0(0 0) ecol(e) m0col(m0) m1col(m1)
+
+* Equivalent precomputed-score path; nose skips jackknife inference
+gen eclip = min(max(e,1e-8),1-1e-8)
+gen rho = D*(Y-m1)/eclip - (1-D)*(Y-m0)/(1-eclip) + m1-m0
+cate_dnn rho, xcols(x1 x2) x0(0 0) pseudooutcome nose
+
+* Robinson/R-learner score from a pooled outcome regression
+gen mhat = e*m1 + (1-e)*m0
+cate_dnn Y, tcol(D) xcols(x1 x2) x0(0 0) ecol(e) mcol(mhat)
+
+* Evaluate several targets jointly; e(V) retains cross-target covariance
+matrix X0 = (0,0 \ 0.5,-0.25 \ -0.5,0.75)
+cate_dnn Y, tcol(D) xcols(x1 x2) x0matrix(X0) ///
+    ecol(e) m0col(m0) m1col(m1)
+matrix list e(targets)
+matrix list e(V)
+
+* Evaluate the R paper tuning grid; e(b)/e(V) remain at lambda(1)
+cate_dnn rho, xcols(x1 x2) x0matrix(X0) pseudooutcome tuningmode(grid)
+matrix list e(tuning_candidates)
+matrix list e(tuning_estimates)
+matrix list e(tuning_diagnostics)
+matrix list e(diagnostics)
 
 * Local PLQR moments at a supplied beta with oracle nuisances
 gen md1 = 0.3*x1 - 0.2*x2
@@ -108,10 +131,36 @@ RdistNN_stata/
 
 ## Notes
 
-- `cate_dnn` requires user-supplied propensity scores and both treatment-arm
-  outcome models, `m0()` and `m1()`. These may be oracle values or first-stage
-  estimates; Neyman orthogonality protects against first-stage bias at the
-  local effective-sample-size scale.
+- `cate_dnn` supports the same three core score paths as the R estimator:
+  a precomputed positional signal with `pseudooutcome`, full AIPW nuisances
+  with `ecol()`, `m0col()`, and `m1col()`, or a Robinson score with
+  `ecol()` and `mcol()`. Nuisances may be oracle values, full-sample
+  first-stage estimates, or cross-fitted estimates. The default `k(1)` matches
+  the paper theory and the R package. Specify `nose` for estimate-only fits.
+  Use `x0()` for one target or `x0matrix()` with a named target matrix for
+  batch evaluation. Batch `e(V)` is the joint rank-shift jackknife covariance;
+  its diagonal agrees with separate R/Stata target fits.
+- `cate_dnn, tuningmode(grid)` evaluates the R paper grid
+  `lambda = (.75, 1, 1.25, 1.5)` in one call and reuses the target ranks.
+  `lambdagrid()` customizes the multiplier grid. The Stata-native `sgrid()`
+  supplies integer orders directly, with `sdefault()` selecting the default.
+  Candidate estimates, marginal SEs, and diagnostics are returned in
+  `e(tuning_estimates)`, `e(tuning_se)`, and `e(tuning_diagnostics)`;
+  `e(tuning_candidates)` records feasibility and duplicate-computation IDs.
+  The deterministic test fixture asserts all paper-grid values against the R
+  package, not only qualitative invariants.
+- Every CATE fit posts `e(diagnostics)` with the R diagnostic contract's
+  numerical fields: fixed top-1/top-5/top-10 weight shares, nonzero support,
+  nearest-rank radii, weighted distance summaries, and, for nuisance-based
+  score paths, treatment-mass and propensity-overlap summaries. Deterministic
+  R fixtures cover both distance and overlap diagnostics.
+- Stata option names cannot contain underscores, so the CATE interface follows
+  the R names by removing underscores only: `x_cols` -> `xcols()`, `t_col` ->
+  `tcol()`, `e_col` -> `ecol()`, `m0_col` -> `m0col()`, `m1_col` -> `m1col()`,
+  `m_col` -> `mcol()`, and `pseudo_outcome` -> `pseudooutcome`. R's `X0`
+  matrix is passed with `x0matrix()`, `tuning_mode` with `tuningmode()`, and
+  `lambda_grid` with `lambdagrid()`. Earlier Stata names (`x()`, `treat()`,
+  `propensity()`, `m0()`, `m1()`, and `mhat()`) remain compatibility aliases.
 - `plqr_dnn` requires user-supplied `q()` and `md()` nuisance variables and a
   fixed `beta()` vector. It reports localized PLQR moments in `e(b)` and their
   full jackknife covariance in `e(V)`; it does not solve for `beta`, estimate

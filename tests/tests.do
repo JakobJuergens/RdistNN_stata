@@ -42,6 +42,11 @@ local test_files ///
     test-np-dnn-r-identities ///
     test-cate-dnn-core       ///
     test-cate-dnn-nuisance   ///
+    test-cate-dnn-score-inputs ///
+    test-cate-dnn-batch      ///
+    test-cate-dnn-tuning     ///
+    test-cate-dnn-diagnostics ///
+    test-cate-dnn-naming     ///
     test-cate-dnn-errors     ///
     test-cate-dnn-r-identities ///
     test-plqr-dnn-core       ///
