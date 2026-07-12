@@ -5,6 +5,7 @@
 {viewerjumpto "Options"         "cate_dnn##options"}{...}
 {viewerjumpto "Stored results"  "cate_dnn##results"}{...}
 {viewerjumpto "Examples"        "cate_dnn##examples"}{...}
+{viewerjumpto "Postestimation"  "cate_dnn##postestimation"}{...}
 {viewerjumpto "References"      "cate_dnn##references"}{...}
 
 {title:Title}
@@ -338,6 +339,15 @@ distance, overlap-availability flag, treated/control mass and treated share,
 propensity-availability flag, weighted mean propensity, and weighted
 propensity 10th/90th quantiles.  Overlap fields are missing for the
 precomputed-score path.
+
+{marker postestimation}{...}
+{title:Postestimation}
+
+{pstd}
+Use {help cate_dnn_diagnostics} to inspect or save target and tuning-candidate
+diagnostic tables.  Use {help cate_dnn_plot} for Stata-native analogues of the
+R package's CATE estimate, diagnostics, tuning, overlap, weight, influence,
+and dashboard plots.
 
 {marker references}{...}
 {title:References}

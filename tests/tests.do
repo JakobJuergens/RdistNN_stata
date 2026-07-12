@@ -46,6 +46,7 @@ local test_files ///
     test-cate-dnn-batch      ///
     test-cate-dnn-tuning     ///
     test-cate-dnn-diagnostics ///
+    test-cate-dnn-postestimation ///
     test-cate-dnn-naming     ///
     test-cate-dnn-errors     ///
     test-cate-dnn-r-identities ///

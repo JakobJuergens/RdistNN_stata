@@ -16,6 +16,10 @@ f rdistnn.pkg
 f stata.toc
 f src/cate_dnn.ado
 f src/cate_dnn.sthlp
+f src/cate_dnn_diagnostics.ado
+f src/cate_dnn_diagnostics.sthlp
+f src/cate_dnn_plot.ado
+f src/cate_dnn_plot.sthlp
 f src/np_dnn.ado
 f src/np_dnn.sthlp
 f src/plqr_dnn.ado

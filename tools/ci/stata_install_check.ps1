@@ -88,6 +88,10 @@ which np_dnn
 _rdistnn_assert_from_plus np_dnn.ado, plusnorm("`plus_norm'")
 which cate_dnn
 _rdistnn_assert_from_plus cate_dnn.ado, plusnorm("`plus_norm'")
+which cate_dnn_diagnostics
+_rdistnn_assert_from_plus cate_dnn_diagnostics.ado, plusnorm("`plus_norm'")
+which cate_dnn_plot
+_rdistnn_assert_from_plus cate_dnn_plot.ado, plusnorm("`plus_norm'")
 which plqr_dnn
 _rdistnn_assert_from_plus plqr_dnn.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_mata.ado, plusnorm("`plus_norm'")
@@ -172,6 +176,22 @@ if abs(B_cate_batch[1,1] - `tau_aipw') > 1e-10 | ///
     di as error "installed cate_dnn x0matrix() first target does not match x0()."
     exit 459
 }
+cate_dnn_diagnostics
+if r(n_rows) != 2 | "`r(scope)'" != "targets" {
+    di as error "installed cate_dnn_diagnostics target path failed."
+    exit 459
+}
+foreach p in estimates diagnostics overlap weights influence {
+    local extra ""
+    if "`p'" == "overlap" local extra "view(mass)"
+    if "`p'" == "weights" local extra "view(kernel)"
+    cate_dnn_plot, type(`p') `extra' name(install_`p') replace nodraw
+    capture graph describe install_`p'
+    if _rc {
+        di as error "installed cate_dnn_plot type(`p') failed."
+        exit 459
+    }
+}
 
 cate_dnn rho_aipw, xcols(x1 x2) x0matrix(X0_install) pseudooutcome ///
     tuningmode(grid)
@@ -200,6 +220,23 @@ if scalar(_install_grid_b) > 1e-10 | scalar(_install_grid_v) > 1e-10 {
     di as error "installed cate_dnn grid default does not match scalar fit."
     exit 459
 }
+
+cate_dnn y, tcol(D) xcols(x1 x2) x0matrix(X0_install) ecol(e) ///
+    m0col(m0) m1col(m1) k(3) tuningmode(grid)
+cate_dnn_diagnostics, allcandidates
+if r(n_rows) != 4 | "`r(scope)'" != "candidates" {
+    di as error "installed cate_dnn_diagnostics candidate path failed."
+    exit 459
+}
+cate_dnn_plot, type(tuning) allcandidates name(install_tuning) replace nodraw
+cate_dnn_plot, type(dashboard) name(install_dashboard) replace nodraw
+capture graph describe install_dashboard
+if _rc {
+    di as error "installed cate_dnn_plot dashboard path failed."
+    exit 459
+}
+capture graph drop install_estimates install_diagnostics install_overlap ///
+    install_weights install_influence install_tuning install_dashboard
 
 gen double mhat = e*m1 + (1-e)*m0
 gen double rho_robinson = (D-eclip)*(y-mhat)/(eclip*(1-eclip))

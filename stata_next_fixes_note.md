@@ -23,7 +23,11 @@ errors, ESS, maximum weight, and top-five weight share.  Per-target
 and CATE overlap summaries.  Stata's native `ereturn display`, replay, and
 predict-by-refit workflow cover the corresponding scalar result operations;
 R-specific S3 object reconstruction and ggplot methods are intentionally not
-mirrored.  Automatic nuisance fitting remains out of scope unless a separate
+mirrored directly.  Stata-native counterparts are now provided by
+`cate_dnn_diagnostics` and `cate_dnn_plot`, covering estimate, diagnostics,
+tuning, overlap, weight, influence, and dashboard views with graph export and
+stale-data validation for observation-level reconstruction.  Automatic
+nuisance fitting remains out of scope unless a separate
 interface and cross-fitting design are agreed.
 
 Status update, 2026-04-11: the first implementation pass has addressed the

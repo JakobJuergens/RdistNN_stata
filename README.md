@@ -6,7 +6,8 @@ companion to the R package
 [RdistNN](https://github.com/JakobJuergens/RdistNN) and the paper
 [Robust Inference for Conditional Z-Estimation via Distributional Nearest Neighbors](https://github.com/JakobJuergens/Cond_Z_Estimation).
 
-The current package exposes four user-facing commands:
+The current package exposes four estimation/weight commands and two CATE
+postestimation commands:
 
 | Command | Purpose |
 |---|---|
@@ -14,13 +15,21 @@ The current package exposes four user-facing commands:
 | `cate_dnn` | Pointwise conditional average treatment effect from AIPW, Robinson, or precomputed scores |
 | `plqr_dnn` | Localized PLQR orthogonal moments at a supplied coefficient vector |
 | `weights_dnn` | Utility for computing and exporting exact DNN rank weights |
+| `cate_dnn_diagnostics` | Inspect or save target-level and tuning-candidate diagnostics |
+| `cate_dnn_plot` | Plot estimates, diagnostics, tuning, overlap, weights, influence, and dashboards |
 
 Stata 17 or later is required.
 
-## Installation (development)
+## Installation
 
-Clone or copy this repository, then run `dev-setup.do` once per Stata session
-to add `src/` to the adopath:
+Install the current default-branch package directly from GitHub:
+
+```stata
+net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/master/") replace
+```
+
+For local development, clone or copy this repository, then run
+`dev-setup.do` once per Stata session to add `src/` to the adopath:
 
 ```stata
 do "path\to\RdistNN_stata\dev-setup.do"
@@ -69,6 +78,17 @@ matrix list e(tuning_candidates)
 matrix list e(tuning_estimates)
 matrix list e(tuning_diagnostics)
 matrix list e(diagnostics)
+
+* Postestimation diagnostics and Stata-native R-analogous plots
+cate_dnn_diagnostics
+cate_dnn_diagnostics, allcandidates
+cate_dnn_plot, type(estimates)
+cate_dnn_plot, type(diagnostics)
+cate_dnn_plot, type(tuning) allcandidates
+cate_dnn_plot, type(overlap) view(mass)
+cate_dnn_plot, type(weights) view(kernel) targets(1 3)
+cate_dnn_plot, type(influence) targets(1 3)
+cate_dnn_plot, type(dashboard)
 
 * Local PLQR moments at a supplied beta with oracle nuisances
 gen md1 = 0.3*x1 - 0.2*x2
@@ -154,6 +174,18 @@ RdistNN_stata/
   nearest-rank radii, weighted distance summaries, and, for nuisance-based
   score paths, treatment-mass and propensity-overlap summaries. Deterministic
   R fixtures cover both distance and overlap diagnostics.
+- Because the estimator and tuning rules are deterministic, the regression
+  suite enforces R/Stata parity for target estimates, covariance matrices,
+  candidate grids, and the shared diagnostic fields.
+- `cate_dnn_diagnostics` turns the stored target or tuning-candidate matrices
+  into compact postestimation tables, returns the full table in
+  `r(diagnostics)`, and can save it as a `.dta` file.
+- `cate_dnn_plot` provides Stata-native analogues of the R package's CATE
+  estimate, diagnostics, tuning, overlap, weight, influence, and dashboard
+  plots. Stored-result views do not refit. Effective-kernel and influence
+  views reconstruct weights only after validating the current estimation
+  sample and referenced variables. All graph builders support named graphs,
+  `nodraw`, and export through `saving()`.
 - Stata option names cannot contain underscores, so the CATE interface follows
   the R names by removing underscores only: `x_cols` -> `xcols()`, `t_col` ->
   `tcol()`, `e_col` -> `ecol()`, `m0_col` -> `m0col()`, `m1_col` -> `m1col()`,
@@ -184,5 +216,7 @@ RdistNN_stata/
 - [Cond_Z_Estimation](https://github.com/JakobJuergens/Cond_Z_Estimation):
   paper repository for the conditional Z-estimation theory motivating these
   commands.
+- [Cond_GMM_with_DNN](https://github.com/JakobJuergens/Cond_GMM_with_DNN):
+  companion conditional GMM paper that builds on the same localization layer.
 - [JK_GenUStat](https://github.com/JakobJuergens/JK_GenUStat): supporting
   generalized U-statistic and jackknife variance theory.
