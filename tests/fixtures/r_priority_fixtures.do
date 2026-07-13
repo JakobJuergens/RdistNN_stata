@@ -2,6 +2,8 @@
 // RdistNN version 0.1.0; deterministic shared-surface parity fixture.
 version 17
 
+matrix R_wq_machine_weights = (0.49999999999999994, 0.5 \ 0.5, 0.5 \ 0.50000000000000011, 0.49999999999999989)
+matrix R_wq_boundary_results = (1 \ 5 \ 9 \ 1 \ 2 \ 1 \ 1)
 matrix R_np_exact = (0.3784248737373736 \ 0.23475893894099836 \ 6.121739130434781)
 matrix R_cate_exact_tau = (1.0847064393939394 \ 0.63655303030303034 \ 1.3172821969696971)
 matrix R_cate_exact_se = (0.20196058024420646 \ 0.18190716325154713 \ 0.16989000520496475)

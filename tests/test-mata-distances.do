@@ -10,6 +10,7 @@
 
 quietly do "src/_rdistnn_mata.ado"
 do "tests/test_framework.do"
+quietly do "tests/fixtures/r_priority_fixtures.do"
 
 // ════════════════════════════════════════════════════════════
 test_section "rdistnn_l2dist: [smoke] basic properties"
@@ -195,21 +196,51 @@ mata {
     st_numscalar("_q10", rdistnn_weighted_quantile(_qx, _qw, .1))
     st_numscalar("_q50", rdistnn_weighted_quantile(_qx, _qw, .5))
     st_numscalar("_q90", rdistnn_weighted_quantile(_qx, _qw, .9))
-    _ulp = epsilon(.5)
-    st_numscalar("_qbelow", rdistnn_weighted_quantile((1 \ 2), (.5-_ulp \ .5+_ulp), .5))
-    st_numscalar("_qabove", rdistnn_weighted_quantile((1 \ 2), (.5+_ulp \ .5-_ulp), .5))
+    _qmachine = st_matrix("R_wq_machine_weights")
+    st_numscalar("_qexact", rdistnn_weighted_quantile((1 \ 2), _qmachine[2,]', .5))
+    st_numscalar("_qbelow", rdistnn_weighted_quantile((1 \ 2), _qmachine[1,]', .5))
+    st_numscalar("_qabove", rdistnn_weighted_quantile((1 \ 2), _qmachine[3,]', .5))
+    st_numscalar("_qtied", rdistnn_weighted_quantile((2 \ 1 \ 1 \ 3), (.4 \ .2 \ .3 \ .1), .5))
+    _qtie_order = order(((2 \ 1 \ 1 \ 3), (1::4)), (1, 2))
+    st_numscalar("_qtie_order", max(abs(_qtie_order - (2 \ 3 \ 1 \ 4))))
+    _qresults = (st_numscalar("_q10") \ st_numscalar("_q50") \
+        st_numscalar("_q90") \ st_numscalar("_qexact") \
+        st_numscalar("_qbelow") \ st_numscalar("_qabove") \
+        st_numscalar("_qtied"))
+    st_numscalar("_qfixture", max(abs(
+        _qresults - st_matrix("R_wq_boundary_results"))))
 }
 test_assert "[boundary] equal-weight q=.1 returns observation 1" scalar(_q10) == 1
 test_assert "[boundary] equal-weight q=.5 returns observation 5" scalar(_q50) == 5
 test_assert "[boundary] equal-weight q=.9 returns observation 9" scalar(_q90) == 9
-test_assert "[boundary] cumulative mass one ulp below is within comparison tolerance" scalar(_qbelow) == 1
+test_assert "[boundary] exact cumulative mass returns current observation" scalar(_qexact) == 1
+test_assert "[boundary] cumulative mass one representable step below advances" scalar(_qbelow) == 2
 test_assert "[boundary] cumulative mass one ulp above returns first" scalar(_qabove) == 1
+test_assert "[boundary] tied values retain deterministic left-continuous result" scalar(_qtied) == 1
+test_assert "[determinism] tied values are ordered by original index" scalar(_qtie_order) == 0
+test_assert "[R parity] low-level weighted-quantile boundaries match RdistNN" scalar(_qfixture) == 0
 
+cap mata: rdistnn_weighted_quantile((1 \ . \ 2), (.2 \ .3 \ .5), .5)
+test_assert "[errors] ordinary missing quantile value rejected" _rc == 198
+cap mata: rdistnn_weighted_quantile((1 \ .a \ 2), (.2 \ .3 \ .5), .5)
+test_assert "[errors] extended missing quantile value rejected" _rc == 198
+cap mata: rdistnn_weighted_quantile((1 \ 2), (1), .5)
+test_assert "[errors] quantile value/weight length mismatch rejected" _rc == 198
+cap mata: rdistnn_weighted_quantile(J(0, 1, .), J(0, 1, .), .5)
+test_assert "[errors] empty quantile input rejected" _rc == 198
 cap mata: rdistnn_weighted_quantile((1 \ 2), (.5 \ .5), .)
 test_assert "[errors] missing quantile probability rejected" _rc == 198
+cap mata: rdistnn_weighted_quantile((1 \ 2), (.5 \ .5), -.1)
+test_assert "[errors] quantile probability below zero rejected" _rc == 198
+cap mata: rdistnn_weighted_quantile((1 \ 2), (.5 \ .5), 1.1)
+test_assert "[errors] quantile probability above one rejected" _rc == 198
 cap mata: rdistnn_weighted_quantile((1 \ 2), (-.1 \ 1.1), .5)
 test_assert "[errors] negative quantile weight rejected" _rc == 198
 cap mata: rdistnn_weighted_quantile((1 \ 2), (. \ 1), .5)
 test_assert "[errors] missing quantile weight rejected" _rc == 198
+cap mata: rdistnn_weighted_quantile((1 \ 2), (.a \ 1), .5)
+test_assert "[errors] extended missing quantile weight rejected" _rc == 198
 cap mata: rdistnn_weighted_quantile((1 \ 2), (0 \ 0), .5)
 test_assert "[errors] zero total quantile weight rejected" _rc == 198
+cap mata: rdistnn_weighted_quantile((1 \ 2), (8e307 \ 8e307), .5)
+test_assert "[errors] nonfinite total quantile weight rejected" _rc == 198

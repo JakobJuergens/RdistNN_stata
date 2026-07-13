@@ -177,9 +177,20 @@ test_assert "[golden] AIPW ESS matches RdistNN" ///
     abs(`aipw_ess' - R_cate_aipw_exact[3,1]) < 1e-12
 mata: st_numscalar("_cate_aipw_diag", max(abs(st_matrix("D_cate_aipw")[1,20..25] - st_matrix("R_cate_aipw_paper_diagnostics"))))
 test_assert "[golden] AIPW paper diagnostics match RdistNN" scalar(_cate_aipw_diag) < 1e-12
-mata: st_numscalar("_cate_aipw_quantile_diag", max(abs(st_matrix("D_cate_aipw")[1,(11,18,19,20)] - st_matrix("R_cate_aipw_quantile_diagnostics"))))
-test_assert "[golden] AIPW weighted distance, propensity, and physical quantiles match RdistNN" ///
-    scalar(_cate_aipw_quantile_diag) < 1e-12
+mata {
+    st_numscalar("_cate_aipw_median_distance", max(abs(
+        st_matrix("D_cate_aipw")[1,11] - st_matrix("R_cate_aipw_quantile_diagnostics")[1,1])))
+    st_numscalar("_cate_aipw_propensity_quantiles", max(abs(
+        st_matrix("D_cate_aipw")[1,18..19] - st_matrix("R_cate_aipw_quantile_diagnostics")[1,2..3])))
+    st_numscalar("_cate_aipw_physical_radius", max(abs(
+        st_matrix("D_cate_aipw")[1,20] - st_matrix("R_cate_aipw_quantile_diagnostics")[1,4])))
+}
+test_assert "[golden] AIPW weighted median distance matches RdistNN" ///
+    scalar(_cate_aipw_median_distance) < 1e-12
+test_assert "[golden] AIPW weighted propensity quantiles match RdistNN" ///
+    scalar(_cate_aipw_propensity_quantiles) < 1e-12
+test_assert "[golden] AIPW physical-radius quantile matches RdistNN" ///
+    scalar(_cate_aipw_physical_radius) < 1e-12
 
 quietly cate_dnn y_cate, tcol(D) xcols(x1 x2) x0(0.2 -0.1) ///
     ecol(e) mcol(m) k(2) s(5) method(exact)

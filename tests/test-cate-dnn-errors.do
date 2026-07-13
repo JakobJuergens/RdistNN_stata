@@ -67,6 +67,12 @@ cap cate_dnn y, treat(D) x(x1 x2) x0matrix(X0_missing) ///
     propensity(e) m0(m0) m1(m1)
 test_assert "[errors] missing target value rejected (rc=198)" _rc == 198
 
+matrix X0_extended_missing = (0,0 \ .a,1)
+cap cate_dnn y, treat(D) x(x1 x2) x0matrix(X0_extended_missing) ///
+    propensity(e) m0(m0) m1(m1)
+test_assert "[diagnostics] extended-missing target cannot reach radius quantile" ///
+    _rc == 198
+
 // ════════════════════════════════════════════════════════════
 test_section "cate_dnn: [errors] x0 and k/s validation"
 // ════════════════════════════════════════════════════════════
@@ -140,6 +146,14 @@ cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e) m0(m0) m1(m1)
 local rc_missing_e = _rc
 restore
 test_assert "[errors] missing propensity rejected (rc=198)" `rc_missing_e' == 198
+
+preserve
+replace e = .a in 1
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e) m0(m0) m1(m1)
+local rc_extended_missing_e = _rc
+restore
+test_assert "[diagnostics] extended-missing propensity cannot reach stored quantiles" ///
+    `rc_extended_missing_e' == 198
 
 preserve
 replace e = -1e-12 in 1

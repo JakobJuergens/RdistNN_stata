@@ -68,6 +68,26 @@ dat <- data.frame(
   d1 = d1, d2 = d2, md1 = md1, md2 = md2, g = g, y_plqr = y_plqr
 )
 
+weighted_quantile <- getFromNamespace(".dnn_weighted_quantile", "RdistNN")
+step_below_half <- .Machine$double.eps / 4
+step_above_half <- .Machine$double.eps / 2
+weighted_quantile_machine_weights <- rbind(
+  below = c(0.5 - step_below_half, 0.5 + step_below_half),
+  exact = c(0.5, 0.5),
+  above = c(0.5 + step_above_half, 0.5 - step_above_half)
+)
+weighted_quantile_boundary_results <- c(
+  equal_q10 = weighted_quantile(1:10, rep(0.1, 10), 0.1),
+  equal_q50 = weighted_quantile(1:10, rep(0.1, 10), 0.5),
+  equal_q90 = weighted_quantile(1:10, rep(0.1, 10), 0.9),
+  exact_half = weighted_quantile(1:2, weighted_quantile_machine_weights["exact", ], 0.5),
+  below_half = weighted_quantile(1:2, weighted_quantile_machine_weights["below", ], 0.5),
+  above_half = weighted_quantile(1:2, weighted_quantile_machine_weights["above", ], 0.5),
+  tied_q50 = weighted_quantile(c(2, 1, 1, 3), c(0.4, 0.2, 0.3, 0.1), 0.5)
+)
+emit_matrix("wq_machine_weights", weighted_quantile_machine_weights)
+emit_matrix("wq_boundary_results", weighted_quantile_boundary_results)
+
 for (method in c("exact", "asymp")) {
   np_fit <- np_dnn(
     X = X, x0 = x0, Y = y_np,

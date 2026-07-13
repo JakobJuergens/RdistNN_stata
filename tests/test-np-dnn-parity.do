@@ -36,12 +36,20 @@ mata {
     st_numscalar("_np_batch_se_r", max(abs(sqrt(diagonal(st_matrix("V_np_batch"))) - st_matrix("R_np_batch_exact_se"))))
     st_numscalar("_np_batch_ess_r", max(abs(st_matrix("E_np_batch") - st_matrix("R_np_batch_exact_ess")')))
     st_numscalar("_np_batch_diag_r", max(abs(st_matrix("D_np_batch") - st_matrix("R_np_batch_exact_diagnostics"))))
+    st_numscalar("_np_batch_median_distance_r", max(abs(
+        st_matrix("D_np_batch")[,11] - st_matrix("R_np_batch_exact_diagnostics")[,11])))
+    st_numscalar("_np_batch_outcome_quantiles_r", max(abs(
+        st_matrix("D_np_batch")[,15..17] - st_matrix("R_np_batch_exact_diagnostics")[,15..17])))
     st_numscalar("_np_batch_vsym", max(abs(st_matrix("V_np_batch") - st_matrix("V_np_batch")')))
 }
 test_assert "[R parity] batch estimates match RdistNN" scalar(_np_batch_mu_r) < 1e-11
 test_assert "[R parity] batch standard errors match RdistNN" scalar(_np_batch_se_r) < 1e-11
 test_assert "[R parity] batch ESS matches RdistNN" scalar(_np_batch_ess_r) < 1e-11
 test_assert "[R parity] target diagnostics match RdistNN" scalar(_np_batch_diag_r) < 1e-11
+test_assert "[R parity] weighted median distances match RdistNN" ///
+    scalar(_np_batch_median_distance_r) < 1e-11
+test_assert "[R parity] NP outcome quantiles match RdistNN" ///
+    scalar(_np_batch_outcome_quantiles_r) < 1e-11
 test_assert "[batch] e(V) is symmetric" scalar(_np_batch_vsym) < 1e-12
 test_assert "[batch] e(b) has one coefficient per target" colsof(B_np_batch) == 3
 test_assert "[batch] e(V) retains cross-target covariance" rowsof(V_np_batch) == 3 & colsof(V_np_batch) == 3

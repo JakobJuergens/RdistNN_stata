@@ -36,6 +36,18 @@ test_assert "[diagnostics] pseudo-outcome records overlap unavailable" D_diag[1,
 test_assert "[diagnostics] pseudo-outcome records propensity unavailable" D_diag[1,16] == 0
 test_assert "[diagnostics] unavailable overlap values are missing" missing(D_diag[1,13]) & missing(D_diag[1,17])
 
+preserve
+replace x1 = .a in 1
+quietly cate_dnn rho_diag, xcols(x1 x2) x0(0.2 -0.1) ///
+    k(2) s(4) method(exact) pseudooutcome
+matrix D_complete_retained = e(diagnostics)
+local n_complete_retained = e(N)
+restore
+test_assert "[diagnostics] incomplete raw covariate is excluded before retention" ///
+    `n_complete_retained' == 7
+test_assert "[diagnostics] complete retained sample yields finite distance radii" ///
+    D_complete_retained[1,11] < . & D_complete_retained[1,20] < .
+
 test_section "cate_dnn: [R parity] treatment overlap diagnostics"
 
 gen double y = cond(_n==1,-.5,cond(_n==2,1.2,cond(_n==3,.4, ///

@@ -367,29 +367,39 @@ real scalar rdistnn_weighted_quantile(real colvector x,
                                        real colvector w,
                                        real scalar prob)
 {
-    real scalar i, accum, tol, wsum
+    real scalar i, accum, compensation, adjusted, next_accum, wsum
     real colvector ord
 
-    if (rows(x) != rows(w) | rows(x) < 1 |
-        missing(prob) | prob < 0 | prob > 1) {
-        errprintf("rdistnn_weighted_quantile: invalid x, w, or probability.\n")
+    if (rows(x) != rows(w) | rows(x) < 1) {
+        errprintf("rdistnn_weighted_quantile: x and w must have the same positive length.\n")
+        exit(error(198))
+    }
+    if (any(missing(x))) {
+        errprintf("rdistnn_weighted_quantile: x must contain only finite, nonmissing values.\n")
+        exit(error(198))
+    }
+    if (missing(prob) | prob < 0 | prob > 1) {
+        errprintf("rdistnn_weighted_quantile: probability must be finite and lie in [0,1].\n")
         exit(error(198))
     }
     if (any(missing(w)) | any(w :< 0)) {
         errprintf("rdistnn_weighted_quantile: weights must be finite and nonnegative.\n")
         exit(error(198))
     }
-    wsum = sum(w)
+    wsum = quadsum(w)
     if (missing(wsum) | wsum <= 0) {
         errprintf("rdistnn_weighted_quantile: total weight must be strictly positive.\n")
         exit(error(198))
     }
     ord = order((x, (1::rows(x))), (1, 2))
     accum = 0
+    compensation = 0
     for (i = 1; i <= rows(ord); i++) {
-        accum = accum + w[ord[i]] / wsum
-        tol = 4 * epsilon(1) * max((1, abs(prob), abs(accum)))
-        if (accum + tol >= prob) return(x[ord[i]])
+        adjusted = w[ord[i]] - compensation
+        next_accum = accum + adjusted
+        compensation = (next_accum - accum) - adjusted
+        accum = next_accum
+        if (accum / wsum >= prob) return(x[ord[i]])
     }
     return(x[ord[rows(ord)]])
 }
