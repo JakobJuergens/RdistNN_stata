@@ -41,6 +41,9 @@
   `src/plugin/`, made `src/plugin/` the canonical native-source location,
   removed obsolete workflow repository-write paths, and added static hygiene
   guards for these contracts.
+- Fixed native Unix builds to select Stata's `OPUNIX` declarations on Linux
+  and `APPLEMAC` declarations on macOS instead of inheriting the Windows-only
+  `__declspec(dllexport)` default.
 
 ### Verification
 

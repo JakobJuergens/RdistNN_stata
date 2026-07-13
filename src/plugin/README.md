@@ -29,6 +29,9 @@ build in a temporary directory, executes deterministic exact/asymptotic core
 tests, and verifies the output format. GitHub Actions runs it on Windows
 x86-64, Linux x86-64, macOS arm64, and macOS x86-64. Native binaries are
 workflow artifacts; they are not interchangeable across those platforms.
+The Unix Makefile selects Stata's `OPUNIX` ABI declarations on Linux and
+`APPLEMAC` declarations on macOS; the Windows Makefile retains the header's
+`STWIN32` default.
 Published GitHub releases attach all four binaries under platform-specific
 names together with `SHA256SUMS.txt`. Rename the matching asset to
 `rdistnn.plugin` and place it on the Stata adopath. The default dispatch uses

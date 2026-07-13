@@ -295,6 +295,15 @@ for runner in ubuntu-latest windows-latest macos-latest macos-15-intel; do
 	fi
 done
 
+for define in '-DSYSTEM=OPUNIX' '-DSYSTEM=APPLEMAC'; do
+	if grep -qF -- "$define" src/plugin/Makefile; then
+		echo "  OK       Unix plugin ABI define: $define"
+	else
+		echo "  MISSING  src/plugin/Makefile must select $define"
+		PLATFORM_ERRORS=$((PLATFORM_ERRORS + 1))
+	fi
+done
+
 if command -v file >/dev/null 2>&1; then
 	PLUGIN_FORMAT="$(file src/rdistnn.plugin)"
 	if printf '%s\n' "$PLUGIN_FORMAT" | grep -qE 'PE32[+].*x86-64.*Windows'; then

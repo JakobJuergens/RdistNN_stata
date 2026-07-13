@@ -12,9 +12,11 @@ CXXFLAGS := -std=c++17 -O3 -Wall -Wextra -fPIC
 
 UNAME := $(shell uname -s)
 ifeq ($(UNAME), Darwin)
+  CPPFLAGS := -DSYSTEM=APPLEMAC
   # macOS: bundle (no -lc, Stata provides its own symbols)
   LDFLAGS := -bundle -undefined dynamic_lookup
 else
+  CPPFLAGS := -DSYSTEM=OPUNIX
   # Linux
   LDFLAGS := -shared
 endif
@@ -24,10 +26,10 @@ CORE_TEST := rdistnn_core_test
 SRCS   := stplugin.c rdistnn_plugin.cpp
 
 $(TARGET): $(SRCS) rdistnn_core.hpp stplugin.h
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $(SRCS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) -o $@ $(SRCS)
 
 $(CORE_TEST): test_rdistnn_core.cpp rdistnn_core.hpp
-	$(CXX) $(CXXFLAGS) -o $@ test_rdistnn_core.cpp
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ test_rdistnn_core.cpp
 
 check: $(CORE_TEST)
 	./$(CORE_TEST)
