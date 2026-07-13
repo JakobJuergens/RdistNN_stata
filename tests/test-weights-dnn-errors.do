@@ -48,3 +48,15 @@ test_assert "[errors] s > n rejected (rc=198)" _rc == 198
 // [errors] mahalanobis with single covariate (need >= 2 for cov matrix)
 cap weights_dnn x1, x0(0) k(3) distance(mahalanobis)
 test_assert "[errors] mahal with kx=1 rejected (rc=198)" _rc == 198
+
+preserve
+keep in 1
+cap weights_dnn x1 x2, x0(0 0) k(1) s(1) distance(mahalanobis)
+local rc_one_mahal_weights = _rc
+cap weights_dnn x1 x2, x0(0 0) k(1) s(1) generate(w_one_l2)
+local rc_one_l2_weights = _rc
+local w_one = w_one_l2[1]
+restore
+test_assert "[errors] one-observation weights Mahalanobis rejected" `rc_one_mahal_weights' == 2001
+test_assert "[endpoint] one-observation exact L2 weights accepted" ///
+    `rc_one_l2_weights' == 0 & abs(`w_one' - 1) < 1e-12

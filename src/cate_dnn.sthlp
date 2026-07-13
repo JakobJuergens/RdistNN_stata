@@ -44,6 +44,7 @@ Stata 17 or later is required.
 {synopt:{opth m0col(varname)}}control outcome mean, corresponding to R's {cmd:m0_col}{p_end}
 {synopt:{opth m1col(varname)}}treated outcome mean, corresponding to R's {cmd:m1_col}{p_end}
 {synopt:{opth mcol(varname)}}pooled outcome mean, corresponding to R's {cmd:m_col}{p_end}
+{synopt:{opt clip(#)}}propensity clipping constant in (0, 0.5); default {cmd:1e-8}{p_end}
 
 {syntab:Tuning}
 {synopt:{opt k(#)}}nearest observations selected per size-s subsample; default {cmd:k(1)}{p_end}
@@ -91,7 +92,9 @@ The Robinson pseudo-outcome is
 {phang2}phi_i = (D_i-eclip_i)*(Y_i-mhat_i)/(eclip_i*(1-eclip_i)).{p_end}
 
 {pstd}
-For nuisance-based paths, eclip_i = min(max(e_i, 1e-8), 1-1e-8).
+For nuisance-based paths, eclip_i = min(max(e_i, clip), 1-clip), where
+{opt clip()} defaults to 1e-8. Raw propensity values must be finite and lie in
+[0,1]; values outside that range are rejected rather than mapped back into it.
 Supply {opt ecol()} and either {opt m0col()} with {opt m1col()} (AIPW),
 or {opt mcol()} (Robinson).
 
@@ -167,7 +170,13 @@ corresponding to R's {cmd:t_col}.
 {phang}
 {opth ecol(varname)} provides e(X) = P(D=1|X), corresponding to R's
 {cmd:e_col}.  Values must lie in [0, 1].  Values at or very near the endpoints
-are clipped only inside the residual denominators.
+are replaced by the clipped propensity used consistently throughout the AIPW
+or Robinson score and propensity diagnostics.
+
+{phang}
+{opt clip(#)} specifies the finite propensity clipping constant. It must lie
+strictly between 0 and 0.5 and defaults to {cmd:1e-8}. It has no effect on a
+precomputed pseudo-outcome.
 
 {phang}
 {opth m0col(varname)} provides E[Y|X, D=0], corresponding to R's
@@ -244,7 +253,9 @@ behavior.
 uses Euclidean distance.  {cmd:mahalanobis} uses the sample covariance
 matrix (via {cmd:invsym()}) to form an ellipsoidal neighborhood;
 recommended when covariates are strongly correlated
-({it:cf.} DGP 5 of Juergens 2025).  Requires at least 2 covariates.
+({it:cf.} DGP 5 of Juergens 2025).  Requires at least 2 covariates and at
+least two complete estimation observations. Rank-deficient covariance matrices
+with two or more observations continue to use {cmd:invsym()}.
 
 {phang}
 {opt method(string)} selects {cmd:exact} finite-sample DNN weights (default)
@@ -275,6 +286,7 @@ size.  With {opt nose}, {opt s()} may equal that size.
 {synopt:{cmd:e(lambda)}}default paper-rule multiplier; missing for {cmd:sgrid()}{p_end}
 {synopt:{cmd:e(kx)}}covariate dimension{p_end}
 {synopt:{cmd:e(p)}}R-aligned alias of {cmd:e(kx)}{p_end}
+{synopt:{cmd:e(clip)}}propensity clipping constant used for nuisance-based scores{p_end}
 
 {p2col 5 15 19 2: Matrices}{p_end}
 {synopt:{cmd:e(b)}}1 x m vector of target-specific CATE estimates{p_end}
@@ -300,6 +312,7 @@ size.  With {opt nose}, {opt s()} may equal that size.
 {synopt:{cmd:e(distance)}}distance metric used{p_end}
 {synopt:{cmd:e(method)}}weight method used{p_end}
 {synopt:{cmd:e(score_method)}}{cmd:aipw}, {cmd:robinson}, or {cmd:pseudo_outcome}{p_end}
+{synopt:{cmd:e(propensity_version)}}{cmd:clipped} for nuisance scores or {cmd:not_used}{p_end}
 {synopt:{cmd:e(se_method)}}{cmd:rank_shift} or {cmd:none}{p_end}
 {synopt:{cmd:e(jackknife)}}R-aligned {cmd:fast} or {cmd:none}{p_end}
 {synopt:{cmd:e(tuning_mode)}}{cmd:default} or {cmd:grid}{p_end}

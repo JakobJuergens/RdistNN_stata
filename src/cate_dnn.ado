@@ -1,4 +1,4 @@
-*! version 0.0.8  2026-07-12  Jakob Juergens
+*! version 0.0.9  2026-07-12  Jakob Juergens
 *! Conditional average treatment effect via distributional nearest neighbors
 
 program define cate_dnn, eclass
@@ -28,6 +28,7 @@ program define cate_dnn, eclass
         MHAT(varname numeric)            ///  estimated/oracle E[Y|X]
         MCOL(varname numeric)            ///  R-aligned m_col convention
         PSEUDOOutcome                    ///  positional variable is CATE signal
+        CLIP(real 1e-8)                  ///  propensity clipping constant
         k(integer 1)                     ///  # selected within each s-subset
         s(integer 0)                     ///  subset/kernel order; larger = tighter
         TUNINGMode(string)               ///  default | grid (R tuning_mode)
@@ -184,8 +185,25 @@ program define cate_dnn, eclass
         }
     }
 
+    if missing(`clip') | `clip' <= 0 | `clip' >= .5 {
+        di as error "clip() must be a finite number strictly between 0 and 0.5."
+        exit 198
+    }
+
     // ── mark sample ──────────────────────────────────────────────────
-    marksample touse
+    marksample touse, novarlist
+    if "`score_method'" != "pseudo_outcome" {
+        quietly count if `touse' & missing(`propensity_var')
+        if r(N) > 0 {
+            di as error "ecol() must contain finite values in [0,1]; missing values are not allowed."
+            exit 198
+        }
+        quietly count if `touse' & (`propensity_var' < 0 | `propensity_var' > 1)
+        if r(N) > 0 {
+            di as error "ecol() must lie in [0,1] before clipping."
+            exit 198
+        }
+    }
     if "`score_method'" == "pseudo_outcome" {
         markout `touse' `xvars' `input_var'
     }
@@ -227,6 +245,10 @@ program define cate_dnn, eclass
     if !inlist("`tuning_mode'", "default", "grid") {
         di as error "tuningmode() must be default or grid."
         exit 198
+    }
+    if "`distance'" == "mahalanobis" & `n' < 2 {
+        di as error "distance(mahalanobis) requires at least two complete estimation observations."
+        exit 2001
     }
     if `lambda' <= 0 | missing(`lambda') {
         di as error "lambda() must be a positive finite number."
@@ -412,14 +434,8 @@ program define cate_dnn, eclass
             exit 198
         }
 
-        quietly count if `touse' & (`propensity_var' < 0 | `propensity_var' > 1)
-        if r(N) > 0 {
-            di as error "ecol() must lie in [0,1]."
-            exit 198
-        }
-
         tempvar eclip rho_var
-        quietly gen double `eclip' = min(max(`propensity_var', 1e-8), 1 - 1e-8) if `touse'
+        quietly gen double `eclip' = min(max(`propensity_var', `clip'), 1 - `clip') if `touse'
         if "`score_method'" == "aipw" {
             // phi = m1-m0 + D*(Y-m1)/e - (1-D)*(Y-m0)/(1-e)
             quietly gen double `rho_var' = ///
@@ -504,7 +520,7 @@ program define cate_dnn, eclass
         _ct_target_diag = J(`ntargets', 25, .)
         if ("`score_method'" != "pseudo_outcome") {
             _ct_T = st_data(., "`treat_var'", "`touse'")
-            _ct_E = st_data(., "`propensity_var'", "`touse'")
+            _ct_E = st_data(., "`eclip'", "`touse'")
         }
         for (_ct_j = 1; _ct_j <= `ntargets'; _ct_j++) {
             _ct_wj = _ct_W[,_ct_j]
@@ -635,6 +651,7 @@ program define cate_dnn, eclass
     ereturn scalar lambda = `default_lambda'
     ereturn scalar kx     = `kx'
     ereturn scalar p      = `kx'
+    ereturn scalar clip   = `clip'
     ereturn matrix targets = `targets_mat', copy
     ereturn matrix x0_matrix = `targets_mat', copy
     ereturn matrix neff_targets = `neff_mat', copy
@@ -666,6 +683,7 @@ program define cate_dnn, eclass
     ereturn local  tuning_status_codes "0=infeasible 1=ok"
     ereturn local  tuning_reason_codes "0=ok 1=k_gt_s 2=jackknife_requires_s_lt_n 3=s_gt_n"
     ereturn local  score_method "`score_method'"
+    ereturn local  propensity_version = cond("`score_method'" == "pseudo_outcome", "not_used", "clipped")
     ereturn local  se_method = cond("`se'" == "", "rank_shift", "none")
     ereturn local  jackknife = cond("`se'" == "", "fast", "none")
     ereturn local  outcome  "`outcome'"

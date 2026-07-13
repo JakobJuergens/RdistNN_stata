@@ -812,7 +812,7 @@ program define _cate_dnn_plot_influence, rclass
         quietly gen double `rho' = `signal_var' if `esample'
     }
     else {
-        quietly gen double `eclip' = min(max(`propensity_var', 1e-8), 1-1e-8) if `esample'
+        quietly gen double `eclip' = min(max(`propensity_var', e(clip)), 1-e(clip)) if `esample'
         if "`score_method'" == "aipw" {
             quietly gen double `rho' = `treat_var' * (`outcome_var' - `m1_var') / `eclip' ///
                 - (1 - `treat_var') * (`outcome_var' - `m0_var') / (1 - `eclip') ///

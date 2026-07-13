@@ -19,8 +19,46 @@
 #include <cstring>
 #include <algorithm>
 #include <limits>
+#include <stdexcept>
+#include <string>
 
 namespace rdistnn {
+
+inline void validate_sample_dimensions(int n, int p)
+{
+    if (n < 1) throw std::invalid_argument("n must be >= 1");
+    if (p < 1) throw std::invalid_argument("p must be >= 1");
+}
+
+inline void validate_weight_parameters(int n, int k, int s)
+{
+    if (n < 1) throw std::invalid_argument("n must be >= 1");
+    if (k < 1) throw std::invalid_argument("k must be >= 1");
+    if (s < k) throw std::invalid_argument("s must be >= k");
+    if (s > n) throw std::invalid_argument("s must be <= n");
+}
+
+inline void validate_ranks(const int *ranks, int n)
+{
+    if (ranks == nullptr) throw std::invalid_argument("ranks must not be null");
+    std::vector<unsigned char> seen(static_cast<std::size_t>(n), 0);
+    for (int i = 0; i < n; ++i) {
+        const int rank = ranks[i];
+        if (rank < 1 || rank > n || seen[static_cast<std::size_t>(rank - 1)] != 0)
+            throw std::invalid_argument("ranks must be a permutation of 1..n");
+        seen[static_cast<std::size_t>(rank - 1)] = 1;
+    }
+}
+
+inline void validate_finite_array(const double *x, std::size_t size,
+                                  const char *name)
+{
+    if (x == nullptr) throw std::invalid_argument(std::string(name) + " must not be null");
+    for (std::size_t i = 0; i < size; ++i) {
+        if (!std::isfinite(x[i]))
+            throw std::invalid_argument(std::string(name) + " must contain only finite values");
+    }
+}
 
 // ── L2 distance computation ────────────────────────────────────────────────
 //
@@ -34,6 +72,11 @@ inline void dist_l2_core(const double *X, int n, int p,
                           double *out,
                           bool squared = false)
 {
+    validate_sample_dimensions(n, p);
+    validate_finite_array(X, static_cast<std::size_t>(n) * p, "X");
+    validate_finite_array(x0, static_cast<std::size_t>(p), "x0");
+    if (inv_s != nullptr) validate_finite_array(inv_s, static_cast<std::size_t>(p), "inv_s");
+    if (out == nullptr) throw std::invalid_argument("out must not be null");
     for (int i = 0; i < n; ++i) {
         double acc = 0.0;
         for (int j = 0; j < p; ++j) {
@@ -114,6 +157,9 @@ struct StableCmp {
 // Stable argsort: out[k] = 0-based index of the k-th smallest value.
 inline void argsort_indices(const double *x, int n, int *out)
 {
+    if (n < 1) throw std::invalid_argument("n must be >= 1");
+    if (x == nullptr) throw std::invalid_argument("x must not be null");
+    if (out == nullptr) throw std::invalid_argument("out must not be null");
     if (all_finite_nonneg(x, n)) {
         detail::argsort_radix64_nonneg(x, n, out);
     } else {
@@ -126,6 +172,9 @@ inline void argsort_indices(const double *x, int n, int *out)
 // Ties broken by original index.
 inline void ranks_from_values(const double *x, int n, int *ranks_out)
 {
+    if (n < 1) throw std::invalid_argument("n must be >= 1");
+    if (x == nullptr) throw std::invalid_argument("x must not be null");
+    if (ranks_out == nullptr) throw std::invalid_argument("ranks_out must not be null");
     std::vector<int> ord(n);
     argsort_indices(x, n, ord.data());
     for (int pos = 0; pos < n; ++pos) ranks_out[ord[pos]] = pos + 1;
@@ -156,6 +205,9 @@ inline double log_binom(int nn, int kk)
 // ranks[]: 1-based ranks (length n).  out[]: weights (length n), sum ~= 1.
 inline void dnn_weights_from_ranks(const int *ranks, int n, int k, int s, double *out)
 {
+    validate_weight_parameters(n, k, s);
+    validate_ranks(ranks, n);
+    if (out == nullptr) throw std::invalid_argument("out must not be null");
     const double log_C_n_s = log_binom(n, s);
     double wsum = 0.0;
 
@@ -193,6 +245,9 @@ inline void dnn_weights_from_ranks(const int *ranks, int n, int k, int s, double
 inline void dnn_weights_asymp_from_ranks(const int *ranks, int n, int k, int s,
                                           double *out)
 {
+    validate_weight_parameters(n, k, s);
+    validate_ranks(ranks, n);
+    if (out == nullptr) throw std::invalid_argument("out must not be null");
     std::vector<double> w_rank(n, 0.0);
 
     for (int l = 1; l <= k; ++l) {
@@ -269,6 +324,12 @@ inline void dnn_weights_l2(const double *X, int n, int p,
                             double *weights_out,
                             bool asymp = false)
 {
+    validate_sample_dimensions(n, p);
+    validate_weight_parameters(n, k, s);
+    validate_finite_array(X, static_cast<std::size_t>(n) * p, "X");
+    validate_finite_array(x0, static_cast<std::size_t>(p), "x0");
+    if (inv_s != nullptr) validate_finite_array(inv_s, static_cast<std::size_t>(p), "inv_s");
+    if (weights_out == nullptr) throw std::invalid_argument("weights_out must not be null");
     std::vector<double> dist(n);
     std::vector<int>    ranks(n);
     dist_l2_core(X, n, p, x0, inv_s, dist.data(), /*squared=*/false);

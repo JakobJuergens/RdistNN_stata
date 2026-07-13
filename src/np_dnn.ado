@@ -117,6 +117,10 @@ program define np_dnn, eclass
         di as error "distance() must be l2 or mahalanobis."
         exit 198
     }
+    if "`distance'" == "mahalanobis" & `n' < 2 {
+        di as error "distance(mahalanobis) requires at least two complete estimation observations."
+        exit 2001
+    }
     if "`method'" == "" local method "exact"
     if !inlist("`method'", "exact", "asymp") {
         di as error "method() must be exact or asymp."

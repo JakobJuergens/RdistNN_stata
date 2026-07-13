@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <numeric>
+#include <stdexcept>
 #include <vector>
 
 namespace {
@@ -16,6 +17,17 @@ int fail(const char *message)
 {
     std::cerr << "rdistnn core test failed: " << message << '\n';
     return 1;
+}
+
+template <typename Fn>
+bool rejects(Fn fn)
+{
+    try {
+        fn();
+    } catch (const std::invalid_argument &) {
+        return true;
+    }
+    return false;
 }
 
 } // namespace
@@ -55,6 +67,25 @@ int main()
         if (!close(weight, 0.25))
             return fail("k=s did not produce uniform weights");
     }
+
+    const std::vector<double> sentinel(n, 17.0);
+    exact = sentinel;
+    if (!rejects([&] { rdistnn::dnn_weights_from_ranks(ranks.data(), n, 0, 2, exact.data()); }))
+        return fail("k=0 was not rejected");
+    if (exact != sentinel) return fail("k=0 modified output");
+    if (!rejects([&] { rdistnn::dnn_weights_from_ranks(ranks.data(), n, 3, 2, exact.data()); }))
+        return fail("k>s was not rejected");
+    if (!rejects([&] { rdistnn::dnn_weights_from_ranks(ranks.data(), n, n + 1, n + 1, exact.data()); }))
+        return fail("k>n was not rejected");
+    if (!rejects([&] { rdistnn::dnn_weights_from_ranks(ranks.data(), n, 1, n + 1, exact.data()); }))
+        return fail("s=n+1 was not rejected");
+    if (!rejects([&] { rdistnn::dnn_weights_from_ranks(ranks.data(), 0, 1, 1, exact.data()); }))
+        return fail("empty sample was not rejected");
+    if (!rejects([&] { rdistnn::dnn_weights_l2(X, n, 0, x0, nullptr, 1, 1, exact.data(), false); }))
+        return fail("p=0 was not rejected");
+    const double bad_x0[] = {std::numeric_limits<double>::quiet_NaN()};
+    if (!rejects([&] { rdistnn::dnn_weights_l2(X, n, p, bad_x0, nullptr, 1, 1, exact.data(), false); }))
+        return fail("nonfinite x0 was not rejected");
 
     std::vector<double> asymp(n);
     rdistnn::dnn_weights_asymp_from_ranks(ranks.data(), n, 1, 2, asymp.data());

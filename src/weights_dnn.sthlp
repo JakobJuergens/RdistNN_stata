@@ -82,7 +82,9 @@ floor(0.4*n^((kx+1)/(kx+2))).
 {phang}{opt generate(newvar)} name of new variable to store the weights.
 
 {phang}{opt distance(string)} {cmd:l2} (default, Euclidean) or
-{cmd:mahalanobis} (ellipsoidal, requires >= 2 covariates).
+{cmd:mahalanobis} (ellipsoidal, requires at least 2 covariates and at least
+two complete estimation observations). Rank-deficient covariance matrices with
+two or more observations use the existing generalized inverse.
 
 {phang}{opt method(string)} {cmd:exact} (default) or {cmd:asymp}.
 

@@ -290,6 +290,11 @@ RdistNN_stata/
   rank-`s` radius, overall ESS, and top-five raw-weight share. Arm ESS requires
   nuisance-based treatment inputs; the physical radius and score-contribution
   fields are available for precomputed scores as well.
+- Nuisance-based CATE paths first require every raw propensity to be finite and
+  in `[0,1]`, then use `e_used = min(max(e, clip), 1-clip)` consistently in
+  AIPW or Robinson scores, propensity diagnostics, and postestimation score
+  reconstruction. `clip()` defaults to `1e-8`, must be finite and strictly
+  between 0 and 0.5, and does not alter a precomputed pseudo-outcome.
 - Because the estimator and tuning rules are deterministic, the regression
   suite enforces R/Stata parity for target estimates, covariance matrices,
   candidate grids, and the shared diagnostic fields.
@@ -343,7 +348,9 @@ RdistNN_stata/
   more aggressive localization benchmark because it yields a larger `s`.
 - Use `distance(mahalanobis)` when covariates are strongly correlated. The
   jackknife keeps the full-sample covariance metric fixed across leave-one-out
-  deletions.
+  deletions. All public commands require at least two complete estimation
+  observations for Mahalanobis distance; rank-deficient covariance matrices
+  with larger samples retain generalized-inverse behavior.
 - Standard errors are computed with the fast rank-shift jackknife, exploiting
   the L-statistic structure of the DNN estimator.
 

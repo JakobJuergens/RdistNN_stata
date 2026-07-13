@@ -134,6 +134,45 @@ local rc_high_e = _rc
 restore
 test_assert "[errors] propensity above one rejected (rc=198)" `rc_high_e' == 198
 
+preserve
+replace e = . in 1
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e) m0(m0) m1(m1)
+local rc_missing_e = _rc
+restore
+test_assert "[errors] missing propensity rejected (rc=198)" `rc_missing_e' == 198
+
+preserve
+replace e = -1e-12 in 1
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e) m0(m0) m1(m1)
+local rc_just_low_e = _rc
+restore
+test_assert "[errors] propensity just below zero rejected (rc=198)" `rc_just_low_e' == 198
+
+preserve
+replace e = 1 + 1e-12 in 1
+cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e) m0(m0) m1(m1)
+local rc_just_high_e = _rc
+restore
+test_assert "[errors] propensity just above one rejected (rc=198)" `rc_just_high_e' == 198
+
+foreach bad_clip in 0 .5 -1e-8 . {
+    cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e) ///
+        m0(m0) m1(m1) clip(`bad_clip')
+    test_assert "[errors] invalid clip(`bad_clip') rejected (rc=198)" _rc == 198
+}
+
+test_section "cate_dnn: [errors] one-observation Mahalanobis sample"
+preserve
+keep in 1
+cap cate_dnn rho_err, x(x1 x2) x0(0 0) k(1) s(1) ///
+    pseudooutcome nose distance(mahalanobis)
+local rc_one_mahal_cate = _rc
+cap cate_dnn rho_err, x(x1 x2) x0(0 0) k(1) s(1) pseudooutcome nose
+local rc_one_l2_cate = _rc
+restore
+test_assert "[errors] one-observation cate Mahalanobis rejected" `rc_one_mahal_cate' == 2001
+test_assert "[endpoint] one-observation cate L2 estimate-only accepted" `rc_one_l2_cate' == 0
+
 // ════════════════════════════════════════════════════════════
 test_section "cate_dnn: [errors] empty sample"
 // ════════════════════════════════════════════════════════════

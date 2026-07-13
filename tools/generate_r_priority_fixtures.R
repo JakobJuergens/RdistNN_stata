@@ -2,7 +2,9 @@
 # tests/test-r-parity-priority.do. Run from the RdistNN_stata repository root.
 
 r_root <- normalizePath(file.path("..", "RdistNN"), mustWork = TRUE)
-devtools::load_all(r_root, quiet = TRUE)
+# Fixture values exercise the reference R implementation and do not require a
+# compiler. Compiled-versus-fallback equivalence is covered by the R test suite.
+pkgload::load_all(r_root, compile = FALSE, quiet = TRUE)
 
 fixture_lines <- character()
 
@@ -216,7 +218,7 @@ aipw_fit <- cate_dnn(
   data = dat, x_cols = c("x1", "x2"), y_col = "y_cate", t_col = "D",
   m0_col = "m0", m1_col = "m1", e_col = "e", x0 = x0,
   method = "exact", k = 2L, s = 5L,
-  se = TRUE, jackknife = "fast", return = c("W", "ess")
+  se = TRUE, jackknife = "fast", return = c("W", "ess", "dx", "psi", "nuisance")
 )
 robinson_fit <- cate_dnn(
   data = dat, x_cols = c("x1", "x2"), y_col = "y_cate", t_col = "D",
@@ -233,8 +235,71 @@ emit_matrix(
   ), drop = FALSE])
 )
 emit_matrix(
+  "cate_aipw_quantile_diagnostics",
+  data.matrix(diagnostics(aipw_fit)[, c(
+    "weighted_median_distance", "weighted_propensity_q10",
+    "weighted_propensity_q90", "physical_radius_90"
+  ), drop = FALSE])
+)
+emit_matrix(
   "cate_robinson_exact",
   c(robinson_fit$tau, robinson_fit$se, robinson_fit$ess)
+)
+
+edge <- data.frame(
+  x1 = seq_len(8L),
+  x2 = rep(0, 8L),
+  y = c(1.2, -0.3, 0.7, 2.1, -1.4, 0.9, 1.7, -0.6),
+  D = c(1, 0, 1, 0, 1, 0, 1, 0),
+  e = c(0, 1, 1e-12, 1 - 1e-12, 0.2, 0.5, 0.8, 0.35),
+  m0 = seq(-0.2, 0.5, length.out = 8L)
+)
+edge$m1 <- edge$m0 + 0.75
+edge$m <- edge$m0 + edge$e * (edge$m1 - edge$m0)
+edge_aipw <- cate_dnn(
+  data = edge, x_cols = c("x1", "x2"), y_col = "y", t_col = "D",
+  e_col = "e", m0_col = "m0", m1_col = "m1", x0 = c(0, 0),
+  k = 1L, s = 1L, se = FALSE, return = c("W", "psi", "nuisance", "dx")
+)
+edge_robinson <- cate_dnn(
+  data = edge, x_cols = c("x1", "x2"), y_col = "y", t_col = "D",
+  e_col = "e", m_col = "m", x0 = c(0, 0),
+  k = 1L, s = 1L, se = FALSE, return = c("W", "psi", "nuisance", "dx")
+)
+emit_matrix("cate_edge_e_used", edge_aipw$nuisance$e)
+emit_matrix("cate_edge_aipw_psi", edge_aipw$psi)
+emit_matrix("cate_edge_robinson_psi", edge_robinson$psi)
+emit_matrix("cate_edge_tau", c(edge_aipw$tau, edge_robinson$tau))
+emit_matrix(
+  "cate_edge_quantile_diagnostics",
+  data.matrix(diagnostics(edge_aipw)[, c(
+    "weighted_median_distance", "weighted_propensity_q10",
+    "weighted_propensity_q90", "physical_radius_90"
+  ), drop = FALSE])
+)
+
+diag_X <- matrix(
+  c(-1, 0, 0, -1, 0, 0, 1, 0, 0, 1, 1, 1, -1, -1, 2, -0.5),
+  ncol = 2L,
+  byrow = TRUE
+)
+diag_fit <- cate_dnn(
+  X = diag_X,
+  X0 = rbind(c(0.2, -0.1), c(-0.5, 0.75), c(1.2, 0.4)),
+  pseudo_outcome = c(-1.5, 0.25, 1, 2.5, -0.75, 3, 0.5, 4.25),
+  k = 2L,
+  s = 4L,
+  se = FALSE,
+  return = c("W", "dx")
+)
+emit_matrix(
+  "cate_diagnostics_base",
+  data.matrix(diagnostics(diag_fit)[, c(
+    "n_eff", "max_weight", "top1_weight_share", "top5_weight_share",
+    "top10_weight_share", "n_nonzero_weight",
+    "distance_diagnostics_available", "radius_rank_k", "radius_rank_s",
+    "weighted_mean_distance", "weighted_median_distance"
+  ), drop = FALSE])
 )
 
 output <- file.path("tests", "fixtures", "r_priority_fixtures.do")

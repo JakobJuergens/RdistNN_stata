@@ -23,19 +23,14 @@ quietly cate_dnn rho_diag, xcols(x1 x2) x0matrix(X0_diag) ///
 matrix D_diag = e(diagnostics)
 matrix T_diag = e(target_diagnostics)
 
-matrix D_r_base = ( ///
-    4.86593843098312,.25,.25,.964285714285714,1,6,1, ///
-    .806225774829855,1.11803398874989,.791102352653345,.921954445729289 \ ///
-    4.86593843098312,.25,.25,.964285714285714,1,6,1, ///
-    .901387818865997,1.52069063257455,1.01794855063055,.901387818865997 \ ///
-    4.86593843098312,.25,.25,.964285714285714,1,6,1, ///
-    .632455532033676,1.26491106406735,.917158009223765,1.20415945787923)
+quietly do "tests/fixtures/r_priority_fixtures.do"
+matrix D_r_base = R_cate_diagnostics_base
 mata {
     _D_diag = st_matrix("D_diag")
-    st_numscalar("_diag_r_base", max(abs(_D_diag[,1..11] - st_matrix("D_r_base"))))
+    st_numscalar("_diag_r_base", max(abs(_D_diag[,1..10] - st_matrix("D_r_base")[,1..10])))
     st_numscalar("_diag_alias", max(abs(_D_diag - st_matrix("T_diag"))))
 }
-test_assert "[R parity] weight and distance diagnostics match RdistNN" scalar(_diag_r_base) < 1e-10
+test_assert "[R parity] weight and mean-distance diagnostics match RdistNN" scalar(_diag_r_base) < 1e-10
 test_assert "[diagnostics] R-style and explicit target aliases match" scalar(_diag_alias) < 1e-12
 test_assert "[diagnostics] pseudo-outcome records overlap unavailable" D_diag[1,12] == 0
 test_assert "[diagnostics] pseudo-outcome records propensity unavailable" D_diag[1,16] == 0

@@ -23,7 +23,8 @@ cate_dnn y, treat(D) x(x1 x2) x0(0.2 -0.1) k(3) s(9) ///
     propensity(e) m0(m0) m1(m1)
 local tau_cmd = _b[tau]
 local se_cmd = _se[tau]
-test_assert "[identity] tau uses clipped AIPW pseudo-outcome" abs(`tau_cmd' - `tau_manual') < 1e-8
+test_assert "[identity] tau uses clipped AIPW pseudo-outcome" ///
+    abs(`tau_cmd' - `tau_manual') / max(1, abs(`tau_manual')) < 1e-12
 test_assert "[identity] boundary-propensity SE is finite" `se_cmd' < .
 
 test_section "cate_dnn: [ifin] restricted sample identity"
@@ -77,7 +78,7 @@ cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(2) s(4) propensity(e) m0(m0) m1(m1)
 local tau_tie_cmd = _b[tau]
 test_assert "[ties] tied-X CATE uses deterministic row-index weights" abs(`tau_tie_cmd' - `tau_tie_manual') < 1e-8
 
-test_section "cate_dnn: [markout] missing nuisance rows are excluded"
+test_section "cate_dnn: [markout] missing propensity errors; other nuisance rows are excluded"
 
 rdnn_dgp_basic, n(90) seed(1003)
 replace y = . in 2
@@ -85,9 +86,12 @@ replace D = . in 3
 replace e = . in 4
 replace m0 = . in 5
 replace m1 = . in 6
+capture noisily cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(2) s(6) propensity(e) m0(m0) m1(m1)
+test_assert "[markout] missing raw propensity is rejected" _rc == 198
+replace e = .5 in 4
 cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(2) s(6) propensity(e) m0(m0) m1(m1)
 local n_mark = e(N)
 quietly count if e(sample)
 local n_esample_mark = r(N)
-test_assert "[markout] missing y/D/e/m0/m1 rows are dropped" `n_mark' == 85
-test_assert "[markout] e(sample) agrees with CATE markout count" `n_esample_mark' == 85
+test_assert "[markout] missing y/D/m0/m1 rows are dropped" `n_mark' == 86
+test_assert "[markout] e(sample) agrees with CATE markout count" `n_esample_mark' == 86

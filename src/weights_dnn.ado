@@ -55,6 +55,10 @@ program define weights_dnn, rclass
     // Paper finite-sample default: floor(0.4*n^((kx+1)/(kx+2)))
     quietly count if `touse'
     local n = r(N)
+    if "`distance'" == "mahalanobis" & `n' < 2 {
+        di as error "distance(mahalanobis) requires at least two complete estimation observations."
+        exit 2001
+    }
     if `s' == 0 {
         local s = floor(.4 * `n'^((`kx' + 1) / (`kx' + 2)))
     }

@@ -32,6 +32,7 @@
 #include <cstdio>     // snprintf
 #include <vector>
 #include <string>
+#include <exception>
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -56,6 +57,10 @@ static ST_retcode read_column(int j_stata, const std::vector<ST_int> &obs_list,
         ST_double z;
         ST_retcode rc = SF_vdata(j_stata, obs_list[idx], &z);
         if (rc) return rc;
+        if (SF_is_missing(z) || !std::isfinite(static_cast<double>(z))) {
+            SF_error((char *)"rdistnn_plugin weights_l2: covariates must contain only finite, nonmissing values in the marked sample.\n");
+            return 198;
+        }
         out[idx] = static_cast<double>(z);
     }
     return 0;
@@ -124,7 +129,7 @@ static ST_retcode do_weights_l2(int argc, char *argv[])
     // Number of Stata variables in the plugin call varlist
     const int nvars = static_cast<int>(SF_nvars());
     if (nvars < 2) {
-        SF_error((char *)"rdistnn_plugin weights_l2: need >= 1 covariate + 1 output variable.\n");
+        SF_error((char *)"rdistnn_plugin weights_l2: kx must be >= 1 (provide at least one covariate and one output variable).\n");
         return 198;
     }
     const int kx   = nvars - 1;   // # covariates
@@ -156,15 +161,6 @@ static ST_retcode do_weights_l2(int argc, char *argv[])
     if (!parse_int_arg(argv[2], "k", &k)) return 198;
     if (!parse_int_arg(argv[3], "s", &s)) return 198;
 
-    if (k < 1) {
-        SF_error((char *)"rdistnn_plugin weights_l2: k must be >= 1.\n");
-        return 198;
-    }
-    if (s < k) {
-        SF_error((char *)"rdistnn_plugin weights_l2: s must be >= k.\n");
-        return 198;
-    }
-
     std::vector<double> x0(kx);
     for (int j = 0; j < kx; ++j) {
         char name[32];
@@ -174,8 +170,31 @@ static ST_retcode do_weights_l2(int argc, char *argv[])
 
     // Collect in-sample observations (respects if/in + touse variable)
     const std::vector<ST_int> obs_list = collect_obs();
+    if (obs_list.size() > static_cast<std::size_t>(INT_MAX)) {
+        SF_error((char *)"rdistnn_plugin weights_l2: marked sample is too large for the plugin integer interface.\n");
+        return 198;
+    }
     const int n = static_cast<int>(obs_list.size());
-    if (n == 0) return 0;
+    if (n < 1) {
+        SF_error((char *)"rdistnn_plugin weights_l2: n must be >= 1; the marked sample is empty.\n");
+        return 198;
+    }
+    if (kx < 1) {
+        SF_error((char *)"rdistnn_plugin weights_l2: kx must be >= 1.\n");
+        return 198;
+    }
+    if (k < 1) {
+        SF_error((char *)"rdistnn_plugin weights_l2: k must be >= 1.\n");
+        return 198;
+    }
+    if (s < k) {
+        SF_error((char *)"rdistnn_plugin weights_l2: s must satisfy s >= k.\n");
+        return 198;
+    }
+    if (s > n) {
+        SF_error((char *)"rdistnn_plugin weights_l2: s must satisfy s <= n in the marked sample.\n");
+        return 198;
+    }
 
     // Read X: n x kx, column-major (column j stored at X + j*n)
     std::vector<double> X(static_cast<std::size_t>(n) * kx);
@@ -186,8 +205,18 @@ static ST_retcode do_weights_l2(int argc, char *argv[])
 
     // Compute DNN weights via the L2 pipeline
     std::vector<double> w(n);
-    rdistnn::dnn_weights_l2(X.data(), n, kx, x0.data(),
-                             /*inv_s=*/nullptr, k, s, w.data(), asymp);
+    try {
+        rdistnn::dnn_weights_l2(X.data(), n, kx, x0.data(),
+                                 /*inv_s=*/nullptr, k, s, w.data(), asymp);
+    }
+    catch (const std::exception &error) {
+        char msg[512];
+        std::snprintf(msg, sizeof(msg),
+            "rdistnn_plugin weights_l2: invalid core arguments: %s.\n",
+            error.what());
+        SF_error(msg);
+        return 198;
+    }
 
     // Write weights back to the output variable in the Stata dataset
     for (int i = 0; i < n; ++i) {

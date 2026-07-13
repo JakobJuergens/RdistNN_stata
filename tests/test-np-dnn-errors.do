@@ -43,3 +43,13 @@ test_assert "[errors] invalid method rejected (rc=198)" _rc == 198
 // [errors] no observations after if restriction
 cap np_dnn y if x1 > 1e6, x(x1 x2) x0(0 0) k(3)
 test_assert "[errors] empty sample rejected (non-zero rc)" _rc != 0
+
+preserve
+keep in 1
+cap np_dnn y, x(x1 x2) x0(0 0) k(1) s(1) nose distance(mahalanobis)
+local rc_one_mahal_np = _rc
+cap np_dnn y, x(x1 x2) x0(0 0) k(1) s(1) nose
+local rc_one_l2_np = _rc
+restore
+test_assert "[errors] one-observation NP Mahalanobis rejected" `rc_one_mahal_np' == 2001
+test_assert "[endpoint] one-observation NP L2 estimate-only accepted" `rc_one_l2_np' == 0

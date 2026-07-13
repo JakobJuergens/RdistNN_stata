@@ -179,3 +179,37 @@ mata {
     st_numscalar("_r", max(abs(_r1 - _r2)))
 }
 test_assert "[agree] rdistnn_ranks mahal = order(mahal_dist)" scalar(_r) == 0
+
+// Defensive one-observation covariance guard; generalized inverse remains
+// available for rank-deficient covariance matrices with n >= 2.
+cap mata: rdistnn_mahal_cov_inv((1, 2))
+test_assert "[errors] one-observation Mahalanobis covariance rejected" _rc == 2001
+cap mata: rdistnn_mahal_cov_inv((1, 2 \ 1, 2))
+test_assert "[edge] rank-deficient Mahalanobis covariance accepted for n=2" _rc == 0
+
+test_section "rdistnn_weighted_quantile: [boundary] and validation"
+
+mata {
+    _qx = (1::10)
+    _qw = J(10, 1, .1)
+    st_numscalar("_q10", rdistnn_weighted_quantile(_qx, _qw, .1))
+    st_numscalar("_q50", rdistnn_weighted_quantile(_qx, _qw, .5))
+    st_numscalar("_q90", rdistnn_weighted_quantile(_qx, _qw, .9))
+    _ulp = epsilon(.5)
+    st_numscalar("_qbelow", rdistnn_weighted_quantile((1 \ 2), (.5-_ulp \ .5+_ulp), .5))
+    st_numscalar("_qabove", rdistnn_weighted_quantile((1 \ 2), (.5+_ulp \ .5-_ulp), .5))
+}
+test_assert "[boundary] equal-weight q=.1 returns observation 1" scalar(_q10) == 1
+test_assert "[boundary] equal-weight q=.5 returns observation 5" scalar(_q50) == 5
+test_assert "[boundary] equal-weight q=.9 returns observation 9" scalar(_q90) == 9
+test_assert "[boundary] cumulative mass one ulp below is within comparison tolerance" scalar(_qbelow) == 1
+test_assert "[boundary] cumulative mass one ulp above returns first" scalar(_qabove) == 1
+
+cap mata: rdistnn_weighted_quantile((1 \ 2), (.5 \ .5), .)
+test_assert "[errors] missing quantile probability rejected" _rc == 198
+cap mata: rdistnn_weighted_quantile((1 \ 2), (-.1 \ 1.1), .5)
+test_assert "[errors] negative quantile weight rejected" _rc == 198
+cap mata: rdistnn_weighted_quantile((1 \ 2), (. \ 1), .5)
+test_assert "[errors] missing quantile weight rejected" _rc == 198
+cap mata: rdistnn_weighted_quantile((1 \ 2), (0 \ 0), .5)
+test_assert "[errors] zero total quantile weight rejected" _rc == 198

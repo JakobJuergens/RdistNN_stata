@@ -106,6 +106,10 @@ real matrix rdistnn_mahal_cov_inv(real matrix X)
     real scalar     n
 
     n  = rows(X)
+    if (n < 2) {
+        errprintf("rdistnn_mahal_cov_inv: Mahalanobis distance requires at least two complete observations.\n")
+        exit(error(2001))
+    }
     Xc = X :- mean(X)                // center each column
     S  = cross(Xc, Xc) / (n - 1)    // kx x kx sample covariance
     return(invsym(S))
@@ -363,23 +367,29 @@ real scalar rdistnn_weighted_quantile(real colvector x,
                                        real colvector w,
                                        real scalar prob)
 {
-    real scalar i, accum, wsum
+    real scalar i, accum, tol, wsum
     real colvector ord
 
-    if (rows(x) != rows(w) | rows(x) < 1 | prob < 0 | prob > 1) {
+    if (rows(x) != rows(w) | rows(x) < 1 |
+        missing(prob) | prob < 0 | prob > 1) {
         errprintf("rdistnn_weighted_quantile: invalid x, w, or probability.\n")
         exit(error(198))
     }
-    wsum = quadsum(w)
-    if (wsum <= 0) return(.)
+    if (any(missing(w)) | any(w :< 0)) {
+        errprintf("rdistnn_weighted_quantile: weights must be finite and nonnegative.\n")
+        exit(error(198))
+    }
+    wsum = sum(w)
+    if (missing(wsum) | wsum <= 0) {
+        errprintf("rdistnn_weighted_quantile: total weight must be strictly positive.\n")
+        exit(error(198))
+    }
     ord = order((x, (1::rows(x))), (1, 2))
     accum = 0
     for (i = 1; i <= rows(ord); i++) {
         accum = accum + w[ord[i]] / wsum
-        // Treat floating equality as a boundary tie. This matches the
-        // R weight table, whose normalized cumulative mass can fall one ulp
-        // below the nominal probability.
-        if (accum >= prob + sqrt(epsilon(1))) return(x[ord[i]])
+        tol = 4 * epsilon(1) * max((1, abs(prob), abs(accum)))
+        if (accum + tol >= prob) return(x[ord[i]])
     }
     return(x[ord[rows(ord)]])
 }

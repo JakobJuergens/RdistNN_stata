@@ -165,6 +165,11 @@ asymptotic beta-order-statistic approximation.
 {synopt:{cmd:e(se_method)}, {cmd:e(jackknife)}}{cmd:rank_shift}/{cmd:fast} or {cmd:none}{p_end}
 
 {pstd}
+{cmd:distance(mahalanobis)} requires at least two complete estimation
+observations, including with {cmd:nose}. Rank-deficient covariance matrices for
+larger samples continue to use the generalized inverse.
+
+{pstd}
 Columns of {cmd:e(diagnostics)} are ESS, maximum weight, top-1/top-5/top-10
 weight shares, nonzero support count, distance availability, rank-k and rank-s
 radii, weighted mean and median distance, outcome availability, weighted

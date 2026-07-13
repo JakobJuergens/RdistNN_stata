@@ -80,6 +80,48 @@ cap plugin call rdistnn_plugin x1 x2 w_direct, ///
     weights_l2 exact bad 15 "0.2" "-0.3"
 test_assert "[plugin] malformed k argument rejected (rc=198)" _rc == 198
 
+foreach args in `"exact 0 15"' `"exact 16 15"' `"exact 121 121"' `"exact 1 121"' {
+    replace w_direct = 73
+    cap plugin call rdistnn_plugin x1 x2 w_direct, ///
+        weights_l2 `args' "0.2" "-0.3"
+    local bad_rc = _rc
+    quietly count if w_direct != 73
+    test_assert `"[plugin] invalid (`args') rejected without output writes"' ///
+        `bad_rc' == 198 & r(N) == 0
+}
+
+replace w_direct = 73
+cap plugin call rdistnn_plugin x1 x2 w_direct if 0, ///
+    weights_l2 exact 1 1 "0.2" "-0.3"
+local empty_rc = _rc
+quietly count if w_direct != 73
+test_assert "[plugin] empty marked sample rejected without output writes" ///
+    `empty_rc' == 198 & r(N) == 0
+
+replace w_direct = 73
+cap plugin call rdistnn_plugin x1 x2 w_direct, ///
+    weights_l2 exact 1 15 "NaN" "-0.3"
+local nan_rc = _rc
+quietly count if w_direct != 73
+test_assert "[plugin] malformed nonfinite numeric rejected without output writes" ///
+    `nan_rc' == 198 & r(N) == 0
+
+replace w_direct = .
+cap plugin call rdistnn_plugin x1 x2 w_direct, ///
+    weights_l2 exact 1 120 "0.2" "-0.3"
+test_assert "[plugin] valid s=n endpoint accepted" _rc == 0
+quietly summarize w_direct, meanonly
+test_assert "[plugin] exact k=1 s=n selects one observation" ///
+    abs(r(sum)-1) < 1e-12 & r(max) == 1
+
+replace w_direct = .
+cap plugin call rdistnn_plugin x1 x2 w_direct, ///
+    weights_l2 exact 15 15 "0.2" "-0.3"
+test_assert "[plugin] valid k=s endpoint accepted" _rc == 0
+quietly summarize w_direct, meanonly
+test_assert "[plugin] exact k=s is uniform" ///
+    abs(r(min)-1/120) < 1e-12 & abs(r(max)-1/120) < 1e-12
+
 // ════════════════════════════════════════════════════════════
 test_section "weights_dnn: [plugin] signed x0 parity"
 // ════════════════════════════════════════════════════════════
