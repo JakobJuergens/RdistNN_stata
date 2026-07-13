@@ -14,14 +14,22 @@ CXXFLAGS = /std:c++17 /O2 /W3 /EHsc /nologo /wd4190
 LDFLAGS  = /LD /nologo
 
 TARGET   = rdistnn.plugin
+CORE_TEST = rdistnn_core_test.exe
 SRCS     = stplugin.c rdistnn_plugin.cpp
 
 $(TARGET): $(SRCS) rdistnn_core.hpp stplugin.h
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) /Fe$(TARGET) $(SRCS)
 	-del /f rdistnn_plugin.obj stplugin.obj rdistnn.exp rdistnn.lib 2>nul
 
+$(CORE_TEST): test_rdistnn_core.cpp rdistnn_core.hpp
+	$(CXX) $(CXXFLAGS) /Fe$(CORE_TEST) test_rdistnn_core.cpp
+	-del /f test_rdistnn_core.obj 2>nul
+
+check: $(CORE_TEST)
+	$(CORE_TEST)
+
 clean:
-	-del /f $(TARGET) *.obj *.exp *.lib
+	-del /f $(TARGET) $(CORE_TEST) *.obj *.exp *.lib
 
 # ── Alternative: build with MinGW/GCC (e.g. via Rtools) ──────────────────
 #

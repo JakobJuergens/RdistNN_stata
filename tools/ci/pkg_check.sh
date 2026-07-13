@@ -10,8 +10,9 @@
 #   6. cate_dnn help retains the nuisance-inference contract.
 #   7. DNN kernel-order documentation retains the exact support direction.
 #   8. Experimental PLQR and CATE paper-diagnostic contracts remain explicit.
-#   9. Generated archives and CI logs are not tracked.
-#  10. stata.toc references rdistnn.pkg.
+#   9. Generated/local artifacts and obsolete duplicate plugin files are not tracked.
+#  10. Platform/plugin compatibility is explicit and build-checked.
+#  11. stata.toc references rdistnn.pkg.
 #
 # Exit code: 0 = all checks passed, 1 = one or more failures.
 # Run from the repository root.
@@ -223,7 +224,91 @@ for pattern in "GH_logs/" "archives/source.zip"; do
 	fi
 done
 
-# ── 10. stata.toc has a package entry for rdistnn ───────────────────────────
+for obsolete in stplugin.c stplugin.h src/plugin/rdistnn.plugin; do
+	if git ls-files --error-unmatch "$obsolete" >/dev/null 2>&1; then
+		echo "  TRACKED  obsolete duplicate: $obsolete"
+		ERRORS=$((ERRORS + 1))
+	else
+		echo "  OK       obsolete duplicate is not tracked: $obsolete"
+	fi
+done
+
+for pattern in "/src/plugin/rdistnn.plugin" "/src/plugin/rdistnn_core_test" "/src/plugin/rdistnn_core_test.exe"; do
+	if grep -qF "$pattern" .gitignore; then
+		echo "  OK       .gitignore contains: $pattern"
+	else
+		echo "  MISSING  .gitignore must contain: $pattern"
+		ERRORS=$((ERRORS + 1))
+	fi
+done
+
+if grep -R -qF -e 'commit_logs:' -e 'EndBug/add-and-commit' .github/workflows || \
+	grep -R -qE 'git[[:space:]]+(commit|push)' .github/workflows; then
+	echo "  INVALID  workflow retains repository-writing log/archive behavior"
+	ERRORS=$((ERRORS + 1))
+else
+	echo "  OK       workflows contain no log/archive commit path"
+fi
+
+# ── 10. platform/plugin compatibility contract ─────────────────────────────
+echo ""
+echo "=== Checking platform/plugin compatibility contract ==="
+PLATFORM_ERRORS=0
+for phrase in \
+	"Windows x86-64 PE binary" \
+	"attempt the plugin on every platform" \
+	"falls back to Mata" \
+	"macOS arm64" \
+	"macOS x86-64"; do
+	if grep -qF "$phrase" README.md; then
+		echo "  OK       README.md contains: $phrase"
+	else
+		echo "  MISSING  README.md must contain: $phrase"
+		PLATFORM_ERRORS=$((PLATFORM_ERRORS + 1))
+	fi
+done
+
+if grep -qF 'local __try_plugin' src/weights_dnn.ado && \
+	grep -qF '!= "0")' src/weights_dnn.ado && \
+	! grep -qF 'local __default_plugin' src/weights_dnn.ado; then
+	echo "  OK       weights_dnn attempts eligible plugins on every platform"
+else
+	echo "  MISSING  weights_dnn must attempt eligible plugins unless forced to Mata"
+	PLATFORM_ERRORS=$((PLATFORM_ERRORS + 1))
+fi
+
+for file in tools/ci/plugin_build_check.ps1 .github/workflows/plugin-build.yml src/plugin/README.md; do
+	if [[ -f "$file" ]]; then
+		echo "  OK       $file"
+	else
+		echo "  MISSING  $file"
+		PLATFORM_ERRORS=$((PLATFORM_ERRORS + 1))
+	fi
+done
+
+for runner in ubuntu-latest windows-latest macos-latest macos-15-intel; do
+	if grep -qF "$runner" .github/workflows/plugin-build.yml; then
+		echo "  OK       plugin build runner: $runner"
+	else
+		echo "  MISSING  plugin build runner: $runner"
+		PLATFORM_ERRORS=$((PLATFORM_ERRORS + 1))
+	fi
+done
+
+if command -v file >/dev/null 2>&1; then
+	PLUGIN_FORMAT="$(file src/rdistnn.plugin)"
+	if printf '%s\n' "$PLUGIN_FORMAT" | grep -qE 'PE32[+].*x86-64.*Windows'; then
+		echo "  OK       bundled plugin is Windows x86-64 PE"
+	else
+		echo "  INVALID  bundled plugin format: $PLUGIN_FORMAT"
+		PLATFORM_ERRORS=$((PLATFORM_ERRORS + 1))
+	fi
+else
+	echo "  SKIP     file(1) unavailable; binary format not inspected"
+fi
+ERRORS=$((ERRORS + PLATFORM_ERRORS))
+
+# ── 11. stata.toc has a package entry for rdistnn ───────────────────────────
 # In stata.toc format, packages are listed as "p <name>" (no .pkg extension).
 echo ""
 echo "=== Checking stata.toc ==="

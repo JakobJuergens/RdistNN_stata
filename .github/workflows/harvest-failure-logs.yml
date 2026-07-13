@@ -24,7 +24,6 @@ on:
         type: string
         default: harvested-gh-logs
 permissions:
-  contents: read
   actions: read
 
 jobs:
@@ -32,11 +31,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Download and save job logs
         shell: bash
         env:

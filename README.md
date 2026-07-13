@@ -40,6 +40,35 @@ do "path\to\RdistNN_stata\dev-setup.do"
 To make the adopath addition permanent across sessions, add the `adopath ++`
 line to your `profile.do` (find it with `di c(sysdir_personal)`).
 
+## Platform compatibility
+
+The ado and Mata implementation is the portable baseline and is intended to
+run under Stata 17 or later on Windows, macOS, and Linux. It does not require a
+native compiler after installation.
+
+The bundled `src/rdistnn.plugin` is currently a Windows x86-64 PE binary. It
+accelerates only the standalone `weights_dnn` L2 path. On another operating
+system, install the matching native binary to make the fast path available.
+Eligible L2 calls attempt the plugin on every platform; load or execution
+failure falls back to Mata. Mahalanobis weights and the estimator commands use
+Mata regardless. Setting `global rdistnn_use_plugin 1` requires a working
+native plugin and therefore fails instead of falling back. Setting it to `0`
+forces Mata.
+
+Native plugin sources and build instructions are under `src/plugin/`. The
+plugin portability workflow compiles and inspects Windows x86-64, Linux
+x86-64, macOS arm64, and macOS x86-64 binaries and publishes them as
+finite-retention workflow artifacts. Native plugin binaries are
+platform-specific and cannot be copied between those targets. Published
+GitHub releases receive all four named plugin assets plus a SHA-256 checksum
+file. After placing the matching asset on the Stata adopath as
+`rdistnn.plugin`, default dispatch uses it when compatible; without a
+compatible plugin, Mata remains available.
+
+`src/plugin/` is the canonical native source directory. Build products from
+that directory are ignored; the only plugin binary tracked for ordinary
+`net install` is `src/rdistnn.plugin`.
+
 ## Quick start
 
 ```stata
@@ -84,7 +113,7 @@ cate_dnn Y, tcol(D) xcols(x1 x2) x0matrix(X0) ///
 matrix list e(targets)
 matrix list e(V)
 
-* Evaluate the R paper tuning grid; e(b)/e(V) remain at lambda(1)
+* Evaluate the R paper tuning grid; e(b)/e(V) remain at lambda(.4)
 cate_dnn rho, xcols(x1 x2) x0matrix(X0) pseudooutcome tuningmode(grid)
 matrix list e(tuning_candidates)
 matrix list e(tuning_estimates)
@@ -161,6 +190,12 @@ Static package checks:
 bash tools/ci/pkg_check.sh
 bash tools/ci/archive_check.sh "$env:TEMP/rdistnn-source.zip"
 git diff --check
+```
+
+Compile and inspect the native plugin for the current host platform:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/plugin_build_check.ps1
 ```
 
 Full Stata runtime tests on a machine with Stata 17 or later:

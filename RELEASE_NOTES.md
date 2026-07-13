@@ -32,6 +32,15 @@
 - Removed committed CI logs and source archives. Workflows now publish
   finite-retention artifacts and attach validated archives to releases without
   bot commits to the default branch.
+- Documented that the universal ado/Mata path is portable while the bundled
+  plugin is Windows x86-64, and added native plugin compile checks for Windows
+  x86-64, Linux x86-64, macOS arm64, and macOS x86-64. Eligible L2 calls try
+  the installed plugin on every host and retain the Mata fallback. Release
+  workflows publish all four native binaries with SHA-256 checksums.
+- Removed duplicate root plugin sources and the generated binary under
+  `src/plugin/`, made `src/plugin/` the canonical native-source location,
+  removed obsolete workflow repository-write paths, and added static hygiene
+  guards for these contracts.
 
 ### Verification
 

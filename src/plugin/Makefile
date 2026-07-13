@@ -20,12 +20,19 @@ else
 endif
 
 TARGET := rdistnn.plugin
+CORE_TEST := rdistnn_core_test
 SRCS   := stplugin.c rdistnn_plugin.cpp
 
 $(TARGET): $(SRCS) rdistnn_core.hpp stplugin.h
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $(SRCS)
 
-clean:
-	rm -f $(TARGET)
+$(CORE_TEST): test_rdistnn_core.cpp rdistnn_core.hpp
+	$(CXX) $(CXXFLAGS) -o $@ test_rdistnn_core.cpp
 
-.PHONY: clean
+check: $(CORE_TEST)
+	./$(CORE_TEST)
+
+clean:
+	rm -f $(TARGET) $(CORE_TEST)
+
+.PHONY: check clean

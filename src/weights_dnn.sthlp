@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.5  2026-07-12}{...}
+{* *! version 0.0.7  2026-07-12}{...}
 {viewerjumpto "Syntax"         "weights_dnn##syntax"}{...}
 {viewerjumpto "Description"    "weights_dnn##description"}{...}
 {viewerjumpto "Stored results" "weights_dnn##results"}{...}
@@ -43,6 +43,15 @@ covariance matrix.
 {pstd}
 Use {opt generate()} to store the weights as a new variable for
 inspection or downstream use.
+
+{pstd}
+The ado/Mata implementation is portable across Stata 17 installations.  The
+plugin bundled by the default package is a Windows x86-64 binary and
+accelerates only the L2 path.  Eligible L2 calls attempt the installed plugin
+on every platform; loading or execution failure falls back to Mata.  Setting
+global {cmd:rdistnn_use_plugin} to {cmd:1} requires a working native plugin;
+set it to {cmd:0} to force Mata.  Native Linux and macOS plugins can be built
+from the source files under {cmd:src/plugin}.
 
 {pstd}
 For exact top-k DNN weights, positive support is global ranks 1 through

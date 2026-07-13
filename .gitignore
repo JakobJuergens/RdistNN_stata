@@ -13,6 +13,13 @@ _dist/
 GH_logs/
 archives/source.zip
 archives/*.zip
+/src/plugin/rdistnn.plugin
+/src/plugin/rdistnn_core_test
+/src/plugin/rdistnn_core_test.exe
+/src/plugin/*.o
+/src/plugin/*.obj
+/src/plugin/*.exp
+/src/plugin/*.lib
 
 # OS
 .DS_Store

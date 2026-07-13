@@ -15,7 +15,7 @@ on:
       - '.github/workflows/package-snapshot.yml'
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 concurrency:
@@ -146,6 +146,8 @@ jobs:
     needs: cooldown_gate
     if: ${{ needs.cooldown_gate.outputs.should_run == 'true' && github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -220,4 +222,3 @@ jobs:
       logs_dir: GH_logs/package-snapshot
       artifact_pattern: debug-package-snapshot-*
       harvested_artifact_name: harvested-package-snapshot-logs
-    secrets: inherit

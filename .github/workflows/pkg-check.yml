@@ -45,4 +45,3 @@ jobs:
       logs_dir: GH_logs/pkg-check
       artifact_pattern: debug-pkg-check*
       harvested_artifact_name: harvested-pkg-check-logs
-    secrets: inherit

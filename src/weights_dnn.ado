@@ -1,4 +1,4 @@
-*! version 0.0.5  2026-07-12  Jakob Juergens
+*! version 0.0.7  2026-07-12  Jakob Juergens
 *! DNN rank weights at a fixed covariate point x0
 
 program define weights_dnn, rclass
@@ -88,9 +88,8 @@ program define weights_dnn, rclass
     }
 
     // ── compute weights ───────────────────────────────────────────────
-    // Plugin fast path: default for L2 when installed.  Developers can set
-    // global rdistnn_use_plugin to 0 for the Mata reference path, or 1 to
-    // require the plugin and fail rather than silently falling back.
+    // Eligible L2 calls try the installed plugin on every platform. Any load
+    // or execution failure falls back to Mata unless the plugin is required.
     local __plugin_ok 0
     local __plugin_mode "${rdistnn_use_plugin}"
     local __require_plugin = ("`__plugin_mode'" == "1")

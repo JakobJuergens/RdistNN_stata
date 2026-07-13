@@ -1,0 +1,104 @@
+name: Plugin portability build
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'src/plugin/**'
+      - 'tools/ci/plugin_build_check.ps1'
+      - '.github/workflows/plugin-build.yml'
+  pull_request:
+    paths:
+      - 'src/plugin/**'
+      - 'tools/ci/plugin_build_check.ps1'
+      - '.github/workflows/plugin-build.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-plugin:
+    name: ${{ matrix.os }} / ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+          - os: windows-latest
+            platform: windows
+            arch: x64
+          - os: macos-latest
+            platform: macos
+            arch: arm64
+          - os: macos-15-intel
+            platform: macos
+            arch: x64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile and inspect native plugin
+        shell: pwsh
+        run: >-
+          ./tools/ci/plugin_build_check.ps1
+          -ExpectedPlatform '${{ matrix.platform }}'
+          -ExpectedArch '${{ matrix.arch }}'
+
+      - name: Upload native plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdistnn-plugin-${{ runner.os }}-${{ matrix.arch }}
+          path: _dist/plugin/**/rdistnn.plugin
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-release:
+    if: github.event_name == 'release'
+    needs: build-plugin
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download native plugin artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rdistnn-plugin-*
+          path: _release_plugins
+          merge-multiple: false
+
+      - name: Prepare named release assets and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _release_assets
+          while IFS= read -r plugin; do
+            relative="${plugin#_release_plugins/}"
+            artifact="${relative%%/*}"
+            suffix="${artifact#rdistnn-plugin-}"
+            cp "$plugin" "_release_assets/rdistnn-plugin-${suffix}.plugin"
+          done < <(find _release_plugins -type f -name rdistnn.plugin -print)
+          test "$(find _release_assets -type f -name '*.plugin' | wc -l)" -eq 4
+          (
+            cd _release_assets
+            sha256sum -- *.plugin > SHA256SUMS.txt
+          )
+
+      - name: Attach native plugins to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release upload "${{ github.event.release.tag_name }}" \
+            _release_assets/*.plugin _release_assets/SHA256SUMS.txt --clobber
