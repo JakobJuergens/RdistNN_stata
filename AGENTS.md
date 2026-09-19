@@ -1,40 +1,38 @@
 # Repository Instructions for Codex
 
-This file applies to the `RdistNN_stata` repository. The parent
-`U_Statistics/AGENTS.md` also applies when working from the multi-repo
-workspace.
+This file applies to the `RdistNN_stata` repository. Read the enclosing
+workspace's `AGENTS.md` when present: `/home/jakob/research/AGENTS.md` in WSL,
+or the applicable `U_Statistics/AGENTS.md` in a Windows checkout.
 
 ## Project Shape
 
 - `RdistNN_stata` is the Stata companion package for the `RdistNN` R package
   and the `Cond_Z_Estimation` paper.
-- User-facing commands include `np_dnn`, `cate_dnn`, and `weights_dnn`.
+- Estimation/weight commands are `np_dnn`, `cate_dnn`, experimental
+  `plqr_dnn`, and `weights_dnn`; NP and CATE also have diagnostics/plot commands.
 - Read `README.md` before changing command behavior, package layout, or
   installation instructions.
-- Prefer keeping theory-facing behavior aligned with `..\RdistNN` and
-  `..\..\Cond_Z_Estimation`.
+- In WSL, use `../RdistNN` and `../Cond_Z_Estimation` for theory/software
+  alignment. In the Windows `U_Statistics/02_Code/RdistNN_stata` layout,
+  the corresponding paths are `..\RdistNN` and `..\..\Cond_Z_Estimation`.
+  Resolve the current layout before using either set.
 
 ## Local CLI Tooling
 
-The parent Windows workspace has these tools on `PATH` as of 2026-05-06:
+Resolve tools in the environment actually running the command. In WSL, use
+`command -v TOOL`; in Windows PowerShell, use `Get-Command TOOL`. A tool
+installed on one machine is not evidence that it is on another machine's PATH.
 
-- Search and discovery: `rg`, `rga` for PDFs/Office files/archives, and `fd`.
-- Structured data: `jq`, `yq`, and `duckdb` for JSON, YAML, CSV, Parquet, and
-  tabular scratch queries.
-- Code and CI quality: `actionlint` for GitHub workflows, `shellcheck` and
-  `shfmt` for shell scripts and workflow `run:` blocks, `pre-commit` for
-  multi-tool hooks, and `ruff` for Python helper scripts.
-- PDF/OCR/image work: `pdfinfo`, `pdftotext`, `pdftoppm`, `pdffonts`, `qpdf`,
-  Ghostscript as `gswin64c`, ImageMagick as `magick`, Tesseract as
-  `tesseract`, `ocrmypdf`, and ExifTool as `exiftool`.
-- Package/build helpers: `Rscript`, `pandoc`, `gh`, `gcc`, `g++`, `make`, and
-  `cmake`.
-- Python tooling: `pip`, `pip3`, `pre-commit`, `ruff`, and `exiftool` are
-  exposed through small shims in `C:\Users\jakob\.local\bin`, which is already
-  on the user `PATH`.
-- Use `magick`, not Windows `convert.exe`. Tesseract has `eng` and `osd`
-  data; use `ocrmypdf --skip-text --deskew --rotate-pages` for scanned PDFs
-  and `pdftotext -layout` for searchable PDFs.
+- Use `rg` for source search; `jq` or Python for structured metadata.
+- Use the package helpers under `tools/ci/` for static, runtime, installation,
+  and native-plugin checks; their platform requirements differ.
+- Use `Rscript` for R work, `actionlint` for workflows, and `wolframscript`
+  when a mathematical check calls for it. Follow the task-specific checks below.
+- Poppler (`pdfinfo`, `pdftotext`, `pdftoppm`) and `qpdf` support document
+  inspection. Windows Ghostscript is commonly `gswin64c`; use `magick` for
+  ImageMagick. Check availability before promising a build or check.
+- For Literature documents, use the shared catalog/extraction workflow below;
+  do not replace its preserved evidence with ad hoc or in-place OCR.
 
 ## Working Rules
 
@@ -59,5 +57,30 @@ The parent Windows workspace has these tools on `PATH` as of 2026-05-06:
   task is explicitly about test-output archaeology.
 - If Stata itself is needed for verification, first check whether a CLI command
   is available locally; otherwise record that Stata is not available on `PATH`.
-  On this Windows machine, the expected StataNow 19 executable is
+  On the Windows development installation, the expected StataNow 19 executable is
   `C:\Program Files\StataNow19\StataSE-64.exe`.
+
+## Literature and source lookup
+
+For local literature work, use `literature-vault`; use `obsidian-paper-notes`
+for Obsidian paper/book notes. If a skill is not exposed, read its maintained
+`SKILL.md` under the vault's `_ai/skills/`. Read the vault's `AGENTS.md` and
+`_ai/AGENTS.md` before source or citation work.
+
+The WSL vault is `/home/jakob/research/Literature`; Windows uses
+`D:\Jakob_Clouds\Dropbox\Literature` on the desktop and
+`C:\Users\jakob\Dropbox\Literature` on the laptop. Preserve both Windows
+layouts and resolve the current machine's paths. Project-local `01_Literature`
+collections and extraction caches are separate from this full vault.
+
+Use the vault's `_bibliography/scripts/registry.py` by absolute path: `search`
+for passages, `search --find` for discovery, and `lookup` for citation identity.
+Preserve existing project keys and unresolved identities. Check `status`'s
+`catalog_schema_version` and `variants DOCUMENT_SHA`: baseline-only catalogs
+use original sidecars plus `supplemental` MinerU reads; registered v5 catalogs
+support preferred `read` and `--variant all --compare`. Follow the vault's
+`_extractions/README.md` and `_bibliography/QUALITY.md` for exact commands and
+review scope. Preferred text is not verification; inspect relied-on mathematics,
+tables, figures, and uncertain exact wording unless a current scoped visual
+review covers it. Keep extraction identities and physical/printed pages distinct.
+The personal vault is a research resource, not a repository build dependency.

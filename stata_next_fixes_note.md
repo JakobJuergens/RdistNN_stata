@@ -1,4 +1,9 @@
-# Stata implementation: what needs to be fixed next
+# Historical Stata implementation review
+
+This dated review and its status updates are provenance, not the current work
+queue. Use [README.md](README.md), [AGENTS.md](AGENTS.md), and the current
+source/tests for implemented behavior and verification. The original review
+below is preserved; its descriptions of missing features may be superseded.
 
 Status update, 2026-07-11: the CATE score-input surface now covers the R
 package's three core paths: full AIPW nuisances, the Robinson/R-learner score
