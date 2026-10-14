@@ -9,6 +9,10 @@ it into a coefficient estimator or add coefficient inference.
 
 Use a clean repository checkout with the tools in
 [CONTRIBUTING.md](CONTRIBUTING.md). Review the version/tag and release notes.
+The initial release uses package version `0.1.0` and tag `v0.1.0`.
+Keep `rdistnn.pkg`'s `Version` and `Distribution-Date` metadata aligned with
+the release notes and actual publication date. Its `v 3` line identifies the
+Stata package-file format.
 The command-specific `*! version` headers have their own revision histories;
 do not rewrite all of them merely to match a package release tag.
 
@@ -50,8 +54,8 @@ do not rewrite all of them merely to match a package release tag.
 4. Build the source ZIP with the same helper used by CI:
 
    ```bash
-   bash tools/ci/build_source_archive.sh _dist/source.zip
-   sha256sum _dist/source.zip > _dist/SHA256SUMS-source.txt
+   bash tools/ci/build_release_assets.sh _dist
+   (cd _dist && sha256sum --check SHA256SUMS-source.txt)
    ```
 
    The helper includes package metadata, README, release notes, public command
@@ -75,16 +79,19 @@ or temporary directories and are not committed.
 
 ## Publish the release
 
-Create the intended tag and GitHub release from the verified commit. Adapt
+Create the `v0.1.0` tag and GitHub release from the verified commit. Adapt
 the public-release entry in `RELEASE_NOTES.md` into the announcement, with
 explicit PLQR status and a link to the getting-started example.
 
 The existing package-snapshot workflow attaches the validated source ZIP as
-`rdistnn-source.zip`. The native-plugin workflow attaches four named plugin
-assets and `SHA256SUMS.txt`. Confirm both workflows finish successfully and
+`rdistnn-source.zip` and its `SHA256SUMS-source.txt`. The native-plugin workflow
+attaches four named plugin assets and `SHA256SUMS.txt`. Confirm both workflows finish successfully and
 the assets are available before announcing them. Source ZIP and plugin checksums
 serve different payloads; preserve both. Retain the default-branch installation
 URL in the README and provide the tagged source ZIP for reproducible installation.
+Before announcing the release, download its assets without credentials, verify
+both checksum files from the download directory, and run the isolated installation
+check using the extracted source ZIP. Verify the tagged `net install` URL too.
 
 GitHub's automatically generated repository archive is a checkout snapshot;
 `rdistnn-source.zip` is the curated installable distribution. The ZIP bundles

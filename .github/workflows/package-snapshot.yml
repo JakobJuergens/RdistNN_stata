@@ -15,6 +15,7 @@ on:
       - 'docs/**'
       - 'examples/**'
       - 'tools/ci/build_source_archive.sh'
+      - 'tools/ci/build_release_assets.sh'
       - 'tools/ci/archive_check.sh'
       - '.github/workflows/package-snapshot.yml'
 
@@ -163,17 +164,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash tools/ci/build_source_archive.sh _dist/source.zip
+          bash tools/ci/build_release_assets.sh _dist
 
           echo "skip=false" >> "$GITHUB_OUTPUT"
-          echo "zip_path=_dist/source.zip" >> "$GITHUB_OUTPUT"
+          echo "zip_path=_dist/rdistnn-source.zip" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifact
         if: steps.makezip.outputs.skip == 'false'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: source.zip
-          path: ${{ steps.makezip.outputs.zip_path }}
+          path: |
+            ${{ steps.makezip.outputs.zip_path }}
+            _dist/SHA256SUMS-source.txt
           retention-days: 14
 
       - name: Attach validated source archive to release
@@ -184,7 +187,8 @@ jobs:
         run: |
           set -euo pipefail
           gh release upload "${{ github.event.release.tag_name }}" \
-            "${{ steps.makezip.outputs.zip_path }}#rdistnn-source.zip" --clobber
+            "${{ steps.makezip.outputs.zip_path }}" _dist/SHA256SUMS-source.txt \
+            --repo "${{ github.repository }}" --clobber
 
       - name: Upload debug artifact
         if: failure()

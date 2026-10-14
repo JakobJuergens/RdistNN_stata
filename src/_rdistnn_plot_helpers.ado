@@ -1,3 +1,4 @@
+*! version 0.1.0  2026-10-14  Jakob Juergens
 // Shared CATE/NP plot builders, loaded explicitly to give both commands access.
 // Keep these routines outside public ado-local subroutine namespaces.
 // Loading is guarded by program list in each public plot command.

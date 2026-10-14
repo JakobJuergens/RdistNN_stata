@@ -101,4 +101,5 @@ jobs:
         run: |
           set -euo pipefail
           gh release upload "${{ github.event.release.tag_name }}" \
-            _release_assets/*.plugin _release_assets/SHA256SUMS.txt --clobber
+            _release_assets/*.plugin _release_assets/SHA256SUMS.txt \
+            --repo "${{ github.repository }}" --clobber

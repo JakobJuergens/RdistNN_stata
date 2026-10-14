@@ -1,4 +1,4 @@
-*! version 0.1.1  2026-07-12  Jakob Juergens
+*! version 0.1.2  2026-10-14  Jakob Juergens
 *! Stata-native postestimation plots for cate_dnn
 
 program define cate_dnn_plot, rclass

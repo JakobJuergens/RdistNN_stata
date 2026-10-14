@@ -1,5 +1,16 @@
 # Release Notes
 
+## 0.1.0 — 2026-10-14
+
+- Initial public release of CATE and nonparametric regression with DNN weights,
+  pointwise jackknife uncertainty, tuning grids, diagnostics, and native plots.
+- Experimental PLQR evaluates localized moments at supplied coefficients.
+- Includes GPL-3.0-or-later licensing with explicit permission to link the
+  native plugin with Stata.
+- Fixes shared CATE/NP plot loading, including CATE-to-NP plotting order.
+- Provides version-pinned installation, a source ZIP and checksum, and native
+  plugin downloads for Windows x86-64, Linux x86-64, macOS arm64, and macOS x86-64.
+
 ## 2026-10-14: Initial public-release preparation
 
 - Licensed the original package code under GPL-3.0-or-later, with additional

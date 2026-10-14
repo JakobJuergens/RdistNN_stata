@@ -1,4 +1,7 @@
+v 3
 d 'RDISTNN': CATE and nonparametric regression with DNN weights
+d Version: 0.1.0
+d Distribution-Date: 20261014
 d
 d Initial public-release focus: conditional average treatment effects and
 d nonparametric regression with distributional nearest-neighbor weights,

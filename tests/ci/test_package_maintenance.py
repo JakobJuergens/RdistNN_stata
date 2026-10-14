@@ -1,3 +1,4 @@
+import hashlib
 import re
 import subprocess
 import tempfile
@@ -10,6 +11,35 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class PackageMaintenanceTests(unittest.TestCase):
+    def test_release_source_download_has_verifiable_checksum_and_fresh_payload(self):
+        with tempfile.TemporaryDirectory(prefix="rdistnn-release-test-") as directory:
+            output = Path(directory)
+            archive = output / "rdistnn-source.zip"
+            checksums = output / "SHA256SUMS-source.txt"
+            archive.write_bytes(b"stale release archive")
+            checksums.write_text("stale checksum\n")
+            subprocess.run(
+                ["bash", "tools/ci/build_release_assets.sh", str(output)],
+                cwd=ROOT, check=True, capture_output=True, text=True,
+            )
+            self.assertEqual(
+                checksums.read_text(),
+                hashlib.sha256(archive.read_bytes()).hexdigest()
+                + "  rdistnn-source.zip\n",
+            )
+            subprocess.run(
+                ["sha256sum", "--check", checksums.name],
+                cwd=output, check=True, capture_output=True, text=True,
+            )
+            with zipfile.ZipFile(archive) as source:
+                self.assertEqual(
+                    source.read("rdistnn.pkg"), (ROOT / "rdistnn.pkg").read_bytes(),
+                )
+                self.assertEqual(
+                    source.read("src/cate_dnn.ado"),
+                    (ROOT / "src/cate_dnn.ado").read_bytes(),
+                )
+
     def test_master_runner_registers_every_regression_file_once(self):
         text = (ROOT / "tests/tests.do").read_text(encoding="utf-8")
         match = re.search(r"local test_files\s+///(.*?)// .*run each file", text, re.S)

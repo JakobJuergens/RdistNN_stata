@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-07-12  Jakob Juergens
+*! version 0.1.1  2026-10-14  Jakob Juergens
 *! Stata-native postestimation plots for np_dnn
 
 program define np_dnn_plot, rclass

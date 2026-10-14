@@ -32,19 +32,27 @@ preserved.
 
 ## Installation
 
-Stata 17 or later is required. Install the current default-branch package:
+Stata 17 or later is required. Install release **0.1.0**:
 
 ```stata
-net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/master/") replace
+net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/v0.1.0/") replace
 help cate_dnn
 help np_dnn
 ```
 
-For a fixed release, download `rdistnn-source.zip` from its GitHub release,
-extract it, and install from the directory containing `rdistnn.pkg`:
+Alternatively, download [rdistnn-source.zip](https://github.com/JakobJuergens/RdistNN_stata/releases/download/v0.1.0/rdistnn-source.zip)
+and `SHA256SUMS-source.txt` from the [v0.1.0 release](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.0),
+verify the checksum, extract the ZIP, and install from the directory containing
+`rdistnn.pkg`:
 
 ```stata
 net install rdistnn, from("path/to/extracted/rdistnn-source") replace
+```
+
+For the current development version, use the default branch:
+
+```stata
+net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/master/") replace
 ```
 
 Stata's [net manual](https://www.stata.com/manuals/rnet.pdf) describes local
