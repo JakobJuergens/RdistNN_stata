@@ -19,7 +19,7 @@ import zipfile
 from pathlib import Path
 
 archive = Path(sys.argv[1]).resolve()
-roots = ["README.md", "RELEASE_NOTES.md", "rdistnn.pkg", "stata.toc"]
+roots = ["README.md", "RELEASE_NOTES.md", "LICENSE.md", "LINKING_EXCEPTION.md", "rdistnn.pkg", "stata.toc"]
 public = subprocess.check_output([
     "git", "ls-files", "--cached", "--others", "--exclude-standard", "-z",
     "--", "src/", "docs/", "examples/",

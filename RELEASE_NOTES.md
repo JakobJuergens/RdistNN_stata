@@ -2,6 +2,10 @@
 
 ## 2026-10-14: Initial public-release preparation
 
+- Licensed the original package code under GPL-3.0-or-later, with additional
+  permission to link its native plugin with Stata. The installed package and
+  source ZIP include both notices; third-party copyright notices are preserved.
+
 - Refocused onboarding and package metadata on CATE and nonparametric
   regression, retaining pointwise inference conditions and explicitly oracle
   example nuisances. Added a runnable example and detailed command guide.

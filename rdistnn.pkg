@@ -14,10 +14,16 @@ d Companion to the R package RdistNN and the conditional Z-estimation paper;
 d current working-paper citation metadata is maintained in RdistNN.
 d
 d Author: Jakob Juergens
+d License: GNU GPL version 3 or later (GPL-3.0-or-later)
+d Native plugin: additional Stata-linking permission in rdistnn_linking_exception.md
 d
 f rdistnn.pkg
 f stata.toc
 f RELEASE_NOTES.md
+f LICENSE.md
+f LINKING_EXCEPTION.md
+F src/rdistnn_license.md
+F src/rdistnn_linking_exception.md
 f src/cate_dnn.ado
 f src/cate_dnn.sthlp
 f src/cate_dnn_diagnostics.ado

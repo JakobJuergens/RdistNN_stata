@@ -24,7 +24,7 @@ ERRORS=0
 # ── 1. rdistnn.pkg file manifest ────────────────────────────────────────────
 echo "=== Checking rdistnn.pkg file entries ==="
 while IFS= read -r line; do
-	if [[ "$line" =~ ^f[[:space:]]+(.+)$ ]]; then
+	if [[ "$line" =~ ^[fF][[:space:]]+(.+)$ ]]; then
 		filepath="${BASH_REMATCH[1]%$'\r'}"
 		if [[ -f "$filepath" ]]; then
 			echo "  OK       $filepath"

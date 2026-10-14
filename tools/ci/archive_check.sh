@@ -77,7 +77,7 @@ echo "=== Checking archive required files ==="
 required=("README.md" "stata.toc" "rdistnn.pkg")
 while IFS= read -r file; do
 	required+=("$file")
-done < <(awk '/^f[[:space:]]+/ {sub(/\r$/, "", $2); print $2}' rdistnn.pkg)
+done < <(awk '/^[fF][[:space:]]+/ {sub(/\r$/, "", $2); print $2}' rdistnn.pkg)
 mapfile -t required < <(printf '%s\n' "${required[@]}" | awk '!seen[$0]++')
 
 for file in "${required[@]}"; do

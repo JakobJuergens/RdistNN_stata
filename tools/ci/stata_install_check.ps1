@@ -100,6 +100,8 @@ which plqr_dnn
 _rdistnn_assert_from_plus plqr_dnn.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_plot_helpers.ado, plusnorm("`plus_norm'")
+_rdistnn_assert_from_plus rdistnn_license.md, plusnorm("`plus_norm'")
+_rdistnn_assert_from_plus rdistnn_linking_exception.md, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus rdistnn.plugin, plusnorm("`plus_norm'")
 
 findfile _rdistnn_mata.ado

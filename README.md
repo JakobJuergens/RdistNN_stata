@@ -12,6 +12,15 @@ weights and postestimation tools. PLQR functionality is experimental: it
 evaluates score moments at supplied coefficients and provides moment
 covariance, without solving for coefficients or providing coefficient inference.
 
+The package's original code is licensed under the
+[GNU General Public License version 3 or later](LICENSE.md)
+(`GPL-3.0-or-later`), with [additional permission to link the native plugin
+with Stata](LINKING_EXCEPTION.md). Original third-party copyright notices are
+preserved.
+
+`net install` also installs the notices as `rdistnn_license.md` and
+`rdistnn_linking_exception.md` in Stata's PLUS directory.
+
 | Command | Purpose |
 | --- | --- |
 | `cate_dnn` | CATE from AIPW, Robinson, or precomputed scores |

@@ -59,7 +59,13 @@ do not rewrite all of them merely to match a package release tag.
    the archive with `tools/ci/archive_check.sh`. Ignored build products,
    private notes, tests, CI configuration, and logs are excluded. Confirm that
    all package-manifest files and guide/example links resolve in the extracted
-   ZIP. `net install rdistnn, from("path/to/extracted/archive") replace`
+   ZIP, including `LICENSE.md` and `LINKING_EXCEPTION.md`.
+   Keep the package-specific installed copies `src/rdistnn_license.md` and
+   `src/rdistnn_linking_exception.md` synchronized with these notices, adjusting
+   their relative links to the installed filenames. The maintenance tests check
+   that they match. Uppercase `F` manifest entries make Stata install these
+   notices into PLUS rather than treating them as optional ancillary files.
+   `net install rdistnn, from("path/to/extracted/archive") replace`
    installs its command payload; developer checks require a repository checkout.
 
 Establish the final content before expensive checks. Staging, committing,

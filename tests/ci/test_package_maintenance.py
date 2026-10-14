@@ -30,12 +30,13 @@ class PackageMaintenanceTests(unittest.TestCase):
                 names = source.namelist()
                 self.assertEqual(len(names), len(set(names)))
                 required = {
-                    "README.md", "RELEASE_NOTES.md", "rdistnn.pkg", "stata.toc",
+                    "README.md", "RELEASE_NOTES.md", "LICENSE.md", "rdistnn.pkg", "stata.toc",
+                    "LINKING_EXCEPTION.md",
                     "docs/command-guide.md", "examples/getting-started.do",
                     "src/rdistnn.plugin", "src/plugin/rdistnn_plugin.cpp",
                 }
                 required.update(re.findall(
-                    r"^f\s+(\S+)", (ROOT / "rdistnn.pkg").read_text(), re.M,
+                    r"^[fF]\s+(\S+)", (ROOT / "rdistnn.pkg").read_text(), re.M,
                 ))
                 self.assertTrue(required.issubset(names), required.difference(names))
                 for name in names:
@@ -46,6 +47,23 @@ class PackageMaintenanceTests(unittest.TestCase):
                     self.assertFalse(name.endswith((".log", ".o", ".obj", ".mlib", ".mo")), name)
                     self.assertNotEqual(name, "src/plugin/rdistnn.plugin")
                     self.assertEqual(source.read(name), (ROOT / name).read_bytes())
+
+    def test_license_notices_are_installed_with_package_specific_names(self):
+        manifest = (ROOT / "rdistnn.pkg").read_text()
+        for original, installed in (
+            ("LICENSE.md", "rdistnn_license.md"),
+            ("LINKING_EXCEPTION.md", "rdistnn_linking_exception.md"),
+        ):
+            self.assertIn("F src/" + installed, manifest.splitlines())
+            expected = (ROOT / original).read_bytes().replace(
+                b"(LICENSE.md)", b"(rdistnn_license.md)",
+            ).replace(
+                b"(LINKING_EXCEPTION.md)", b"(rdistnn_linking_exception.md)",
+            )
+            self.assertEqual(
+                (ROOT / "src" / installed).read_bytes(),
+                expected,
+            )
 
 
 if __name__ == "__main__":
