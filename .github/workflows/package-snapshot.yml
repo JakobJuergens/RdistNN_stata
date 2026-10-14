@@ -11,6 +11,10 @@ on:
       - 'rdistnn.pkg'
       - 'stata.toc'
       - 'README.md'
+      - 'RELEASE_NOTES.md'
+      - 'docs/**'
+      - 'examples/**'
+      - 'tools/ci/build_source_archive.sh'
       - 'tools/ci/archive_check.sh'
       - '.github/workflows/package-snapshot.yml'
 
@@ -154,37 +158,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create zip (src, package manifest, README)
+      - name: Create validated source zip
         id: makezip
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _dist
-
-          paths=()
-          for d in src; do
-            [[ -d "$d" ]] && paths+=("$d/")
-          done
-          for f in rdistnn.pkg stata.toc README.md RELEASE_NOTES.md; do
-            [[ -f "$f" ]] && paths+=("$f")
-          done
-
-          if [[ ${#paths[@]} -eq 0 ]]; then
-            echo "No inputs found."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          zip -r _dist/source.zip "${paths[@]}" \
-            -x ".git/**" "archives/**" ".github/**"
+          bash tools/ci/build_source_archive.sh _dist/source.zip
 
           echo "skip=false" >> "$GITHUB_OUTPUT"
           echo "zip_path=_dist/source.zip" >> "$GITHUB_OUTPUT"
-
-      - name: Validate source zip
-        if: steps.makezip.outputs.skip == 'false'
-        shell: bash
-        run: bash tools/ci/archive_check.sh "${{ steps.makezip.outputs.zip_path }}"
 
       - name: Upload artifact
         if: steps.makezip.outputs.skip == 'false'

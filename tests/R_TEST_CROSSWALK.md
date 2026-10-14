@@ -36,7 +36,8 @@ ported as superficial assertions:
 - R container dispatch (`matrix`, `data.frame`, tibble), S3 methods, and
   `predict()` behavior;
 - ggplot object internals and `vdiffr` visual snapshots;
-- PLQR local root solving and density-backed coefficient inference;
+- PLQR density-backed coefficient inference at the supplied evaluation vector
+  (the current R command also does not perform local root solving);
 - PLQR multi-target tuning grids, which are not yet a Stata feature.
 
 When one of these features is added to Stata, promote its corresponding R

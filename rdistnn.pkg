@@ -1,10 +1,10 @@
-d 'RDISTNN': Distributional nearest-neighbor local estimation
+d 'RDISTNN': CATE and nonparametric regression with DNN weights
 d
-d Stata implementation of the DNN (distributional nearest neighbors)
-d estimator for conditional Z-estimation.  Provides pointwise inference
-d for parameters defined by localized conditional estimating equations,
-d exploiting the generalized-U-statistic / L-statistic structure of DNN
-d rank weights.
+d Initial public-release focus: conditional average treatment effects and
+d nonparametric regression with distributional nearest-neighbor weights,
+d pointwise jackknife uncertainty, tuning grids, diagnostics, and native plots.
+d Supplied nuisances remain external; valid inference requires the documented
+d nuisance, localization, stability, and bias conditions.
 d
 d plqr_dnn is experimental: it evaluates localized score moments at a
 d supplied theta vector and does not perform local root solving or coefficient
@@ -36,3 +36,4 @@ f src/rdistnn.plugin
 f src/weights_dnn.ado
 f src/weights_dnn.sthlp
 f src/_rdistnn_mata.ado
+f src/_rdistnn_plot_helpers.ado

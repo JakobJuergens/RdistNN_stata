@@ -65,6 +65,13 @@ estimate a conditional density, or report coefficient standard errors,
 confidence intervals, p-values, or significance tests.
 
 {pstd}
+PLQR functionality is outside the CATE and nonparametric-regression focus of
+the initial public release. Its API may change in later releases. The Stata
+command's implemented contract is moment evaluation at supplied coefficients;
+the broader R companion also has density-backed inference facilities that
+are not provided by this command.
+
+{pstd}
 For observation i and score component j, the command forms
 
 {phang2}

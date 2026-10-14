@@ -3,6 +3,7 @@
 //
 // Run from the repository root:
 //   do "tests/tests.do"
+//   do "tests/tests.do" "test-np-dnn-*"
 //
 // The runner sources the framework once, pre-loads the Mata library, then
 // executes each test-*.do file in order.  Each file updates the shared
@@ -11,10 +12,17 @@
 
 version 17
 set more off
+args filter
+if `"`filter'"' == "" local filter "*"
+
+// Every master invocation starts fresh, including focused and repeated runs.
+global tf_pass 0
+global tf_fail 0
 
 // ── adopath: give src/ priority so commands resolve to the local package ──
 local pkg_root : pwd
-adopath + "`pkg_root'/src"
+local pkg_root = subinstr("`pkg_root'", "\", "/", .)
+adopath ++ "`pkg_root'/src"
 
 // ── load framework (defines test_assert, test_section, DGP programs) ──────
 do "tests/test_framework.do"
@@ -24,6 +32,7 @@ quietly do "src/_rdistnn_mata.ado"
 
 // ── ordered list of test files ────────────────────────────────────────────
 local test_files ///
+    test-plot-command-order ///
     test-mata-distances      ///
     test-mata-rank-r-mirror  ///
     test-mata-weights-exact  ///
@@ -59,13 +68,22 @@ local test_files ///
     test-integration
 
 // ── run each file ─────────────────────────────────────────────────────────
+local selected 0
 foreach f of local test_files {
+    if !strmatch("`f'", "`filter'") continue
+    local ++selected
     di _n as text "══ `f'.do " _dup(45) "═"
     cap noisily do "tests/`f'.do"
-    if _rc {
-        di as error "  [runner] `f'.do aborted unexpectedly (rc=`_rc')"
+    local run_rc = _rc
+    if `run_rc' {
+        di as error "  [runner] `f'.do aborted unexpectedly (rc=`run_rc')"
         global tf_fail = $tf_fail + 1
     }
+}
+
+if `selected' == 0 {
+    di as error "No test files match `filter'."
+    exit 198
 }
 
 // ── grand total ───────────────────────────────────────────────────────────

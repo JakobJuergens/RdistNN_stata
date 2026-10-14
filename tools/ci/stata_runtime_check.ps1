@@ -11,10 +11,10 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $ScriptDir "stata_common.ps1")
 
 if (!$RepoRoot) {
-    $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
+    $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).ProviderPath
 }
 else {
-    $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
+    $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).ProviderPath
 }
 
 $stata = Find-StataExecutable -StataExe $StataExe

@@ -37,7 +37,7 @@ program define np_dnn_plot, rclass
 
     capture program list _cate_dnn_plot_estimates
     if _rc {
-        findfile "cate_dnn_plot.ado"
+        findfile "_rdistnn_plot_helpers.ado"
         quietly run "`r(fn)'"
     }
     findfile "_rdistnn_mata.ado"

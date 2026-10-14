@@ -10,7 +10,8 @@
 
 // Resolve path relative to the current working directory so this script
 // works on any machine without hardcoded paths.
-local here "`c(pwd)'"
+// Forward slashes also keep Windows UNC/WSL paths usable by ado discovery.
+local here = subinstr("`c(pwd)'", "\", "/", .)
 local pkg_src `"`here'/src"'
 
 // Check src/ exists before modifying adopath

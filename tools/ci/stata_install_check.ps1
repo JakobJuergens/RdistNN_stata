@@ -11,10 +11,10 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $ScriptDir "stata_common.ps1")
 
 if (!$RepoRoot) {
-    $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
+    $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).ProviderPath
 }
 else {
-    $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
+    $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).ProviderPath
 }
 
 $stata = Find-StataExecutable -StataExe $StataExe
@@ -99,6 +99,7 @@ _rdistnn_assert_from_plus cate_dnn_plot.ado, plusnorm("`plus_norm'")
 which plqr_dnn
 _rdistnn_assert_from_plus plqr_dnn.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_mata.ado, plusnorm("`plus_norm'")
+_rdistnn_assert_from_plus _rdistnn_plot_helpers.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus rdistnn.plugin, plusnorm("`plus_norm'")
 
 findfile _rdistnn_mata.ado
@@ -107,6 +108,9 @@ if "$rdistnn_plugin_ok" != "1" {
     di as error "rdistnn.plugin was installed but not discoverable by Stata."
     exit 459
 }
+
+// Run public onboarding before other plots so CATE-first autoloading is cold.
+do "__REPO_FROM__/examples/getting-started.do"
 
 clear
 set obs 160

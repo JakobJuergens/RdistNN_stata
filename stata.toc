@@ -1,9 +1,9 @@
 v 3
-d RDISTNN: Distributional nearest-neighbor local estimation
+d RDISTNN: CATE and nonparametric regression with DNN weights
 d
-d Stata companion package for RdistNN and conditional Z-estimation via
-d distributional nearest neighbors.
+d Stata companion to RdistNN: CATE, nonparametric regression, pointwise
+d jackknife uncertainty, tuning grids, diagnostics, and native plots.
 d Experimental PLQR support evaluates moments at supplied theta; it is not a
 d coefficient estimator.
 d
-p rdistnn Distributional nearest-neighbor local estimation
+p rdistnn CATE and nonparametric regression with DNN weights

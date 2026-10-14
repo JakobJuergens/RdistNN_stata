@@ -1,5 +1,23 @@
 # Release Notes
 
+## 2026-10-14: Initial public-release preparation
+
+- Refocused onboarding and package metadata on CATE and nonparametric
+  regression, retaining pointwise inference conditions and explicitly oracle
+  example nuisances. Added a runnable example and detailed command guide.
+- Kept PLQR supplied-coefficient moment evaluation explicitly experimental;
+  it does not provide coefficient estimation or inference.
+- Added contributor, release, website, and test-suite guidance. The source
+  archive builder is shared with CI and includes public guides/examples while
+  excluding ignored build output.
+- Added focused test-runner patterns and fresh per-run counters, plus a check
+  that every regression file is registered exactly once.
+- Fixed shared plot-helper loading so a CATE plot followed by an NP plot works
+  in a fresh session. The numerical plot-builder routines are unchanged.
+- Corrected PowerShell verification paths for UNC checkouts and quoted Stata
+  do-file arguments; normalized the development/test adopath for WSL shares.
+  Estimator, Mata, native-plugin, and golden-fixture behavior is unchanged.
+
 ## 2026-07-12: Paper tuning alignment
 
 - Changed the finite-sample paper default to `lambda = 0.4`.

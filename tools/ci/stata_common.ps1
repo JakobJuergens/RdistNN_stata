@@ -16,7 +16,7 @@ function Resolve-StataCandidate {
     )
 
     if (Test-Path -LiteralPath $Candidate -PathType Leaf) {
-        return (Resolve-Path -LiteralPath $Candidate).Path
+        return (Resolve-Path -LiteralPath $Candidate).ProviderPath
     }
 
     $cmd = Get-Command $Candidate -ErrorAction SilentlyContinue
@@ -131,7 +131,7 @@ function Invoke-StataBatchDo {
 
     $process = Start-Process `
         -FilePath $StataExe `
-        -ArgumentList @("/e", "do", $DoFile) `
+        -ArgumentList @("/e", "do", ('"' + $DoFile + '"')) `
         -WorkingDirectory $WorkingDirectory `
         -Wait `
         -PassThru `
