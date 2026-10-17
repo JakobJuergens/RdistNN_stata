@@ -25,12 +25,32 @@ preserved.
 | --- | --- |
 | `cate_dnn` | CATE from AIPW, Robinson, or precomputed scores |
 | `cate_dnn_diagnostics`, `cate_dnn_plot` | CATE diagnostics and plots |
+| `clate_dnn` | Experimental CLATE from supplied binary-IV nuisances or paired signals (feature branch) |
+| `clate_dnn_diagnostics`, `clate_dnn_plot` | CLATE first-stage diagnostics and CATE-style plots (feature branch) |
 | `np_dnn` | Pointwise nonparametric regression |
 | `np_dnn_diagnostics`, `np_dnn_plot` | Regression diagnostics and plots |
 | `weights_dnn` | Compute and export exact or asymptotic DNN rank weights |
 | `plqr_dnn` | Experimental PLQR score moments at supplied coefficients |
 
 ## Installation
+
+The `feature/clate` development branch adds conditional LATE; it is not part
+of release 0.1.0. Install that branch explicitly to use the
+[CLATE example](examples/clate.do):
+
+```stata
+net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/feature/clate/") replace
+help clate_dnn
+```
+
+CLATE uses a binary instrument and binary treatment, externally supplied
+instrument propensity and arm-specific outcome/treatment predictions, and
+common DNN weights for the reduced form and first stage. Paired frozen-score
+covariance retains both components. It supports CATE's batch targets, tuning,
+weight controls, diagnostics and plot types, with instrument-overlap labels.
+Undefined ratios remain visible with components and statuses. See the
+[CLATE command guide](docs/command-guide.md#conditional-late-development-branch)
+for the supplied-prediction and paired-signal routes and inference conditions.
 
 Stata 17 or later is required. Install release **0.1.0**:
 

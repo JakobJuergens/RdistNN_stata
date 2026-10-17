@@ -98,6 +98,13 @@ which cate_dnn_plot
 _rdistnn_assert_from_plus cate_dnn_plot.ado, plusnorm("`plus_norm'")
 which plqr_dnn
 _rdistnn_assert_from_plus plqr_dnn.ado, plusnorm("`plus_norm'")
+foreach command in clate_dnn clate_dnn_diagnostics clate_dnn_plot {
+    which `command'
+    _rdistnn_assert_from_plus `command'.ado, plusnorm("`plus_norm'")
+    _rdistnn_assert_from_plus `command'.sthlp, plusnorm("`plus_norm'")
+}
+_rdistnn_assert_from_plus _rdistnn_clate_mata.ado, plusnorm("`plus_norm'")
+_rdistnn_assert_from_plus _rdistnn_clate_signature.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_plot_helpers.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus rdistnn_license.md, plusnorm("`plus_norm'")
@@ -336,6 +343,24 @@ plqr_dnn yq, x(x1 x2) x0(0 0) d(d1 d2) g(q) md(md1 md2) thetaeval(1 -0.5)
 if e(k) != 1 | e(s) != floor(.4*160^(3/4)) {
     di as error "installed plqr_dnn does not use the R/paper k and s defaults."
     exit 459
+}
+
+// The CLATE example exercises only freshly installed files, including cold
+// paired evaluator loading, diagnostics and instrument/influence/tuning plots.
+do "__REPO_FROM__/examples/clate.do"
+if "`e(cmd)'" != "clate_dnn" | e(m) != 3 {
+    di as error "installed CLATE example did not retain its batch results."
+    exit 459
+}
+matrix CL_install = e(estimates)
+matrix CL_cov = e(theta_vcov)
+if missing(CL_install[1,1]) | missing(CL_cov[1,1]) {
+    di as error "installed CLATE results are not finite."
+    exit 459
+}
+clate_dnn_diagnostics, allcandidates
+foreach p in diagnostics weights dashboard {
+    clate_dnn_plot, type(`p') name(install_clate_`p') replace nodraw
 }
 
 di as result "INSTALL_CHECK_PASSED"

@@ -9,6 +9,7 @@ Start with [the README](../README.md) and the runnable
 | Workflow | Estimation and results | Diagnostics and plots |
 | --- | --- | --- |
 | CATE | `cate_dnn`, one or several targets, joint jackknife covariance, tuning grids, `nose` | `cate_dnn_diagnostics`, `cate_dnn_plot` |
+| Experimental CLATE (feature branch) | `clate_dnn`, augmented binary-IV or paired signals, paired joint covariance, batch/grid controls | `clate_dnn_diagnostics`, `clate_dnn_plot` |
 | Nonparametric regression | `np_dnn`, one or several targets, joint jackknife covariance, tuning grids, `nose` | `np_dnn_diagnostics`, `np_dnn_plot` |
 | Standalone weights | `weights_dnn`, exact/asymptotic L2 or Mahalanobis weights, generated variable and `r()` metadata | Inspect or export the generated weights |
 | Experimental PLQR | `plqr_dnn`, one supplied target and coefficient vector, score moments and moment covariance | Explicit moment display and stored matrices |
@@ -17,6 +18,55 @@ The Stata companion has no TDNN or general local GMM command, automatic
 nuisance fitting, or PLQR coefficient inference. The R package has a broader
 interface; shared contracts and differences are recorded in the
 [R-to-Stata test crosswalk](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/R_TEST_CROSSWALK.md).
+
+## Conditional LATE (development branch)
+
+Install `feature/clate` explicitly; CLATE is not in the v0.1.0 release.
+The runnable [CLATE example](../examples/clate.do) supplies oracle nuisance
+predictions for a binary instrument A and binary treatment D:
+
+```stata
+clate_dnn Y, xcols(x1 x2) x0matrix(X0) dcol(D) acol(A) ecol(e) ///
+    my0col(my0) my1col(my1) md1col(md1) onesided tuningmode(grid)
+clate_dnn_diagnostics, detail
+clate_dnn_plot, type(overlap) view(mass) replace
+clate_dnn_plot, type(influence) targets(1 3) replace
+clate_dnn_plot, type(tuning) allcandidates replace
+```
+
+`onesided` requires D<=A and treats an omitted zero-arm treatment prediction
+as zero. Without it, supply `md0col()`. The four arm means condition on
+instrument assignment; their predictions may use all adjustment covariates
+even when localization reports effects using fewer X coordinates.
+The package fits no nuisance learners. `training()` is descriptive.
+
+Alternatively, use `clate_dnn phi_y, denominator(phi_d) pseudooutcome ...`.
+Both routes localize the two signals with identical weights and divide their
+averages. Do not average individual ratios. All CATE weighting/target/tuning
+controls and plot types are available. Overlap panels describe the instrument;
+influence is `w*(phi_y-theta*phi_d)`. A paired-signal fit has no instrument
+overlap information. Diagnostics retain paired components, first-stage
+uncertainty and computational status.
+
+`e(estimates)` and `e(se_targets)` contain every target, including missing
+values. `e(components)` retains reduced-form and first-stage means;
+`e(theta_vcov)` retains full cross-target ratio covariance and
+`e(component_vcov)` retains interleaved Y,D component covariance. `e(status)`
+flags zero, negative, near-zero and numerically unavailable cases. Negative
+denominators are computed; the diagnostic tolerance never regularizes a ratio.
+Since Stata rejects missing posted coefficients, `e(b)` contains only defined
+targets, with their original target numbers; it is absent if none are defined.
+`e(V)` is posted when every posted coefficient has available covariance.
+
+Causal interpretation additionally requires instrument independence given the
+full adjustment variables, consistency, exclusion, monotonicity, overlap and
+positive local compliance. Full-sample inference requires the affine theorem's
+nuisance accuracy, deletion stability, design, oracle and undersmoothing
+conditions. Paired frozen-score deletions do not refit nuisances, eliminate
+localization bias or provide weak-instrument-uniform confidence guarantees.
+The [implementation design](superpowers/specs/2026-10-17-clate-design.md)
+records the numeric contract and acceptance scope. RdistNN is the reference;
+shared fixed fixtures test estimates, covariance and diagnostics.
 
 ## Plotting after a nuisance-based CATE grid fit
 

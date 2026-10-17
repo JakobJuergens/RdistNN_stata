@@ -328,6 +328,23 @@ else
 	ERRORS=$((ERRORS + 1))
 fi
 
+echo ""
+echo "=== Checking experimental CLATE installation and inference contract ==="
+if grep -qF 'f src/_rdistnn_clate_mata.ado' rdistnn.pkg; then
+    echo "  OK       paired CLATE evaluator is installed"
+else
+    echo "  MISSING  paired CLATE evaluator manifest entry"
+    ERRORS=$((ERRORS + 1))
+fi
+for contract in 'Inference contract' 'paired frozen-score' 'deletion-stability' 'weak-instrument-uniform' 'e(components)' 'e(status)'; do
+    if grep -qiF "$contract" src/clate_dnn.sthlp; then
+        echo "  OK       CLATE help contains: $contract"
+    else
+        echo "  MISSING  CLATE help contract: $contract"
+        ERRORS=$((ERRORS + 1))
+    fi
+done
+
 # ── Result ───────────────────────────────────────────────────────────────────
 echo ""
 if [[ $ERRORS -gt 0 ]]; then

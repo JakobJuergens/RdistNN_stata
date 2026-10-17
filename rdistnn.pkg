@@ -15,6 +15,8 @@ d inference.
 d
 d Companion to the R package RdistNN and the conditional Z-estimation paper;
 d current working-paper citation metadata is maintained in RdistNN.
+d Development branch: experimental augmented binary-IV CLATE with paired
+d frozen-score covariance, CATE-style tuning, diagnostics and native plots.
 d
 d Author: Jakob Juergens
 d License: GNU GPL version 3 or later (GPL-3.0-or-later)
@@ -33,6 +35,12 @@ f src/cate_dnn_diagnostics.ado
 f src/cate_dnn_diagnostics.sthlp
 f src/cate_dnn_plot.ado
 f src/cate_dnn_plot.sthlp
+f src/clate_dnn.ado
+f src/clate_dnn.sthlp
+f src/clate_dnn_diagnostics.ado
+f src/clate_dnn_diagnostics.sthlp
+f src/clate_dnn_plot.ado
+f src/clate_dnn_plot.sthlp
 f src/np_dnn.ado
 f src/np_dnn.sthlp
 f src/np_dnn_diagnostics.ado
@@ -45,4 +53,6 @@ f src/rdistnn.plugin
 f src/weights_dnn.ado
 f src/weights_dnn.sthlp
 f src/_rdistnn_mata.ado
+f src/_rdistnn_clate_mata.ado
+f src/_rdistnn_clate_signature.ado
 f src/_rdistnn_plot_helpers.ado

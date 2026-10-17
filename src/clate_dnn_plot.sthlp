@@ -1,0 +1,182 @@
+{smcl}
+{* *! version 0.1.0  2026-10-17}{...}
+{viewerjumpto "Syntax" "clate_dnn_plot##syntax"}{...}
+{viewerjumpto "Description" "clate_dnn_plot##description"}{...}
+{viewerjumpto "Plot types" "clate_dnn_plot##types"}{...}
+{viewerjumpto "Options" "clate_dnn_plot##options"}{...}
+{viewerjumpto "Stored results" "clate_dnn_plot##results"}{...}
+{viewerjumpto "Examples" "clate_dnn_plot##examples"}{...}
+
+{title:Title}
+
+{phang}
+{bf:clate_dnn_plot} {hline 2} Plot CLATE estimates, localization diagnostics,
+tuning sensitivity, overlap, weights, and influence
+
+{marker syntax}{...}
+{title:Syntax}
+
+{p 8 17 2}
+{cmd:clate_dnn_plot}
+[{cmd:,} {opt type(plot_type)} {opt view(view_type)} {opt style(style)}
+{opt targets(numlist)} {opt candidates(numlist)} {opt allcandidates}
+{opt xindex(#)} {opt level(#)} {opt sharelimits(# #)} {opt nlabel(#)}
+{opt logweights} {opt name(name)} {opt replace} {opt nodraw}
+{opt saving(filename)}]
+
+{marker description}{...}
+{title:Description}
+
+{pstd}
+{cmd:clate_dnn_plot} is the Stata-native plotting layer for active
+{help clate_dnn} estimates.  It covers the numerical views exposed by the R
+package's {cmd:plot_estimates()}, diagnostics plot, {cmd:plot_tuning()},
+{cmd:plot_overlap()}, {cmd:plot_weights()}, {cmd:plot_influence()}, and
+{cmd:plot_dashboard()} methods.
+
+{pstd}
+Estimate, diagnostics, tuning, and overlap plots use only stored {cmd:e()}
+results.  Effective-kernel and influence plots reconstruct observation-level
+weights from the current estimation data.  They verify that the original
+covariates, score variables, and estimation sample are still available and
+use the stored estimation-sample data signature to reject changed values or
+observation order, with refitting instructions. Stored-table views remain
+available when original data have changed.
+
+{pstd}
+The estimator uses canonical full-target {cmd:e(estimates)} and
+{cmd:e(se_targets)}, retaining missing ratios and standard errors at their
+original target positions. Plotting SEs and intervals are missing wherever
+the stored status marks Wald inference unavailable; finite estimate points
+remain visible and the canonical stored SE is unchanged.
+Undefined selected ratios make influence unavailable.
+These are pointwise Wald intervals without weak-IV-uniform guarantees; no
+weak-stage trimming or denominator regularization is applied.
+
+{pstd}
+Overlap arms and propensity refer to the instrument A, not the treatment D.
+Influence reconstructs both augmented signals from the original supplied
+nuisance variables (including zero m_d0 for one-sided fits), or from the two
+precomputed signal variables. It uses {it:w_ij(phi_Yi-theta_j*phi_Di)}.
+Keep the estimation sample, covariates and signal inputs unchanged when
+requesting observation-level views.
+
+{marker types}{...}
+{title:Plot types}
+
+{phang}
+{cmd:type(estimates)} (default) plots CLATE estimates with normal confidence
+bounds and a zero reference.  {opt style(auto)} chooses a profile for at least
+four targets varying in one coordinate, a forest layout for small non-profile
+target sets, and pointranges otherwise.  Candidate comparisons consume the
+stored tuning grid without refitting.
+
+{phang}
+{cmd:type(diagnostics)} combines effective sample size, maximum weight, and
+top-five weight-share panels.  Add {opt allcandidates} or {opt candidates()}
+to plot tuning-candidate diagnostics against kernel order {it:s}.  For target
+plots, the command also annotates the 90-percent physical-radius and top-five
+absolute score-contribution-share ranges.
+
+{phang}
+{cmd:type(tuning)} plots candidate estimates against {it:s}, marks the fitted
+order, and reuses stored candidate standard errors.  It requires a grid fit;
+the built-in sensitivity grid is lambda = (.3, .4, .5, .75), with .4 fitted
+by default.
+
+{phang}
+{cmd:type(overlap)} supports {cmd:view(mass)} (default) for instrument-1/instrument-0
+weighted mass, {cmd:view(armess)} for normalized within-arm instrument-1/instrument-0
+ESS, and {cmd:view(propensity)} for weighted propensity means with q10-q90
+ranges.  These views require a nuisance-based augmented IV fit.
+
+{phang}
+{cmd:type(weights)} supports {cmd:view(profile)} (default),
+{cmd:view(cumulative)}, and {cmd:view(kernel)}.  Candidate comparison is
+available for rank profiles.  Kernel views show target-specific weight against
+distance and require the original estimation data.
+
+{phang}
+{cmd:type(influence)} plots each observation's localized contribution
+{it:w_ij(phi_Yi-theta_j*phi_Di)} against distance and labels the largest absolute
+contributions.
+
+{phang}
+{cmd:type(dashboard)} combines estimates, available overlap panels,
+cumulative weights, and tuning sensitivity into a two-column graph.
+
+{marker options}{...}
+{title:Options}
+
+{phang}
+{opt type(plot_type)} selects {cmd:estimates}, {cmd:diagnostics},
+{cmd:tuning}, {cmd:overlap}, {cmd:weights}, {cmd:influence}, or
+{cmd:dashboard}.
+
+{phang}
+{opt view(view_type)} selects the overlap or weight view described above.
+For overlap, choose {cmd:mass}, {cmd:armess}, or {cmd:propensity}.
+
+{phang}
+{opt style(style)} selects {cmd:auto}, {cmd:profile}, {cmd:pointrange}, or
+{cmd:forest} for estimate panels.
+
+{phang}
+{opt xindex(#)} selects a target-coordinate column for profile x axes.
+The default 0 automatically detects exactly one varying coordinate.
+
+{phang}
+{opt targets(numlist)} restricts target-specific views.  Weight-kernel and
+influence views default to all targets through eight, then first/middle/last.
+
+{phang}
+{opt candidates(numlist)} selects tuning-candidate row numbers.
+{opt allcandidates} selects every available candidate.  These options require
+{cmd:tuningmode(grid)} and cannot be combined.
+
+{phang}
+{opt level(#)} sets confidence-bound coverage; default 95.
+
+{phang}
+{opt sharelimits(# #)} sets instrument-1-share overlap guides; default .1 .9.
+
+{phang}
+{opt nlabel(#)} selects how many largest absolute influence contributions to
+label per target; default 3.  Zero suppresses labels.
+
+{phang}
+{opt logweights} uses a logarithmic y axis for positive rank weights.
+
+{phang}
+{opt name(name)}, {opt replace}, and {opt nodraw} follow standard Stata graph
+semantics.  The default graph name is {cmd:clate_dnn_}{it:plot_type}.
+
+{phang}
+{opt saving(filename)} saves the final graph.  {cmd:.gph}, {cmd:.png},
+{cmd:.pdf}, {cmd:.svg}, {cmd:.tif}, {cmd:.jpg}, and {cmd:.eps} are recognized.
+
+{marker results}{...}
+{title:Stored results}
+
+{synoptset 18 tabbed}{...}
+{synopt:{cmd:r(type)}}plot type{p_end}
+{synopt:{cmd:r(view)}}resolved view or estimate style{p_end}
+{synopt:{cmd:r(graph)}}named graph{p_end}
+{synopt:{cmd:r(n_plotted)}}number of targets, candidates, or dashboard panels{p_end}
+{synopt:{cmd:r(saved)}}saved filename, if supplied{p_end}
+{synopt:{cmd:r(plot_data)}}selected estimate/tuning rows with estimate, se,
+ci_lower, ci_upper; for influence: target_id, obs_id, rank, distance,
+weight, score, contribution, phi_y, phi_d (score is phi_y-theta*phi_d){p_end}
+
+{marker examples}{...}
+{title:Examples}
+
+{phang2}{cmd:. clate_dnn_plot}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(estimates) style(profile)}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(diagnostics)}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(tuning) allcandidates}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(overlap) view(mass)}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(overlap) view(armess)}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(weights) view(kernel) targets(1 3)}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(influence) nlabel(3)}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(dashboard) saving(clate_dashboard.pdf) replace}{p_end}

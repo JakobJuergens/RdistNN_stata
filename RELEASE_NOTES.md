@@ -1,5 +1,21 @@
 # Release Notes
 
+## Unreleased — feature/clate
+
+- Add experimental `clate_dnn` for augmented binary-IV conditional LATE,
+  externally supplied nuisance predictions, explicit one-sided compliance,
+  or precomputed paired reduced-form/first-stage signals.
+- Reuse CATE's exact/asymptotic weights, general k, fixed L2/Mahalanobis
+  geometry, single/batch targets and integrated tuning grids. Paired frozen
+  deletions retain numerator/denominator and cross-target covariance.
+- Add CLATE diagnostics and all CATE plot families with instrument-overlap
+  and paired-score labels, plus installed help and an oracle-nuisance example.
+- Preserve signed/zero first-stage results with component/status tables;
+  undefined target coefficients are omitted from Stata's coefficient post
+  while remaining visible in the full canonical target tables.
+- Add analytic, validation, grid, postestimation and fixed R-reference tests.
+  RdistNN remains the numerical reference implementation.
+
 ## 0.1.0 — 2026-10-14
 
 - Initial public release of CATE and nonparametric regression with DNN weights,
