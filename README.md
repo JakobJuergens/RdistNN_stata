@@ -32,6 +32,13 @@ preserved.
 | `weights_dnn` | Compute and export exact or asymptotic DNN rank weights |
 | `plqr_dnn` | Experimental PLQR score moments at supplied coefficients |
 
+CATE, CLATE and regression share summary tables, diagnostic selection and
+plot option/return conventions. Their scientific views retain treatment,
+instrument and outcome labels. See the
+[common postestimation contract](docs/command-guide.md#common-reporting-and-postestimation)
+for returned tables, available views and selection rules, and the
+[verification receipt](docs/estimator-coherence-verification.md) for evidence.
+
 ## Installation
 
 The `feature/clate` development branch adds conditional LATE; it is not part

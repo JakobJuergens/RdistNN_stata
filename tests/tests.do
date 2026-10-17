@@ -67,6 +67,9 @@ local test_files ///
     test-clate-dnn-tuning    ///
     test-clate-r-parity      ///
     test-clate-dnn-postestimation ///
+    test-estimator-reporting ///
+    test-estimator-diagnostics ///
+    test-estimator-plots      ///
     test-plqr-dnn-core       ///
     test-plqr-dnn-methods    ///
     test-plqr-dnn-errors     ///

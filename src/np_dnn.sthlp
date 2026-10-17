@@ -127,6 +127,26 @@ asymptotic beta-order-statistic approximation.
 {marker results}{...}
 {title:Stored results}
 
+{pstd}
+CATE, CLATE and NP regression share a reporting contract. Fit and replay
+return a genuine 9-by-m {cmd:r(table)} with rows {cmd:b se z pvalue ll ul df crit eform},
+and an m-by-6 {cmd:r(summary)} with columns
+{cmd:estimate std_error z pvalue ci_lower ci_upper}. {cmd:r(level)} records
+the confidence level. These are temporary r-class results; copy them before
+running another r-class command. Replay with {cmd:level()} changes reported
+bounds without changing the fit. Full target order is retained, including
+undefined CLATE ratios. {cmd:nose} leaves uncertainty missing.
+
+{pstd}
+Common stored matrices are {cmd:e(estimates)} and {cmd:e(se_targets)}
+(1-by-m) and {cmd:e(estimate_vcov)} (m-by-m); existing names remain available.
+{cmd:e(signature_vars)} and {cmd:e(ordered_signature)} support value and
+observation-order checks for observation-level plots. Stored-result plots
+and summaries do not require the original data. CLATE retains its status
+mask: zero score variance can have SE zero with no Wald statistic or interval.
+For CATE/NP, zero variance gives point confidence bounds; Stata represents
+an infinite z statistic as missing.
+
 {pstd}{cmd:np_dnn} stores the following in {cmd:e()}:{p_end}
 
 {synoptset 25}{...}

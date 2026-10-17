@@ -1,0 +1,34 @@
+*! version 0.1.0  2026-10-17
+program define _rdistnn_estimation_state, eclass
+    version 17
+    syntax varlist(numeric)
+    tempname estimates ses covariance
+    local m = e(m)
+    if "`e(cmd)'" == "clate_dnn" {
+        matrix `estimates' = e(estimates)
+        matrix `ses' = e(se_targets)
+        // The localization fit is delegated to CATE; never retain its covariance.
+        matrix `covariance' = e(theta_vcov)
+    }
+    else {
+        matrix `estimates' = e(b)
+        matrix `ses' = J(1,`m',.)
+        matrix `covariance' = J(`m',`m',.)
+        if "`e(se_method)'" != "none" {
+            matrix `covariance' = e(V)
+            forvalues j=1/`m' {
+                matrix `ses'[1,`j'] = sqrt(el(`covariance',`j',`j'))
+            }
+        }
+        matrix colnames `ses' = `: colnames `estimates''
+        matrix colnames `covariance' = `: colnames `estimates''
+        matrix rownames `covariance' = `: colnames `estimates''
+    }
+    ereturn matrix estimates = `estimates', copy
+    ereturn matrix se_targets = `ses', copy
+    ereturn matrix estimate_vcov = `covariance', copy
+    quietly signestimationsample `varlist'
+    quietly _rdistnn_sample_signature `varlist' if e(sample)
+    ereturn local ordered_signature "`r(signature)'"
+    ereturn local signature_vars "`varlist'"
+end

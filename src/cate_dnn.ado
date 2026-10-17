@@ -698,36 +698,15 @@ program define cate_dnn, eclass
     ereturn local  cmd      "cate_dnn"
     ereturn local  cmdline  "cate_dnn `0'"
 
+    local signature_vars `xvars' `input_var' `treat_var' `propensity_var' `m0_var' `m1_var' `m_var'
+    local signature_vars : list uniq signature_vars
+    quietly _rdistnn_estimation_state `signature_vars'
     _cate_dnn_Display, level(`level')
 end
 
 // ── display subroutine ────────────────────────────────────────────────
-program define _cate_dnn_Display
-    syntax [, Level(cilevel)]
-
-    di ""
-    di as text "DNN Conditional Average Treatment Effect Estimator"
-    if e(m) == 1 & "`e(x0)'" != "" {
-        di as text "Evaluation point x0: " as result "`e(x0)'"
-    }
-    else {
-        di as text "Evaluation targets: " as result e(m) ///
-           as text "  (see e(targets))"
-    }
-    di as text "Covariates: "          as result "`e(xvars)'"
-    if e(m) == 1 {
-        di as text "Distance: " as result "`e(distance)'" ///
-           as text "  k = " as result e(k) ///
-           as text "  s = " as result e(s) ///
-           as text "  ess = " as result %6.2f e(ess)
-    }
-    else {
-        di as text "Distance: " as result "`e(distance)'" ///
-           as text "  k = " as result e(k) ///
-           as text "  s = " as result e(s) ///
-           as text "  ess range = " as result %6.2f e(neff_min) ///
-           as text " to " as result %6.2f e(neff_max)
-    }
-    di ""
-    ereturn display, level(`level')
+program define _cate_dnn_Display, rclass
+    version 17
+    _rdistnn_report `0'
+    return add
 end

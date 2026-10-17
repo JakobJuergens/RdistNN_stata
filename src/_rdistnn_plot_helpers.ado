@@ -39,22 +39,22 @@ program define _cate_dnn_plot_estimates, rclass
     }
 
     if !`use_candidates' {
-        if "`e(cmd)'" == "clate_dnn" {
+        local emats : e(matrices)
+        local canonical : list posof "estimates" in emats
+        if `canonical' {
             matrix `bmat' = e(estimates)'
             matrix `semat' = e(se_targets)'
-            matrix `statusmask' = e(status)
-            forvalues j=1/`m' {
-                if el(`statusmask',`j',5)!=1 matrix `semat'[`j',1] = .
-            }
         }
         else {
-        matrix `bmat' = e(b)'
-        capture matrix `vmat' = e(V)
-        if _rc matrix `semat' = J(`m', 1, .)
-        else if rowsof(`vmat') != `m' | colsof(`vmat') != `m' {
-            matrix `semat' = J(`m', 1, .)
+            // Legacy CATE/NP saved estimates retain coefficient and covariance aliases.
+            matrix `bmat' = e(b)'
+            matrix `vmat' = e(V)
+            if rowsof(`vmat')!=`m' | colsof(`vmat')!=`m' matrix `semat' = J(`m',1,.)
+            else mata: st_matrix("`semat'", sqrt(diagonal(st_matrix("`vmat'"))))
         }
-        else mata: st_matrix("`semat'", sqrt(diagonal(st_matrix("`vmat'"))))
+        if "`e(jackknife)'"=="none" | "`e(se_method)'"=="none" matrix `semat' = J(`m',1,.)
+        if "`e(cmd)'"=="clate_dnn" {
+            matrix `statusmask' = e(status)
         }
         mata: st_matrix("`plotmat'", rdistnn_plot_est_default(st_matrix("`targets_mat'"), st_matrix("`bmat'"), st_matrix("`semat'"), `=e(s)', `z'))
         local selected "0"
@@ -69,13 +69,6 @@ program define _cate_dnn_plot_estimates, rclass
         matrix `grid_se' = e(tuning_se)
         if "`e(cmd)'" == "clate_dnn" {
             matrix `statusmask' = e(tuning_target_status)
-            forvalues r=1/`=rowsof(`statusmask')' {
-                if el(`statusmask',`r',7)!=1 {
-                    local g = el(`statusmask',`r',1)
-                    local t = el(`statusmask',`r',2)
-                    if `g'<. & `t'<. matrix `grid_se'[`g',`t'] = .
-                }
-            }
         }
         local gmax = rowsof(`candidate_meta')
         local selected "`candidates'"
@@ -96,6 +89,12 @@ program define _cate_dnn_plot_estimates, rclass
             }
         }
         mata: st_matrix("`plotmat'", rdistnn_plot_est_grid(st_matrix("`targets_mat'"), st_matrix("`candidate_meta'"), st_matrix("`grid_est'"), st_matrix("`grid_se'"), strtoreal(tokens("`selected'"))', `z'))
+    }
+    if "`e(cmd)'"=="clate_dnn" {
+        local cidx 0
+        if `use_candidates' local cidx = `p'+1
+        _rdistnn_plot_wald_bounds, matrix(`plotmat') status(`statusmask') ///
+            target(`=`p'+4') lower(`=`p'+7') upper(`=`p'+8') candidate(`cidx')
     }
     local ng : word count `selected'
 
@@ -152,10 +151,8 @@ program define _cate_dnn_plot_estimates, rclass
         exit 198
     }
 
-    // StataNow 19 collapses rarea fill polygons when lcolor(none) is used.
-    // Keep the CLATE confidence band visible with its default subtle outline.
-    local area_outline "lcolor(none)"
-    if "`e(cmd)'" == "clate_dnn" local area_outline ""
+    // Keep the confidence fill visible in StataNow 19; lcolor(none)
+    // collapses rarea polygons in SVG and raster export on that version.
     local plots ""
     local legend_order ""
     local layercount 0
@@ -171,9 +168,9 @@ program define _cate_dnn_plot_estimates, rclass
             local symbol "O"
         }
         if "`style'" == "profile" {
-            capture assert missing(se) if candidate_id == `g'
+            capture assert missing(ci_lower) | missing(ci_upper) if candidate_id == `g'
             if _rc {
-                local plots `"`plots' (rarea ci_lower ci_upper `axis' if candidate_id==`g', sort color(gs12%45) `area_outline')"'
+                local plots `"`plots' (rarea ci_lower ci_upper `axis' if candidate_id==`g', sort color(gs12%45))"'
                 local ++layercount
             }
             local plots `"`plots' (line estimate `axis' if candidate_id==`g', sort pstyle(p`ps') lwidth(`width'))"'
@@ -182,7 +179,7 @@ program define _cate_dnn_plot_estimates, rclass
         else if "`style'" == "forest" {
             quietly gen double __y`plotnum' = target_id + ///
                 (`plotnum' - (`ng' + 1)/2) * .12
-            capture assert missing(se) if candidate_id == `g'
+            capture assert missing(ci_lower) | missing(ci_upper) if candidate_id == `g'
             if _rc {
                 local plots `"`plots' (rcap ci_lower ci_upper __y`plotnum' if candidate_id==`g', horizontal pstyle(p`ps'))"'
                 local ++layercount
@@ -191,7 +188,7 @@ program define _cate_dnn_plot_estimates, rclass
             local ++layercount
         }
         else {
-            capture assert missing(se) if candidate_id == `g'
+            capture assert missing(ci_lower) | missing(ci_upper) if candidate_id == `g'
             if _rc {
                 local plots `"`plots' (rcap ci_lower ci_upper `axis' if candidate_id==`g', pstyle(p`ps'))"'
                 local ++layercount
@@ -220,10 +217,16 @@ program define _cate_dnn_plot_estimates, rclass
             title("`plot_title'") subtitle("`subtitle'") ///
             `legendopt' `nameopt' `drawopt'
     }
-    if "`e(cmd)'" == "clate_dnn" quietly mkmat `xnames' candidate_id s ///
+    quietly keep if !missing(estimate)
+    quietly count
+    local nrows = r(N)
+    if `nrows'>0 quietly mkmat `xnames' candidate_id s ///
         is_default target_id estimate se ci_lower ci_upper, matrix(`plotmat')
     restore
-    if "`e(cmd)'" == "clate_dnn" return matrix plot_data = `plotmat'
+    return scalar n_rows = `nrows'
+    return scalar n_omitted = `nplot'-`nrows'
+    return local selected_targets "`target_levels'"
+    if `nrows'>0 return matrix plot_data = `plotmat'
     return scalar n_plotted = `nplot'
     return local view "`style'"
 end
@@ -247,13 +250,6 @@ program define _cate_dnn_plot_tuning, rclass
     matrix `ses' = e(tuning_se)
     if "`e(cmd)'" == "clate_dnn" {
         matrix `statusmask' = e(tuning_target_status)
-        forvalues r=1/`=rowsof(`statusmask')' {
-            if el(`statusmask',`r',7)!=1 {
-                local g = el(`statusmask',`r',1)
-                local t = el(`statusmask',`r',2)
-                if `g'<. & `t'<. matrix `ses'[`g',`t'] = .
-            }
-        }
     }
     local gmax = rowsof(`meta')
     local m = e(m)
@@ -292,12 +288,14 @@ program define _cate_dnn_plot_tuning, rclass
         else local target_list "1 `=ceil(`m'/2)' `m'"
     }
     mata: st_matrix("`plot'", rdistnn_plot_tuning(st_matrix("`meta'"), st_matrix("`est'"), st_matrix("`ses'"), strtoreal(tokens("`selected'"))', strtoreal(tokens("`target_list'"))', `z'))
+    if "`e(cmd)'"=="clate_dnn" _rdistnn_plot_wald_bounds, ///
+        matrix(`plot') status(`statusmask') target(5) lower(8) upper(9) candidate(1)
     matrix colnames `plot' = candidate_id s lambda is_default target_id ///
         estimate se ci_lower ci_upper
     preserve
     clear
     quietly svmat double `plot', names(col)
-    capture assert missing(se)
+    capture assert missing(ci_lower) | missing(ci_upper)
     local hasse = (_rc != 0)
     if `hasse' {
         twoway (rcap ci_lower ci_upper s, lcolor(gs9)) ///
@@ -318,8 +316,16 @@ program define _cate_dnn_plot_tuning, rclass
             legend(order(1 "candidate path" 2 "fitted s")) ///
             `nameopt' `drawopt'
     }
+    quietly keep if !missing(estimate)
+    quietly count
+    local nrows = r(N)
+    if `nrows'>0 quietly mkmat candidate_id s lambda is_default target_id estimate se ci_lower ci_upper, matrix(`plot')
     restore
-    if "`e(cmd)'" == "clate_dnn" return matrix plot_data = `plot'
+    return scalar n_rows = `nrows'
+    local nt : word count `target_list'
+    return scalar n_omitted = `ng'*`nt'-`nrows'
+    return local selected_targets "`target_list'"
+    if `nrows'>0 return matrix plot_data = `plot'
     return scalar n_plotted = `ng'
     return local view "tuning"
 end
@@ -391,6 +397,14 @@ program define _cate_dnn_plot_diagnostics, rclass
         local guide = .9 * e(N)
     }
 
+    local oldnames : colnames `plot'
+    if !`candidate_mode' {
+        mata: st_matrix("`plot'", (st_matrix("`plot'"), st_matrix("`plot'")[,1], J(rows(st_matrix("`plot'")),1,0)))
+    }
+    else {
+        mata: st_matrix("`plot'", (st_matrix("`plot'"), J(rows(st_matrix("`plot'")),1,.), strtoreal(tokens("`selected'"))'))
+    }
+    matrix colnames `plot' = `oldnames' target_id candidate_id
     preserve
     clear
     quietly svmat double `plot', names(col)
@@ -425,6 +439,7 @@ program define _cate_dnn_plot_diagnostics, rclass
             as result %6.3f r(min) as text " to " as result %6.3f r(max)
     }
     restore
+    return matrix plot_data = `plot'
     return scalar n_plotted = `nplot'
     if `candidate_mode' return local view "candidates"
     else return local view "targets"
@@ -470,19 +485,23 @@ program define _cate_dnn_plot_overlap, rclass
     local m = e(m)
     local p = e(p)
     local xvars "`e(xvars)'"
+    local xnames ""
+    forvalues j=1/`p' {
+        local xnames "`xnames' x0_`j'"
+    }
     if "`view'" == "mass" {
         mata: st_matrix("`plot'", rdistnn_plot_overlap(st_matrix("`diag'"), st_matrix("`targets_mat'"), (12,13,14,15)))
-        matrix colnames `plot' = `: colnames `targets_mat'' target_id ///
+        matrix colnames `plot' = `xnames' target_id ///
             overlap_available treated_mass control_mass treated_share
     }
     else if "`view'" == "armess" {
         mata: st_matrix("`plot'", rdistnn_plot_overlap(st_matrix("`diag'"), st_matrix("`targets_mat'"), (21,22,23)))
-        matrix colnames `plot' = `: colnames `targets_mat'' target_id ///
+        matrix colnames `plot' = `xnames' target_id ///
             arm_ess_available treated_ess control_ess
     }
     else {
         mata: st_matrix("`plot'", rdistnn_plot_overlap(st_matrix("`diag'"), st_matrix("`targets_mat'"), (16,17,18,19)))
-        matrix colnames `plot' = `: colnames `targets_mat'' target_id ///
+        matrix colnames `plot' = `xnames' target_id ///
             propensity_available propensity_mean propensity_q10 propensity_q90
     }
     preserve
@@ -496,28 +515,36 @@ program define _cate_dnn_plot_overlap, rclass
         quietly keep if __keep
         quietly drop __keep
     }
+    local available "overlap_available"
+    if "`view'"=="armess" local available "arm_ess_available"
+    if "`view'"=="propensity" local available "propensity_available"
+    quietly keep if `available'==1
     quietly count
+    if r(N)==0 {
+        restore
+        di as error "Selected overlap diagnostics are unavailable for this fit."
+        exit 498
+    }
     local nplot = r(N)
 
     local axis "target_id"
     local axis_label "Target"
     local varying ""
-    if `xindex' > 0 {
-        local axis : word `xindex' of `xvars'
-        local axis_label "`axis'"
+    if `xindex'>0 {
+        local axis "x0_`xindex'"
+        local axis_label : word `xindex' of `xvars'
     }
     else {
-        local j = 0
-        foreach xv of local xvars {
-            local ++j
-            quietly levelsof `xv', local(vals)
+        forvalues j=1/`p' {
+            quietly levelsof x0_`j', local(vals)
             local nv : word count `vals'
-            if `nv' > 1 local varying "`varying' `xv'"
+            if `nv'>1 local varying "`varying' `j'"
         }
         local nvary : word count `varying'
-        if `nvary' == 1 {
-            local axis "`varying'"
-            local axis_label "`axis'"
+        if `nvary'==1 {
+            local coordinate : word 1 of `varying'
+            local axis "x0_`coordinate'"
+            local axis_label : word `coordinate' of `xvars'
         }
     }
 
@@ -573,7 +600,18 @@ program define _cate_dnn_plot_overlap, rclass
             xtitle("`axis_label'") ytitle("Weighted propensity (q10-q90)") ///
             title("`propensity_title'") legend(off) `nameopt' `drawopt'
     }
+    local cols : colnames `plot'
+    quietly mkmat `cols', matrix(`plot')
+    if "`e(cmd)'"=="clate_dnn" {
+        local cols : subinstr local cols "treated_mass" "instrument_1_mass", all
+        local cols : subinstr local cols "control_mass" "instrument_0_mass", all
+        local cols : subinstr local cols "treated_share" "instrument_1_share", all
+        local cols : subinstr local cols "treated_ess" "instrument_1_ess", all
+        local cols : subinstr local cols "control_ess" "instrument_0_ess", all
+        matrix colnames `plot' = `cols'
+    }
     restore
+    return matrix plot_data = `plot'
     return scalar n_plotted = `nplot'
     return local view "`view'"
 end
@@ -671,7 +709,9 @@ program define _cate_dnn_plot_weights, rclass
                 xtitle("Rank") ytitle("Cumulative weight share") ///
                 title("DNN weight concentration") `nameopt' `drawopt'
         }
+        quietly mkmat rank weight cum_share candidate_id s is_default, matrix(`plot')
         restore
+        return matrix plot_data = `plot'
         return scalar n_plotted = `nselected'
         return local view "`view'"
         exit
@@ -712,6 +752,7 @@ program define _cate_dnn_plot_weights, rclass
         by(target_id, note("") title("DNN effective kernel")) ///
         xtitle("Distance") ytitle("DNN weight") `nameopt' `drawopt'
     restore
+    return matrix plot_data = `plot'
     return scalar n_plotted = `ntargets'
     return local view "kernel"
 end
@@ -866,7 +907,7 @@ program define _cate_dnn_plot_influence, rclass
         yline(0, lpattern(dash) lcolor(gs8)) xtitle("Distance") ///
         ytitle("`contribution_label'") `nameopt' `drawopt'
     restore
-    if `isclate' return matrix plot_data = `plot'
+    return matrix plot_data = `plot'
     return scalar n_plotted = `ntargets'
     return local view "influence"
 end
@@ -884,13 +925,17 @@ program define _cate_dnn_plot_dashboard, rclass
     if "`style'" != "" local styleopt "style(`style')"
     tempname gest gover gprop gdiag gweight gtune diagcheck
     local graphs ""
+    local panels ""
+    tempname panel_info
     local npanels 0
     local has_overlap 0
 
-    capture quietly _cate_dnn_plot_estimates, name(`gest') replace nodraw ///
+    quietly _cate_dnn_plot_estimates, name(`gest') replace nodraw ///
         level(`level') xindex(`xindex') `styleopt'
     if !_rc {
-        local graphs "`graphs' `gest'"
+        _rdistnn_plot_add_panel, matrix(`panel_info') id(`=`npanels'+1')
+                local panels "`panels' estimates"
+                local graphs "`graphs' `gest'"
         local ++npanels
     }
     capture matrix `diagcheck' = e(diagnostics)
@@ -899,6 +944,8 @@ program define _cate_dnn_plot_dashboard, rclass
             capture quietly _cate_dnn_plot_overlap, name(`gover') replace nodraw ///
                 view(mass) xindex(`xindex')
             if !_rc {
+                _rdistnn_plot_add_panel, matrix(`panel_info') id(`=`npanels'+1')
+                local panels "`panels' overlap_mass"
                 local graphs "`graphs' `gover'"
                 local ++npanels
                 local has_overlap 1
@@ -908,6 +955,8 @@ program define _cate_dnn_plot_dashboard, rclass
             capture quietly _cate_dnn_plot_overlap, name(`gprop') replace nodraw ///
                 view(propensity) xindex(`xindex')
             if !_rc {
+                _rdistnn_plot_add_panel, matrix(`panel_info') id(`=`npanels'+1')
+                local panels "`panels' overlap_propensity"
                 local graphs "`graphs' `gprop'"
                 local ++npanels
                 local has_overlap 1
@@ -917,21 +966,27 @@ program define _cate_dnn_plot_dashboard, rclass
     if !`has_overlap' {
         capture quietly _cate_dnn_plot_diagnostics, name(`gdiag') replace nodraw
         if !_rc {
-            local graphs "`graphs' `gdiag'"
+            _rdistnn_plot_add_panel, matrix(`panel_info') id(`=`npanels'+1')
+                local panels "`panels' diagnostics"
+                local graphs "`graphs' `gdiag'"
             local ++npanels
         }
     }
     capture quietly _cate_dnn_plot_weights, name(`gweight') replace nodraw ///
         view(cumulative)
     if !_rc {
-        local graphs "`graphs' `gweight'"
+        _rdistnn_plot_add_panel, matrix(`panel_info') id(`=`npanels'+1')
+                local panels "`panels' weights_cumulative"
+                local graphs "`graphs' `gweight'"
         local ++npanels
     }
     if "`e(tuning_mode)'" == "grid" {
         capture quietly _cate_dnn_plot_tuning, name(`gtune') replace nodraw ///
             level(`level') allcandidates
         if !_rc {
-            local graphs "`graphs' `gtune'"
+            _rdistnn_plot_add_panel, matrix(`panel_info') id(`=`npanels'+1')
+                local panels "`panels' tuning"
+                local graphs "`graphs' `gtune'"
             local ++npanels
         }
     }
@@ -944,6 +999,161 @@ program define _cate_dnn_plot_dashboard, rclass
     graph combine `graphs', cols(2) title("`dashboard_title'") ///
         note("n=`=e(N)', m=`=e(m)', k=`=e(k)', s=`=e(s)', distance=`e(distance)', jackknife=`e(jackknife)'") ///
         `nameopt' `drawopt'
+    return matrix panel_info = `panel_info'
+    return local panels "`panels'"
     return scalar n_plotted = `npanels'
     return local view "dashboard"
+end
+
+program define _np_dnn_plot_outcome, rclass
+    version 17
+    syntax , NAME(name) XINDEX(integer) ///
+        [TARGETS(numlist integer >=1) REPLACE NODRAW]
+
+    local nameopt "name(`name')"
+    if "`replace'" != "" local nameopt "name(`name', replace)"
+    local drawopt ""
+    if "`nodraw'" != "" local drawopt "nodraw"
+    tempname targets_mat diag plot
+    matrix `targets_mat' = e(targets)
+    matrix `diag' = e(diagnostics)
+    local p = e(p)
+    mata: st_matrix("`plot'", (st_matrix("`targets_mat'"), ///
+        (1::rows(st_matrix("`targets_mat'"))), ///
+        st_matrix("`diag'")[,13..17]))
+    local xnames ""
+    forvalues j = 1/`p' {
+        local xnames "`xnames' x0_`j'"
+    }
+    matrix colnames `plot' = `xnames' target_id weighted_mean_y ///
+        weighted_sd_y weighted_y_q10 weighted_y_q50 weighted_y_q90
+
+    preserve
+    clear
+    quietly svmat double `plot', names(col)
+    if "`targets'" != "" {
+        quietly gen byte __keep = 0
+        foreach j of local targets {
+            quietly replace __keep = 1 if target_id == `j'
+        }
+        quietly keep if __keep
+        quietly drop __keep
+    }
+    quietly count
+    local nplot = r(N)
+
+    local axis "target_id"
+    local axis_label "Target"
+    local varying ""
+    if `xindex' > 0 local varying "x0_`xindex'"
+    else {
+        forvalues j = 1/`p' {
+            quietly levelsof x0_`j', local(vals)
+            local nv : word count `vals'
+            if `nv' > 1 local varying "`varying' x0_`j'"
+        }
+        local nvary : word count `varying'
+        if `nvary' != 1 local varying ""
+    }
+    if "`varying'" != "" {
+        local axis "`varying'"
+        local j = subinstr("`varying'", "x0_", "", .)
+        local axis_label : word `j' of `e(xvars)'
+    }
+
+    if "`varying'" != "" & `nplot' >= 4 {
+        twoway (rarea weighted_y_q10 weighted_y_q90 `axis', sort ///
+                color(gs12%45)) ///
+            (line weighted_mean_y `axis', sort lcolor(navy) lwidth(medthick)), ///
+            xtitle("`axis_label'") ytitle("Localized outcome") ///
+            title("DNN localized outcome distribution") ///
+            legend(order(2 "weighted mean" 1 "weighted 10th-90th percentiles")) ///
+            `nameopt' `drawopt'
+        local view "profile"
+    }
+    else {
+        twoway (rcap weighted_y_q10 weighted_y_q90 `axis', lcolor(gs8)) ///
+            (scatter weighted_mean_y `axis', mcolor(navy) msymbol(O)), ///
+            xtitle("`axis_label'") ytitle("Localized outcome") ///
+            title("DNN localized outcome distribution") ///
+            legend(order(2 "weighted mean" 1 "weighted 10th-90th percentiles")) ///
+            `nameopt' `drawopt'
+        local view "pointrange"
+    }
+    quietly mkmat `xnames' target_id weighted_mean_y weighted_sd_y ///
+        weighted_y_q10 weighted_y_q50 weighted_y_q90, matrix(`plot')
+    restore
+    return matrix plot_data = `plot'
+    return scalar n_plotted = `nplot'
+    return local view "`view'"
+end
+
+program define _np_dnn_plot_dashboard, rclass
+    version 17
+    syntax , NAME(name) Level(cilevel) XINDEX(integer) ///
+        [STYLE(string) REPLACE NODRAW]
+
+    local nameopt "name(`name')"
+    if "`replace'" != "" local nameopt "name(`name', replace)"
+    local drawopt ""
+    if "`nodraw'" != "" local drawopt "nodraw"
+    local style_opt ""
+    if "`style'" != "" local style_opt "style(`style')"
+    tempname gest gdiag gout gweights gtune panel_info
+
+    quietly _cate_dnn_plot_estimates, name(`gest') replace nodraw ///
+        level(`level') xindex(`xindex') `style_opt'
+    _rdistnn_plot_add_panel, matrix(`panel_info') id(1)
+    quietly _cate_dnn_plot_diagnostics, name(`gdiag') replace nodraw
+    _rdistnn_plot_add_panel, matrix(`panel_info') id(2)
+    quietly _np_dnn_plot_outcome, name(`gout') replace nodraw xindex(`xindex')
+    _rdistnn_plot_add_panel, matrix(`panel_info') id(3)
+    quietly _cate_dnn_plot_weights, name(`gweights') replace nodraw view(cumulative)
+    _rdistnn_plot_add_panel, matrix(`panel_info') id(4)
+    local graphs "`gest' `gdiag' `gout' `gweights'"
+    local panels "estimates diagnostics outcome weights_cumulative"
+    local npanels 4
+    if "`e(tuning_mode)'" == "grid" {
+        quietly _cate_dnn_plot_tuning, name(`gtune') replace nodraw level(`level')
+        _rdistnn_plot_add_panel, matrix(`panel_info') id(5)
+        local panels "`panels' tuning"
+        local graphs "`graphs' `gtune'"
+        local npanels 5
+    }
+    graph combine `graphs', cols(2) title("DNN nonparametric-regression dashboard") ///
+        `nameopt' `drawopt'
+    return matrix panel_info = `panel_info'
+    return local panels "`panels'"
+    return scalar n_plotted = `npanels'
+    return local view "dashboard"
+end
+
+// R retains the stored CLATE SE even when a status rules out Wald bounds.
+program define _rdistnn_plot_wald_bounds
+    version 17
+    syntax , MATRIX(name) STATUS(name) TARGET(integer) LOWER(integer) ///
+        UPPER(integer) [CANDIDATE(integer 0)]
+    tempname work statuses available
+    matrix `work' = `matrix'
+    matrix `statuses' = `status'
+    if `candidate'==0 {
+        mata: st_matrix("`available'", st_matrix("`statuses'")[st_matrix("`work'")[,`target'],5])
+    }
+    else {
+        mata: _rdnn_pp=st_matrix("`work'"); _rdnn_ss=st_matrix("`statuses'"); _rdnn_av=J(rows(_rdnn_pp),1,0)
+        forvalues i=1/`=rowsof(`statuses')' {
+            local g = el(`statuses',`i',1)
+            local t = el(`statuses',`i',2)
+            // Missing statuses belong to skipped candidates, never to a valid Wald row.
+            local valid = (el(`statuses',`i',7)==1)
+            mata: _rdnn_av = _rdnn_av :+ (_rdnn_pp[,`candidate']:==`g') :* (_rdnn_pp[,`target']:==`t') :* `valid'
+        }
+        mata: st_matrix("`available'",_rdnn_av)
+    }
+    forvalues i=1/`=rowsof(`work')' {
+        if el(`available',`i',1)!=1 {
+            matrix `matrix'[`i',`lower'] = .
+            matrix `matrix'[`i',`upper'] = .
+        }
+    }
 end

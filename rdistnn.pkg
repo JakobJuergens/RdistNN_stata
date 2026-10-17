@@ -56,3 +56,10 @@ f src/_rdistnn_mata.ado
 f src/_rdistnn_clate_mata.ado
 f src/_rdistnn_clate_signature.ado
 f src/_rdistnn_plot_helpers.ado
+f src/_rdistnn_sample_signature.ado
+f src/_rdistnn_estimation_state.ado
+f src/_rdistnn_report.ado
+f src/_rdistnn_report_header.ado
+f src/_rdistnn_diagnostics.ado
+f src/_rdistnn_diagnostics_save.ado
+f src/_rdistnn_plot_dispatch.ado

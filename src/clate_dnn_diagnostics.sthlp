@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0  2026-10-17}{...}
+{* *! version 0.1.2  2026-10-17}{...}
 {viewerjumpto "Syntax" "clate_dnn_diagnostics##syntax"}{...}
 {viewerjumpto "Description" "clate_dnn_diagnostics##description"}{...}
 {viewerjumpto "Options" "clate_dnn_diagnostics##options"}{...}
@@ -71,8 +71,8 @@ guarantees.
 {title:Options}
 
 {phang}
-{opt targets(numlist)} selects original target row numbers. It cannot be
-combined with candidate diagnostics.
+{opt targets(numlist)} selects original target row numbers in the supplied
+order. It cannot be combined with {opt candidates()} or {opt allcandidates}.
 
 {phang}
 {opt candidates(numlist)} selects tuning-candidate row numbers.  Active
@@ -80,7 +80,7 @@ estimates must come from {cmd:clate_dnn, tuningmode(grid)}.
 
 {phang}
 {opt allcandidates} reports every stored tuning candidate, including
-infeasible rows.
+infeasible rows. It cannot be combined with {opt candidates()}.
 
 {phang}
 {opt detail} displays the full table rather than the compact diagnostic
@@ -96,6 +96,7 @@ appending component and status columns for target scope.
 
 {synoptset 22 tabbed}{...}
 {synopt:{cmd:r(diagnostics)}}full selected diagnostics matrix{p_end}
+{synopt:{cmd:r(localization)}}common localization matrix (target scope only){p_end}
 {synopt:{cmd:r(components)}}target_id, reduced_form, first_stage, numerator_se,
 denominator_se, component_covariance, component_correlation,
 denominator_stat, estimate (target scope only){p_end}
@@ -103,12 +104,25 @@ denominator_stat, estimate (target scope only){p_end}
 {synopt:{cmd:r(compact)}}compact displayed matrix{p_end}
 {synopt:{cmd:r(n_rows)}}number of reported rows{p_end}
 {synopt:{cmd:r(scope)}}{cmd:targets} or {cmd:candidates}{p_end}
+{synopt:{cmd:r(selected)}}selected original row numbers in returned order{p_end}
 {synopt:{cmd:r(saved)}}saved filename, if supplied{p_end}
+
+{pstd}
+{cmd:r(localization)} contains {cmd:target_id}, target coordinates
+{cmd:x0_1}, ..., {cmd:x0_p}, then {cmd:ess}, {cmd:max_weight},
+{cmd:top1_weight_share}, {cmd:top5_weight_share}, {cmd:top10_weight_share},
+{cmd:n_nonzero_weight}, {cmd:distance_available}, {cmd:radius_rank_k},
+{cmd:radius_rank_s}, {cmd:weighted_mean_distance}, and
+{cmd:weighted_median_distance}. This schema is shared with CATE and NP.
+IDs and row labels retain their original target identities after selection;
+component and status rows follow the same selection order, including targets
+with undefined ratios.
 
 {marker examples}{...}
 {title:Examples}
 
 {phang2}{cmd:. clate_dnn_diagnostics}{p_end}
 {phang2}{cmd:. clate_dnn_diagnostics, detail}{p_end}
+{phang2}{cmd:. clate_dnn_diagnostics, targets(3 1)}{p_end}
 {phang2}{cmd:. clate_dnn_diagnostics, allcandidates}{p_end}
 {phang2}{cmd:. clate_dnn_diagnostics, saving(cate_diagnostics.dta) replace}{p_end}

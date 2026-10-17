@@ -497,37 +497,14 @@ program define np_dnn, eclass
     ereturn local cmd "np_dnn"
     ereturn local cmdline "np_dnn `0'"
 
+    local signature_vars `xvars' `outcome'
+    local signature_vars : list uniq signature_vars
+    quietly _rdistnn_estimation_state `signature_vars'
     _np_dnn_Display, level(`level')
 end
 
-program define _np_dnn_Display
-    syntax [, Level(cilevel)]
-    di ""
-    di as text "DNN Nonparametric Regression"
-    if e(m) == 1 & "`e(x0)'" != "" {
-        di as text "Evaluation point x0: " as result "`e(x0)'"
-    }
-    else {
-        di as text "Evaluation targets: " as result e(m) ///
-           as text "  (see e(targets))"
-    }
-    di as text "Covariates: " as result "`e(xvars)'"
-    if e(m) == 1 {
-        di as text "Distance: " as result "`e(distance)'" ///
-           as text "  k = " as result e(k) ///
-           as text "  s = " as result e(s) ///
-           as text "  ess = " as result %6.2f e(ess)
-    }
-    else {
-        di as text "Distance: " as result "`e(distance)'" ///
-           as text "  k = " as result e(k) ///
-           as text "  s = " as result e(s) ///
-           as text "  ess range = " as result %6.2f e(neff_min) ///
-           as text " to " as result %6.2f e(neff_max)
-    }
-    if "`e(se_method)'" == "none" {
-        di as text "Inference was not requested (nose); no jackknife covariance is posted."
-    }
-    di ""
-    ereturn display, level(`level')
+program define _np_dnn_Display, rclass
+    version 17
+    _rdistnn_report `0'
+    return add
 end

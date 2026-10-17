@@ -136,6 +136,30 @@ semantics.  The default graph name is {cmd:cate_dnn_}{it:plot_type}.
 {cmd:.pdf}, {cmd:.svg}, {cmd:.tif}, {cmd:.jpg}, and {cmd:.eps} are recognized.
 
 {marker results}{...}
+{pstd}
+All single-view plots return {cmd:r(plot_data)} containing only rows used by
+the graph, with canonical target/candidate identifiers. {cmd:r(n_rows)} counts
+these data rows; {cmd:r(n_plotted)} retains its existing target, candidate, or
+panel count. Empty estimate plots retain their legacy count and return
+{cmd:r(n_rows)} = 0 without a plot-data matrix. Undefined CLATE ratios have
+no plotted estimate; CLATE zero-variance ratios retain their stored zero SE and have no Wald interval.
+Ordinary CATE/NP zero standard errors retain degenerate mean intervals.
+
+{pstd}
+{cmd:targets()} and candidate selection can be combined for estimates and
+tuning. They are mutually exclusive for diagnostics. Rank-weight profiles and
+cumulative plots are common across targets and reject {cmd:targets()}; use
+{cmd:view(kernel)} for target-specific weights. Candidate options apply only
+to estimates, tuning, diagnostics, and weight profiles. Dashboards reject
+selection options. Options that do not affect the requested plot are rejected.
+
+{pstd}
+Observation-level kernel and influence plots require unchanged original values,
+estimation sample, and row order. Older saved fits without order signatures
+must be refitted for these views; stored-result views still work after data
+changes. {cmd:style()} applies to estimates and dashboard estimate panels;
+{cmd:logweights} applies only to weight profiles.
+
 {title:Stored results}
 
 {synoptset 18 tabbed}{...}
@@ -143,9 +167,28 @@ semantics.  The default graph name is {cmd:cate_dnn_}{it:plot_type}.
 {synopt:{cmd:r(view)}}resolved view or estimate style{p_end}
 {synopt:{cmd:r(graph)}}named graph{p_end}
 {synopt:{cmd:r(n_plotted)}}number of targets, candidates, or dashboard panels{p_end}
+{synopt:{cmd:r(n_omitted)}}selected estimate/tuning rows omitted because the estimate is undefined{p_end}
+{synopt:{cmd:r(selected_targets)}}all selected estimate/tuning target IDs, including undefined targets{p_end}
+{synopt:{cmd:r(n_rows)}}number of data rows used by a single-view plot; missing for dashboards{p_end}
+{synopt:{cmd:r(targets)}}canonical target IDs present in the plot data, when applicable{p_end}
+{synopt:{cmd:r(candidates)}}canonical candidate IDs present in the plot data; 0 denotes the fitted default{p_end}
+{synopt:{cmd:r(n_panels)}}dashboard panel count{p_end}
+{synopt:{cmd:r(panels)}}dashboard panel names in composition order{p_end}
+{synopt:{cmd:r(panel_info)}}dashboard rows: panel_id, n_rows, n_plotted; no common plot-data matrix{p_end}
+{synopt:{cmd:r(plot_data)}}selected data for estimates, tuning, diagnostics, weights, and other family-specific views{p_end}
 {synopt:{cmd:r(saved)}}saved filename, if supplied{p_end}
 
 {marker examples}{...}
+{pstd}
+Comparable estimate columns are target coordinates, candidate_id, s, is_default,
+target_id, estimate, se, ci_lower, ci_upper. Tuning keeps its existing
+candidate_id, s, lambda, is_default, target_id, estimate, se, ci_lower, ci_upper
+schema. Diagnostic data retain plot_id and add target_id and candidate_id;
+rank weights expose rank, weight, cum_share, candidate_id, s, is_default.
+Kernel data expose target_id, rank, distance, weight, cum_share. Overlap names
+retain the treatment/instrument distinction. NP outcome columns retain weighted
+means, standard deviations, and weighted 10th/50th/90th percentiles.
+
 {title:Examples}
 
 {phang2}{cmd:. cate_dnn_plot}{p_end}

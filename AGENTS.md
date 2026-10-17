@@ -9,7 +9,8 @@ or the applicable `U_Statistics/AGENTS.md` in a Windows checkout.
 - `RdistNN_stata` is the Stata companion package for the `RdistNN` R package
   and the `Cond_Z_Estimation` paper.
 - Estimation/weight commands are `np_dnn`, `cate_dnn`, experimental
-  `plqr_dnn`, and `weights_dnn`; NP and CATE also have diagnostics/plot commands.
+  `plqr_dnn`, experimental `clate_dnn`, and `weights_dnn`; NP, CATE and CLATE
+  also have diagnostics/plot commands.
 - Read `README.md` before changing command behavior, package layout, or
   installation instructions.
 - In WSL, use `../RdistNN` and `../Cond_Z_Estimation` for theory/software

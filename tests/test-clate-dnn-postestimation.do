@@ -92,7 +92,9 @@ foreach view in mass armess propensity {
     test_assert "[clate plot] instrument overlap `view' builds" _rc==0
 }
 foreach view in profile cumulative kernel {
-    capture noisily clate_dnn_plot, type(weights) view(`view') targets(1 3) name(clweights) replace nodraw
+    local select ""
+    if "`view'"=="kernel" local select "targets(1 3)"
+    capture noisily clate_dnn_plot, type(weights) view(`view') `select' name(clweights) replace nodraw
     test_assert "[clate plot] weights `view' builds" _rc==0
 }
 foreach kind in estimates diagnostics tuning weights {

@@ -107,6 +107,9 @@ _rdistnn_assert_from_plus _rdistnn_clate_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_clate_signature.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_plot_helpers.ado, plusnorm("`plus_norm'")
+foreach helper in report report_header estimation_state sample_signature diagnostics diagnostics_save plot_dispatch {
+    _rdistnn_assert_from_plus _rdistnn_`helper'.ado, plusnorm("`plus_norm'")
+}
 _rdistnn_assert_from_plus rdistnn_license.md, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus rdistnn_linking_exception.md, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus rdistnn.plugin, plusnorm("`plus_norm'")
@@ -363,6 +366,22 @@ foreach p in diagnostics weights dashboard {
     clate_dnn_plot, type(`p') name(install_clate_`p') replace nodraw
 }
 
+// Check real summary/localization/plot tables from the isolated installation.
+foreach family in clate cate np {
+    if "`family'"=="cate" cate_dnn Y, xcols(x1 x2) x0matrix(X0) pseudooutcome
+    if "`family'"=="np" np_dnn Y, xcols(x1 x2) x0matrix(X0)
+    `family'_dnn, level(90)
+    matrix REPORT_INSTALL = r(table)
+    matrix SUMMARY_INSTALL = r(summary)
+    assert rowsof(REPORT_INSTALL)==9 & colsof(REPORT_INSTALL)==3
+    assert rowsof(SUMMARY_INSTALL)==3 & colsof(SUMMARY_INSTALL)==6
+    `family'_dnn_diagnostics, targets(3 1)
+    matrix LOCAL_INSTALL = r(localization)
+    assert rowsof(LOCAL_INSTALL)==2 & LOCAL_INSTALL[1,1]==3
+    `family'_dnn_plot, targets(3 1) name(install_common) replace nodraw
+    matrix PLOT_INSTALL = r(plot_data)
+    assert rowsof(PLOT_INSTALL)==2
+}
 di as result "INSTALL_CHECK_PASSED"
 exit
 '@

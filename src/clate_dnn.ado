@@ -321,49 +321,12 @@ program define clate_dnn, eclass
     ereturn local covariance_status_codes "0=ok 1=not_computed 2=zero_score_variance 3=numerical_failure"
     local signature_vars `xvars' `input' `nuisance_vars' `denominator'
     local signature_vars : list uniq signature_vars
-    quietly signestimationsample `signature_vars'
-    quietly _rdistnn_clate_signature `signature_vars' if e(sample)
-    ereturn local ordered_signature "`r(signature)'"
-    ereturn local signature_vars "`signature_vars'"
+    quietly _rdistnn_estimation_state `signature_vars'
     _clate_dnn_Display, level(`level')
 end
 
-program define _clate_dnn_Display
+program define _clate_dnn_Display, rclass
     version 17
-    syntax [, Level(cilevel)]
-    di _n as text "DNN Conditional Local Average Treatment Effect (experimental)"
-    di as text "n = " as result e(N) as text "  targets = " as result e(m) ///
-        as text "  k = " as result e(k) as text "  s = " as result e(s)
-    di as text "Paired reduced-form / first-stage ratio; pointwise Wald inference."
-    tempname shown
-    matrix `shown' = e(components)
-    matrix list `shown', format(%12.6g)
-    tempname estimates ses coef_table
-    matrix `estimates' = e(estimates)
-    matrix `ses' = e(se_targets)
-    matrix `coef_table' = J(`=e(m)',6,.)
-    tempname status
-    matrix `status' = e(status)
-    local zcrit = invnormal(1-(1-`level'/100)/2)
-    forvalues j=1/`=e(m)' {
-        matrix `coef_table'[`j',1] = el(`estimates',1,`j')
-        matrix `coef_table'[`j',2] = el(`ses',1,`j')
-        if el(`status',`j',5)==1 {
-            local z = el(`estimates',1,`j')/el(`ses',1,`j')
-            matrix `coef_table'[`j',3] = `z'
-            matrix `coef_table'[`j',4] = 2*normal(-abs(`z'))
-            matrix `coef_table'[`j',5] = el(`estimates',1,`j')-`zcrit'*el(`ses',1,`j')
-            matrix `coef_table'[`j',6] = el(`estimates',1,`j')+`zcrit'*el(`ses',1,`j')
-        }
-    }
-    matrix rownames `coef_table' = `: rownames `status''
-    matrix colnames `coef_table' = estimate std_error z pvalue ci_lower ci_upper
-    di as text "Pointwise level: `level'%"
-    matrix list `coef_table', format(%12.6g)
-    forvalues j=1/`=e(m)' {
-        if el(`status',`j',1)!=0 di as text "note: target `j' ratio is unavailable; see e(status) and e(components)."
-        if el(`status',`j',2)==1 di as text "note: target `j' has a negative first stage."
-        if el(`status',`j',3)==1 di as text "note: target `j' first stage is near zero; the ratio is not regularized."
-        if el(`status',`j',5)==0 di as text "note: target `j' has no pointwise Wald interval."
-    }
+    _rdistnn_report `0'
+    return add
 end

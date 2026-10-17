@@ -38,6 +38,26 @@ its `e(b)` omits undefined target coefficients because Stata rejects missing
 coefficient posts. The CATE-compatible 25-column diagnostic schema uses
 instrument arms for CLATE, and the public CLATE tables relabel them.
 
+## Shared reporting and interface coherence
+
+`test-estimator-reporting.do` checks actual table shapes/values, fit/replay,
+confidence levels, canonical full-target matrices, `nose`, zero variance,
+undefined CLATE targets and legacy CATE/NP result replay. Reference six-column
+summaries at 90 and 95 percent come from
+`tools/generate_r_reporting_fixtures.R` and `fixtures/r_reporting_fixtures.do`.
+CATE and CLATE paired-signal summaries call R's actual CATE and affine-ratio
+summary methods. NP uses its R estimate/SE and the shared normal convention;
+R NP has no summary method. The generator converts R infinities to missing
+because Stata matrices cannot represent them.
+
+`test-estimator-diagnostics.do` checks common target/candidate grammar,
+localization identities/fields, original row ordering, scientific extensions,
+saved data and state preservation. `test-estimator-plots.do` checks common
+options, selected data/counts, dashboard metadata, batch/candidate combinations,
+sample value/order guards, unavailable targets and graph export. Rendering is
+also inspected from exported SVG/PNG files. R ggplot object internals are
+outside this functional-interface comparison.
+
 ## R-only contracts
 
 The following R tests do not currently map to a Stata command and should not be

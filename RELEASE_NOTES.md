@@ -16,6 +16,13 @@
 - Add analytic, validation, grid, postestimation and fixed R-reference tests.
   RdistNN remains the numerical reference implementation.
 
+- Standardize CATE/CLATE/NP metadata headers, actual full-target `r(table)` and
+  `r(summary)`, replay levels and canonical estimate/SE/covariance matrices.
+- Share diagnostic selection/saving and localization returns, plot validation,
+  export and selected plot data. Retain estimator-specific scientific fields.
+- Check input values and observation order for all observation-level plots;
+  repair confidence-band rendering across effects and regression plots.
+
 ## 0.1.0 — 2026-10-14
 
 - Initial public release of CATE and nonparametric regression with DNN weights,

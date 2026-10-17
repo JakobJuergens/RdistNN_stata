@@ -227,3 +227,68 @@ reported covariance belongs to the localized score moment, not to theta.
 Temporary `q()` and `beta()` aliases remain available but cannot be combined
 with `g()` or `thetaeval()`. Local root solving and density-backed coefficient
 inference are future functionality.
+
+
+## Common reporting and postestimation
+
+CATE, CLATE and NP regression share the same reporting and selection conventions.
+RdistNN remains the numerical reference. The Stata commands share implementation
+helpers for reporting, diagnostic selection/saving, and plot dispatch/export.
+
+| Surface | Common contract |
+|---|---|
+| Fit and replay | Metadata header with N, target/covariate counts, method, metric, k/s, ESS, tuning and covariance method |
+| `r(table)` | Genuine 9-by-m matrix, rows `b se z pvalue ll ul df crit eform` in full target order |
+| `r(summary)` | m-by-6 matrix, columns `estimate std_error z pvalue ci_lower ci_upper` |
+| `r(level)` | Confidence level in percent; replay changes bounds without changing e() |
+| Canonical stored results | `e(estimates)` and `e(se_targets)` are 1-by-m; `e(estimate_vcov)` is m-by-m, including missing uncertainty with `nose` |
+| Diagnostics | `targets()`, `candidates()`, `allcandidates`, `detail`, `saving()`, `replace`; target and candidate selection are exclusive |
+| Diagnostic returns | Existing scientific `r(diagnostics)`/`r(compact)` retained; `r(selected)` gives original IDs in requested order; target scope adds `r(localization)` |
+| Single-view plot returns | `r(plot_data)` contains selected plotted rows; `r(n_rows)` counts those rows; legacy `r(n_plotted)` retains its existing meaning |
+| Dashboard returns | `r(panels)`, `r(n_panels)` and `r(panel_info)` describe composition rather than a combined data table |
+
+`r(localization)` contains `target_id`, target coordinates `x0_1` through `x0_p`,
+then `ess`, `max_weight`, `top1_weight_share`, `top5_weight_share`,
+`top10_weight_share`, `n_nonzero_weight`, `distance_available`, `radius_rank_k`,
+`radius_rank_s`, `weighted_mean_distance` and `weighted_median_distance`.
+Scientific tables add treatment overlap for CATE, instrument overlap and
+first-stage/components/status for CLATE, and weighted outcome summaries for NP.
+Candidate diagnostics have their own metadata schema because they summarize
+candidate weight profiles rather than evaluation targets.
+
+All three plot commands support estimates, diagnostics, tuning, weights and
+dashboards. CATE and CLATE add overlap and influence; NP adds outcome views.
+Use `targets()` for target-dependent views. Estimates and tuning allow both
+target and candidate selections. Diagnostic views select either targets or
+candidates. Candidate weights use `view(profile)`; rank profiles and cumulative
+weights are target invariant, so `targets()` is rejected there. Dashboards use
+the complete target batch and reject target/candidate selection. Options that
+cannot affect a view return an error rather than being silently ignored.
+See each installed plot help for the full option matrix.
+
+Effective-kernel and influence plots require the original fitted values,
+sample and observation order. Fits now store both an ordinary data signature
+and an ordered input signature; changed inputs or reordered observations require
+a refit for these views. Summaries, diagnostics and stored-result plots remain
+available after data changes. Older CATE/NP fits can still be summarized and
+plotted from stored results; observation-level plots require a new fit if an
+ordered signature was not saved.
+
+`nose` leaves SEs and bounds missing. Undefined CLATE ratios remain in full
+target tables even though Stata cannot post missing coefficients in `e(b)`.
+An estimate plot with no defined targets is blank, returns `r(n_rows)=0`, and
+has no `r(plot_data)` matrix. Partial CLATE plots return only finite plotted
+rows with original target IDs. CLATE zero-score-variance targets retain their
+SE of zero but no Wald statistic or bounds, following the R status mask.
+CATE/NP zero variance yields point bounds; Stata cannot store R's infinite z
+statistic and represents it as missing, with p=0 for a nonzero estimate.
+
+The R CATE and affine-ratio summary methods directly supply the reference
+coefficient tables used by the tests. R NP currently has a print method rather
+than a summary method; its R estimates and SEs use the same normal reporting
+convention in Stata. Experimental PLQR remains a supplied-coefficient moment
+evaluator and does not inherit coefficient inference from this interface.
+
+Reporting/diagnostic/plot regressions are in `test-estimator-reporting.do`,
+`test-estimator-diagnostics.do` and `test-estimator-plots.do`. R summary fixtures
+are regenerated with `Rscript tools/generate_r_reporting_fixtures.R`.
