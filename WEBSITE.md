@@ -29,3 +29,13 @@ accelerate standalone L2 weight calculations on supported platforms.
 Add the published release URL here once its source ZIP and plugin assets have
 been verified. Use the repository README as the primary Stata documentation
 entry point; the Stata companion has no separate hosted documentation site.
+
+
+## Development documentation
+
+The feature branch now has a task-oriented [article collection](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/docs/index.md)
+and an installed `help rdistnn` overview. Its guides cover all Stata commands,
+with runnable examples and an R-to-Stata topic map. Describe CLATE and newer
+shared reporting as development-branch functionality until a release includes
+them. Documentation publication to the repository does not deploy the website
+or publish a new package release.

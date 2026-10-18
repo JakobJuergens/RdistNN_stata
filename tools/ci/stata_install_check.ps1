@@ -82,6 +82,8 @@ program define _rdistnn_assert_from_plus
     di as text "`filename' resolved from " as result `"`found'"'
 end
 
+_rdistnn_assert_from_plus rdistnn.sthlp, plusnorm("`plus_norm'")
+help rdistnn
 which weights_dnn
 _rdistnn_assert_from_plus weights_dnn.ado, plusnorm("`plus_norm'")
 which np_dnn
@@ -381,6 +383,11 @@ foreach family in clate cate np {
     `family'_dnn_plot, targets(3 1) name(install_common) replace nodraw
     matrix PLOT_INSTALL = r(plot_data)
     assert rowsof(PLOT_INSTALL)==2
+}
+// All six public examples run from installed commands: the original quick
+// start and CLATE example were run above; these complete the article collection.
+foreach example in cate-and-regression weights-and-tuning diagnostics-and-plots plqr-moments {
+    do "__REPO_FROM__/examples/`example'.do"
 }
 di as result "INSTALL_CHECK_PASSED"
 exit

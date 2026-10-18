@@ -23,6 +23,11 @@
 - Check input values and observation order for all observation-level plots;
   repair confidence-band rendering across effects and regression plots.
 
+- Expand the full Stata documentation into task-based articles aligned with
+  R's article/reference coverage, add installed `help rdistnn`, strengthen all
+  command references and provide six verified standalone examples. R-only
+  interfaces and experimental inference boundaries are explicit.
+
 ## 0.1.0 — 2026-10-14
 
 - Initial public release of CATE and nonparametric regression with DNN weights,

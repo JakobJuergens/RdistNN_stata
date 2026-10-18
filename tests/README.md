@@ -78,3 +78,19 @@ Use [CONTRIBUTING.md](../CONTRIBUTING.md) for the runtime and isolated-install
 helpers, and [AGENTS.md](../AGENTS.md) for editing rules. Licensed Stata runtime
 results, static checks, native core tests, and archive checks establish
 different parts of the release; retain their individual receipts.
+
+
+## Documentation workflows
+
+`python3 tools/ci/documentation_check.py` validates Markdown links/anchors,
+installed help routing/SMCL anchors, public-command coverage and seeded example
+presence. Optional `--r-root PATH` compares all R article/reference-family
+names with the public documentation crosswalk. It is a structural check;
+source review and runnable examples establish semantic accuracy.
+
+With licensed Windows Stata, `tools/ci/stata_documentation_check.ps1` runs all
+six standalone example do-files and renders the overview help. It requires
+the dedicated completion marker for every example and stops on failure.
+The isolated-install helper repeats all six examples against a temporary PLUS
+payload and verifies the installed overview. This docs-only workflow complements
+the numerical regression suite rather than rerunning unchanged estimator tests.

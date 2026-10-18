@@ -29,6 +29,10 @@ jobs:
         shell: bash
         run: python3 -m unittest discover -s tests/ci -v
 
+      - name: Check documentation links and installed help
+        shell: bash
+        run: python3 tools/ci/documentation_check.py
+
       - name: Upload debug artifact
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

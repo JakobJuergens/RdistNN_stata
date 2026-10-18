@@ -1,294 +1,149 @@
 # Command guide
 
-Start with [the README](../README.md) and the runnable
-[getting-started example](../examples/getting-started.do). Stata's
-`help COMMAND` is the reference for syntax, stored results, and validation.
+This is the compact command map for `feature/clate`. Start with the
+[article index](index.md), [getting started](getting-started.md), or
+`help rdistnn` inside Stata. Each command's installed help supplies its complete
+syntax and result reference. The articles supply interpretation and runnable
+examples. These development contracts are newer than release v0.1.0.
 
 ## Workflow support
 
-| Workflow | Estimation and results | Diagnostics and plots |
-| --- | --- | --- |
-| CATE | `cate_dnn`, one or several targets, joint jackknife covariance, tuning grids, `nose` | `cate_dnn_diagnostics`, `cate_dnn_plot` |
-| Experimental CLATE (feature branch) | `clate_dnn`, augmented binary-IV or paired signals, paired joint covariance, batch/grid controls | `clate_dnn_diagnostics`, `clate_dnn_plot` |
-| Nonparametric regression | `np_dnn`, one or several targets, joint jackknife covariance, tuning grids, `nose` | `np_dnn_diagnostics`, `np_dnn_plot` |
-| Standalone weights | `weights_dnn`, exact/asymptotic L2 or Mahalanobis weights, generated variable and `r()` metadata | Inspect or export the generated weights |
-| Experimental PLQR | `plqr_dnn`, one supplied target and coefficient vector, score moments and moment covariance | Explicit moment display and stored matrices |
+| Task | Command | Guide/example |
+|---|---|---|
+| AIPW, Robinson-form or supplied-score CATE | `cate_dnn` | [CATE and regression](cate-and-regression.md), [do-file](../examples/cate-and-regression.do) |
+| Nonparametric conditional means | `np_dnn` | [CATE and regression](cate-and-regression.md), same do-file |
+| One target's normalized rank weights | `weights_dnn` | [Weights/tuning](weights-and-tuning.md), [do-file](../examples/weights-and-tuning.do) |
+| Experimental binary-IV or paired-signal ratios | `clate_dnn` | [Conditional LATE](conditional-late.md), [do-file](../examples/clate.do) |
+| Experimental supplied-theta score moments | `plqr_dnn` | [PLQR moments](plqr-moments.md), [do-file](../examples/plqr-moments.do) |
+| Stored target/candidate diagnostic reports | `cate_dnn_diagnostics`, `clate_dnn_diagnostics`, `np_dnn_diagnostics` | [Reporting](diagnostics-and-reporting.md) |
+| Estimates, geometry and scientific graph views | `cate_dnn_plot`, `clate_dnn_plot`, `np_dnn_plot` | [Visualization](visualising-fits.md), [do-file](../examples/diagnostics-and-plots.do) |
 
-The Stata companion has no TDNN or general local GMM command, automatic
-nuisance fitting, or PLQR coefficient inference. The R package has a broader
-interface; shared contracts and differences are recorded in the
-[R-to-Stata test crosswalk](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/R_TEST_CROSSWALK.md).
+The [R documentation crosswalk](r-documentation-crosswalk.md) maps every R
+article/reference family and identifies absent functionality. The separate
+[R-to-Stata test crosswalk](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/tests/R_TEST_CROSSWALK.md)
+records numerical and behavioral coverage. R-only TDNN, general local GMM,
+custom registries, ratio confidence-set inversion, PLQR coefficient inference
+and paper-replication facilities are not Stata commands.
+
+## Localization and command contracts
+
+| Control | CATE / CLATE / NP | Standalone weights | PLQR |
+|---|---|---|---|
+| Covariates | `xcols()`; legacy `x()` | Positional varlist | `x()` |
+| Targets | Exactly one `x0()` or `x0matrix()` | One `x0()` | One `x0()` |
+| Method | `method(exact|asymp)` | Same | Same |
+| Distance | `distance(l2|mahalanobis)` | Same | Same |
+| k | Positive integer, default 1 | Same | Same |
+| Order | Explicit `s()` or paper/grid rule | `s()`; 0 resolves fixed .4 rule | `s()`; 0 resolves fixed .4 rule |
+| Tuning | `lambda()`, `tuningmode()`, `lambdagrid()` or `sgrid()`, `sdefault()` | No integrated grids/multiplier option | No integrated grids/multiplier option |
+| Uncertainty | Frozen-score rank-shift jackknife; `nose` skips it | No covariance | Rank-shift moment covariance; no `nose` |
+| s=n | Permitted with `nose` | Permitted | Not permitted |
+| Mahalanobis checks | At least 2 usable observations; one covariate permitted | At least 2 covariates and 2 usable observations | At least 2 covariates and 2 usable observations |
+
+The paper rule is `floor(lambda*n^((p+1)/(p+2)))`, with multiplier .4 and
+sensitivity multipliers .3, .4, .5, .75. Larger s tightens localization; k
+counts neighbors within each subset, and exact full-sample support is n-s+k.
+A sensitivity grid retains its specified default rather than optimizing an
+order. Infeasible nondefault rows remain visible in metadata; candidate plots
+require available rows. See [weights and tuning](weights-and-tuning.md).
+
+The [notation guide](notation-and-conventions.md) explains row/column order,
+complete-case samples, temporary r() results, stored e() matrices and
+estimation observation order. Supplied nuisances may use more adjustment
+variables than the covariates defining localization. No command fits those
+nuisance functions or checks their statistical accuracy.
+
+## CATE and regression routes
+
+On the oracle data generated by [getting-started.do](../examples/getting-started.do):
+
+```stata
+cate_dnn Y, tcol(D) xcols(x1 x2) x0matrix(X0) ///
+    ecol(e_oracle) m0col(m0_oracle) m1col(m1_oracle) tuningmode(grid)
+np_dnn Y, xcols(x1 x2) x0matrix(X0) tuningmode(grid)
+```
+
+CATE's full AIPW route needs treatment, propensity and both arm means. Its
+Robinson route substitutes `mcol()` for the arm means; it averages the
+specified residual-product score rather than solving residual least squares.
+The positional signal with `pseudooutcome` needs no nuisance columns.
+Raw selected propensities must be finite and in [0,1] before clipping;
+`clip(1e-8)` is the default. `nose` skips covariance without removing the
+estimate. The [full guide](cate-and-regression.md) gives formulas, aliases,
+sample rules and inference requirements for all routes and NP.
 
 ## Conditional LATE (development branch)
 
-Install `feature/clate` explicitly; CLATE is not in the v0.1.0 release.
-The runnable [CLATE example](../examples/clate.do) supplies oracle nuisance
-predictions for a binary instrument A and binary treatment D:
+The [oracle CLATE example](../examples/clate.do) fits:
 
 ```stata
 clate_dnn Y, xcols(x1 x2) x0matrix(X0) dcol(D) acol(A) ecol(e) ///
     my0col(my0) my1col(my1) md1col(md1) onesided tuningmode(grid)
 clate_dnn_diagnostics, detail
 clate_dnn_plot, type(overlap) view(mass) replace
-clate_dnn_plot, type(influence) targets(1 3) replace
-clate_dnn_plot, type(tuning) allcandidates replace
 ```
 
-`onesided` requires D<=A and treats an omitted zero-arm treatment prediction
-as zero. Without it, supply `md0col()`. The four arm means condition on
-instrument assignment; their predictions may use all adjustment covariates
-even when localization reports effects using fewer X coordinates.
-The package fits no nuisance learners. `training()` is descriptive.
+Arm means condition on the instrument A. Without `onesided`, supply `md0col()`;
+with it, D<=A is checked and the zero-arm treatment mean is zero. Alternatively,
+provide `clate_dnn phi_y, denominator(phi_d) pseudooutcome ...`. The command
+divides two common-weight local averages, retains paired frozen-score
+covariance, and reports components/status with signed or undefined ratios.
+`training()` is descriptive. See [conditional LATE](conditional-late.md) for
+input formulas, all covariance/status schemas, diagnostic availability, causal
+assumptions and pointwise-inference limits. Wald bounds are not weak-IV-uniform
+and denominator tolerance does not regularize a ratio.
 
-Alternatively, use `clate_dnn phi_y, denominator(phi_d) pseudooutcome ...`.
-Both routes localize the two signals with identical weights and divide their
-averages. Do not average individual ratios. All CATE weighting/target/tuning
-controls and plot types are available. Overlap panels describe the instrument;
-influence is `w*(phi_y-theta*phi_d)`. A paired-signal fit has no instrument
-overlap information. Diagnostics retain paired components, first-stage
-uncertainty and computational status.
+## Experimental PLQR moment evaluation
 
-`e(estimates)` and `e(se_targets)` contain every target, including missing
-values. `e(components)` retains reduced-form and first-stage means;
-`e(theta_vcov)` retains full cross-target ratio covariance and
-`e(component_vcov)` retains interleaved Y,D component covariance. `e(status)`
-flags zero, negative, near-zero and numerically unavailable cases. Negative
-denominators are computed; the diagnostic tolerance never regularizes a ratio.
-Since Stata rejects missing posted coefficients, `e(b)` contains only defined
-targets, with their original target numbers; it is absent if none are defined.
-`e(V)` is posted when every posted coefficient has available covariance.
+Run [plqr-moments.do](../examples/plqr-moments.do) for a complete seeded example.
+`plqr_dnn` takes `x()`, one `x0()`, `d()`, supplied `g()` and `md()`, and a
+supplied `thetaeval()` vector. It evaluates the localized quantile score and
+posts `e(moment)`, `e(moment_vcov)` and `e(theta_eval)`. Compatibility `e(b)`
+and `e(V)` refer to the moment and its covariance, not estimated coefficients.
+`q()` and `beta()` are temporary aliases. No local root solving, density
+estimation, coefficient standard errors or confidence bounds are provided.
+The [PLQR guide](plqr-moments.md) explains the threshold indicator, nuisance
+roles, component order and differences from R's broader inference facilities.
 
-Causal interpretation additionally requires instrument independence given the
-full adjustment variables, consistency, exclusion, monotonicity, overlap and
-positive local compliance. Full-sample inference requires the affine theorem's
-nuisance accuracy, deletion stability, design, oracle and undersmoothing
-conditions. Paired frozen-score deletions do not refit nuisances, eliminate
-localization bias or provide weak-instrument-uniform confidence guarantees.
-The [implementation design](superpowers/specs/2026-10-17-clate-design.md)
-records the numeric contract and acceptance scope. RdistNN is the reference;
-shared fixed fixtures test estimates, covariance and diagnostics.
+## Common reporting and postestimation
+
+| Surface | CATE / CLATE / NP contract |
+|---|---|
+| Fit/replay | Common metadata header; level in percent, using configured `c(level)` by default |
+| `r(table)` | 9-by-m, rows `b se z pvalue ll ul df crit eform`, full original target order |
+| `r(summary)` | m-by-6, columns `estimate std_error z pvalue ci_lower ci_upper` |
+| Canonical e() | `e(estimates)`/`e(se_targets)` are 1-by-m; `e(estimate_vcov)` is m-by-m |
+| Diagnostics | Target or candidate selection, detail, `.dta` saving; `r(diagnostics)`, `r(compact)`, `r(selected)`, target-scope `r(localization)` |
+| Single-view graphs | `r(plot_data)` holds selected plotted rows; `r(n_rows)` counts them |
+| Dashboards | `r(panel_info)`, `r(panels)`, `r(n_panels)`; no combined plot-data table |
+
+`nose` means unavailable uncertainty, not zero precision. Full CLATE canonical
+matrices retain undefined targets even though `e(b)` omits them. CLATE zero
+variance retains SE=0 without Wald statistics or bounds; ordinary mean/CATE
+zero variance retains point bounds. Fit/replay r() tables and postestimation
+r() data are temporary; copy them before another command replaces them.
+All default intervals are pointwise, even when joint covariance is available.
 
 ## Plotting after a nuisance-based CATE grid fit
 
-On the simulated data from the getting-started example, fit the nuisance
-route before asking for treatment-overlap views:
+Continue from the CATE fit above, or restore its stored result:
 
 ```stata
 cate_dnn Y, tcol(D) xcols(x1 x2) x0matrix(X0) ///
     ecol(e_oracle) m0col(m0_oracle) m1col(m1_oracle) tuningmode(grid)
-cate_dnn_diagnostics, allcandidates
+cate_dnn_diagnostics, targets(1 3) detail
 cate_dnn_plot, type(tuning) allcandidates replace
 cate_dnn_plot, type(overlap) view(mass) replace
 cate_dnn_plot, type(weights) view(kernel) targets(1 3) replace
 cate_dnn_plot, type(influence) targets(1 3) replace
 ```
 
-Overlap panels need the treatment and propensity inputs from an AIPW or
-Robinson fit. A precomputed-score fit does not supply those inputs.
-NP plots additionally provide `type(outcome)`; its weighted outcome
-quantiles describe the local outcome distribution, rather than confidence
-bounds for the conditional mean. NP and CATE graph commands accept
-`name()`, `replace`, `nodraw`, and `saving()`. See their installed help for
-view-specific options and data requirements.
-
-## Localization and command contracts
-
-- `np_dnn` now follows the same multi-target and integrated-tuning contract as
-  `cate_dnn`. Use `xcols()` and either `x0()` or `x0matrix()`. Batch `e(V)` is
-  the joint rank-shift jackknife covariance, and `tuningmode(grid)` evaluates
-  the R paper grid while reusing target ranks. `nose` skips inference and
-  permits `s=n`.
-- Every NP fit posts `e(diagnostics)` with the R package's weight and distance
-  fields plus localized outcome mean, standard deviation, and weighted 10th,
-  50th, and 90th percentiles. `np_dnn_diagnostics` displays or saves target and
-  candidate tables; `np_dnn_plot` provides estimate, diagnostics, tuning,
-  weight, outcome, and dashboard views.
-- Deterministic fixtures enforce R/Stata NP parity for batch estimates,
-  standard errors, ESS, all target diagnostics, and every paper-grid candidate.
-- `cate_dnn` supports the same three core score paths as the R estimator:
-  a precomputed positional signal with `pseudooutcome`, full AIPW nuisances
-  with `ecol()`, `m0col()`, and `m1col()`, or a Robinson score with
-  `ecol()` and `mcol()`. See [the CATE inference contract](../README.md#inference-and-localization) before using
-  same-sample nuisance predictions; orthogonality alone is not sufficient.
-  The default `k(1)` matches the paper theory and the R package. Specify
-  `nose` for estimate-only fits.
-  Use `x0()` for one target or `x0matrix()` with a named target matrix for
-  batch evaluation. Batch `e(V)` is the joint rank-shift jackknife covariance;
-  its diagonal agrees with separate R/Stata target fits.
-- `cate_dnn, tuningmode(grid)` evaluates the paper sensitivity grid
-  `lambda = (.3, .4, .5, .75)` in one call and reuses the target ranks.
-  `lambdagrid()` customizes the multiplier grid. The Stata-native `sgrid()`
-  supplies integer orders directly, with `sdefault()` selecting the default.
-  Candidate estimates, marginal SEs, and diagnostics are returned in
-  `e(tuning_estimates)`, `e(tuning_se)`, and `e(tuning_diagnostics)`;
-  `e(tuning_candidates)` records feasibility and duplicate-computation IDs.
-  The deterministic test fixture asserts all paper-grid values against the R
-  package, not only qualitative invariants.
-- Every CATE fit posts `e(diagnostics)` with the R diagnostic contract's
-  numerical fields: fixed top-1/top-5/top-10 weight shares, nonzero support,
-  nearest-rank radii, weighted distance summaries, and, for nuisance-based
-  score paths, treatment-mass and propensity-overlap summaries. Deterministic
-  R fixtures cover both distance and overlap diagnostics. Paper diagnostics
-  additionally report the ordinary-Euclidean radius containing 90 percent of
-  DNN weight, normalized within-arm treated/control ESS, and the top-five share
-  of absolute weighted score contributions. These remain distinct from the
-  rank-`s` radius, overall ESS, and top-five raw-weight share. Arm ESS requires
-  nuisance-based treatment inputs; the physical radius and score-contribution
-  fields are available for precomputed scores as well.
-- Nuisance-based CATE paths first require every raw propensity to be finite and
-  in `[0,1]`, then use `e_used = min(max(e, clip), 1-clip)` consistently in
-  AIPW or Robinson scores, propensity diagnostics, and postestimation score
-  reconstruction. `clip()` defaults to `1e-8`, must be finite and strictly
-  between 0 and 0.5, and does not alter a precomputed pseudo-outcome.
-- Because the estimator and tuning rules are deterministic, the regression
-  suite enforces R/Stata parity for target estimates, covariance matrices,
-  candidate grids, and the shared diagnostic fields.
-- `cate_dnn_diagnostics` turns the stored target or tuning-candidate matrices
-  into compact postestimation tables, returns the full table in
-  `r(diagnostics)`, and can save it as a `.dta` file.
-- `cate_dnn_plot` provides Stata-native analogues of the R package's CATE
-  estimate, diagnostics, tuning, overlap, weight, influence, and dashboard
-  plots. Stored-result views do not refit. Effective-kernel and influence
-  views reconstruct weights only after validating the current estimation
-  sample and referenced variables. All graph builders support named graphs,
-  `nodraw`, and export through `saving()`.
-- Stata option names cannot contain underscores, so the CATE interface follows
-  the R names by removing underscores only: `x_cols` -> `xcols()`, `t_col` ->
-  `tcol()`, `e_col` -> `ecol()`, `m0_col` -> `m0col()`, `m1_col` -> `m1col()`,
-  `m_col` -> `mcol()`, and `pseudo_outcome` -> `pseudooutcome`. R's `X0`
-  matrix is passed with `x0matrix()`, `tuning_mode` with `tuningmode()`, and
-  `lambda_grid` with `lambdagrid()`. Earlier Stata names (`x()`, `treat()`,
-  `propensity()`, `m0()`, `m1()`, and `mhat()`) remain compatibility aliases.
-- The same naming rule applies to NP regression: R's `x_cols`, `X0`,
-  `tuning_mode`, and `lambda_grid` are Stata's `xcols()`, `x0matrix()`,
-  `tuningmode()`, and `lambdagrid()`. The earlier NP `x()` option remains a
-  compatibility alias.
-- Experimental `plqr_dnn` requires user-supplied `g()` and `md()` nuisance
-  variables and a supplied `thetaeval()` vector. It reports localized score
-  moments and their jackknife covariance; it does not solve for theta, estimate
-  nuisances, perform GMM, or provide coefficient inference. `q()` and `beta()`
-  are temporary compatibility aliases.
-- `weights_dnn` uses the installed L2 plugin path by default when the plugin is
-  available. Set global `rdistnn_use_plugin` to `0` to force the Mata reference
-  path, or to `1` to require the plugin path and fail on plugin errors.
-- `weights_dnn` defaults to `k(1)`. Because it constructs weights without a
-  jackknife, it accepts the full mathematical endpoint `k <= s <= n`, including
-  `s(n)`. Exact/asymptotic methods, L2/Mahalanobis distance, generated weights,
-  plugin fallback, and returned `r()` metadata use the same interface.
-- `np_dnn, nose` skips the rank-shift jackknife, permits `s=n`, omits `e(V)`,
-  and records `e(se_method)="none"` and `e(jackknife)="none"`. Initial display
-  and replay state that inference was not requested. Without `nose`, `s<n`
-  remains required.
-- `k` is the number of nearest observations selected within each size-`s`
-  subsample; it is not the number of observations with positive weight in the
-  full-sample rank-weight vector. For exact top-`k` DNN weights, positive
-  support ends at global rank `n - s + k`, so the support size is
-  `n - s + k`. Under the paper-default `k(1)`, this becomes `n - s + 1`.
-- `s` is the DNN subset/kernel order and a localization or bandwidth analogue,
-  but its direction is opposite to the usual bandwidth convention. Holding
-  `n` and `k` fixed, larger `s` shrinks positive-weight support and produces
-  tighter localization; smaller `s` spreads weight across more observations
-  and increases the effective local sample size. The finite-sample default is
-  `lambda(.4)`, resolving `s = floor(.4*n^((kx+1)/(kx+2)))`; `lambda(1)` is a
-  more aggressive localization benchmark because it yields a larger `s`.
-- Use `distance(mahalanobis)` when covariates are strongly correlated. The
-  jackknife keeps the full-sample covariance metric fixed across leave-one-out
-  deletions. All public commands require at least two complete estimation
-  observations for Mahalanobis distance; rank-deficient covariance matrices
-  with larger samples retain generalized-inverse behavior.
-- Standard errors are computed with the fast rank-shift jackknife, exploiting
-  the L-statistic structure of the DNN estimator.
-
-## Experimental PLQR moment evaluation
-
-The example below continues from the getting-started dataset. Its nuisance
-variables and coefficient vector are oracle inputs used to illustrate the
-score formula.
-
-`plqr_dnn` is an experimental localized-moment evaluator, not a complete PLQR
-coefficient estimator. It evaluates the orthogonal score at a supplied
-`thetaeval()` using supplied `g()` and `md()` nuisance variables. The command
-posts `e(moment)`, `e(moment_vcov)`, and `e(theta_eval)`; compatibility copies
-remain in `e(b)`, `e(V)`, and `e(beta)` for Stata eclass workflows.
-
-```stata
-gen md1 = 0.3*x1 - 0.2*x2
-gen md2 = -0.1*x1 + 0.4*x2
-gen d1  = md1 + rnormal()*0.4
-gen d2  = md2 + rnormal()*0.4
-gen g   = 0.25*x1 - 0.15*x2
-gen Yq  = d1 - 0.5*d2 + g + rnormal()*0.5
-plqr_dnn Yq, x(x1 x2) x0(0 0) d(d1 d2) g(g) md(md1 md2) ///
-    thetaeval(1 -0.5) tau(0.5)
-```
-
-The displayed result states that no local root solving was performed. The
-reported covariance belongs to the localized score moment, not to theta.
-Temporary `q()` and `beta()` aliases remain available but cannot be combined
-with `g()` or `thetaeval()`. Local root solving and density-backed coefficient
-inference are future functionality.
-
-
-## Common reporting and postestimation
-
-CATE, CLATE and NP regression share the same reporting and selection conventions.
-RdistNN remains the numerical reference. The Stata commands share implementation
-helpers for reporting, diagnostic selection/saving, and plot dispatch/export.
-
-| Surface | Common contract |
-|---|---|
-| Fit and replay | Metadata header with N, target/covariate counts, method, metric, k/s, ESS, tuning and covariance method |
-| `r(table)` | Genuine 9-by-m matrix, rows `b se z pvalue ll ul df crit eform` in full target order |
-| `r(summary)` | m-by-6 matrix, columns `estimate std_error z pvalue ci_lower ci_upper` |
-| `r(level)` | Confidence level in percent; replay changes bounds without changing e() |
-| Canonical stored results | `e(estimates)` and `e(se_targets)` are 1-by-m; `e(estimate_vcov)` is m-by-m, including missing uncertainty with `nose` |
-| Diagnostics | `targets()`, `candidates()`, `allcandidates`, `detail`, `saving()`, `replace`; target and candidate selection are exclusive |
-| Diagnostic returns | Existing scientific `r(diagnostics)`/`r(compact)` retained; `r(selected)` gives original IDs in requested order; target scope adds `r(localization)` |
-| Single-view plot returns | `r(plot_data)` contains selected plotted rows; `r(n_rows)` counts those rows; legacy `r(n_plotted)` retains its existing meaning |
-| Dashboard returns | `r(panels)`, `r(n_panels)` and `r(panel_info)` describe composition rather than a combined data table |
-
-`r(localization)` contains `target_id`, target coordinates `x0_1` through `x0_p`,
-then `ess`, `max_weight`, `top1_weight_share`, `top5_weight_share`,
-`top10_weight_share`, `n_nonzero_weight`, `distance_available`, `radius_rank_k`,
-`radius_rank_s`, `weighted_mean_distance` and `weighted_median_distance`.
-Scientific tables add treatment overlap for CATE, instrument overlap and
-first-stage/components/status for CLATE, and weighted outcome summaries for NP.
-Candidate diagnostics have their own metadata schema because they summarize
-candidate weight profiles rather than evaluation targets.
-
-All three plot commands support estimates, diagnostics, tuning, weights and
-dashboards. CATE and CLATE add overlap and influence; NP adds outcome views.
-Use `targets()` for target-dependent views. Estimates and tuning allow both
-target and candidate selections. Diagnostic views select either targets or
-candidates. Candidate weights use `view(profile)`; rank profiles and cumulative
-weights are target invariant, so `targets()` is rejected there. Dashboards use
-the complete target batch and reject target/candidate selection. Options that
-cannot affect a view return an error rather than being silently ignored.
-See each installed plot help for the full option matrix.
-
-Effective-kernel and influence plots require the original fitted values,
-sample and observation order. Fits now store both an ordinary data signature
-and an ordered input signature; changed inputs or reordered observations require
-a refit for these views. Summaries, diagnostics and stored-result plots remain
-available after data changes. Older CATE/NP fits can still be summarized and
-plotted from stored results; observation-level plots require a new fit if an
-ordered signature was not saved.
-
-`nose` leaves SEs and bounds missing. Undefined CLATE ratios remain in full
-target tables even though Stata cannot post missing coefficients in `e(b)`.
-An estimate plot with no defined targets is blank, returns `r(n_rows)=0`, and
-has no `r(plot_data)` matrix. Partial CLATE plots return only finite plotted
-rows with original target IDs. CLATE zero-score-variance targets retain their
-SE of zero but no Wald statistic or bounds, following the R status mask.
-CATE/NP zero variance yields point bounds; Stata cannot store R's infinite z
-statistic and represents it as missing, with p=0 for a nonzero estimate.
-
-The R CATE and affine-ratio summary methods directly supply the reference
-coefficient tables used by the tests. R NP currently has a print method rather
-than a summary method; its R estimates and SEs use the same normal reporting
-convention in Stata. Experimental PLQR remains a supplied-coefficient moment
-evaluator and does not inherit coefficient inference from this interface.
-
-Reporting/diagnostic/plot regressions are in `test-estimator-reporting.do`,
-`test-estimator-diagnostics.do` and `test-estimator-plots.do`. R summary fixtures
-are regenerated with `Rscript tools/generate_r_reporting_fixtures.R`.
+All three scalar estimators have estimate, diagnostics, tuning, weights and
+dashboard plots. CATE/CLATE add overlap and influence; NP adds outcome views.
+NP outcome bands describe weighted outcome quantiles, not mean uncertainty.
+Estimate/tuning plots can combine target/candidate selections; diagnostic
+views choose one scope. Rank profiles/cumulative weights are target invariant,
+and dashboards reject selection options. Unsupported options return errors.
+Kernel/influence plots require unchanged fitted values/sample/order; stored
+views remain available after data changes. The [visualization guide](visualising-fits.md)
+has the option matrix, returned schemas, export formats and examples.

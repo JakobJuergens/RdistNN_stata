@@ -1,17 +1,23 @@
 {smcl}
-{* *! version 0.1.2  2026-07-12}{...}
+{* *! version 0.1.3  2026-10-17}{...}
 {viewerjumpto "Syntax" "np_dnn##syntax"}{...}
 {viewerjumpto "Description" "np_dnn##description"}{...}
+{viewerjumpto "Sample and targets" "np_dnn##sample"}{...}
+{viewerjumpto "Inference" "np_dnn##inference"}{...}
 {viewerjumpto "Options" "np_dnn##options"}{...}
 {viewerjumpto "Stored results" "np_dnn##results"}{...}
 {viewerjumpto "Examples" "np_dnn##examples"}{...}
+{viewerjumpto "Postestimation" "np_dnn##postestimation"}{...}
 
 {title:Title}
 
 {phang}
 {bf:np_dnn} {hline 2} Nonparametric regression via distributional nearest neighbors
 
-{pstd}Stata 17 or later is required.{p_end}
+{pstd}
+Stata 17 or later is required. See {help rdistnn} for the package overview.
+This help describes the {cmd:feature/clate} development interface, including
+reporting features newer than release 0.1.0.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -42,7 +48,7 @@
 {synopt:{opt method(string)}}{cmd:exact} (default) or {cmd:asymp}{p_end}
 
 {syntab:Reporting}
-{synopt:{opt level(#)}}confidence level; default {cmd:level(95)}{p_end}
+{synopt:{opt level(#)}}pointwise confidence level; Stata default, normally 95{p_end}
 {synopt:{opt nose}}skip rank-shift jackknife inference; permits s=n{p_end}
 {synoptline}
 
@@ -76,6 +82,57 @@ Every fit stores R-aligned per-target weight, distance, and outcome diagnostics.
 Use {help np_dnn_diagnostics} to display or save them and {help np_dnn_plot}
 for estimate, tuning, localization, outcome, weight, and dashboard plots.
 
+{pstd}
+The outcome may also be a caller-defined scalar signal, with the resulting
+interpretation determined by that signal. To estimate treatment effects from
+supplied nuisances or CATE pseudo-outcomes, see {help cate_dnn}. There is no
+Stata implementation of the R package's two-scale {cmd:np_tdnn()}.
+
+{marker sample}{...}
+{title:Sample and targets}
+
+{pstd}
+{cmd:if} and {cmd:in} restrict candidate training observations, not target
+rows. Observations missing the outcome or any {opt xcols()} variable are
+excluded. {cmd:e(N)} records the resulting complete-case count;
+{cmd:e(sample)} identifies the training rows while the matching data are
+active. The default order and covariance metric use this complete sample.
+An empty sample raises an error.
+
+{pstd}
+The target matrix must have at least one row, exactly one column per
+localization covariate, and no missing entries. Its columns follow
+{opt xcols()} order; column names do not reorder target values. Resolved
+targets are retained in {cmd:e(targets)} with rows {cmd:target1},
+{cmd:target2}, etc. Targets need not be observed training rows. Check
+distance and concentration diagnostics when assessing whether a profile
+has suitable nearby observations.
+
+{marker inference}{...}
+{title:Inference}
+
+{pstd}
+The point estimate is sum_i w_i(x0)*Y_i. With inference requested, the
+delete-1 rank-shift jackknife holds the supplied outcomes fixed. L2 deletion
+ranks coincide with recomputing distances on the remaining sample. For
+Mahalanobis distance, the full-sample covariance metric is held fixed;
+the jackknife does not re-estimate that metric under deletion.
+
+{pstd}
+Displayed confidence intervals are normal pointwise intervals for local
+conditional means. Valid inference needs the regression assumptions and
+localization-bias control; the jackknife does not remove smoothing bias.
+Batch {cmd:e(V)} retains cross-target covariance and can be used for
+prespecified linear contrasts. Pointwise intervals over many targets do not
+provide simultaneous confidence bands.
+
+{pstd}
+NP diagnostics describe the weighted outcome distribution as well as the
+weights. {cmd:weighted_sd_y} is outcome spread, not a standard error of the
+mean. Weighted outcome q10/q50/q90 describe outcome distribution rather than
+uncertainty for the mean. Use the estimate plot for mean intervals
+and the outcome plot for these distributional summaries.
+
 {marker options}{...}
 {title:Options}
 
@@ -91,6 +148,8 @@ exclusive with {opt x0()}.
 {phang}{opt k(#)} sets how many nearest observations are selected within each
 size-s subsample; it is not the full-sample positive-weight support size.  The
 default is 1, matching the paper theory and R package.
+Larger fixed k is an implementation-supported extension; the stated paper
+theory uses k=1.
 
 {phang}{opt s(#)} sets the subset/kernel order, a localization or bandwidth
 analogue whose direction is opposite to the usual bandwidth convention.  For
@@ -101,11 +160,15 @@ while smaller s spreads positive weight across more observations and raises
 the effective local sample size.  The order requires k <= s.  With jackknife
 inference, s must be less than n; with {opt nose}, s may equal n.  Omitting
 {opt s()} uses floor(0.4*n^((kx+1)/(kx+2))).
+{cmd:s(0)} is the sentinel for the default rule. The uniform cases s=1 or
+k=s give no localization. An infeasible default order raises an error.
 
 {phang}{opt tuningmode(grid)} evaluates a tuning grid after computing target
 ranks once.  The primary {cmd:e(b)}, {cmd:e(V)}, {cmd:e(s)}, and ESS results
 remain anchored to the marked default candidate.  Grid mode cannot be combined
 with explicit {opt s()}.
+It is a sensitivity calculation, not automatic selection. The grid-specific
+controls require {cmd:tuningmode(grid)}.
 
 {phang}{opt lambda(#)} multiplies the paper order rule.  The finite-sample
 default is 0.4.
@@ -116,13 +179,32 @@ candidate rows but are computed once.
 
 {phang}{opt sgrid(numlist)} directly supplies positive integer orders.
 {opt sdefault(#)} selects the default order; otherwise the first entry is used.
+A default absent from {opt sgrid()} is prepended. {opt lambdagrid()} and
+{opt sgrid()} are mutually exclusive; {opt sdefault()} requires {opt sgrid()}.
+Infeasible candidates remain in the table with missing estimates. The default
+candidate must be feasible.
 
 {phang}{opt distance(string)} selects Euclidean {cmd:l2} distance or
 {cmd:mahalanobis} distance.  The full-sample covariance metric is held fixed
-through jackknife deletions.
+through jackknife deletions. L2 distances depend on covariate scales.
+Mahalanobis requires at least two complete observations, including with
+{opt nose}; one localization covariate is permitted. Rank-deficient covariance
+matrices use the {cmd:invsym()} generalized inverse; directions in its null
+space do not contribute to distance.
 
 {phang}{opt method(string)} selects exact finite-sample DNN weights or the
-asymptotic beta-order-statistic approximation.
+asymptotic beta-order-statistic approximation, written {cmd:method(asymp)}.
+The exact support formula n-s+k does not apply to the approximation, which
+is defined over the full rank grid. Weights are normalized; there is no
+Stata {cmd:normalize()} option.
+
+{phang}{opt level(#)} sets the normal pointwise confidence level. It uses
+Stata's configured level, normally 95. Replay accepts {opt level()} without
+refitting or changing stored estimates and covariance.
+
+{phang}{opt nose} skips the jackknife, omits {cmd:e(V)}, and permits s=n.
+Estimates and diagnostics remain available; common SEs, tests and interval
+bounds are missing. {cmd:e(se_method)} and {cmd:e(jackknife)} are {cmd:none}.
 
 {marker results}{...}
 {title:Stored results}
@@ -152,7 +234,10 @@ an infinite z statistic as missing.
 {synoptset 25}{...}
 {p2col 5 25 29 2:Matrices}{p_end}
 {synopt:{cmd:e(b)}}one conditional-mean estimate per target{p_end}
+{synopt:{cmd:e(estimates)}}1 x m alias of {cmd:e(b)}{p_end}
+{synopt:{cmd:e(se_targets)}}1 x m marginal standard errors; missing with {cmd:nose}{p_end}
 {synopt:{cmd:e(V)}}joint rank-shift jackknife covariance; omitted with {cmd:nose}{p_end}
+{synopt:{cmd:e(estimate_vcov)}}joint covariance; all missing with {cmd:nose}{p_end}
 {synopt:{cmd:e(targets)}}resolved m x kx target matrix{p_end}
 {synopt:{cmd:e(x0_matrix)}}alias of {cmd:e(targets)}{p_end}
 {synopt:{cmd:e(ess_targets)}}one effective sample size per target{p_end}
@@ -173,16 +258,26 @@ an infinite z statistic as missing.
 {synopt:{cmd:e(kx)}, {cmd:e(p)}}covariate dimension{p_end}
 {synopt:{cmd:e(ess)}, {cmd:e(neff)}}single-target ESS{p_end}
 {synopt:{cmd:e(ess_min)}, {cmd:e(ess_max)}}ESS range across targets{p_end}
+{synopt:{cmd:e(neff_min)}, {cmd:e(neff_max)}}aliases of the ESS range{p_end}
+{synopt:{cmd:e(tuning_default_candidate)}}marked default candidate row, in grid mode{p_end}
+{synopt:{cmd:e(tuning_n_candidates)}}number of candidate rows, in grid mode{p_end}
+{synopt:{cmd:e(tuning_n_feasible)}, {cmd:e(tuning_n_skipped)}}candidate feasibility counts, in grid mode{p_end}
+{synopt:{cmd:e(tuning_n_failed)}, {cmd:e(tuning_n_unique)}}failed and unique feasible computation counts, in grid mode{p_end}
 
 {p2col 5 25 29 2:Macros}{p_end}
 {synopt:{cmd:e(cmd)}}{cmd:np_dnn}{p_end}
 {synopt:{cmd:e(xvars)}, {cmd:e(x_cols)}}covariate variable names{p_end}
+{synopt:{cmd:e(x0)}, {cmd:e(x0matrix)}}supplied single-target values or source target-matrix name{p_end}
 {synopt:{cmd:e(target_source)}}{cmd:x0} or R-aligned {cmd:X0}{p_end}
+{synopt:{cmd:e(x_source)}}{cmd:xcols} or compatibility alias {cmd:x}{p_end}
 {synopt:{cmd:e(distance)}}distance metric{p_end}
 {synopt:{cmd:e(method)}}weight method{p_end}
 {synopt:{cmd:e(tuning_mode)}}{cmd:default} or {cmd:grid}{p_end}
 {synopt:{cmd:e(tuning_source)}}paper rule, explicit s, lambda grid, or s grid{p_end}
 {synopt:{cmd:e(se_method)}, {cmd:e(jackknife)}}{cmd:rank_shift}/{cmd:fast} or {cmd:none}{p_end}
+{synopt:{cmd:e(outcome)}, {cmd:e(signal)}}positional outcome variable{p_end}
+{synopt:{cmd:e(tuning_status_codes)}, {cmd:e(tuning_reason_codes)}}candidate status/reason maps{p_end}
+{synopt:{cmd:e(cmdline)}}estimation command{p_end}
 
 {pstd}
 {cmd:distance(mahalanobis)} requires at least two complete estimation
@@ -196,14 +291,81 @@ radii, weighted mean and median distance, outcome availability, weighted
 outcome mean and standard deviation, and weighted outcome 10th, 50th, and
 90th percentiles.
 
+{pstd}
+Candidate metadata columns are {cmd:candidate_id computed_id is_default
+feasible reason status lambda s}. Status/feasible is 0 for infeasible and
+1 for available. Reason is 0 for OK, 1 for k>s, 2 for a jackknife order
+s>=n, and 3 for s>n in an estimate-only fit. Rounded duplicates retain
+their rows and share {cmd:computed_id}. Candidate covariance matrices are
+not retained; {cmd:e(tuning_se)} contains marginal SEs.
+
+{pstd}
+Effective sample size is 1/sum_i w_i^2. It measures concentration, not
+physical localization, support count or the assumptions for Gaussian
+inference. {cmd:e(diagnostics)} contains the default candidate's target
+diagnostics even after a grid fit.
+
 {marker examples}{...}
 {title:Examples}
 
+{pstd}Generate a reproducible regression example; this clears the dataset.{p_end}
+{phang2}{cmd:. clear}{p_end}
+{phang2}{cmd:. set obs 180}{p_end}
+{phang2}{cmd:. set seed 42}{p_end}
+{phang2}{cmd:. gen double x1 = rnormal()}{p_end}
+{phang2}{cmd:. gen double x2 = rnormal()}{p_end}
+{phang2}{cmd:. gen double y = sin(x1) - .5*x2 + .3*rnormal()}{p_end}
 {phang2}{cmd:. np_dnn y, xcols(x1 x2) x0(0 0)}{p_end}
+{phang2}{cmd:. matrix one_target_summary = r(summary)}{p_end}
+
+{pstd}Fit a target matrix with joint covariance.{p_end}
 {phang2}{cmd:. matrix X0 = (0,0 \ .5,-.25 \ -.5,.75)}{p_end}
 {phang2}{cmd:. np_dnn y, xcols(x1 x2) x0matrix(X0) k(2) s(20)}{p_end}
 {phang2}{cmd:. matrix list e(V)}{p_end}
+
+{pstd}Inspect the grid while retaining the ordinary default fit.{p_end}
 {phang2}{cmd:. np_dnn y, xcols(x1 x2) x0matrix(X0) tuningmode(grid)}{p_end}
 {phang2}{cmd:. matrix list e(tuning_estimates)}{p_end}
+{phang2}{cmd:. estimates store np_fit}{p_end}
+{phang2}{cmd:. np_dnn, level(90)}{p_end}
+{phang2}{cmd:. matrix summary90 = r(summary)}{p_end}
 {phang2}{cmd:. np_dnn_diagnostics}{p_end}
+{phang2}{cmd:. np_dnn_diagnostics, allcandidates}{p_end}
+{phang2}{cmd:. np_dnn_plot, type(estimates) replace}{p_end}
+{phang2}{cmd:. np_dnn_plot, type(outcome) replace}{p_end}
 {phang2}{cmd:. np_dnn_plot, type(dashboard)}{p_end}
+
+{pstd}Request an estimate without inference.{p_end}
+{phang2}{cmd:. np_dnn y if !missing(y,x1,x2), xcols(x1 x2) x0(0 0) nose}{p_end}
+{phang2}{cmd:. estimates restore np_fit}{p_end}
+{phang2}{cmd:. np_dnn}{p_end}
+
+{marker postestimation}{...}
+{title:Postestimation}
+
+{pstd}
+Each fit replaces active {cmd:e()} results. Use {cmd:estimates store} and
+{cmd:estimates restore} to keep fits and reactivate the matching
+postestimation commands. Single-target coefficients are named {cmd:mu};
+batch coefficients are {cmd:mu1}, {cmd:mu2}, etc., in target order.
+For a prespecified first-minus-second target contrast after a batch fit with
+inference, use {cmd:lincom mu1-mu2}.
+
+{pstd}
+Copy {cmd:r(summary)} or {cmd:r(table)} immediately after fitting or replay:
+other r-class commands replace them. {help np_dnn_diagnostics} selects
+target or candidate tables and can save a {cmd:.dta} file. {help np_dnn_plot}
+provides estimates, diagnostics, tuning, weights, outcome and dashboard
+views. Stored-result views do not refit or require the original observations;
+effective-kernel views additionally require the original estimation sample,
+values and observation order and check them before reconstructing weights.
+
+{pstd}
+To evaluate new target profiles, call {cmd:np_dnn} again with the new targets.
+There is no separate Stata {cmd:predict} command. There is no wrapper option
+to retain a full weight matrix; {help weights_dnn} exports one target's
+weights as a variable.
+
+{pstd}
+See also {help rdistnn}, {help cate_dnn}, {help weights_dnn},
+{help np_dnn_diagnostics}, and {help np_dnn_plot}.

@@ -12,7 +12,8 @@ or the applicable `U_Statistics/AGENTS.md` in a Windows checkout.
   `plqr_dnn`, experimental `clate_dnn`, and `weights_dnn`; NP, CATE and CLATE
   also have diagnostics/plot commands.
 - Read `README.md` before changing command behavior, package layout, or
-  installation instructions.
+  installation instructions. User documentation starts at `docs/index.md`
+  and installed `help rdistnn`; see CONTRIBUTING for documentation checks.
 - In WSL, use `../RdistNN` and `../Cond_Z_Estimation` for theory/software
   alignment. In the Windows `U_Statistics/02_Code/RdistNN_stata` layout,
   the corresponding paths are `..\RdistNN` and `..\..\Cond_Z_Estimation`.

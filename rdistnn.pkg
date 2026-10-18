@@ -29,6 +29,7 @@ f LICENSE.md
 f LINKING_EXCEPTION.md
 F src/rdistnn_license.md
 F src/rdistnn_linking_exception.md
+f src/rdistnn.sthlp
 f src/cate_dnn.ado
 f src/cate_dnn.sthlp
 f src/cate_dnn_diagnostics.ado

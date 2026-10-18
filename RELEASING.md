@@ -77,6 +77,21 @@ and pushing do not invalidate a verified content snapshot. Review the final
 diff and hosted checks before tagging. Archives and logs stay under `_dist/`
 or temporary directories and are not committed.
 
+## Documentation snapshot
+
+The feature-branch article collection is indexed by [docs/index.md](docs/index.md)
+and the installed overview is `help rdistnn`. Before release, run
+`python3 tools/ci/documentation_check.py` and the licensed
+`tools/ci/stata_documentation_check.ps1` helper, then verify the public docs,
+help and examples from the curated ZIP. Command help must be in `rdistnn.pkg`.
+Article/example links should resolve inside the ZIP; developer-only controls,
+tests and tools use explicit repository URLs. An optional `--r-root` check
+compares the crosswalk with the live R article/reference inventory.
+
+The current articles target `feature/clate`; update version/branch guidance
+when preparing a future release. Do not advertise feature-branch CLATE or the
+newer common reporting interface as part of the unchanged v0.1.0 tag.
+
 ## Publish the release
 
 Create the `v0.1.0` tag and GitHub release from the verified commit. Adapt

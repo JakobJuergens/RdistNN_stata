@@ -1,7 +1,8 @@
 {smcl}
-{* *! version 0.0.8  2026-07-12}{...}
+{* *! version 0.0.9  2026-10-17}{...}
 {viewerjumpto "Syntax"          "cate_dnn##syntax"}{...}
 {viewerjumpto "Description"     "cate_dnn##description"}{...}
+{viewerjumpto "Sample and targets" "cate_dnn##sample"}{...}
 {viewerjumpto "Inference contract" "cate_dnn##inference_contract"}{...}
 {viewerjumpto "Options"         "cate_dnn##options"}{...}
 {viewerjumpto "Stored results"  "cate_dnn##results"}{...}
@@ -16,7 +17,9 @@
 distributional nearest neighbors
 
 {pstd}
-Stata 17 or later is required.
+Stata 17 or later is required. See {help rdistnn} for the package overview.
+This help describes the {cmd:feature/clate} development interface, including
+reporting features newer than release 0.1.0.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -59,7 +62,7 @@ Stata 17 or later is required.
 {synopt:{opt method(string)}}{cmd:exact} (default) or {cmd:asymp}{p_end}
 
 {syntab:Reporting}
-{synopt:{opt level(#)}}set confidence level; default {cmd:level(95)}{p_end}
+{synopt:{opt level(#)}}pointwise confidence level; Stata default, normally 95{p_end}
 {synopt:{opt nose}}skip the rank-shift jackknife standard error; permits s=n{p_end}
 {synoptline}
 
@@ -68,16 +71,17 @@ Stata 17 or later is required.
 
 {pstd}
 {cmd:cate_dnn} estimates the conditional average treatment effect
-tau(x0) = E[Y(1) - Y(0) | X = x0] at one or more covariate points using the
-distributional nearest-neighbor (DNN) estimator of Juergens (2025).  Supply
+tau(x0) = E[Y(1) - Y(0) | X = x0] at one or more covariate points using
+distributional nearest-neighbor (DNN) rank weights. Supply
 exactly one of {opt x0()} for a single target or {opt x0matrix()} for a named Stata
 matrix whose rows are targets and whose columns correspond to {opt xcols()}.
 
 {pstd}
 The estimator applies DNN rank weights w_i(x0) to per-observation
 pseudo-outcomes, yielding a localized weighted mean.  Three score-input paths
-mirror the R package: a precomputed pseudo-outcome, a full AIPW score, or a
-Robinson/R-learner score.
+are available: a precomputed pseudo-outcome, a full AIPW score, or a
+Robinson-form residual-product score. Nuisance models are fitted externally;
+the command only consumes their prediction variables.
 
 {pstd}
 With {opt pseudooutcome}, the positional variable is used directly as R's
@@ -90,6 +94,12 @@ AIPW pseudo-outcome is
 The Robinson pseudo-outcome is
 
 {phang2}phi_i = (D_i-eclip_i)*(Y_i-mhat_i)/(eclip_i*(1-eclip_i)).{p_end}
+
+{pstd}
+This route averages phi_i with DNN weights. It does not solve a residual
+least-squares R-learner problem or divide by the local mean of (D-eclip)^2.
+Here mhat is the pooled E[Y|U], where U is the full adjustment state used
+to fit the nuisance. The localization variables X may be a subset of U.
 
 {pstd}
 For nuisance-based paths, eclip_i = min(max(e_i, clip), 1-clip), where
@@ -112,6 +122,35 @@ held fixed across jackknife deletions.  With multiple targets, {cmd:e(V)} is
 the full joint covariance of the leave-one-out target-estimate vector.  Its
 diagonal standard errors match separate single-target calls and the R package;
 its off-diagonal entries retain cross-target covariance for Stata inference.
+Displayed normal intervals are pointwise. They do not provide simultaneous
+coverage over the target matrix. The jackknife holds supplied scores and
+nuisance predictions fixed; it does not refit nuisance models.
+
+{marker sample}{...}
+{title:Sample and targets}
+
+{pstd}
+{cmd:if} and {cmd:in} select candidate training observations, not target rows.
+For nuisance-based routes, every raw propensity selected by {cmd:if}/{cmd:in}
+is validated before complete-case exclusion: missing values and values
+outside [0,1] raise an error even if another required variable is missing.
+Restrict {cmd:if} explicitly when those rows should be excluded.
+
+{pstd}
+After that validation, AIPW excludes observations missing Y, D, X, e, m0 or
+m1; Robinson excludes observations missing Y, D, X, e or mhat. The
+precomputed-score route excludes observations missing the positional score
+or X. Remaining treatment values must be coded 0/1. {cmd:e(N)} records the
+complete sample size, and {cmd:e(sample)} identifies its observations.
+The tuning rule and covariance metric use this complete sample. Keep
+prediction variables aligned with their observations.
+
+{pstd}
+Targets must be nonmissing and follow {opt xcols()} order. Matrix column
+names do not reorder values. Targets need not be training observations.
+The resolved matrix has canonical rows {cmd:target1}, {cmd:target2}, etc.
+Different score routes can retain different samples; use a common explicit
+sample for comparisons when required columns have different missingness.
 
 {marker inference_contract}{...}
 {title:Inference contract}
@@ -133,6 +172,13 @@ Users may supply oracle quantities, cross-fitted or out-of-fold predictions,
 or full-sample predictions from learners for which the paper's rate and
 stability conditions are credible.  The design is deliberately modular:
 Stata does not automatically fit or select the nuisance models.
+
+{pstd}
+Causal interpretation additionally requires the identifying assumptions,
+including appropriate treatment adjustment and overlap. Out-of-fold inputs
+do not establish every condition for local inference. Localization and
+target-bias control remain necessary. Neither clipping nor jackknife
+uncertainty removes localization bias or certifies these assumptions.
 
 {marker options}{...}
 {title:Options}
@@ -168,7 +214,7 @@ Do not combine it with nuisance options.
 corresponding to R's {cmd:t_col}.
 
 {phang}
-{opth ecol(varname)} provides e(X) = P(D=1|X), corresponding to R's
+{opth ecol(varname)} provides e(U) = P(D=1|U), corresponding to R's
 {cmd:e_col}.  Values must lie in [0, 1].  Values at or very near the endpoints
 are replaced by the clipped propensity used consistently throughout the AIPW
 or Robinson score and propensity diagnostics.
@@ -179,15 +225,15 @@ strictly between 0 and 0.5 and defaults to {cmd:1e-8}. It has no effect on a
 precomputed pseudo-outcome.
 
 {phang}
-{opth m0col(varname)} provides E[Y|X, D=0], corresponding to R's
+{opth m0col(varname)} provides E[Y|U, D=0], corresponding to R's
 {cmd:m0_col}.  Use it with {opt m1col()} for full AIPW.
 
 {phang}
-{opth m1col(varname)} provides E[Y|X, D=1], corresponding to R's
+{opth m1col(varname)} provides E[Y|U, D=1], corresponding to R's
 {cmd:m1_col}.  Use it with {opt m0col()} for full AIPW.
 
 {phang}
-{opth mcol(varname)} provides E[Y|X] for the Robinson/R-learner path and
+{opth mcol(varname)} provides the pooled E[Y|U] for the Robinson-form path and
 corresponds to R's {cmd:m_col}.  It is mutually exclusive with {opt m0col()}
 and {opt m1col()}.
 
@@ -204,6 +250,8 @@ and {cmd:lambda()} are identical in both APIs.
 The earlier Stata names {cmd:x()}, {cmd:treat()}, {cmd:propensity()},
 {cmd:m0()}, {cmd:m1()}, and {cmd:mhat()} remain accepted but cannot be combined
 with their canonical counterparts.
+The accepted compatibility flag {opt noconstant} has no effect: the command
+does not estimate an intercept.
 
 {dlgtab:Tuning}
 
@@ -212,6 +260,8 @@ with their canonical counterparts.
 size-s subsample.  It is not the number of observations receiving positive
 weight in the full-sample DNN rank-weight vector.  Default is {cmd:k(1)},
 matching the paper theory and the R package.
+Larger fixed k is an implementation-supported extension; the stated paper
+theory uses k=1.
 
 {phang}
 {opt s(#)} sets the subset/kernel order, a localization or bandwidth analogue
@@ -222,6 +272,8 @@ n - s + 1.  Holding n and k fixed, larger s shrinks the positive-weight support
 and produces tighter localization; smaller s spreads weight across more
 observations and increases the effective local sample size.  Default
 {cmd:s(0)} uses floor(0.4*n^((kx+1)/(kx+2))).
+The order must satisfy 1 <= k <= s. Uniform-weight cases s=1 or k=s do not
+localize. A default order that is infeasible for the sample raises an error.
 
 {phang}
 {opt tuningmode(string)} selects {cmd:default}, which evaluates only the
@@ -230,6 +282,8 @@ evaluates a candidate grid while reusing one target-rank calculation.  As in
 R, explicit {opt s()} cannot be combined with grid mode.  The main
 {cmd:e(b)}, {cmd:e(V)}, {cmd:e(s)}, and effective-sample-size results remain
 anchored to the candidate marked as default.
+Grid evaluation is a sensitivity calculation, not automatic candidate
+selection. Grid-specific controls require {cmd:tuningmode(grid)}.
 
 {phang}
 {opt lambda(#)} is the positive multiplier in
@@ -247,24 +301,36 @@ orders directly.  Values must be positive integers.  {opt sdefault(#)} marks
 the default order; if omitted, the first entry is the default.  A requested
 default absent from {opt sgrid()} is prepended, matching R's synthetic-default
 behavior.
+{opt lambdagrid()} and {opt sgrid()} are mutually exclusive;
+{opt sdefault()} requires {opt sgrid()}. Infeasible candidate rows are retained
+with missing candidate estimates; the default candidate must be feasible.
 
 {phang}
 {opt distance(string)} selects the distance metric.  {cmd:l2} (default)
 uses Euclidean distance.  {cmd:mahalanobis} uses the sample covariance
 matrix (via {cmd:invsym()}) to form an ellipsoidal neighborhood;
-recommended when covariates are strongly correlated
-({it:cf.} DGP 5 of Juergens 2025).  Requires at least 2 covariates and at
-least two complete estimation observations. Rank-deficient covariance matrices
-with two or more observations continue to use {cmd:invsym()}.
+at least two complete estimation observations are required, including with
+{opt nose}. One covariate is permitted. Rank-deficient covariance matrices
+continue to use {cmd:invsym()}; directions in its null space do not contribute
+to distance. L2 distances depend on the scales of the supplied covariates.
 
 {phang}
 {opt method(string)} selects {cmd:exact} finite-sample DNN weights (default)
-or the {cmd:asymp} approximation.
+or the {cmd:asymp} beta-order-statistic approximation. The finite-population
+support formula n-s+k applies to {cmd:exact}; the approximation is defined
+over the full rank grid. Weights are normalized; there is no Stata
+{cmd:normalize()} option.
 
 {phang}
-{opt nose} skips the delete-1 rank-shift jackknife and posts only {cmd:e(b)}.
+{opt level(#)} sets the normal pointwise confidence level. It uses Stata's
+configured level, normally 95. Replay accepts {opt level()} without refitting.
+
+{phang}
+{opt nose} skips the delete-1 rank-shift jackknife and omits {cmd:e(V)}.
 Without {opt nose}, {opt s()} must be strictly less than the estimation-sample
 size.  With {opt nose}, {opt s()} may equal that size.
+Estimates and diagnostics remain available, with missing SEs, test statistics
+and interval bounds in the common reporting matrices.
 
 {marker results}{...}
 {title:Stored results}
@@ -310,7 +376,10 @@ an infinite z statistic as missing.
 
 {p2col 5 15 19 2: Matrices}{p_end}
 {synopt:{cmd:e(b)}}1 x m vector of target-specific CATE estimates{p_end}
+{synopt:{cmd:e(estimates)}}alias of {cmd:e(b)} retaining all targets{p_end}
+{synopt:{cmd:e(se_targets)}}1 x m vector of marginal standard errors; missing with {cmd:nose}{p_end}
 {synopt:{cmd:e(V)}}m x m joint jackknife covariance; not posted with {cmd:nose}{p_end}
+{synopt:{cmd:e(estimate_vcov)}}joint covariance; all missing with {cmd:nose}{p_end}
 {synopt:{cmd:e(targets)}}m x kx resolved target matrix{p_end}
 {synopt:{cmd:e(x0_matrix)}}R-aligned alias of {cmd:e(targets)}{p_end}
 {synopt:{cmd:e(neff_targets)}}1 x m target-specific effective sample sizes{p_end}
@@ -321,6 +390,16 @@ an infinite z statistic as missing.
 {synopt:{cmd:e(tuning_estimates)}}candidate-by-target estimate matrix in grid mode{p_end}
 {synopt:{cmd:e(tuning_se)}}candidate-by-target marginal-SE matrix in grid mode{p_end}
 {synopt:{cmd:e(tuning_diagnostics)}}candidate diagnostics: ESS, maximum weight, top-n, top-five share, and degeneracy flag{p_end}
+
+{pstd}
+Grid scalars {cmd:e(tuning_default_candidate)}, {cmd:e(tuning_n_candidates)},
+{cmd:e(tuning_n_feasible)}, {cmd:e(tuning_n_skipped)},
+{cmd:e(tuning_n_failed)} and {cmd:e(tuning_n_unique)} record the default row
+and evaluation counts. Candidate covariance matrices are not retained;
+{cmd:e(tuning_se)} contains marginal SEs. In {cmd:e(tuning_candidates)},
+{cmd:feasible/status} is 0 for infeasible and 1 for available; {cmd:reason}
+is 0 for OK, 1 for k>s, 2 for a jackknife order s>=n, and 3 for s>n in an
+estimate-only fit. Rounded duplicates share a {cmd:computed_id}.
 
 {p2col 5 15 19 2: Macros}{p_end}
 {synopt:{cmd:e(cmd)}}{cmd:cate_dnn}{p_end}
@@ -354,7 +433,8 @@ conditions.{p_end}
 
 {pstd}Setup: simulate data with oracle nuisances.{p_end}
 {phang2}{cmd:. clear}{p_end}
-{phang2}{cmd:. set obs 1000}{p_end}
+{phang2}{cmd:. set obs 180}{p_end}
+{phang2}{cmd:. set seed 42}{p_end}
 {phang2}{cmd:. gen x1 = rnormal()}{p_end}
 {phang2}{cmd:. gen x2 = rnormal()}{p_end}
 {phang2}{cmd:. gen e_oracle = invlogit(0.5*x1 - 0.5*x2)}{p_end}
@@ -377,7 +457,7 @@ conditions.{p_end}
 {phang2}{cmd:. gen rho = D*(Y-m1_true)/e_oracle - (1-D)*(Y-m0_true)/(1-e_oracle) + m1_true-m0_true}{p_end}
 {phang2}{cmd:. cate_dnn rho, xcols(x1 x2) x0(0 0) pseudooutcome nose}{p_end}
 
-{pstd}Use the Robinson score with a pooled outcome regression.{p_end}
+{pstd}Use the Robinson-form signal with a pooled outcome regression.{p_end}
 {phang2}{cmd:. gen mhat_true = e_oracle*m1_true + (1-e_oracle)*m0_true}{p_end}
 {phang2}{cmd:. cate_dnn Y, tcol(D) xcols(x1 x2) x0(0 0)}{...}
 {phang2}{cmd:    ecol(e_oracle) mcol(mhat_true)}{p_end}
@@ -397,6 +477,14 @@ conditions.{p_end}
 
 {pstd}Inspect R-aligned diagnostics for the default fit.{p_end}
 {phang2}{cmd:. matrix list e(diagnostics)}{p_end}
+
+{pstd}Copy and replay the active fit before fitting another model.{p_end}
+{phang2}{cmd:. estimates store cate_fit}{p_end}
+{phang2}{cmd:. matrix CATE_b = e(b)}{p_end}
+{phang2}{cmd:. matrix CATE_V = e(V)}{p_end}
+{phang2}{cmd:. cate_dnn, level(90)}{p_end}
+{phang2}{cmd:. matrix CATE_summary90 = r(summary)}{p_end}
+{phang2}{cmd:. estimates restore cate_fit}{p_end}
 
 {pstd}
 {cmd:e(diagnostics)} has one row per target.  Its columns are ESS, maximum
@@ -423,9 +511,28 @@ diagnostic tables.  Use {help cate_dnn_plot} for Stata-native analogues of the
 R package's CATE estimate, diagnostics, tuning, overlap, weight, influence,
 and dashboard plots.
 
+{pstd}
+Every fit replaces active {cmd:e()} results. Use {cmd:estimates store} and
+{cmd:estimates restore} to retain and reactivate fits. Copy {cmd:r(summary)}
+or {cmd:r(table)} immediately after fitting or replaying; diagnostics and
+other r-class commands replace them. Single-target coefficients are named
+{cmd:tau}; batch coefficients are {cmd:tau1}, {cmd:tau2}, etc., in target order.
+
+{pstd}
+The batch covariance can support a prespecified linear contrast, for example
+{cmd:lincom tau1-tau2} after a batch fit with inference. It does not provide
+simultaneous bands automatically. Evaluate new profiles with another
+{cmd:cate_dnn} call; there is no separate Stata {cmd:predict} command.
+Observation-level kernel and influence plots require original estimation
+observations, values and order. Other stored-result views can use retained
+estimation results without refitting.
+
 {marker references}{...}
 {title:References}
 
 {phang}
-Juergens, J. (2026).  Companion conditional Z-estimation working paper;
-see the package README for current title and repository metadata.
+Juergens, J. {browse "https://jakobjuergens.com/research/#orthogonal-inference-conditional-z":Orthogonal Inference for Conditional Z-Estimation without Cross-Fitting}.
+
+{pstd}
+See also {help rdistnn}, {help np_dnn}, {help weights_dnn},
+{help cate_dnn_diagnostics}, and {help cate_dnn_plot}.

@@ -1,224 +1,236 @@
 {smcl}
-{* *! version 0.1.0  2026-10-17}{...}
+{* *! version 0.2.1  2026-10-17}{...}
 {viewerjumpto "Syntax" "clate_dnn_plot##syntax"}{...}
-{viewerjumpto "Description" "clate_dnn_plot##description"}{...}
 {viewerjumpto "Plot types" "clate_dnn_plot##types"}{...}
-{viewerjumpto "Options" "clate_dnn_plot##options"}{...}
-{viewerjumpto "Stored results" "clate_dnn_plot##results"}{...}
+{viewerjumpto "Applicable options" "clate_dnn_plot##options"}{...}
+{viewerjumpto "Data guards" "clate_dnn_plot##guards"}{...}
+{viewerjumpto "Returned data" "clate_dnn_plot##results"}{...}
 {viewerjumpto "Examples" "clate_dnn_plot##examples"}{...}
 
 {title:Title}
 
-{phang}
-{bf:clate_dnn_plot} {hline 2} Plot CLATE estimates, localization diagnostics,
-tuning sensitivity, overlap, weights, and influence
+{phang}{bf:clate_dnn_plot} {hline 2} Stata graphs for experimental CLATE fits
 
 {marker syntax}{...}
 {title:Syntax}
 
-{p 8 17 2}
-{cmd:clate_dnn_plot}
-[{cmd:,} {opt type(plot_type)} {opt view(view_type)} {opt style(style)}
+{p 8 17 2}{cmd:clate_dnn_plot} [{cmd:,} {opt type(plot_type)}
+{opt view(view_type)} {opt style(style)} {opt xindex(#)}
 {opt targets(numlist)} {opt candidates(numlist)} {opt allcandidates}
-{opt xindex(#)} {opt level(#)} {opt sharelimits(# #)} {opt nlabel(#)}
+{opt level(#)} {opt sharelimits(# #)} {opt nlabel(#)}
 {opt logweights} {opt name(name)} {opt replace} {opt nodraw}
 {opt saving(filename)}]
 
-{marker description}{...}
-{title:Description}
-
 {pstd}
-{cmd:clate_dnn_plot} is the Stata-native plotting layer for active
-{help clate_dnn} estimates.  It covers the numerical views exposed by the R
-package's {cmd:plot_estimates()}, diagnostics plot, {cmd:plot_tuning()},
-{cmd:plot_overlap()}, {cmd:plot_weights()}, {cmd:plot_influence()}, and
-{cmd:plot_dashboard()} methods.
-
-{pstd}
-Estimate, diagnostics, tuning, and overlap plots use only stored {cmd:e()}
-results.  Effective-kernel and influence plots reconstruct observation-level
-weights from the current estimation data.  They verify that the original
-covariates, score variables, and estimation sample are still available and
-use the stored estimation-sample data signature to reject changed values or
-observation order, with refitting instructions. Stored-table views remain
-available when original data have changed.
-
-{pstd}
-The estimator uses canonical full-target {cmd:e(estimates)} and
-{cmd:e(se_targets)}, retaining missing ratios and standard errors at their
-original target positions. Plotting SEs and intervals are missing wherever
-the stored status marks Wald inference unavailable; finite estimate points
-remain visible and the canonical stored SE is unchanged.
-Undefined selected ratios make influence unavailable.
-These are pointwise Wald intervals without weak-IV-uniform guarantees; no
-weak-stage trimming or denominator regularization is applied.
-
-{pstd}
-Overlap arms and propensity refer to the instrument A, not the treatment D.
-Influence reconstructs both augmented signals from the original supplied
-nuisance variables (including zero m_d0 for one-sided fits), or from the two
-precomputed signal variables. It uses {it:w_ij(phi_Yi-theta_j*phi_Di)}.
-Keep the estimation sample, covariates and signal inputs unchanged when
-requesting observation-level views.
+Requires active {help clate_dnn} estimates. Default is type(estimates).
+The command preserves the data and active fit. Stored views do not refit;
+kernel/influence views reconstruct observation-level weights after
+validating original data and order. See {help rdistnn} for the package overview
+and {help clate_dnn_diagnostics} for diagnostic interpretation. R plot names describe related
+workflows; these commands produce named Stata graphs, without ggplot layers,
+custom-theme arguments or arbitrary twoway-option passthrough.
 
 {marker types}{...}
-{title:Plot types}
+{title:Plot types and scientific interpretation}
 
-{phang}
-{cmd:type(estimates)} (default) plots CLATE estimates with normal confidence
-bounds and a zero reference.  {opt style(auto)} chooses a profile for at least
-four targets varying in one coordinate, a forest layout for small non-profile
-target sets, and pointranges otherwise.  Candidate comparisons consume the
-stored tuning grid without refitting.
+{phang}{cmd:type(estimates)} draws CLATE estimates and normal pointwise
+confidence limits with a zero reference. style(auto) chooses a profile for
+at least four selected targets with a resolved coordinate axis, a forest for
+2..12 targets without such an axis, and pointranges otherwise. Explicit
+style(profile) requires exactly one varying target coordinate or xindex().
+An explicit xindex() can trace a supplied path even when other coordinates vary;
+it does not adjust or hold those other coordinates fixed. Forest rows use
+original numeric target IDs; coordinate axes use fitted covariate names.{p_end}
 
-{phang}
-{cmd:type(diagnostics)} combines effective sample size, maximum weight, and
-top-five weight-share panels.  Add {opt allcandidates} or {opt candidates()}
-to plot tuning-candidate diagnostics against kernel order {it:s}.  For target
-plots, the command also annotates the 90-percent physical-radius and top-five
-absolute score-contribution-share ranges.
+{phang}{cmd:type(tuning)} compares stored candidate estimates against s in
+separate target panels, marks the fitted order and uses retained SEs.
+Requires tuningmode(grid); defaults to every status=1 candidate and all targets
+through three, then first/middle/last. This sensitivity plot does not select s
+or provide inference following data-dependent candidate selection.{p_end}
 
-{phang}
-{cmd:type(tuning)} plots candidate estimates against {it:s}, marks the fitted
-order, and reuses stored candidate standard errors.  It requires a grid fit;
-the built-in sensitivity grid is lambda = (.3, .4, .5, .75), with .4 fitted
-by default.
+{phang}{cmd:type(diagnostics)} combines ESS, maximum weight and top-five
+weight-share panels. Target mode uses target IDs; candidate mode uses s.
+The .9*n ESS guide marks nearly uniform weights, not a validity test.
+Target plots also print physical-radius-90 and top-five absolute score-share ranges; these are not additional graph facets.{p_end}
 
-{phang}
-{cmd:type(overlap)} supports {cmd:view(mass)} (default) for instrument-1/instrument-0
-weighted mass, {cmd:view(armess)} for normalized within-arm instrument-1/instrument-0
-ESS, and {cmd:view(propensity)} for weighted propensity means with q10-q90
-ranges.  These views require a nuisance-based augmented IV fit.
+{phang}{cmd:type(weights)} supports view(profile), the default rank-weight
+plot; view(cumulative), with .5/.9 cumulative-weight guides; and view(kernel),
+weight against fitted-metric distance by target. Profiles/cumulative weights
+are common to all targets. Under exact weights, the fitted profile marks
+support edge n-s+k, not rank s; larger s tightens localization. Kernel data
+are target-specific and require original observations. Kernel graphs have no
+rank-s radius marker. Candidate comparison applies only to profiles.{p_end}
 
-{phang}
-{cmd:type(weights)} supports {cmd:view(profile)} (default),
-{cmd:view(cumulative)}, and {cmd:view(kernel)}.  Candidate comparison is
-available for rank profiles.  Kernel views show target-specific weight against
-distance and require the original estimation data.
+{phang}{cmd:type(overlap)} supports view(mass), the default, for instrument A=1/A=0 masses;
+view(armess) for normalized within-arm ESS; and view(propensity) for weighted
+propensity means and q10-q90 ranges. Mass uses lines with a coordinate axis
+and at least four targets, otherwise bars; armess always uses bars. Propensity
+always uses stored clipped-propensity summaries, not a density plot.
+sharelimits() adds arm-1 share guides and reports outlying shares.{p_end}
 
-{phang}
-{cmd:type(influence)} plots each observation's localized contribution
-{it:w_ij(phi_Yi-theta_j*phi_Di)} against distance and labels the largest absolute
-contributions.
+{phang}{cmd:type(influence)} plots w*(phi_y-theta*phi_d) against fitted-metric distance,
+labelling the largest absolute contributions with dataset observation numbers.
+These are fitted score contributions, not individual causal effects or
+jackknife pseudo-values. Selected ratios must be defined; these contributions are not divided by the first stage.{p_end}
 
-{phang}
-{cmd:type(dashboard)} combines estimates, available overlap panels,
-cumulative weights, and tuning sensitivity into a two-column graph.
+{phang}{cmd:type(dashboard)} combines estimates, available overlap mass/propensity, cumulative weights, and tuning for grid fits; diagnostics replace overlap when those inputs are absent.
+Dashboards use the full target batch and contain no kernel/influence panels.
+style(), xindex() and level() affect applicable dashboard panels.{p_end}
 
 {marker options}{...}
-{title:Options}
+{title:Applicable options}
 
-{phang}
-{opt type(plot_type)} selects {cmd:estimates}, {cmd:diagnostics},
-{cmd:tuning}, {cmd:overlap}, {cmd:weights}, {cmd:influence}, or
-{cmd:dashboard}.
+{pstd}
+{opt name(name)}, {opt replace}, {opt nodraw}, and {opt saving(filename)}
+apply to all types. The default graph name is {cmd:clate_dnn_}{it:type}.
+replace permits reusing the graph name and overwriting an output file.
+Other options are accepted only for the following types/views; combinations
+that cannot affect the requested plot error.
 
-{phang}
-{opt view(view_type)} selects the overlap or weight view described above.
-For overlap, choose {cmd:mass}, {cmd:armess}, or {cmd:propensity}.
+{phang}{bf:estimates}: targets(), candidates()/allcandidates, style(),
+xindex(), level(). Target and candidate selection may be combined.{p_end}
+{phang}{bf:tuning}: targets(), candidates()/allcandidates, level().{p_end}
+{phang}{bf:diagnostics}: targets() OR candidates()/allcandidates,
+never both target and candidate selection.{p_end}
+{phang}{bf:weights/profile}: candidates()/allcandidates and logweights;
+no targets(). logweights drops nonpositive weights and uses a log y axis.{p_end}
+{phang}{bf:weights/cumulative}: no target/candidate or other view-specific options.{p_end}
+{phang}{bf:weights/kernel}: targets(); no candidate selection.{p_end}
+{phang}{bf:overlap/mass}: targets(), xindex(), sharelimits().{p_end}
+{phang}{bf:overlap/armess}: targets(); no xindex().{p_end}
+{phang}{bf:overlap/propensity}: targets(), xindex().{p_end}
+{phang}{bf:influence}: targets(), nlabel(); no candidate selection.{p_end}
+{phang}{bf:dashboard}: style(), xindex(), level(); no target/candidate selection.{p_end}
 
-{phang}
-{opt style(style)} selects {cmd:auto}, {cmd:profile}, {cmd:pointrange}, or
-{cmd:forest} for estimate panels.
+{pstd}
+view() applies only to weights and overlap (mass, armess, propensity). style() is auto, profile,
+pointrange or forest and applies only to estimate panels. xindex() is an
+integer in 0..e(p): zero detects exactly one varying coordinate, otherwise
+uses target ID; positive j chooses coordinate j in fitted xcols() order.
+level() is a confidence percentage, default c(level) (normally 95), rather
+than the R proportion .95. It recomputes bounds without changing e().
+sharelimits() requires two increasing numbers in [0,1], default .1 .9. nlabel() is a nonnegative integer, default 3; zero suppresses labels.
 
-{phang}
-{opt xindex(#)} selects a target-coordinate column for profile x axes.
-The default 0 automatically detects exactly one varying coordinate.
+{pstd}
+targets() and candidates() are positive integer numlists of original row IDs
+in e(targets) and e(tuning_candidates); Stata ranges such as targets(1/3)
+are allowed. Repeated plot IDs are removed. candidates() and allcandidates
+are mutually exclusive and require tuningmode(grid). Explicit candidates
+must have status=1; allcandidates plots only status=1 rows. In contrast,
+{help clate_dnn_diagnostics} can report infeasible candidate rows. Noncandidate estimate,
+diagnostic and rank-weight data use candidate_id=0; grid comparisons retain
+actual IDs and is_default marks the fitted candidate.
 
-{phang}
-{opt targets(numlist)} restricts target-specific views.  Weight-kernel and
-influence views default to all targets through eight, then first/middle/last.
+{pstd}
+Default estimate/diagnostic/overlap selections use all targets.
+Kernel/influence defaults to all targets through eight, then
+first/middle/last. Tuning has the separate three-target default above.
+Overlap requires supplied instrument nuisances; paired signals do not contain instrument/propensity information. Labels and column names refer to the instrument, not treatment uptake.
 
-{phang}
-{opt candidates(numlist)} selects tuning-candidate row numbers.
-{opt allcandidates} selects every available candidate.  These options require
-{cmd:tuningmode(grid)} and cannot be combined.
+{pstd}
+saving() recognizes .gph, .png, .pdf, .svg, .tif, .jpg, and .eps.
+.gph uses graph save; the others use graph export after displaying the named
+graph, even when its construction used nodraw. No manual GUI action is needed.
+Missing/unsupported suffixes error. To customize a figure beyond these options,
+copy r(plot_data) immediately, use svmat inside preserve/restore, and draw
+with standard Stata graph commands.
 
-{phang}
-{opt level(#)} sets confidence-bound coverage; default 95.
+{marker guards}{...}
+{title:Original-data guards and uncertainty availability}
 
-{phang}
-{opt sharelimits(# #)} sets instrument-1-share overlap guides; default .1 .9.
+{pstd}
+Estimate, diagnostic, tuning, overlap and dashboard views use stored
+results. Rank profiles/cumulative weights use stored n/k/s/method. They
+remain available after original data change, provided their stored tables
+exist. Kernel/influence views require the original referenced inputs,
+estimation sample, input values, and row order. Changed values, missing
+variables or reordered observations return a refitting instruction; a matching
+sample count alone is insufficient. Restoring a fit does not restore its data.
+Older saved CATE/NP fits can use b/V fallbacks for estimate panels, but
+observation-level views require ordered signatures from a current refit.
 
-{phang}
-{opt nlabel(#)} selects how many largest absolute influence contributions to
-label per target; default 3.  Zero suppresses labels.
-
-{phang}
-{opt logweights} uses a logarithmic y axis for positive rank weights.
-
-{phang}
-{opt name(name)}, {opt replace}, and {opt nodraw} follow standard Stata graph
-semantics.  The default graph name is {cmd:clate_dnn_}{it:plot_type}.
-
-{phang}
-{opt saving(filename)} saves the final graph.  {cmd:.gph}, {cmd:.png},
-{cmd:.pdf}, {cmd:.svg}, {cmd:.tif}, {cmd:.jpg}, and {cmd:.eps} are recognized.
+{pstd}
+Confidence limits are pointwise, even when the fitted covariance retains
+cross-target dependence. nose keeps estimates with missing SEs and bounds.
+CATE/NP zero SEs give point bounds. CLATE zero SEs remain in the matrix but status wald_available=0 suppresses Wald tests/bounds; undefined CLATE ratios are omitted from graph data.
 
 {marker results}{...}
-{pstd}
-All single-view plots return {cmd:r(plot_data)} containing only rows used by
-the graph, with canonical target/candidate identifiers. {cmd:r(n_rows)} counts
-these data rows; {cmd:r(n_plotted)} retains its existing target, candidate, or
-panel count. Empty estimate plots retain their legacy count and return
-{cmd:r(n_rows)} = 0 without a plot-data matrix. Undefined CLATE ratios have
-no plotted estimate; CLATE zero-variance ratios retain their stored zero SE and have no Wald interval.
-Ordinary CATE/NP zero standard errors retain degenerate mean intervals.
+{title:Returned data and metadata}
 
 {pstd}
-{cmd:targets()} and candidate selection can be combined for estimates and
-tuning. They are mutually exclusive for diagnostics. Rank-weight profiles and
-cumulative plots are common across targets and reject {cmd:targets()}; use
-{cmd:view(kernel)} for target-specific weights. Candidate options apply only
-to estimates, tuning, diagnostics, and weight profiles. Dashboards reject
-selection options. Options that do not affect the requested plot are rejected.
+For single views, r(plot_data) contains selected numeric data, and r(n_rows)
+counts its rows. Copy r() results before another rclass command. Let X0 in
+the schemas below mean x0_1 ... x0_p in fitted covariate order.
 
+{phang}{bf:estimates}: {cmd:X0 candidate_id s is_default target_id estimate
+se ci_lower ci_upper}.{p_end}
+{phang}{bf:tuning}: {cmd:candidate_id s lambda is_default target_id estimate
+se ci_lower ci_upper}.{p_end}
+{phang}{bf:target diagnostics}: {cmd:plot_id ess max_weight top5_weight_share physical_radius_90 top5_score_share is_default target_id candidate_id}.{p_end}
+{phang}{bf:candidate diagnostics}: {cmd:plot_id ess max_weight top5_weight_share
+is_default target_id candidate_id}.{p_end}
+{phang}{bf:rank weights}: {cmd:rank weight cum_share candidate_id s is_default}.{p_end}
+{phang}{bf:kernel}: {cmd:target_id rank distance weight cum_share}.{p_end}
+{phang}{bf:overlap/mass}: {cmd:X0 target_id overlap_available instrument_1_mass
+instrument_0_mass instrument_1_share}.{p_end}
+{phang}{bf:overlap/armess}: {cmd:X0 target_id arm_ess_available
+instrument_1_ess instrument_0_ess}.{p_end}
+{phang}{bf:overlap/propensity}: {cmd:X0 target_id propensity_available
+propensity_mean propensity_q10 propensity_q90}.{p_end}
+{phang}{bf:influence}: {cmd:target_id obs_id rank distance weight score
+contribution phi_y phi_d}. score is the target-specific phi_y-theta*phi_d residual.{p_end}
 {pstd}
-Observation-level kernel and influence plots require unchanged original values,
-estimation sample, and row order. Older saved fits without order signatures
-must be refitted for these views; stored-result views still work after data
-changes. {cmd:style()} applies to estimates and dashboard estimate panels;
-{cmd:logweights} applies only to weight profiles.
+For target diagnostics, plot_id=target_id, candidate_id=0, is_default=0;
+for candidate diagnostics, plot_id=s and target_id is missing. Candidate IDs
+must therefore come from candidate_id, not plot_id. Rank/kernel data retain
+zero weights except for logweights profiles. Kernel/influence tables
+are grouped by selected target and retain original estimation-observation
+order within each target, carrying rank explicitly. Estimate target filtering
+follows stored target order; diagnostic selection and tuning target loops
+follow requested order. Join using explicit IDs rather than row number.
 
-{title:Stored results}
-
-{synoptset 18 tabbed}{...}
-{synopt:{cmd:r(type)}}plot type{p_end}
-{synopt:{cmd:r(view)}}resolved view or estimate style{p_end}
-{synopt:{cmd:r(graph)}}named graph{p_end}
-{synopt:{cmd:r(n_plotted)}}number of targets, candidates, or dashboard panels{p_end}
-{synopt:{cmd:r(n_omitted)}}selected estimate/tuning rows omitted because the estimate is undefined{p_end}
-{synopt:{cmd:r(selected_targets)}}all selected estimate/tuning target IDs, including undefined targets{p_end}
-{synopt:{cmd:r(n_rows)}}number of data rows used by a single-view plot; missing for dashboards{p_end}
-{synopt:{cmd:r(targets)}}canonical target IDs present in the plot data, when applicable{p_end}
-{synopt:{cmd:r(candidates)}}canonical candidate IDs present in the plot data; 0 denotes the fitted default{p_end}
+{synoptset 24}{...}
+{synopt:{cmd:r(type)}}requested type{p_end}
+{synopt:{cmd:r(view)}}resolved view/style; diagnostics gives targets/candidates{p_end}
+{synopt:{cmd:r(graph)}}graph name{p_end}
+{synopt:{cmd:r(saved)}}saved filename, if supplied{p_end}
+{synopt:{cmd:r(plot_data)}}single-view data matrix; absent for empty estimates/tuning or dashboards{p_end}
+{synopt:{cmd:r(n_rows)}}single-view data-row count; missing for dashboards{p_end}
+{synopt:{cmd:r(targets)}}sorted unique IDs actually in data, when applicable{p_end}
+{synopt:{cmd:r(candidates)}}sorted unique candidate IDs in data, when applicable{p_end}
+{synopt:{cmd:r(n_omitted)}}estimate/tuning rows omitted for missing estimates{p_end}
+{synopt:{cmd:r(selected_targets)}}estimate/tuning target IDs, including unavailable estimates{p_end}
+{synopt:{cmd:r(n_plotted)}}historical count described below{p_end}
 {synopt:{cmd:r(n_panels)}}dashboard panel count{p_end}
 {synopt:{cmd:r(panels)}}dashboard panel names in composition order{p_end}
-{synopt:{cmd:r(panel_info)}}dashboard rows: panel_id, n_rows, n_plotted; no common plot-data matrix{p_end}
-{synopt:{cmd:r(saved)}}saved filename, if supplied{p_end}
-{synopt:{cmd:r(plot_data)}}selected data for every single-view plot; estimate/tuning rows include estimate, se,
-ci_lower, ci_upper; for influence: target_id, obs_id, rank, distance,
-weight, score, contribution, phi_y, phi_d (score is phi_y-theta*phi_d){p_end}
+{synopt:{cmd:r(panel_info)}}dashboard columns panel_id n_rows n_plotted{p_end}
+
+{pstd}
+r(n_plotted) counts estimate rows before missing estimates are dropped;
+candidates for tuning/rank weights; selected rows for diagnostics;
+overlap targets; targets for kernel/influence; or dashboard panels.
+It can differ from r(n_rows): G candidates and T targets yield up to G*T
+estimate/tuning rows; rank weights yield n*G and kernels/influence yield n*T.
+An all-undefined estimate selection draws a blank graph, returns n_rows=0,
+and has no plot_data matrix. Partial selections retain original target IDs.
+
+{pstd}
+A dashboard returns panel metadata, no common plot_data, and n_rows=missing.
+Panels are estimates, available overlap_mass and overlap_propensity (or diagnostics when overlap is unavailable), weights_cumulative, and tuning for a grid fit.
+Use individual types for selected target/candidate data or panel-specific options.
 
 {marker examples}{...}
-{pstd}
-Comparable estimate columns are target coordinates, candidate_id, s, is_default,
-target_id, estimate, se, ci_lower, ci_upper. Tuning keeps its existing
-candidate_id, s, lambda, is_default, target_id, estimate, se, ci_lower, ci_upper
-schema. Diagnostic data retain plot_id and add target_id and candidate_id;
-rank weights expose rank, weight, cum_share, candidate_id, s, is_default.
-Kernel data expose target_id, rank, distance, weight, cum_share. Overlap names
-retain the treatment/instrument distinction. NP outcome columns retain weighted
-means, standard deviations, and weighted 10th/50th/90th percentiles.
-
 {title:Examples}
 
-{phang2}{cmd:. clate_dnn_plot}{p_end}
-{phang2}{cmd:. clate_dnn_plot, type(estimates) style(profile)}{p_end}
-{phang2}{cmd:. clate_dnn_plot, type(diagnostics)}{p_end}
-{phang2}{cmd:. clate_dnn_plot, type(tuning) allcandidates}{p_end}
-{phang2}{cmd:. clate_dnn_plot, type(overlap) view(mass)}{p_end}
-{phang2}{cmd:. clate_dnn_plot, type(overlap) view(armess)}{p_end}
-{phang2}{cmd:. clate_dnn_plot, type(weights) view(kernel) targets(1 3)}{p_end}
-{phang2}{cmd:. clate_dnn_plot, type(influence) nlabel(3)}{p_end}
-{phang2}{cmd:. clate_dnn_plot, type(dashboard) saving(clate_dashboard.pdf) replace}{p_end}
+{phang2}{cmd:. clate_dnn_plot, level(90) name(clate_profile) replace nodraw}{p_end}
+{phang2}{cmd:. matrix figure_data = r(plot_data)}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(estimates) targets(1 3) candidates(1 3) style(forest) replace nodraw}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(tuning) allcandidates replace nodraw}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(weights) view(kernel) targets(1 3) replace nodraw}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(overlap) view(mass) replace nodraw}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(influence) targets(1 3) nlabel(0) replace nodraw}{p_end}
+{phang2}{cmd:. clate_dnn_plot, type(dashboard) saving("clate-dashboard.pdf") replace nodraw}{p_end}
+
+{title:Also see}
+
+{psee}{help rdistnn}, {help clate_dnn}, {help clate_dnn_diagnostics}{p_end}

@@ -1,182 +1,261 @@
 {smcl}
-{* *! version 0.1.0  2026-07-12}{...}
-{viewerjumpto "Syntax"          "plqr_dnn##syntax"}{...}
-{viewerjumpto "Description"     "plqr_dnn##description"}{...}
-{viewerjumpto "Options"         "plqr_dnn##options"}{...}
-{viewerjumpto "Stored results"  "plqr_dnn##results"}{...}
-{viewerjumpto "Examples"        "plqr_dnn##examples"}{...}
-{viewerjumpto "Future work"     "plqr_dnn##future"}{...}
+{* *! version 0.1.1  17oct2026}{...}
+{viewerjumpto "Syntax" "plqr_dnn##syntax"}{...}
+{viewerjumpto "Description and score" "plqr_dnn##description"}{...}
+{viewerjumpto "Options" "plqr_dnn##options"}{...}
+{viewerjumpto "Moment covariance" "plqr_dnn##covariance"}{...}
+{viewerjumpto "Stored results" "plqr_dnn##results"}{...}
+{viewerjumpto "Examples" "plqr_dnn##examples"}{...}
+{viewerjumpto "R companion and scope" "plqr_dnn##scope"}{...}
 
 {title:Title}
 
 {phang}
-{bf:plqr_dnn} {hline 2} Experimental localized PLQR moment evaluation at a
-supplied coefficient vector
+{cmd:plqr_dnn} {hline 2} Experimental localized PLQR moment evaluation at supplied coefficients
 
 {pstd}
-Stata 17 or later is required.
+Stata 17 or later is required. See {help rdistnn} for package navigation.
 
 {marker syntax}{...}
 {title:Syntax}
 
 {p 8 17 2}
-{cmdab:plqr_dnn}
-{it:outcome}
-{ifin}{cmd:,}
-{opth x(varlist)}
-{opt x0(numlist)}
-{opth d(varlist)}
-{opth g(varname)}
-{opth md(varlist)}
-{opt thetaeval(numlist)}
+{cmd:plqr_dnn} {it:outcome} {ifin}{cmd:,}
+{opth x(varlist)} {opt x0(numlist)} {opth d(varlist)}
+{opth g(varname)} {opth md(varlist)} {opt thetaeval(numlist)}
 [{it:options}]
+
+{p 8 17 2}{cmd:plqr_dnn} [{cmd:, level(}{it:#}{cmd:)}]
 
 {synoptset 26 tabbed}{...}
 {synopthdr}
 {synoptline}
-{syntab:Required}
-{synopt:{opth x(varlist)}}covariates defining the local neighborhood{p_end}
-{synopt:{opt x0(numlist)}}evaluation point; one value per covariate{p_end}
-{synopt:{opth d(varlist)}}partially linear regressors D{p_end}
-{synopt:{opth g(varname)}}supplied g_tau(X) nuisance variable{p_end}
-{synopt:{opth md(varlist)}}supplied m_D(X) variables, in d() order{p_end}
-{synopt:{opt thetaeval(numlist)}}supplied theta vector, one value per d() variable{p_end}
-
+{syntab:Required inputs}
+{synopt:{opth x(varlist)}}numeric reporting covariates defining localization{p_end}
+{synopt:{opt x0(numlist)}}one target, coordinates in x() order{p_end}
+{synopt:{opth d(varlist)}}numeric partially linear regressors D{p_end}
+{synopt:{opth g(varname)}}supplied additive shape nuisance g_0(U){p_end}
+{synopt:{opth md(varlist)}}supplied E[D|U] variables, in d() order{p_end}
+{synopt:{opt thetaeval(numlist)}}supplied coefficient vector, in d() order{p_end}
 {syntab:Compatibility aliases}
-{synopt:{opth q(varname)}}temporary alias for {cmd:g()}; do not combine them{p_end}
-{synopt:{opt beta(numlist)}}temporary alias for {cmd:thetaeval()}; do not combine them{p_end}
-
-{syntab:Model and localization}
-{synopt:{opt tau(#)}}quantile index in (0,1); default {cmd:tau(0.5)}{p_end}
-{synopt:{opt k(#)}}nearest observations selected per size-s subsample; default {cmd:k(1)}{p_end}
-{synopt:{opt s(#)}}kernel order (< n); default uses floor(0.4*n^((kx+1)/(kx+2))){p_end}
-{synopt:{opt distance(string)}}{cmd:l2} (default) or {cmd:mahalanobis}{p_end}
-{synopt:{opt method(string)}}{cmd:exact} (default) or {cmd:asymp}{p_end}
+{synopt:{opth q(varname)}}temporary alias for g(); do not combine them{p_end}
+{synopt:{opt beta(numlist)}}temporary alias for thetaeval(); do not combine them{p_end}
+{syntab:Localization}
+{synopt:{opt tau(#)}}quantile index in (0,1); default .5{p_end}
+{synopt:{opt k(#)}}neighbors averaged within each size-s subsample; default 1{p_end}
+{synopt:{opt s(#)}}integer subsample order, k<=s<n; default paper rule{p_end}
+{synopt:{opt distance(string)}}l2 (default) or mahalanobis{p_end}
+{synopt:{opt method(string)}}exact (default) or asymp{p_end}
+{synopt:{opt level(#)}}accepted on fit/replay; produces no confidence intervals or tests{p_end}
 {synoptline}
 
 {marker description}{...}
-{title:Description}
+{title:Description and score}
 
 {pstd}
-{bf:Experimental status.}  {cmd:plqr_dnn} evaluates the localized PLQR score
-moment at the vector supplied in {opt thetaeval()}.  It is not a coefficient estimator.
-It does not solve the local moment equation for a root,
-estimate a conditional density, or report coefficient standard errors,
-confidence intervals, p-values, or significance tests.
+{bf:Experimental status.} {cmd:plqr_dnn} evaluates a localized vector score
+moment at the coefficients supplied in {cmd:thetaeval()}. It is not a coefficient estimator.
+It does not solve
+for a coefficient, estimate a conditional density, or report coefficient
+standard errors, confidence intervals, p-values or significance tests.
+Its API may change. The initial release focuses on CATE and regression.
 
 {pstd}
-PLQR functionality is outside the CATE and nonparametric-regression focus of
-the initial public release. Its API may change in later releases. The Stata
-command's implemented contract is moment evaluation at supplied coefficients;
-the broader R companion also has density-backed inference facilities that
-are not provided by this command.
-
-{pstd}
-For observation i and score component j, the command forms
+For observation i and score component j, the score is
 
 {phang2}
-psi_ij(theta) = (tau - 1{Y_i <= D_i'theta + g_i}) * (D_ij - mD_ij),
-{p_end}
+psi_ij(theta) = (tau - indicator[Y_i <= D_i'theta + g_i]) * (D_ij - mD_ij).
 
 {pstd}
-then computes its DNN-weighted local mean at {opt x0()}.  The posted covariance
-is the rank-shift jackknife covariance of this localized score moment.  It is
-not a coefficient covariance matrix.  The displayed output explicitly states
-that no local root solving was performed.
+The indicator includes equality: an observation exactly at the threshold
+receives indicator one. The command averages these scores using common DNN
+weights at {cmd:x0()}. Its covariance is the covariance of that localized
+vector moment, including cross-component entries. No local root solving is
+performed and the supplied coefficient vector remains unchanged.
 
 {pstd}
-The canonical paper-aligned nuisance notation is {opt g()} for g_tau(X) and
-{opt md()} for m_D(X).  Stata does not fit these nuisance functions.  The
-canonical evaluation-vector option is {opt thetaeval()}.
+The shape nuisance {cmd:g()} is the additive g_0(U) in the threshold
+D'theta+g_0(U); g_0 alone is not a complete conditional quantile.
+{cmd:md()} supplies m_D(U)=E[D|U] to residualize each regressor.
+U is the full adjustment state; these predictions can depend on variables
+outside the reporting covariates {cmd:x()}. The package accepts evaluated
+predictions and fits no nuisance models.
+
+{pstd}
+Y and g use outcome units. Each supplied coefficient has outcome units per
+unit of its regressor. Because the indicator residual is dimensionless,
+score/moment component j has regressor-j units; covariance entry (j,h) has
+the product of regressor-j and regressor-h units. It is not coefficient
+covariance. A small sample moment does not turn supplied theta into an
+estimated coefficient, and oracle examples do not establish coverage for
+arbitrary fitted nuisances.
 
 {marker options}{...}
-{title:Options}
+{title:Options and sample}
 
-{dlgtab:Moment inputs}
+{phang}
+{cmd:x()} selects the reporting covariates. {cmd:x0()} supplies exactly one
+coordinate per variable, in that order. Only a single target is supported;
+this command has neither {cmd:x0matrix()} nor {cmd:xcols()}.
+Separate calls at several targets replace active estimation results and do
+not return joint covariance across targets.
 
-{phang}{opth x(varlist)} specifies the localization covariates X.
+{phang}
+{cmd:d()} lists q partially linear regressors, with q>=1. They need not be
+binary. {cmd:md()} must have q prediction variables in exactly the same
+order. {cmd:thetaeval()} must have q coefficients in that order.
+Changing the order of one without the others changes the score.
 
-{phang}{opt x0(numlist)} supplies the target point, one value per variable in
-{opt x()}.
+{phang}
+{cmd:g()} supplies the shape variable. {cmd:q()} is a temporary compatibility
+alias, not a request for a complete conditional quantile. {cmd:beta()} is a
+temporary alias for {cmd:thetaeval()}, not a coefficient-estimation request.
+Combining a preferred name with its own alias is an error.
 
-{phang}{opth d(varlist)} supplies the partially linear regressors D.
+{phang}
+The estimation sample consists of complete outcome, x, d, g and md rows in
+the requested if/in range. Prepare aligned external nuisance predictions
+before the call. {cmd:e(N)} and {cmd:e(sample)} identify the retained sample.
 
-{phang}{opth g(varname)} supplies g_tau(X), the additive nuisance entering the
-indicator threshold.  {opt q()} is a temporary compatibility alias.  Supplying
-both {opt g()} and {opt q()} is an error.
+{phang}
+{cmd:tau()} sets the quantile index, strictly between zero and one.
+The default is .5, the median score.
 
-{phang}{opth md(varlist)} supplies m_D(X).  Its variables must match {opt d()}
-in length and order.
+{phang}
+{cmd:k()} is the number of observations averaged within a size-s subsample,
+not the full-sample positive-weight support. {cmd:s()} is the integer
+subsample order. With complete-sample size n and p reporting covariates,
+the default is floor(.4*n^((p+1)/(p+2))). The covariance calculation requires
+1<=k<=s<n. There is no PLQR {cmd:nose} or tuning-grid option.
 
-{phang}{opt thetaeval(numlist)} supplies the coefficient vector at which the
-score is evaluated.  {opt beta()} is a temporary compatibility alias.
-Supplying both {opt thetaeval()} and {opt beta()} is an error.
+{phang}
+For exact top-k DNN, positive support ends at global rank n - s + k, or n - s + 1
+under k(1). Larger s tightens localization,
+opposite to the usual bandwidth convention;
+exact k=s gives uniform weights and no target-specific localization.
+{cmd:method(asymp)} uses normalized Beta-rank weights. There is no separate
+normalization option in this command.
 
-{phang}{opt tau(#)} sets the quantile index in (0,1).
+{phang}
+{cmd:distance(l2)} uses Euclidean geometry. {cmd:distance(mahalanobis)}
+requires at least two reporting covariates and uses full-estimation-sample
+covariance geometry, with generalized-inverse behavior for singular covariance.
+Input observation position breaks distance ties. The metric stays fixed
+during deletions. See {help weights_dnn} for the shared rank-weight rules.
 
-{dlgtab:Localization}
+{marker covariance}{...}
+{title:Moment covariance and inferential scale}
 
-{phang}{opt k(#)} sets how many nearest observations are selected within each
-size-s subsample, not the full-sample positive-support size.
+{pstd}
+Each deletion removes one observation, shifts the retained ranks, and
+recomputes weights at the same target, s, k and method. Supplied coefficients,
+shape predictions, residualizer predictions and observation-level scores
+remain frozen. Full-sample Mahalanobis covariance is not re-estimated after
+deletion. If L_i is the row-vector moment after deleting i, the covariance is
+(n-1)/n times sum_i (L_i-mean(L))'*(L_i-mean(L)).
 
-{phang}{opt s(#)} sets the subset/kernel order, a localization analogue whose
-direction is opposite to the usual bandwidth convention.  Exact top-k weights
-have positive support through rank n - s + k (n - s + 1 for {cmd:k(1)}).
-Larger s therefore tightens localization.  Because the moment covariance uses
-a delete-1 jackknife, {cmd:s()} must satisfy k <= s < n.
+{pstd}
+{cmd:e(moment_vcov)} already contains the estimator-scale covariance of the
+weighted moment. Do not divide it by {cmd:e(neff)} again.
+{cmd:e(neff)}=1/sum_i w_i^2 is an effective weight-concentration measure;
+it is not a certificate of a CLT, nuisance accuracy or point-target bias control.
 
-{phang}{opt distance(string)} selects {cmd:l2} or {cmd:mahalanobis}.
-
-{phang}{opt method(string)} selects exact DNN weights or the {cmd:asymp} Beta
-order-statistic approximation.
+{pstd}
+The square root of a diagonal entry describes a moment component's jackknife
+SD. It is not a coefficient SE. Coefficient inference needs a valid Jacobian
+and sandwich construction, together with its identification and asymptotic
+conditions. This Stata command supplies neither a density input nor a
+coefficient Jacobian/sandwich. Generic coefficient postestimation that treats
+{cmd:e(b)} and {cmd:e(V)} as coefficient estimates/covariance uses the wrong
+statistical object. The custom display and replay print moments/covariance
+without coefficient tests; {cmd:level()} changes no interval because none is
+computed. There are no Stata PLQR diagnostics or plot commands.
 
 {marker results}{...}
 {title:Stored results}
 
 {pstd}
-{cmd:plqr_dnn} stores the following in {cmd:e()}:
+For q variables in {cmd:d()}, {cmd:plqr_dnn} stores:
 
-{synoptset 22 tabbed}{...}
-{p2col 5 22 26 2:Matrices}{p_end}
-{synopt:{cmd:e(moment)}}localized score moment at supplied theta{p_end}
-{synopt:{cmd:e(moment_vcov)}}rank-shift covariance of {cmd:e(moment)}{p_end}
-{synopt:{cmd:e(theta_eval)}}supplied evaluation vector{p_end}
-{synopt:{cmd:e(b)}}compatibility copy of {cmd:e(moment)} required by eclass{p_end}
-{synopt:{cmd:e(V)}}compatibility copy of {cmd:e(moment_vcov)}{p_end}
-{synopt:{cmd:e(beta)}}temporary compatibility copy of {cmd:e(theta_eval)}{p_end}
+{synoptset 25 tabbed}{...}
+{p2col 5 25 29 2:Matrices}{p_end}
+{synopt:{cmd:e(moment)}}1-by-q row-vector localized moment; columns in d() order{p_end}
+{synopt:{cmd:e(moment_vcov)}}q-by-q full moment covariance; rows/columns in d() order{p_end}
+{synopt:{cmd:e(theta_eval)}}1-by-q supplied evaluation vector{p_end}
+{synopt:{cmd:e(b)}}compatibility copy of moment, not coefficients{p_end}
+{synopt:{cmd:e(V)}}compatibility copy of moment_vcov, not coefficient covariance{p_end}
+{synopt:{cmd:e(beta)}}temporary compatibility copy of theta_eval{p_end}
 
-{p2col 5 22 26 2:Scalars}{p_end}
-{synopt:{cmd:e(N)}}estimation-sample size{p_end}
+{pstd}
+{cmd:e(moment)} has row name {cmd:moment}. All three primary matrices carry
+the regressor names in their component dimension. Stata uses a row vector
+for this single target, unlike R's component-by-target moment matrix.
+
+{p2col 5 25 29 2:Scalars}{p_end}
+{synopt:{cmd:e(N)}}complete-case estimation-sample size{p_end}
 {synopt:{cmd:e(neff)}}DNN effective sample size{p_end}
-{synopt:{cmd:e(k)}, {cmd:e(s)}}DNN localization parameters{p_end}
-{synopt:{cmd:e(kx)}, {cmd:e(kd)}}covariate and moment dimensions{p_end}
+{synopt:{cmd:e(k)}, {cmd:e(s)}}resolved localization parameters{p_end}
+{synopt:{cmd:e(kx)}, {cmd:e(kd)}}reporting and moment dimensions{p_end}
 {synopt:{cmd:e(tau)}}quantile index{p_end}
 
-{p2col 5 22 26 2:Macros}{p_end}
-{synopt:{cmd:e(theta_source)}}{cmd:supplied}{p_end}
-{synopt:{cmd:e(inference_target)}}{cmd:moment}{p_end}
-{synopt:{cmd:e(root_solver)}}{cmd:none}{p_end}
-{synopt:{cmd:e(gvar)}}resolved g_tau(X) variable{p_end}
-{synopt:{cmd:e(g_option)}}{cmd:g} or compatibility alias {cmd:q}{p_end}
-{synopt:{cmd:e(theta_option)}}{cmd:thetaeval} or compatibility alias {cmd:beta}{p_end}
-{synopt:{cmd:e(mdvars)}}resolved m_D(X) variables{p_end}
-{synopt:{cmd:e(distance)}, {cmd:e(method)}}weight configuration{p_end}
+{p2col 5 25 29 2:Macros}{p_end}
+{synopt:{cmd:e(theta_source)}}supplied{p_end}
+{synopt:{cmd:e(inference_target)}}moment{p_end}
+{synopt:{cmd:e(root_solver)}}none{p_end}
+{synopt:{cmd:e(xvars)}, {cmd:e(x0)}}reporting covariates and supplied target coordinates{p_end}
+{synopt:{cmd:e(yvar)}, {cmd:e(dvars)}}outcome and regressor names{p_end}
+{synopt:{cmd:e(gvar)}, {cmd:e(qvar)}}resolved shape-variable name and compatibility copy{p_end}
+{synopt:{cmd:e(mdvars)}}residualizer variable names{p_end}
+{synopt:{cmd:e(g_option)}}g or compatibility alias q{p_end}
+{synopt:{cmd:e(theta_option)}}thetaeval or compatibility alias beta{p_end}
+{synopt:{cmd:e(distance)}, {cmd:e(method)}}metric and rank-weight configuration{p_end}
+{synopt:{cmd:e(cmd)}, {cmd:e(cmdline)}}command identity and original call{p_end}
 
 {marker examples}{...}
 {title:Examples}
 
-{pstd}Evaluate the localized score moment at a supplied theta.{p_end}
-{phang2}{cmd:. plqr_dnn y, x(x1 x2) x0(0 0) d(d1 d2) g(g_tau) md(md1 md2)}{...}
-{phang2}{cmd:    thetaeval(1 -0.5) tau(0.5) k(5)}{p_end}
+{pstd}
+A self-contained median-score example with known shape and regressor means.
+These oracle inputs illustrate computation, not a fitted-nuisance guarantee.
 
-{pstd}Legacy aliases remain temporarily available.{p_end}
-{phang2}{cmd:. plqr_dnn y, x(x1 x2) x0(0 0) d(d1 d2) q(g_tau) md(md1 md2)}{...}
-{phang2}{cmd:    beta(1 -0.5)}{p_end}
-
-{marker future}{...}
-{title:Future functionality}
+{phang2}{cmd:. clear}{p_end}
+{phang2}{cmd:. set obs 100}{p_end}
+{phang2}{cmd:. set seed 20261017}{p_end}
+{phang2}{cmd:. gen double x1 = rnormal()}{p_end}
+{phang2}{cmd:. gen double x2 = rnormal()}{p_end}
+{phang2}{cmd:. gen double md1 = .3*x1-.2*x2}{p_end}
+{phang2}{cmd:. gen double md2 = -.1*x1+.4*x2}{p_end}
+{phang2}{cmd:. gen double d1 = md1+.4*rnormal()}{p_end}
+{phang2}{cmd:. gen double d2 = md2+.4*rnormal()}{p_end}
+{phang2}{cmd:. gen double g_tau = .25*x1-.15*x2}{p_end}
+{phang2}{cmd:. gen double Y = d1-.5*d2+g_tau+.5*rnormal()}{p_end}
+{phang2}{cmd:. plqr_dnn Y, x(x1 x2) x0(0 0) d(d1 d2) g(g_tau) md(md1 md2) thetaeval(1 -.5) tau(.5) s(12)}{p_end}
+{phang2}{cmd:. matrix m = e(moment)}{p_end}
+{phang2}{cmd:. matrix C = e(moment_vcov)}{p_end}
+{phang2}{cmd:. matrix theta_supplied = e(theta_eval)}{p_end}
+{phang2}{cmd:. matrix list m}{p_end}
+{phang2}{cmd:. matrix list C}{p_end}
+{phang2}{cmd:. matrix list theta_supplied}{p_end}
+{phang2}{cmd:. display "First moment's jackknife SD: " sqrt(C[1,1])}{p_end}
 
 {pstd}
-Local root solving and density-backed coefficient inference are not implemented
-by this experimental command.  They require a separate estimator contract and
-are reserved for future functionality.
+The source archive's {cmd:examples/plqr-moments.do} also reconstructs the
+scores and checks the reported moments against explicit weighted sums.
+The temporary syntax {cmd:q(g_tau) beta(1 -.5)} can replace
+{cmd:g(g_tau) thetaeval(1 -.5)}, but preferred names make input roles clearer.
+
+{marker scope}{...}
+{title:R companion and scope}
+
+{pstd}
+The R companion's experimental PLQR wrapper has additional density-backed
+coefficient inference, multiple targets, tuning grids and PLQR-specific
+reporting/plot methods. Those are not Stata options. Neither front end
+currently solves a local PLQR root. Stata's full moment covariance is useful
+for inspecting score variation, but it does not replace the missing
+coefficient Jacobian. Any later coefficient estimator needs a separate,
+explicit statistical and software contract.
+
+{title:Also see}
+
+{psee}{help rdistnn}, {help weights_dnn}, {help cate_dnn}, {help np_dnn}, {help clate_dnn}

@@ -39,6 +39,22 @@ instrument and outcome labels. See the
 for returned tables, available views and selection rules, and the
 [verification receipt](docs/estimator-coherence-verification.md) for evidence.
 
+## Documentation
+
+Open `help rdistnn` for the installed package overview, or start with the
+[article collection](docs/index.md). It covers [getting started](docs/getting-started.md),
+[notation](docs/notation-and-conventions.md), [CATE and regression](docs/cate-and-regression.md),
+[weights and tuning](docs/weights-and-tuning.md),
+[diagnostics/reporting](docs/diagnostics-and-reporting.md),
+[visualization](docs/visualising-fits.md), [CLATE](docs/conditional-late.md) and
+[PLQR moments](docs/plqr-moments.md), with standalone runnable examples.
+The [R documentation crosswalk](docs/r-documentation-crosswalk.md) maps all R
+article/reference families and identifies R-only functionality.
+
+These guides describe `feature/clate`, including the newer reporting interface.
+Use that branch to follow the complete collection. The tagged release and
+`master` installation routes below describe distinct package snapshots.
+
 ## Installation
 
 The `feature/clate` development branch adds conditional LATE; it is not part
@@ -47,6 +63,7 @@ of release 0.1.0. Install that branch explicitly to use the
 
 ```stata
 net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/feature/clate/") replace
+help rdistnn
 help clate_dnn
 ```
 
@@ -76,7 +93,8 @@ verify the checksum, extract the ZIP, and install from the directory containing
 net install rdistnn, from("path/to/extracted/rdistnn-source") replace
 ```
 
-For the current development version, use the default branch:
+For development on the default branch, use `master`; it may differ from this
+feature branch and does not promise the complete workflow documented here:
 
 ```stata
 net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/master/") replace
@@ -194,10 +212,10 @@ are in [src/plugin/README.md](src/plugin/README.md).
 
 ## Development and release preparation
 
-[CONTRIBUTING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/CONTRIBUTING.md) describes local setup and verification.
-[The test-suite map](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/README.md) lists numerical, cross-language,
-validation, and postestimation coverage. [RELEASING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/RELEASING.md) records
+[CONTRIBUTING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/CONTRIBUTING.md) describes local setup and verification.
+[The test-suite map](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/tests/README.md) lists numerical, cross-language,
+validation, and postestimation coverage. [RELEASING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/RELEASING.md) records
 the source archive, installation, plugin, and publication checks;
-[WEBSITE.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/WEBSITE.md) supplies announcement copy. Release preparation does
+[WEBSITE.md](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/WEBSITE.md) supplies announcement copy. Release preparation does
 not itself publish a release. See [RELEASE_NOTES.md](RELEASE_NOTES.md) for
 the change history.
