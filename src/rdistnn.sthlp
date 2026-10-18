@@ -116,6 +116,9 @@ custom registries, confidence-set inversion and replication workflows.
 {pstd}
 {browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/README.md":README}
 provides installation from {cmd:master} and version-pinned alternatives. The portable
-ado/Mata baseline needs no compiler. Optional native plugins accelerate only
-standalone L2 weights. This overview and command help install with the package;
+ado/Mata baseline needs no compiler. Optional native plugins accelerate
+standalone L2 weights and frozen-score jackknife deletions for all estimators.
+Both C++ and Mata use prefix/suffix sums; naive deletions remain a final
+fallback and can be selected with {cmd:global rdistnn_jackknife_engine naive}
+for parity checks. This overview and command help install with the package;
 the article/example collection is available from the repository or source ZIP.

@@ -29,7 +29,9 @@ reporting updates. The [README](../README.md#installation)
 also describes installation from a downloaded source archive. Installation
 does not require R or a compiler. Estimation uses the portable ado/Mata
 implementation; the optional native plugin accelerates eligible standalone
-`weights_dnn` calls. See [weights and tuning](weights-and-tuning.md) for the
+`weights_dnn` calls and frozen-score jackknife deletions for all estimators.
+Fast Mata prefix/suffix calculations remain available without the plugin.
+See [weights and tuning](weights-and-tuning.md) for the
 plugin and fallback controls.
 
 The examples below assume the commands are installed. From a source checkout,

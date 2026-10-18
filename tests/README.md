@@ -32,6 +32,7 @@ assertions as the full suite.
 | Distances and deterministic ranks | `test-mata-distances.do`, `test-mata-rank-r-mirror.do` |
 | Exact/asymptotic weights | `test-mata-weights-exact.do`, `test-mata-weights-asymp.do`, `test-weights-dnn-*.do` |
 | Scalar/vector/multi-target jackknife references | `test-mata-jackknife*.do` |
+| Compiled/fast Mata/retained naive deletion parity, matrix bridge, fallback hierarchy and all-estimator grid/covariance reuse | `test-mata-jackknife-prefix.do`, `test-jackknife-engines.do` |
 | NP estimation, validation, and R parity | `test-np-dnn-*.do` |
 | CATE score paths, batch/grid results, diagnostics, plots, and validation | `test-cate-dnn-*.do` |
 | CLATE paired signals/deletions, binary IV, statuses, batch/grid results, R parity, and all CATE plot families | `test-clate-*.do` |

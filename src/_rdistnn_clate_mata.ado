@@ -13,8 +13,8 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
     real rowvector theta, real matrix V, real matrix componentV,
     real matrix status)
 {
-    real scalar n, m, i, j, h, d, den_scale, scale, variance, corr, omega_quarter
-    real colvector idx, kept, deleted_ranks, w, sd, good
+    real scalar n, m, j, h, d, den_scale, scale, variance, corr, omega_quarter
+    real colvector sd, good
     real matrix W, loo, centered, scaled_centered, g, normalized, block
 
     n=rows(ranks); m=cols(ranks)
@@ -48,17 +48,7 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
     }
     if(!do_se) return
 
-    idx=(1::n)
-    loo=J(n,2*m,.)
-    for(i=1;i<=n;i++) {
-        kept=(idx:!=i)
-        for(j=1;j<=m;j++) {
-            deleted_ranks=select(ranks[,j],kept)
-            deleted_ranks=deleted_ranks:-(deleted_ranks:>ranks[i,j])
-            w=rdistnn_weights_from_ranks(deleted_ranks,k,s,method)
-            loo[i,(2*j-1)..(2*j)]=cross(w,select(signals,kept))
-        }
-    }
+    loo=rdistnn_loo_from_ranks(ranks,rdistnn_center_signal(signals),k,s,method)
     centered=loo:-mean(loo)
     // Scale before the dot product: its unscaled sum can exceed Stata's
     // range while the final estimator-scale covariance remains finite.

@@ -8,6 +8,17 @@ the R reference's CLATE/reporting milestone; the
 [documentation crosswalk](docs/r-documentation-crosswalk.md) records the
 remaining differences in feature coverage.
 
+- Share compiled and Mata prefix/suffix frozen-score jackknife engines across
+  NP, CATE, PLQR and CLATE. Reuse rank-weight tables across targets/deletions,
+  retain explicit deletions for parity checks and as a final fallback, and
+  preserve paired and cross-target covariance. Older/unavailable plugins and
+  jobs above the native matrix bridge's limit use fast Mata automatically.
+  Center covariance signals before accumulation to preserve zero variance
+  for constant scores and accuracy under large common signal levels.
+- Reuse default-candidate covariance in NP/CATE and duplicate CLATE tuning
+  fits. Short-circuit CLATE's preliminary zero-signal covariance without
+  changing inference feasibility rules.
+
 - Add experimental `clate_dnn` for augmented binary-IV conditional LATE,
   externally supplied nuisance predictions, explicit one-sided compliance,
   or precomputed paired reduced-form/first-stage signals.

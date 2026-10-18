@@ -197,13 +197,19 @@ candidate sensitivity rather than treating one threshold as a theorem check.
 ## Native acceleration and R boundaries
 
 The optional platform-specific plugin accelerates standalone L2
-`weights_dnn` calls. The estimator wrappers use their Mata routines; plugin
-availability is not evidence that estimator fitting was accelerated.
+`weights_dnn` calls and frozen-score jackknife deletions for NP, CATE, PLQR and
+CLATE. Estimator geometry and rank-weight tables use Mata. Deletion calculations
+reuse one n-1 weight table with prefix/suffix sums in both C++ and Mata.
 By default a usable L2 plugin is attempted, with Mata fallback on load or
 execution failure. `global rdistnn_use_plugin 0` forces Mata; `1` requires a
-working plugin on eligible L2 calls. The global does not make Mahalanobis a
-plugin-supported metric. Restore default dispatch with
-`macro drop rdistnn_use_plugin`. See the [native guide](../src/plugin/README.md)
+working plugin on eligible calls. Mahalanobis geometry remains in Mata;
+its frozen-rank jackknife can use the compiled engine. Restore default dispatch with
+`macro drop rdistnn_use_plugin`. For jackknife parity checks, set
+`global rdistnn_jackknife_engine` to `plugin`, `mata` or `naive`; drop it to
+restore automatic compiled -> fast Mata -> naive dispatch. The explicit fast
+selectors report failures. Auto mode uses fast Mata when a plugin is old,
+missing, incompatible or exceeds the Stata matrix bridge's `c(matsize)` limit,
+and retains naive deletions as the final fallback. See the [native guide](../src/plugin/README.md)
 for platform assets, source builds and parity checks.
 
 R additionally has custom distance/rank-weight/tuning registries, two-scale

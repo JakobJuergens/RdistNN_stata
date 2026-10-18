@@ -99,10 +99,17 @@ or Beta-increment approximation. Changing it changes the weight vector.
 Eligible L2 calls try the installed platform-specific plugin, with Mata fallback
 on load/execution failure. The ordinary package bundles a Windows x86-64 binary;
 Linux/macOS users can install matching release assets or build from source.
-The estimator wrappers and Mahalanobis path use Mata. Set global
+Estimator geometry and weight tables use Mata; all four estimators can use
+the compiled prefix/suffix jackknife, including under frozen Mahalanobis ranks.
+Set global
 {cmd:rdistnn_use_plugin} to {cmd:0} to force Mata or {cmd:1} to require a working
 plugin for eligible L2 calls. Drop the global to restore default dispatch.
-Requiring the plugin does not add Mahalanobis plugin support.
+Requiring the plugin does not add native Mahalanobis distance computation.
+For jackknife parity checks, {cmd:global rdistnn_jackknife_engine naive}
+selects explicit deletions; {cmd:mata} selects fast Mata and {cmd:plugin}
+requires compiled prefix/suffix sums. Drop that global for automatic compiled,
+fast Mata, then naive fallback. Jobs above {cmd:c(matsize)} use fast Mata in
+automatic mode.
 
 {marker results}{...}
 {title:Stored results}

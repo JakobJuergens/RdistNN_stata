@@ -504,13 +504,11 @@ program define cate_dnn, eclass
                         _ct_ranks, _ct_rho, `k', _ct_sg, "`method'")
                     _ct_grid_se[_ct_g,.] = sqrt(diagonal(_ct_Vg))'
                 }
-            }
-            if (_ct_g == `default_index') {
-                _ct_W = rdistnn_weights_from_rmat(
-                    _ct_ranks, `k', _ct_candidates[_ct_g, 8], "`method'")
-                if ("`se'" == "") {
-                    _ct_V = rdistnn_jk_cov_multi_from_ranks(
-                        _ct_ranks, _ct_rho, `k', _ct_candidates[_ct_g, 8], "`method'")
+                // Save the default's first representative, including when the
+                // default row duplicates an earlier candidate after other orders.
+                if (_ct_candidates[_ct_g, 2] == _ct_candidates[`default_index', 2]) {
+                    _ct_W = _ct_Wg
+                    if ("`se'" == "") _ct_V = _ct_Vg
                 }
             }
         }

@@ -30,6 +30,11 @@ capture mata: mata drop rdistnn_weighted_quantile()
 capture mata: mata drop rdistnn_weights_from_ranks()
 capture mata: mata drop rdistnn_weights_from_rmat()
 capture mata: mata drop rdistnn_weights()
+capture mata: mata drop rdistnn_loo_naive()
+capture mata: mata drop rdistnn_loo_prefix()
+capture mata: mata drop rdistnn_loo_plugin()
+capture mata: mata drop rdistnn_loo_from_ranks()
+capture mata: mata drop rdistnn_center_signal()
 capture mata: mata drop rdistnn_jk_cov_from_ranks()
 capture mata: mata drop rdistnn_jk_cov_multi_from_ranks()
 capture mata: mata drop rdistnn_jk_se_from_ranks()
@@ -456,6 +461,7 @@ real matrix rdistnn_weights_from_rmat(real matrix ranks,
                                        | string scalar method)
 {
     real scalar j, m
+    real colvector table
     real matrix W
 
     if (args() < 4 | method == "") method = "exact"
@@ -465,9 +471,11 @@ real matrix rdistnn_weights_from_rmat(real matrix ranks,
         exit(error(198))
     }
 
+    // The rank-weight table is independent of the target permutation.
     W = J(rows(ranks), m, .)
+    table = rdistnn_weights_from_ranks((1::rows(ranks)), k, s, method)
     for (j = 1; j <= m; j++) {
-        W[,j] = rdistnn_weights_from_ranks(ranks[,j], k, s, method)
+        W[,j] = table[ranks[,j]]
     }
     return(W)
 }
@@ -509,6 +517,153 @@ real colvector rdistnn_weights(real matrix X, real rowvector x0,
     return(rdistnn_weights_from_ranks(ranks, k, s, method))
 }
 
+// Explicit rank-shift deletions retained as a reference and final fallback.
+// Output columns are target blocks, with q signal columns in each block.
+real matrix rdistnn_loo_naive(real matrix ranks, real matrix signal,
+    real scalar k, real scalar s, string scalar method)
+{
+    real scalar n, m, q, i, j
+    real colvector kept, r, w
+    real matrix loo
+    n=rows(ranks); m=cols(ranks); q=cols(signal)
+    loo=J(n,m*q,.)
+    for(i=1;i<=n;i++) {
+        kept=((1::n):!=i)
+        for(j=1;j<=m;j++) {
+            r=select(ranks[,j],kept)
+            r=r:-(r:>ranks[i,j])
+            w=rdistnn_weights_from_ranks(r,k,s,method)
+            loo[i,((j-1)*q+1)..(j*q)]=cross(w,select(signal,kept))
+        }
+    }
+    return(loo)
+}
+
+// Two linear passes per target/component. The table at n-1 is shared across
+// every deletion and target; no deletion-specific rank or signal copies.
+real matrix rdistnn_loo_prefix(real matrix ranks, real matrix signal,
+    real colvector table)
+{
+    real scalar n, m, q, j, r
+    real colvector ord
+    real matrix z, left, right, loo
+    n=rows(ranks); m=cols(ranks); q=cols(signal)
+    loo=J(n,m*q,.)
+    for(j=1;j<=m;j++) {
+        ord=J(n,1,.)
+        ord[ranks[,j]]=(1::n)
+        z=signal[ord,]
+        left=right=J(n,q,0)
+        for(r=2;r<=n;r++) left[r,]=left[r-1,]+table[r-1]*z[r-1,]
+        for(r=n-1;r>=1;r--) right[r,]=right[r+1,]+table[r]*z[r+1,]
+        loo[,((j-1)*q+1)..(j*q)]=left[ranks[,j],]+right[ranks[,j],]
+    }
+    return(loo)
+}
+
+// Stata's plugin API exchanges matrices subject to c(matsize). Larger jobs
+// go straight to Mata, whose matrices do not have that limit.
+real matrix rdistnn_loo_plugin(real matrix ranks, real matrix signal,
+    real colvector table)
+{
+    string rowvector names
+    real scalar rc, i
+    real matrix loo
+    if(st_global("rdistnn_plugin_ok")!="1" |
+        max((rows(ranks),cols(ranks)*cols(signal)))>st_numscalar("c(matsize)")) return(J(0,0,.))
+    names=st_tempname(4)
+    st_matrix(names[1],ranks)
+    st_matrix(names[2],signal)
+    st_matrix(names[3],table)
+    st_matrix(names[4],J(rows(ranks),cols(ranks)*cols(signal),.))
+    rc=_stata("plugin call rdistnn_plugin, rank_loo "+invtokens(names),1)
+    loo=J(0,0,.)
+    if(rc==0) loo=st_matrix(names[4])
+    for(i=1;i<=4;i++) st_matrix(names[i],J(0,0,.))
+    return(loo)
+}
+
+// Default hierarchy: compiled prefix/suffix -> Mata prefix/suffix -> naive.
+// Explicit engine selectors support parity checks without changing estimators.
+real matrix rdistnn_loo_from_ranks(real matrix ranks, real matrix signal,
+    real scalar k, real scalar s, | string scalar method)
+{
+    real scalar n, m, q, i, j, r
+    real colvector seen, table
+    real matrix loo
+    string scalar engine, plugin_mode
+    pointer(function) scalar prefix
+    if(args()<5 | method=="") method="exact"
+    n=rows(ranks); m=cols(ranks); q=cols(signal)
+    if((method!="exact" & method!="asymp") |
+        n<2 | m<1 | rows(signal)!=n | q<1 | hasmissing(signal) |
+        hasmissing(ranks) | k<1 | k!=floor(k) | s<k | s>=n | s!=floor(s) |
+        min(ranks)<1 | max(ranks)>n | any(ranks:!=floor(ranks))) {
+        errprintf("rdistnn_loo_from_ranks: require finite aligned signals, rank permutations and 1 <= k <= s < n.\n")
+        exit(error(198))
+    }
+    for(j=1;j<=m;j++) {
+        seen=J(n,1,0)
+        for(i=1;i<=n;i++) {
+            r=ranks[i,j]
+            if(seen[r]) {
+                errprintf("rdistnn_loo_from_ranks: each ranks column must be a permutation of 1..n.\n")
+                exit(error(198))
+            }
+            seen[r]=1
+        }
+    }
+    engine=st_global("rdistnn_jackknife_engine")
+    if(engine=="") engine="auto"
+    if(!any(engine:==("auto","plugin","mata","naive"))) {
+        errprintf("rdistnn_jackknife_engine must be auto, plugin, mata or naive.\n")
+        exit(error(198))
+    }
+    if(engine=="naive") return(rdistnn_loo_naive(ranks,signal,k,s,method))
+    // CLATE delegates geometry/tuning with a zero signal. Its unused scalar
+    // covariance needs neither a weight table nor any deletion calculations.
+    if(all(signal:==0)) return(J(n,m*q,0))
+    table=rdistnn_weights_from_ranks((1::(n-1)),k,s,method)
+    plugin_mode=st_global("rdistnn_use_plugin")
+    if(engine=="plugin" | (engine=="auto" & plugin_mode!="0")) {
+        loo=rdistnn_loo_plugin(ranks,signal,table)
+        if(rows(loo)==n & !hasmissing(loo)) return(loo)
+        if(engine=="plugin" | plugin_mode=="1") {
+            errprintf("Compiled rank_loo unavailable or failed; install an updated plugin and check c(matsize), or allow Mata fallback.\n")
+            exit(error(498))
+        }
+    }
+    // Resolve dynamically so the retained reference still works if the fast
+    // Mata function is unavailable. Nonfinite fast sums also retry the reference.
+    prefix=findexternal("rdistnn_loo_prefix()")
+    if(prefix!=NULL) {
+        loo=(*prefix)(ranks,signal,table)
+        if(!hasmissing(loo)) return(loo)
+    }
+    if(engine=="mata") {
+        errprintf("Mata prefix/suffix engine unavailable or produced nonfinite deletions.\n")
+        exit(error(498))
+    }
+    return(rdistnn_loo_naive(ranks,signal,k,s,method))
+}
+
+// A common signal level has zero jackknife covariance. Remove it before
+// accumulating deletions, and never restore it on covariance-only paths.
+// Use the same-sign endpoint nearest zero; mixed-sign columns need no shift.
+// A midpoint or a remote outlier would erase small, locally relevant signals.
+real matrix rdistnn_center_signal(real matrix signal)
+{
+    real scalar j
+    real rowvector lo, hi, level
+    lo=colmin(signal); hi=colmax(signal)
+    level=J(1,cols(signal),0)
+    for(j=1;j<=cols(signal);j++) {
+        if(lo[j]>0) level[j]=lo[j]
+        else if(hi[j]<0) level[j]=hi[j]
+    }
+    return(signal:-level)
+}
+
 // ── rdistnn_jk_cov_from_ranks ─────────────────────────────────────────
 // Rank-shift jackknife covariance for a DNN-weighted signal matrix.  When
 // observation i
@@ -535,9 +690,8 @@ real matrix rdistnn_jk_cov_from_ranks(real colvector ranks,
                                        real scalar s,
                                        | string scalar method)
 {
-    real scalar     n, q, i, r_i
-    real colvector  idx, kept, ranks_m1, w_m1
-    real matrix     signal_m1, loo, centered, V
+    real scalar     n, q
+    real matrix     loo, centered, V
 
     if (args() < 5 | method == "") method = "exact"
 
@@ -553,18 +707,8 @@ real matrix rdistnn_jk_cov_from_ranks(real colvector ranks,
         exit(error(198))
     }
 
-    loo = J(n, q, .)
-    idx = (1::n)
-
-    for (i = 1; i <= n; i++) {
-        r_i      = ranks[i]
-        kept     = (idx :!= i)                            // n x 1 logical (0/1)
-        ranks_m1 = select(ranks, kept)                    // n-1 ranks in 1..n with gap at r_i
-        ranks_m1 = ranks_m1 :- (ranks_m1 :> r_i)         // shift down: now 1..n-1
-        signal_m1 = select(signal, kept)
-        w_m1     = rdistnn_weights_from_ranks(ranks_m1, k, s, method)
-        loo[i,.] = cross(w_m1, signal_m1)
-    }
+    loo = rdistnn_loo_from_ranks(ranks, rdistnn_center_signal(signal), k, s, method)
+    if(all(loo:==0)) return(J(q,q,0))
 
     centered = loo :- mean(loo)
     V = ((n - 1) / n) * cross(centered, centered)
@@ -580,8 +724,7 @@ real matrix rdistnn_jk_cov_multi_from_ranks(real matrix ranks,
                                              real scalar s,
                                              | string scalar method)
 {
-    real scalar     n, m, i, j, r_ij
-    real colvector  idx, kept, ranks_m1, signal_m1, w_m1
+    real scalar     n, m
     real matrix     loo, centered, V
 
     if (args() < 5 | method == "") method = "exact"
@@ -596,19 +739,8 @@ real matrix rdistnn_jk_cov_multi_from_ranks(real matrix ranks,
         exit(error(198))
     }
 
-    loo = J(n, m, .)
-    idx = (1::n)
-    for (i = 1; i <= n; i++) {
-        kept = (idx :!= i)
-        signal_m1 = select(signal, kept)
-        for (j = 1; j <= m; j++) {
-            r_ij = ranks[i,j]
-            ranks_m1 = select(ranks[,j], kept)
-            ranks_m1 = ranks_m1 :- (ranks_m1 :> r_ij)
-            w_m1 = rdistnn_weights_from_ranks(ranks_m1, k, s, method)
-            loo[i,j] = cross(w_m1, signal_m1)
-        }
-    }
+    loo = rdistnn_loo_from_ranks(ranks, rdistnn_center_signal(signal), k, s, method)
+    if(all(loo:==0)) return(J(m,m,0))
 
     centered = loo :- mean(loo)
     V = ((n - 1) / n) * cross(centered, centered)

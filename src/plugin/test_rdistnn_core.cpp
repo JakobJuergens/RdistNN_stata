@@ -34,6 +34,25 @@ bool rejects(Fn fn)
 
 int main()
 {
+    // Two targets and paired signals: catch shifted-suffix and scatter errors.
+    const int jk_ranks[] = {1,2,3,4, 4,3,2,1};
+    const double jk_signals[] = {2,1,4,3, 1,-1,2,1};
+    const double jk_weights[] = {2.0/3,1.0/3,0};
+    const double jk_expected[] = {
+        2,8.0/3,5.0/3,5.0/3, 0,4.0/3,1.0/3,1.0/3,
+        10.0/3,10.0/3,7.0/3,3, 4.0/3,4.0/3,1.0/3,1
+    };
+    std::vector<double> jk_out(16);
+    rdistnn::rank_loo(jk_ranks, jk_signals, jk_weights, 4, 2, 2, jk_out.data());
+    for (std::size_t i=0; i<jk_out.size(); ++i)
+        if (!close(jk_out[i], jk_expected[i])) return fail("prefix/suffix paired deletions");
+    const int bad_jk_ranks[] = {1,1,3,4};
+    std::fill(jk_out.begin(),jk_out.end(),17.0);
+    if (!rejects([&] { rdistnn::rank_loo(bad_jk_ranks,jk_signals,jk_weights,4,1,2,jk_out.data()); }))
+        return fail("jackknife accepted duplicate ranks");
+    for (double value: jk_out)
+        if (value!=17.0) return fail("invalid jackknife modified output");
+
     const int n = 4;
     const int p = 1;
     const double X[] = {0.0, 1.0, 2.0, 3.0};

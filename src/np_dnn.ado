@@ -357,13 +357,11 @@ program define np_dnn, eclass
                         _np_ranks, _np_y, `k', _np_sg, "`method'")
                     _np_grid_se[_np_g,.] = sqrt(diagonal(_np_Vg))'
                 }
-            }
-            if (_np_g == `default_index') {
-                _np_W = rdistnn_weights_from_rmat(
-                    _np_ranks, `k', _np_candidates[_np_g, 8], "`method'")
-                if ("`se'" == "") {
-                    _np_V = rdistnn_jk_cov_multi_from_ranks(
-                        _np_ranks, _np_y, `k', _np_candidates[_np_g, 8], "`method'")
+                // Save the default's first representative, including when the
+                // default row duplicates an earlier candidate after other orders.
+                if (_np_candidates[_np_g, 2] == _np_candidates[`default_index', 2]) {
+                    _np_W = _np_Wg
+                    if ("`se'" == "") _np_V = _np_Vg
                 }
             }
         }
