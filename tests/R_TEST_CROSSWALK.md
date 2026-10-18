@@ -13,7 +13,7 @@ a Stata equivalent.
 | Asymptotic DNN weights: normalization, monotonicity, exact approximation, permutation invariance, and `k = s` uniformity | `test-mata-weights-asymp.do`, `test-r-parity-priority.do` |
 | Mata/plugin equivalence and signed-target parsing | `test-weights-dnn-plugin.do` |
 | Scalar, vector, and multi-target rank-shift jackknife covariance against explicit deletion loops | `test-mata-jackknife.do`, `test-mata-jackknife-vector.do`, `test-mata-jackknife-golden.do` |
-| Shared prefix/suffix deletions, retained naive reference, native/Mata parity, missing-engine and matrix-limit fallback, all-estimator covariance/grid reuse | `test-mata-jackknife-prefix.do`, `test-jackknife-engines.do` |
+| Shared prefix/suffix deletions, retained naive reference, native/Mata parity, missing-engine fallback, native dimensions above matsize, all-estimator covariance/grid reuse | `test-mata-jackknife-prefix.do`, `test-jackknife-engines.do` |
 | Paper defaults: estimator `k = 1`, finite-sample `lambda = 0.4`, `s = floor(0.4*n^((kx+1)/(kx+2)))`, and sensitivity grid `(0.3, 0.4, 0.5, 0.75)` | `test-r-parity-priority.do`, `test-np-dnn-parity.do`, `test-cate-dnn-tuning.do` |
 | NP weighted-mean identity, exact/asymptotic methods, Mahalanobis, markout, batch covariance, tuning grids, target/outcome diagnostics, plots, and fixed R batch/candidate values | `test-np-dnn-*.do`, `test-r-parity-priority.do` |
 | CATE AIPW, Robinson, and precomputed-score identities; propensity clipping; batch covariance; tuning grids; diagnostics; and fixed R values | `test-cate-dnn-*.do`, `test-r-parity-priority.do` |

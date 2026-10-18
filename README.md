@@ -270,8 +270,9 @@ Jackknife dispatch tries compiled prefix/suffix sums, then the fast Mata
 implementation, then retained naive deletions if the fast Mata engine is
 unavailable or its sums are nonfinite. Set `global rdistnn_jackknife_engine`
 to `plugin`, `mata` or `naive` for explicit route/parity checks; drop the global
-to restore automatic dispatch. The Stata matrix bridge obeys `c(matsize)`;
-larger jobs automatically use fast Mata. See the plugin guide for controls.
+to restore automatic dispatch. Native jackknife bridge matrices are created
+through Mata and can exceed `c(matsize)` without changing that setting.
+See the plugin guide for controls.
 
 Release assets include plugins for Windows x86-64, Linux x86-64, macOS arm64
 and macOS x86-64, with checksums. To use native acceleration, install the asset

@@ -11,10 +11,13 @@ remaining differences in feature coverage.
 - Share compiled and Mata prefix/suffix frozen-score jackknife engines across
   NP, CATE, PLQR and CLATE. Reuse rank-weight tables across targets/deletions,
   retain explicit deletions for parity checks and as a final fallback, and
-  preserve paired and cross-target covariance. Older/unavailable plugins and
-  jobs above the native matrix bridge's limit use fast Mata automatically.
+  preserve paired and cross-target covariance. Older/unavailable plugins use
+  fast Mata automatically.
   Center covariance signals before accumulation to preserve zero variance
   for constant scores and accuracy under large common signal levels.
+- Allow native jackknife bridge matrices above `c(matsize)` without changing
+  the user's setting; remove the artificial dispatch restriction and correct
+  the related documentation.
 - Reuse default-candidate covariance in NP/CATE and duplicate CLATE tuning
   fits. Short-circuit CLATE's preliminary zero-signal covariance without
   changing inference feasibility rules.

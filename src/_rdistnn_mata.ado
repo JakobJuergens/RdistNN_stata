@@ -561,16 +561,15 @@ real matrix rdistnn_loo_prefix(real matrix ranks, real matrix signal,
     return(loo)
 }
 
-// Stata's plugin API exchanges matrices subject to c(matsize). Larger jobs
-// go straight to Mata, whose matrices do not have that limit.
+// The bridge uses Mata-created Stata matrices, which may exceed c(matsize).
+// Attempt the native engine without changing the user's matrix setting.
 real matrix rdistnn_loo_plugin(real matrix ranks, real matrix signal,
     real colvector table)
 {
     string rowvector names
     real scalar rc, i
     real matrix loo
-    if(st_global("rdistnn_plugin_ok")!="1" |
-        max((rows(ranks),cols(ranks)*cols(signal)))>st_numscalar("c(matsize)")) return(J(0,0,.))
+    if(st_global("rdistnn_plugin_ok")!="1") return(J(0,0,.))
     names=st_tempname(4)
     st_matrix(names[1],ranks)
     st_matrix(names[2],signal)
@@ -629,7 +628,7 @@ real matrix rdistnn_loo_from_ranks(real matrix ranks, real matrix signal,
         loo=rdistnn_loo_plugin(ranks,signal,table)
         if(rows(loo)==n & !hasmissing(loo)) return(loo)
         if(engine=="plugin" | plugin_mode=="1") {
-            errprintf("Compiled rank_loo unavailable or failed; install an updated plugin and check c(matsize), or allow Mata fallback.\n")
+            errprintf("Compiled rank_loo unavailable or failed; install an updated plugin or allow Mata fallback.\n")
             exit(error(498))
         }
     }

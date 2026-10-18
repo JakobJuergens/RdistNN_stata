@@ -43,17 +43,37 @@ test_assert "unavailable plugin falls back to fast Mata" scalar(_je_fallback)<1e
 macro drop rdistnn_plugin_ok
 quietly do "src/_rdistnn_mata.ado"
 
-// The Stata matrix bridge is limited by matsize; Mata remains fast beyond it.
-global rdistnn_jackknife_engine auto
+// Mata-created bridge matrices can exceed the user's Stata matsize setting.
+// Exercise both tall inputs and output widths exceeding it without changing it.
+local bridge_matsize=c(matsize)
 mata {
     _je_n=st_numscalar("c(matsize)")+1
     _je_r=(1::_je_n)
     _je_s=sin(_je_r)
-    _je_auto=rdistnn_loo_from_ranks(_je_r,_je_s,1,2,"exact")
+    _je_wideR=(1::4)*J(1,ceil(_je_n/2),1)
+    _je_wideS=(2,1 \ 1,-1 \ 4,2 \ 3,1)
 }
-global rdistnn_jackknife_engine mata
-mata: st_numscalar("_je_large",max(abs(_je_auto-rdistnn_loo_from_ranks(_je_r,_je_s,1,2,"exact"))))
-test_assert "samples above matsize retain the fast Mata route" scalar(_je_large)<1e-12
+foreach method in exact asymp {
+    global rdistnn_jackknife_engine mata
+    mata: _je_tallref=rdistnn_loo_from_ranks(_je_r,_je_s,1,2,"`method'"); _je_wideref=rdistnn_loo_from_ranks(_je_wideR,_je_wideS,1,2,"`method'")
+    foreach engine in plugin auto {
+        global rdistnn_jackknife_engine `engine'
+        global rdistnn_use_plugin 1
+        foreach shape in tall wide {
+            if "`shape'"=="tall" local inputs "_je_r,_je_s"
+            else local inputs "_je_wideR,_je_wideS"
+            capture mata: _je_native=rdistnn_loo_from_ranks(`inputs',1,2,"`method'")
+            local bridge_rc=_rc
+            test_assert "`engine'/`method': native `shape' matrices above matsize succeed" `bridge_rc'==0
+            if `bridge_rc'==0 {
+                mata: st_numscalar("_je_large",max(abs(_je_native-_je_`shape'ref)))
+                test_assert "`engine'/`method': native `shape' deletions above matsize match Mata" scalar(_je_large)<1e-12
+            }
+        }
+    }
+}
+test_assert "native bridge preserves user's matsize setting" c(matsize)==`bridge_matsize'
+macro drop rdistnn_use_plugin
 
 test_section "jackknife engines: estimator covariance and candidate reuse"
 clear

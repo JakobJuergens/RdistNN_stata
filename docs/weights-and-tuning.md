@@ -208,8 +208,9 @@ its frozen-rank jackknife can use the compiled engine. Restore default dispatch 
 `global rdistnn_jackknife_engine` to `plugin`, `mata` or `naive`; drop it to
 restore automatic compiled -> fast Mata -> naive dispatch. The explicit fast
 selectors report failures. Auto mode uses fast Mata when a plugin is old,
-missing, incompatible or exceeds the Stata matrix bridge's `c(matsize)` limit,
-and retains naive deletions as the final fallback. See the [native guide](../src/plugin/README.md)
+missing, incompatible or fails during execution, and retains naive deletions
+as the final fallback. Native bridge matrices created through Mata can exceed
+`c(matsize)`; dispatch preserves that setting. See the [native guide](../src/plugin/README.md)
 for platform assets, source builds and parity checks.
 
 R additionally has custom distance/rank-weight/tuning registries, two-scale

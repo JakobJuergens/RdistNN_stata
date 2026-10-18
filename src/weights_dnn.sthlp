@@ -108,8 +108,8 @@ Requiring the plugin does not add native Mahalanobis distance computation.
 For jackknife parity checks, {cmd:global rdistnn_jackknife_engine naive}
 selects explicit deletions; {cmd:mata} selects fast Mata and {cmd:plugin}
 requires compiled prefix/suffix sums. Drop that global for automatic compiled,
-fast Mata, then naive fallback. Jobs above {cmd:c(matsize)} use fast Mata in
-automatic mode.
+fast Mata, then naive fallback. Native jackknife bridge matrices created
+through Mata may exceed {cmd:c(matsize)}; dispatch preserves that setting.
 
 {marker results}{...}
 {title:Stored results}

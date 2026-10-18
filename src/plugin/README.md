@@ -32,10 +32,10 @@ engine explicitly. Explicit `plugin` and `mata` selections surface failures;
 `rdistnn_use_plugin 0` skips native calls and `1` requires them. An explicit
 jackknife engine takes precedence over that shared plugin control.
 
-The native `rank_loo` operation exchanges temporary Stata matrices and is
-therefore limited by `c(matsize)` in both rows and output columns. Automatic
-dispatch uses fast Mata for larger jobs, without changing the user's matrix
-limit. Older plugins that implement only `weights_l2` also fall back to fast
+The native `rank_loo` operation exchanges temporary Stata matrices created
+through Mata. Their rows and output columns may exceed `c(matsize)`;
+dispatch attempts native execution without changing the user's setting.
+Older plugins that implement only `weights_l2` fall back to fast
 Mata automatically. Install an updated binary to enable native deletions.
 The bridge removes temporary matrices after each call and leaves the dataset
 unchanged.
