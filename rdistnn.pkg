@@ -1,9 +1,9 @@
 v 3
-d 'RDISTNN': CATE and nonparametric regression with DNN weights
-d Version: 0.1.0
-d Distribution-Date: 20261014
+d 'RDISTNN': Conditional effects and regression with DNN weights
+d Version: 0.1.0.9000
+d Distribution-Date: 20261018
 d
-d Initial public-release focus: conditional average treatment effects and
+d Conditional average treatment effects and
 d nonparametric regression with distributional nearest-neighbor weights,
 d pointwise jackknife uncertainty, tuning grids, diagnostics, and native plots.
 d Supplied nuisances remain external; valid inference requires the documented
@@ -15,7 +15,7 @@ d inference.
 d
 d Companion to the R package RdistNN and the conditional Z-estimation paper;
 d current working-paper citation metadata is maintained in RdistNN.
-d Development branch: experimental augmented binary-IV CLATE with paired
+d Experimental augmented binary-IV CLATE with paired
 d frozen-score covariance, CATE-style tuning, diagnostics and native plots.
 d
 d Author: Jakob Juergens

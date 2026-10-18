@@ -3,8 +3,7 @@
 `cate_dnn` and `np_dnn` share localization, tuning, batch-target and reporting
 conventions. Their inputs determine what the local average means: CATE
 averages an observation-level treatment-effect signal, while NP regression
-averages an outcome. This article documents the `feature/clate` development
-interface, which includes reporting features newer than release 0.1.0.
+averages an outcome. This article documents package **0.1.0.9000** on `master`.
 See [getting started](getting-started.md) for installation and a compact tour.
 
 ## Targets and samples

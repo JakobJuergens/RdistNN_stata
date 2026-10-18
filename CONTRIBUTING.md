@@ -1,7 +1,7 @@
 # Contributing to RdistNN for Stata
 
-The initial public release focuses on CATE, nonparametric regression, weights,
-diagnostics, and plots. PLQR moment evaluation is experimental. Read
+The package provides CATE, nonparametric regression, weights, diagnostics,
+and plots, with experimental CLATE and PLQR moment evaluation. Read
 [AGENTS.md](AGENTS.md) before editing, and use installed command help and
 [the article collection](docs/index.md) and [command guide](docs/command-guide.md) for current contracts. Open an issue
 before proposing a new estimator or a public-interface change.
@@ -94,7 +94,7 @@ process exit code alone is not proof that a do-file completed. The examples
 can also be run individually from the repository root after `dev-setup.do`.
 Documentation articles and examples are public source-archive inputs; developer
 tests/tools remain checkout-only, so article links to those use matching
-feature-branch URLs rather than nonexistent archive paths. Preserve
+production-branch URLs rather than nonexistent archive paths. Preserve
 fixed R golden values; regenerate them only when their source contract changes,
 using `Rscript tools/generate_r_priority_fixtures.R` with the sibling R checkout.
 Reuse successful verification while the content snapshot is unchanged.

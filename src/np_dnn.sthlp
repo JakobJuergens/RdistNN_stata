@@ -16,8 +16,7 @@
 
 {pstd}
 Stata 17 or later is required. See {help rdistnn} for the package overview.
-This help describes the {cmd:feature/clate} development interface, including
-reporting features newer than release 0.1.0.
+This help describes the interface in package {bf:0.1.0.9000} on {cmd:master}.
 
 {marker syntax}{...}
 {title:Syntax}

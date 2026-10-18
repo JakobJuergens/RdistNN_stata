@@ -1,10 +1,10 @@
 # Command guide
 
-This is the compact command map for `feature/clate`. Start with the
+This is the compact command map for package **0.1.0.9000** on `master`. Start with the
 [article index](index.md), [getting started](getting-started.md), or
 `help rdistnn` inside Stata. Each command's installed help supplies its complete
 syntax and result reference. The articles supply interpretation and runnable
-examples. These development contracts are newer than release v0.1.0.
+examples.
 
 ## Workflow support
 
@@ -20,7 +20,7 @@ examples. These development contracts are newer than release v0.1.0.
 
 The [R documentation crosswalk](r-documentation-crosswalk.md) maps every R
 article/reference family and identifies absent functionality. The separate
-[R-to-Stata test crosswalk](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/tests/R_TEST_CROSSWALK.md)
+[R-to-Stata test crosswalk](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/R_TEST_CROSSWALK.md)
 records numerical and behavioral coverage. R-only TDNN, general local GMM,
 custom registries, ratio confidence-set inversion, PLQR coefficient inference
 and paper-replication facilities are not Stata commands.
@@ -72,7 +72,7 @@ Raw selected propensities must be finite and in [0,1] before clipping;
 estimate. The [full guide](cate-and-regression.md) gives formulas, aliases,
 sample rules and inference requirements for all routes and NP.
 
-## Conditional LATE (development branch)
+## Conditional LATE (experimental)
 
 The [oracle CLATE example](../examples/clate.do) fits:
 

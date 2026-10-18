@@ -7,26 +7,25 @@ CATE, you also supply nuisance predictions or a previously constructed
 pseudo-outcome. The package computes local estimates, delete-1 jackknife
 uncertainty, diagnostics and Stata graphs.
 
-These articles document the `feature/clate` development branch. Its complete
-command and reporting interface is newer than release **0.1.0**; conditional
-LATE is experimental and is not included in that release. Start with the
+These articles document package **0.1.0.9000** on `master`, including experimental
+conditional LATE and shared reporting. Start with the
 [article index](index.md) to find a particular workflow.
 
 ## Install and open help
 
-Stata 17 or later is required. To use the interface documented here, install
-the development branch explicitly:
+Stata 17 or later is required. Install from GitHub:
 
 ```stata
-net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/feature/clate/") replace
+net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/master/") replace
 help rdistnn
 help cate_dnn
 help np_dnn
 ```
 
-For the released CATE/regression package, replace `feature/clate` in the
-installation address with `v0.1.0`. Do not expect every development command
-or reporting field in that older release. The [README](../README.md#installation)
+For a version-pinned installation, replace `master` in the address with a
+published tag. The historical `v0.1.0` release includes CATE, regression,
+weights and experimental PLQR moments; it predates CLATE and the shared
+reporting updates. The [README](../README.md#installation)
 also describes installation from a downloaded source archive. Installation
 does not require R or a compiler. Estimation uses the portable ado/Mata
 implementation; the optional native plugin accelerates eligible standalone

@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0  2026-10-17}{...}
+{* *! version 0.1.0.9000  2026-10-18}{...}
 {viewerjumpto "Commands" "rdistnn##commands"}{...}
 {viewerjumpto "Conventions" "rdistnn##conventions"}{...}
 {viewerjumpto "Workflow" "rdistnn##workflow"}{...}
@@ -13,9 +13,9 @@
 weights, diagnostics and native plots
 
 {pstd}
-Stata 17 or later. This overview describes {cmd:feature/clate}, including
-experimental conditional LATE and shared reporting. The v0.1.0 release
-predates those additions. RdistNN is the numerical reference for shared
+Stata 17 or later. This overview describes package {bf:0.1.0.9000} on {cmd:master},
+including experimental conditional LATE and shared reporting.
+RdistNN is the numerical reference for shared
 functionality; the Stata companion has its own documented public surface.
 
 {marker commands}{...}
@@ -106,16 +106,16 @@ outcome quantiles describe the outcome distribution, not a confidence interval.
 {title:Articles, examples and installation}
 
 {pstd}
-{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/docs/index.md":Article index}
+{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/index.md":Article index}
 links getting started, notation, CATE/regression, weights/tuning, diagnostics,
 visualization, CLATE and PLQR guides with deterministic standalone do-files.
-{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/docs/r-documentation-crosswalk.md":R documentation crosswalk}
+{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/r-documentation-crosswalk.md":R documentation crosswalk}
 maps every R article/reference family and identifies R-only TDNN, GMM,
 custom registries, confidence-set inversion and replication workflows.
 
 {pstd}
-{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/README.md":README}
-provides release-pinned and development installation commands. The portable
+{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/README.md":README}
+provides installation from {cmd:master} and version-pinned alternatives. The portable
 ado/Mata baseline needs no compiler. Optional native plugins accelerate only
 standalone L2 weights. This overview and command help install with the package;
 the article/example collection is available from the repository or source ZIP.

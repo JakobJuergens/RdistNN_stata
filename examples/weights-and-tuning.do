@@ -1,5 +1,5 @@
 // Standalone exact/asymptotic weights and integrated-order sensitivity.
-// Clears the active dataset. Install feature/clate or run dev-setup.do first.
+// Clears the active dataset. Install from master or run dev-setup.do first.
 version 17
 clear
 set more off

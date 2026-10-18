@@ -1,6 +1,12 @@
 # Release Notes
 
-## Unreleased — feature/clate
+## 0.1.0.9000 — 2026-10-18
+
+Available from the production `master` branch. Tagged releases and their
+downloadable assets are published separately. This post-0.1.0 version follows
+the R reference's CLATE/reporting milestone; the
+[documentation crosswalk](docs/r-documentation-crosswalk.md) records the
+remaining differences in feature coverage.
 
 - Add experimental `clate_dnn` for augmented binary-IV conditional LATE,
   externally supplied nuisance predictions, explicit one-sided compliance,

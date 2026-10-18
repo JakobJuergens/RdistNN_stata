@@ -1,5 +1,5 @@
 // Experimental CLATE with oracle instrument-arm predictions and paired ratios.
-// Run after installing the feature/clate development package, or with src/
+// Run after installing the package from master, or with src/
 // on the adopath. This example illustrates mechanics, not fitted learners.
 version 17
 clear

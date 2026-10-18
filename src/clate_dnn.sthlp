@@ -14,8 +14,8 @@
 {cmd:clate_dnn} {hline 2} Experimental conditional LATE from supplied binary-IV predictions
 
 {pstd}
-Stata 17 or later is required. CLATE is development-branch functionality on
-{cmd:feature/clate}; it is outside release 0.1.0. See {help rdistnn} for package navigation.
+Stata 17 or later is required. CLATE is experimental in package {bf:0.1.0.9000}
+on {cmd:master}. See {help rdistnn} for package navigation.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -340,7 +340,7 @@ predictions and resolved order to relocalize.
 {phang2}{cmd:. clate_dnn_plot, type(estimates) replace}{p_end}
 
 {pstd}
-The development source archive includes {cmd:examples/clate.do}, with a
+The source archive includes {cmd:examples/clate.do}, with a
 four-observation paired covariance calculation, an undefined-ratio example,
 and equality checks between nuisance and supplied-signal routes.
 

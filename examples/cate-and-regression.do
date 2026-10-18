@@ -1,5 +1,5 @@
 // RdistNN CATE and regression: all three score routes, batches and reporting.
-// Install feature/clate first, or run dev-setup.do from the repository root.
+// Install the package from master, or run dev-setup.do from the repository root.
 // The script clears the active dataset; it writes no files.
 // Nuisances below are oracle values, not predictions fitted on these data.
 version 17

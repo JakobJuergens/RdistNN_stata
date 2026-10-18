@@ -1,5 +1,5 @@
 // Reporting, diagnostics, graph data and original-data guards.
-// Install feature/clate first, or run dev-setup.do from the repository root.
+// Install the package from master, or run dev-setup.do from the repository root.
 // All inputs are generated here; this example clears the active dataset.
 // Oracle CATE nuisances illustrate mechanics, not fitted-learner performance.
 // Paired CLATE signals illustrate ratio reporting, not causal identification.

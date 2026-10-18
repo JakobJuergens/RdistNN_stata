@@ -1,9 +1,7 @@
 # RdistNN for Stata documentation
 
-These guides describe the `feature/clate` development branch, including the
-shared reporting and postestimation interfaces. Install that branch to run
-all examples here. The tagged v0.1.0 release covers CATE, regression, weights
-and experimental PLQR moments, but predates CLATE and the reporting updates.
+These guides describe package **0.1.0.9000** on `master`, including experimental
+conditional LATE and the shared reporting and postestimation interfaces.
 See [installation](../README.md#installation). In Stata, `help rdistnn` opens
 the package overview and links to every installed command reference.
 
@@ -19,11 +17,11 @@ the package overview and links to every installed command reference.
 | Choose panels, compare targets/candidates, export graphs | [Visualising fits](visualising-fits.md) | [Diagnostics and plots](../examples/diagnostics-and-plots.do) |
 | Estimate experimental conditional LATE with supplied IV predictions | [Conditional LATE](conditional-late.md) | [Oracle binary-IV example](../examples/clate.do) |
 | Evaluate experimental PLQR moments at a supplied coefficient | [PLQR moments](plqr-moments.md) | [PLQR moments](../examples/plqr-moments.do) |
-| Translate R workflows and identify unavailable features | [R documentation crosswalk](r-documentation-crosswalk.md) | [Numerical test crosswalk](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/tests/R_TEST_CROSSWALK.md) |
+| Translate R workflows and identify unavailable features | [R documentation crosswalk](r-documentation-crosswalk.md) | [Numerical test crosswalk](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/R_TEST_CROSSWALK.md) |
 
 Each example is a standalone do-file that clears the active dataset and sets
 its seed. From a checkout, change to the repository root and run
-`do "dev-setup.do"` once, then run an example. With the development package
+`do "dev-setup.do"` once, then run an example. With the package
 installed, download an example and run it directly. The diagnostics example
 creates its optional saved data/graphs under `build/documentation/` relative
 to the current directory. Read its opening comments before running it.
@@ -57,12 +55,12 @@ variance and bias conditions; a successful command is not a check of those
 conditions. Weighted outcome quantiles are distribution summaries, and
 neither ESS nor a candidate grid supplies an inference guarantee.
 
-For contributing, use [CONTRIBUTING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/CONTRIBUTING.md), the
-[test-suite map](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/tests/README.md), and the
-[native plugin guide](../src/plugin/README.md). [RELEASING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/RELEASING.md)
+For contributing, use [CONTRIBUTING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/CONTRIBUTING.md), the
+[test-suite map](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/README.md), and the
+[native plugin guide](../src/plugin/README.md). [RELEASING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/RELEASING.md)
 describes release validation. Dated [CLATE verification](clate-verification.md)
 and [estimator-coherence verification](estimator-coherence-verification.md)
 record the earlier implementation checks; they are separate from current
 user instructions. The [documentation verification receipt](documentation-verification.md)
-records this article/help/example update. [Release notes](../RELEASE_NOTES.md) distinguish published
-releases from feature-branch work.
+records the earlier article/help/example update. [Release notes](../RELEASE_NOTES.md)
+record package changes and experimental features.

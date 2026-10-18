@@ -1,6 +1,6 @@
 # R documentation coverage and Stata equivalents
 
-This map compares the Stata `feature/clate` documentation with the local RdistNN
+This map compares Stata package **0.1.0.9000** on `master` with the RdistNN
 source at `6fe48273aaa8853c5736841c5a228f8c1592ded9`. The reference inventory is
 R's [article source directory](https://github.com/JakobJuergens/RdistNN/tree/6fe48273aaa8853c5736841c5a228f8c1592ded9/vignettes)
 and [pkgdown reference index](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/_pkgdown.yml).
@@ -20,8 +20,8 @@ R-only functionality; it does not add R APIs to Stata.
 | `kernel-order-tuning.Rmd` | [Weights and tuning](weights-and-tuning.md#integrated-candidate-grids) | Paper/default/direct-order grids; arbitrary tuning specifications/registries remain R-only |
 | `dnn-weights.Rmd` | [Weights and tuning](weights-and-tuning.md) | Exact/asymptotic rules and one-target weight variables; public batch weight/rank/order/distance objects remain R-only |
 | `conditional-z-estimation.Rmd` | [CATE and regression](cate-and-regression.md), [PLQR moments](plqr-moments.md), [jackknife discussion](weights-and-tuning.md#jackknife-and-the-localized-target) | Implemented moments and inference conditions, not a generic Z/GMM root solver |
-| `jackknife-gen-ustats.Rmd` | [Jackknife and localized targets](weights-and-tuning.md#jackknife-and-the-localized-target), [numerical tests](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/tests/R_TEST_CROSSWALK.md) | Stata uses fast rank-shift covariance internally; the generic compact-support L-statistic utilities and selectable fast/slow/LOO APIs remain R-only |
-| `extending.Rmd` | [Contribution workflow](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/CONTRIBUTING.md), [native plugin](../src/plugin/README.md) | No public Stata score, distance, rank-weight or tuning registry; private Mata helpers are not a supported extension API |
+| `jackknife-gen-ustats.Rmd` | [Jackknife and localized targets](weights-and-tuning.md#jackknife-and-the-localized-target), [numerical tests](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/R_TEST_CROSSWALK.md) | Stata uses fast rank-shift covariance internally; the generic compact-support L-statistic utilities and selectable fast/slow/LOO APIs remain R-only |
+| `extending.Rmd` | [Contribution workflow](https://github.com/JakobJuergens/RdistNN_stata/blob/master/CONTRIBUTING.md), [native plugin](../src/plugin/README.md) | No public Stata score, distance, rank-weight or tuning registry; private Mata helpers are not a supported extension API |
 | `conditional-late.Rmd` | [Conditional LATE](conditional-late.md) | Binary-IV/supplied-signal routes, reporting, grids and applicable plots; R demo/learner helpers remain R-only |
 | `conditional-late-inference.Rmd` | [CLATE covariance and inference](conditional-late.md), [reporting](diagnostics-and-reporting.md) | Paired pointwise Wald inference/status; ratio confidence-set inversion remains R-only |
 | `local-iv-estimation.Rmd` | [CLATE scope](conditional-late.md), this map | Experimental local IV-GMM and its simulation tools have no Stata command; CLATE is not a replacement for general GMM |
@@ -40,7 +40,7 @@ reference is `help rdistnn`; each public command has its own installed help.
 | Plotting | `cate_dnn_plot`, `clate_dnn_plot`, `np_dnn_plot`; [plot guide](visualising-fits.md) | No ggplot/autoplot object editing or independent plot-data generic. Stata single-view commands return `r(plot_data)` after building a graph |
 | Kernel-order tuning | `lambda()`, `tuningmode(grid)`, `lambdagrid()`, `sgrid()`, `sdefault()` in CATE/CLATE/NP; [tuning](weights-and-tuning.md) | No `new_tuning`, `as_tuning`, registry or arbitrary evaluator. PLQR/standalone weights expose explicit s rather than integrated grids |
 | Demo data & utilities | Deterministic [examples](index.md#start-with-a-task) generate their own data | No packaged `cate_demo_data`, `np_demo_data` or demo-subset helpers |
-| General CATE simulation tools | Tutorial examples and [test map](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/tests/README.md) | `sim_cate_*`, method registries and Monte Carlo summary utilities remain R-only; test success is not simulation evidence |
+| General CATE simulation tools | Tutorial examples and [test map](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/README.md) | `sim_cate_*`, method registries and Monte Carlo summary utilities remain R-only; test success is not simulation evidence |
 | Experimental — conditional LATE | `clate_dnn`, CLATE diagnostics/plots; [article](conditional-late.md) | R signal constructors and generic affine-ratio object methods map to inline supplied columns and Stata matrices. R `ratio_confidence_set`, learner/benchmark helpers and extra jackknife diagnostic exports have no Stata equivalents |
 | Experimental — PLQR | `plqr_dnn`; [moment article](plqr-moments.md) | Single target and supplied theta moment covariance only. R's density-backed Jacobian/coefficient reporting at supplied theta, conditioning/calibration plots, reusable result methods and batch candidate interfaces are absent |
 | Experimental — local IV-GMM (companion paper) | No Stata public command | `gmm_dnn`, `new_gmm_model`, DR-IV models, GMM result methods, IV demo/simulation helpers remain R-only |
@@ -75,7 +75,7 @@ matrix is different from R's marginal covariance-list presentation. Use
 full canonical target matrices for CLATE because undefined coefficients are
 omitted from the ordinary Stata coefficient post.
 
-The [R-to-Stata test crosswalk](https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/tests/R_TEST_CROSSWALK.md) records numerical
+The [R-to-Stata test crosswalk](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/R_TEST_CROSSWALK.md) records numerical
 and behavioral evidence. That test map and this documentation map answer
 different questions: one shows which contracts are checked; the other tells
 a reader where to learn and how to translate the available workflows.

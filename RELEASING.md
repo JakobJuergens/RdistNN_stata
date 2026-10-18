@@ -1,7 +1,8 @@
 # Releasing RdistNN for Stata
 
-The initial public release focuses on CATE and nonparametric regression,
-with DNN weights, tuning, diagnostics, and plots. Experimental PLQR evaluates
+The package provides CATE and nonparametric regression, with DNN weights,
+tuning, diagnostics, and plots. Experimental CLATE adds binary-IV conditional
+effects with paired frozen-score covariance. Experimental PLQR evaluates
 localized score moments at supplied coefficients; publication does not turn
 it into a coefficient estimator or add coefficient inference.
 
@@ -9,12 +10,24 @@ it into a coefficient estimator or add coefficient inference.
 
 Use a clean repository checkout with the tools in
 [CONTRIBUTING.md](CONTRIBUTING.md). Review the version/tag and release notes.
-The initial release uses package version `0.1.0` and tag `v0.1.0`.
+The current production branch carries the post-0.1.0 development version
+`0.1.0.9000`, aligned with the R reference's CLATE and shared-reporting
+milestone. Choose future tagged versions in coordination with the R package.
+Updating `master` does not itself publish a tag or replace assets from the
+existing `v0.1.0` release.
 Keep `rdistnn.pkg`'s `Version` and `Distribution-Date` metadata aligned with
 the release notes and actual publication date. Its `v 3` line identifies the
 Stata package-file format.
 The command-specific `*! version` headers have their own revision histories;
 do not rewrite all of them merely to match a package release tag.
+
+Keep the R and Stata package version families roughly aligned with shared
+functional milestones. Stata may trail the R reference as corresponding
+features are implemented and verified; patch and development revisions can
+advance independently for implementation-specific fixes. A matching version
+does not promise identical feature coverage. Review the
+[R-to-Stata crosswalk](docs/r-documentation-crosswalk.md) when assigning a
+version and retain its explicit R-only and experimental boundaries.
 
 1. Run static package integrity and maintenance checks:
 
@@ -51,6 +64,11 @@ do not rewrite all of them merely to match a package release tag.
    only that host. Review failures and verify the bundled Windows plugin
    separately through the Stata parity/installation tests.
 
+   Before merging a feature branch into production, run the hosted checks on
+   its final commit using manual dispatch (`gh workflow run WORKFLOW --ref
+   BRANCH`). Run `pkg-check.yml`, `plugin-build.yml`, `package-snapshot.yml`,
+   and `repository-policy.yml`, and require their successful completion.
+
 4. Build the source ZIP with the same helper used by CI:
 
    ```bash
@@ -79,7 +97,7 @@ or temporary directories and are not committed.
 
 ## Documentation snapshot
 
-The feature-branch article collection is indexed by [docs/index.md](docs/index.md)
+The public article collection is indexed by [docs/index.md](docs/index.md)
 and the installed overview is `help rdistnn`. Before release, run
 `python3 tools/ci/documentation_check.py` and the licensed
 `tools/ci/stata_documentation_check.ps1` helper, then verify the public docs,
@@ -88,15 +106,19 @@ Article/example links should resolve inside the ZIP; developer-only controls,
 tests and tools use explicit repository URLs. An optional `--r-root` check
 compares the crosswalk with the live R article/reference inventory.
 
-The current articles target `feature/clate`; update version/branch guidance
-when preparing a future release. Do not advertise feature-branch CLATE or the
-newer common reporting interface as part of the unchanged v0.1.0 tag.
+The current articles describe the production `master` interface. Keep ordinary
+installation links on that branch and use immutable tags for pinned installs.
+CLATE and the shared reporting additions belong to version 0.1.0.9000; the unchanged
+v0.1.0 tag predates them. Preserve CLATE's experimental inference boundaries
+and PLQR's supplied-coefficient, moment-only scope in release copy.
 
 ## Publish the release
 
-Create the `v0.1.0` tag and GitHub release from the verified commit. Adapt
-the public-release entry in `RELEASE_NOTES.md` into the announcement, with
-explicit PLQR status and a link to the getting-started example.
+When a tagged release is requested, create the matching version tag and
+GitHub release from the verified commit. Adapt its entry in
+`RELEASE_NOTES.md` into the announcement, with explicit CLATE/PLQR status
+and a link to the getting-started example. Keep existing version tags and
+their assets unchanged.
 
 The existing package-snapshot workflow attaches the validated source ZIP as
 `rdistnn-source.zip` and its `SHA256SUMS-source.txt`. The native-plugin workflow

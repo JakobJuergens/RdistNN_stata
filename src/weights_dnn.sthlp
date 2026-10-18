@@ -13,7 +13,7 @@
 
 {pstd}
 Stata 17 or later. For the package overview and article collection, see
-{help rdistnn}. This help describes the development branch.
+{help rdistnn}. This help describes package {bf:0.1.0.9000} on {cmd:master}.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -145,7 +145,7 @@ A matched regression reconstruction starts with a fit and a saved sample:
 {title:Further reading}
 
 {pstd}
-{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/feature/clate/docs/weights-and-tuning.md":Weights and tuning article}
+{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/weights-and-tuning.md":Weights and tuning article}
 and its standalone do-file cover exact/asymptotic comparison, matched samples
 and candidate grids. R's batch weight objects, custom registries and TDNN
 weights have no Stata public equivalent.
