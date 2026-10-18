@@ -13,7 +13,7 @@
 weights, diagnostics and native plots
 
 {pstd}
-Stata 17 or later. This overview describes package {bf:0.1.0.9000} on {cmd:master},
+Stata 17 or later. This overview describes package {bf:0.1.0.9000} on the development branch,
 including experimental conditional LATE and shared reporting.
 RdistNN is the numerical reference for shared
 functionality; the Stata companion has its own documented public surface.
@@ -33,6 +33,10 @@ functionality; the Stata companion has its own documented public surface.
 {synopt:{help cate_dnn_plot}}CATE estimates, diagnostics, overlap, influence and weights{p_end}
 {synopt:{help np_dnn_plot}}regression panels including outcome distributions{p_end}
 {synopt:{help clate_dnn_plot}}CLATE panels with instrument and paired-score meaning{p_end}
+
+{synopt:{help rdistnn_results}}graph-free numeric reports and exports{p_end}
+{synopt:{help rdistnn_candidate}}reusable candidate fit from saved ranks{p_end}
+{synopt:{help rdistnn_predict}}evaluate saved frozen signals at new targets{p_end}
 
 {marker conventions}{...}
 {title:Conventions}
@@ -79,9 +83,14 @@ CLATE ratios. Copy r() results before another command overwrites them; use
 Diagnostic selectors preserve original target/candidate IDs and can save .dta
 reports. Single-view plot commands return selected {cmd:r(plot_data)} and
 {cmd:r(n_rows)}; dashboards return panel metadata. Effective-kernel and influence
-views require the original fitted values, sample and observation order.
+views use the numeric snapshot in current fits. Legacy fits require the original
+fitted values, sample and observation order.
 Stored-result views can be used after data changes. See each command's help
 for allowed selectors, view-specific options and result schemas.
+Use {help rdistnn_results} for numeric extraction without graphs,
+{help rdistnn_candidate} for standalone grid fits, and {help rdistnn_predict}
+for saved-fit prediction. estimates save/use retains the numeric model snapshot.
+PLQR returns moments with supplied coefficients reported separately.
 
 {marker inference}{...}
 {title:Inference and experimental scope}

@@ -498,6 +498,9 @@ program define np_dnn, eclass
     local signature_vars `xvars' `outcome'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
+    tempname model_signals model_ranks model_distances
+    mata: st_matrix("`model_signals'",_np_y); st_matrix("`model_ranks'",_np_ranks); st_matrix("`model_distances'",_np_DX)
+    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances')
     _np_dnn_Display, level(`level')
 end
 

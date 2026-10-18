@@ -125,6 +125,12 @@ test_assert "[plot errors] invalid estimate style is rejected" _rc == 198
 capture noisily cate_dnn_plot, type(weights) view(kernel) allcandidates
 test_assert "[plot errors] candidate kernel comparison is rejected" _rc == 198
 
+// Legacy fits without snapshots retain the original-data guard.
+capture program drop _fr_legacy
+program define _fr_legacy, eclass
+    ereturn scalar model_version=.
+end
+_fr_legacy
 preserve
 drop x1
 capture noisily cate_dnn_plot, type(weights) view(kernel)

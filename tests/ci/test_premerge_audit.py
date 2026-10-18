@@ -52,7 +52,7 @@ class StataVerificationHarnessTests(unittest.TestCase):
         "install": ("stata_install_check.ps1", "install_check.log", "INSTALL_CHECK_PASSED"),
         "documentation": (
             "stata_documentation_check.ps1", "documentation_examples.log",
-            "DOCUMENTATION_EXAMPLES_PASSED 6",
+            "DOCUMENTATION_EXAMPLES_PASSED 7",
         ),
     }
 

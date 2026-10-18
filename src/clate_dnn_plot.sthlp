@@ -25,7 +25,7 @@
 Requires active {help clate_dnn} estimates. Default is type(estimates).
 The command preserves the data and active fit. Stored views do not refit;
 kernel/influence views reconstruct observation-level weights after
-validating original data and order. See {help rdistnn} for the package overview
+using the saved numeric model (legacy fits validate original data and order). See {help rdistnn} for the package overview
 and {help clate_dnn_diagnostics} for diagnostic interpretation. R plot names describe related
 workflows; these commands produce named Stata graphs, without ggplot layers,
 custom-theme arguments or arbitrary twoway-option passthrough.
@@ -58,7 +58,7 @@ plot; view(cumulative), with .5/.9 cumulative-weight guides; and view(kernel),
 weight against fitted-metric distance by target. Profiles/cumulative weights
 are common to all targets. Under exact weights, the fitted profile marks
 support edge n-s+k, not rank s; larger s tightens localization. Kernel data
-are target-specific and require original observations. Kernel graphs have no
+are target-specific and use saved numeric observations in current fits. Kernel graphs have no
 rank-s radius marker. Candidate comparison applies only to profiles.{p_end}
 
 {phang}{cmd:type(overlap)} supports view(mass), the default, for instrument A=1/A=0 masses;
@@ -142,12 +142,11 @@ with standard Stata graph commands.
 Estimate, diagnostic, tuning, overlap and dashboard views use stored
 results. Rank profiles/cumulative weights use stored n/k/s/method. They
 remain available after original data change, provided their stored tables
-exist. Kernel/influence views require the original referenced inputs,
-estimation sample, input values, and row order. Changed values, missing
-variables or reordered observations return a refitting instruction; a matching
-sample count alone is insufficient. Restoring a fit does not restore its data.
-Older saved CATE/NP fits can use b/V fallbacks for estimate panels, but
-observation-level views require ordered signatures from a current refit.
+exist. Current kernel/influence views use e(model_*) snapshots and work after
+original inputs change or are cleared, including after estimates save/use.
+Legacy fits without a snapshot require original inputs, sample and row order;
+changed values or missing variables require a refit. Older CATE/NP fits can use
+b/V fallbacks for stored estimate panels. See {help rdistnn_predict}.
 
 {pstd}
 Confidence limits are pointwise, even when the fitted covariance retains

@@ -156,7 +156,10 @@ program define plqr_dnn, eclass
         _pl_md     = st_data(., "`mdvars'", "`touse'")
         _pl_x0     = (`x0_mata')
         _pl_theta  = (`theta_mata')'
-        _pl_ranks  = rdistnn_ranks(_pl_X, _pl_x0, "`distance'")
+        // Match the R reference and the other estimators: rank the reported
+        // distance matrix, with original observation order resolving ties.
+        _pl_DX     = rdistnn_distance_matrix(_pl_X, _pl_x0, "`distance'")
+        _pl_ranks  = rdistnn_ranks_from_dmat(_pl_DX)
         _pl_w      = rdistnn_weights_from_ranks(_pl_ranks, `k', `s', "`method'")
         _pl_resid  = `tau' :- (_pl_y :<= (_pl_D * _pl_theta :+ _pl_g0))
         _pl_score  = (_pl_D :- _pl_md) :* (_pl_resid * J(1, cols(_pl_D), 1))
@@ -188,6 +191,8 @@ program define plqr_dnn, eclass
     ereturn scalar s      = `s'
     ereturn scalar kx     = `kx'
     ereturn scalar kd     = `kd'
+    ereturn scalar m      = 1
+    ereturn scalar p      = `kx'
     ereturn scalar tau    = `tau'
     ereturn local  x0       "`x0'"
     ereturn local  xvars    "`xvars'"
@@ -203,30 +208,44 @@ program define plqr_dnn, eclass
     ereturn local  yvar     "`outcome'"
     ereturn local  distance "`distance'"
     ereturn local  method   "`method'"
+    ereturn local  se_method "rank_shift"
+    ereturn local  jackknife "fast"
     ereturn local  cmd      "plqr_dnn"
     ereturn local  cmdline  "plqr_dnn `0'"
 
+    tempname model_signals model_ranks model_distances
+    mata: st_matrix("`model_signals'",_pl_score); st_matrix("`model_ranks'",_pl_ranks); st_matrix("`model_distances'",_pl_DX)
+    local snapshot_vars `xvars' `outcome' `dvars' `gvar' `mdvars'
+    local snapshot_vars : list uniq snapshot_vars
+    quietly _rdistnn_model_store `snapshot_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances')
+    tempname ses targets
+    mata: st_matrix("`ses'",sqrt(diagonal(st_matrix("e(V)")))'); st_matrix("`targets'",_pl_x0)
+    matrix colnames `ses'=`dvars'
+    matrix colnames `targets'=`xvars'
+    ereturn matrix estimates=`moment_mat', copy
+    ereturn matrix se_targets=`ses', copy
+    ereturn matrix estimate_vcov=`moment_vcov_mat', copy
+    ereturn matrix targets=`targets', copy
+    tempname bytarget diagnostics
+    matrix `bytarget'=`moment_mat''
+    ereturn matrix moment_by_target=`bytarget', copy
+    foreach file in _rdistnn_clate_mata.ado _rdistnn_model_mata.ado {
+        findfile "`file'"
+        quietly run "`r(fn)'"
+    }
+    mata: st_matrix("`diagnostics'",rdistnn_model_diagnostics("plqr_dnn",_pl_X,_pl_x0,_pl_score,_pl_w,st_matrix("`model_distances'"),`k',`s',_pl_moment,J(0,1,.),J(0,1,.)))
+    matrix colnames `diagnostics'=ess max_weight top1_weight_share top5_weight_share top10_weight_share n_nonzero_weight distance_available radius_rank_k radius_rank_s weighted_mean_distance weighted_median_distance
+    ereturn matrix diagnostics=`diagnostics', copy
+    ereturn matrix target_diagnostics=`diagnostics', copy
+    quietly signestimationsample `snapshot_vars'
+    quietly _rdistnn_sample_signature `snapshot_vars' if e(sample)
+    ereturn local ordered_signature "`r(signature)'"
+    ereturn local signature_vars "`snapshot_vars'"
     _plqr_dnn_Display, level(`level')
 end
 
-program define _plqr_dnn_Display
+program define _plqr_dnn_Display, rclass
     syntax [, Level(cilevel)]
-    di ""
-    di as text "Experimental DNN PLQR Localized-Moment Evaluator"
-    di as text "Evaluation point x0: " as result "`e(x0)'"
-    di as text "Covariates: "          as result "`e(xvars)'"
-    di as text "Regressors: "          as result "`e(dvars)'"
-    di as text "Distance: " as result "`e(distance)'" ///
-       as text "  k = " as result e(k) ///
-       as text "  s = " as result e(s) ///
-       as text "  neff = " as result %6.2f e(neff)
-    di as text "tau = " as result %6.3f e(tau)
-    di as text "Inference target: " as result "localized score moment"
-    di as text "Theta source: " as result "supplied"
-    di as text "No local root solving was performed."
-    di ""
-    di as text "Localized score moment at theta_eval:"
-    matrix list e(moment), noheader format(%12.6g)
-    di as text "Rank-shift covariance of the localized score moment:"
-    matrix list e(moment_vcov), noheader format(%12.6g)
+    _rdistnn_report, level(`level')
+    return add
 end

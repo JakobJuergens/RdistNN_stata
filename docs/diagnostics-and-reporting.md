@@ -12,6 +12,10 @@ conventions](notation-and-conventions.md), or [CATE and
 regression](cate-and-regression.md). Installed reference help is available
 through `help rdistnn` and each command's help.
 
+Use [reusing fits](reusing-fits.md) for graph-free extraction with
+`rdistnn_results`, saved candidate fits and predictions after `estimates use`.
+PLQR now shares the reporting tables while retaining moment-only inference.
+
 ## Report estimates and uncertainty
 
 Each estimator displays a metadata header and pointwise normal confidence

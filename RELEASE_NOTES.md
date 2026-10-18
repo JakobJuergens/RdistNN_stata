@@ -1,5 +1,21 @@
 # Release Notes
 
+## Unreleased development — saved-fit reporting and reuse
+
+- Add `rdistnn_results`, `rdistnn_candidate` and `rdistnn_predict` with graph-free
+  exports, explicit posting and named derived fits. Preserve active data and
+  estimates by default and retain full CLATE target/status identities.
+- Save versioned numeric model snapshots in estimation results. `.ster` files
+  retain fitted numeric inputs/signals and support prediction, kernel and
+  influence views without original active data. Candidate views reuse cached
+  geometry; new-target prediction uses the fixed training metric.
+- Align PLQR near-tie ranks with R and the shared distance-matrix convention,
+  so fresh estimation and saved prediction resolve ties identically.
+- Unify PLQR moment reporting, retaining supplied coefficients separately.
+  Saved prediction supports batch moments; coefficient inference remains absent.
+- Develop on unpublished local `development` branches. Production changes use
+  reviewed pull requests and squash merges.
+
 ## 0.1.0.9000 — 2026-10-18
 
 Available from the production `master` branch. Tagged releases and their

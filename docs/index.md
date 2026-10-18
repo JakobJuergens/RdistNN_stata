@@ -1,6 +1,6 @@
 # RdistNN for Stata documentation
 
-These guides describe package **0.1.0.9000** on `master`, including experimental
+These guides describe package **0.1.0.9000** on the local `development` branch, including experimental
 conditional LATE and the shared reporting and postestimation interfaces.
 See [installation](../README.md#installation). In Stata, `help rdistnn` opens
 the package overview and links to every installed command reference.
@@ -13,6 +13,7 @@ the package overview and links to every installed command reference.
 | Choose variables and understand shapes/names | [Notation and conventions](notation-and-conventions.md) | [CATE and regression](../examples/cate-and-regression.do) |
 | Supply CATE scores or nuisances; estimate conditional means | [CATE and regression](cate-and-regression.md) | [CATE and regression](../examples/cate-and-regression.do) |
 | Inspect/reuse weights; choose kernel orders and candidate grids | [Weights and tuning](weights-and-tuning.md) | [Weights and tuning](../examples/weights-and-tuning.do) |
+| Save fits, extract tables and evaluate new targets | [Reusing fits](reusing-fits.md) | [Saved results](../examples/reusing-fits.do) |
 | Read tables, assess localization, save diagnostic data | [Diagnostics and reporting](diagnostics-and-reporting.md) | [Diagnostics and plots](../examples/diagnostics-and-plots.do) |
 | Choose panels, compare targets/candidates, export graphs | [Visualising fits](visualising-fits.md) | [Diagnostics and plots](../examples/diagnostics-and-plots.do) |
 | Estimate experimental conditional LATE with supplied IV predictions | [Conditional LATE](conditional-late.md) | [Oracle binary-IV example](../examples/clate.do) |
@@ -34,6 +35,7 @@ to the current directory. Read its opening comments before running it.
 | `np_dnn` | `help np_dnn` | Nonparametric conditional means |
 | `weights_dnn` | `help weights_dnn` | One target's exact/asymptotic DNN weights |
 | `clate_dnn` | `help clate_dnn` | Experimental augmented binary-IV or paired-signal ratios |
+| `rdistnn_results`, `rdistnn_candidate`, `rdistnn_predict` | `help COMMAND` | Graph-free extraction and reusable saved fits |
 | `plqr_dnn` | `help plqr_dnn` | Experimental supplied-coefficient score moments |
 | `cate_dnn_diagnostics`, `clate_dnn_diagnostics`, `np_dnn_diagnostics` | `help COMMAND` | Stored target/candidate reports and `.dta` export |
 | `cate_dnn_plot`, `clate_dnn_plot`, `np_dnn_plot` | `help COMMAND` | Stored-result and observation-level graph views |

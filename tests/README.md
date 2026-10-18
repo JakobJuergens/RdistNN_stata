@@ -39,6 +39,7 @@ assertions as the full suite.
 | CLATE paired signals/deletions, binary IV, statuses, batch/grid results, R parity, and all CATE plot families | `test-clate-*.do` |
 | Seeded R CLATE edge fixtures, independent subset/integrated-weight deletions, singular metric and full paired covariance | `test-premerge-clate.do` |
 | Adversarial reporting/diagnostic/plot returns, complete caller state, cold restores, sample guards and exported bands | `test-premerge-postestimation.do` |
+| Saved-model snapshots, graph-free reports, all-engine prediction, reusable candidates, cold .ster restores and independent R joint covariance | `test-fitted-results.do` |
 | Experimental PLQR moment semantics and covariance | `test-plqr-dnn-*.do` |
 | Fixed shared R values | `test-r-parity-priority.do` |
 | End-to-end estimation and replay | `test-integration.do` |

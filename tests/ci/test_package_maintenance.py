@@ -1,10 +1,12 @@
 import hashlib
+import posixpath
 import re
 import subprocess
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -69,6 +71,20 @@ class PackageMaintenanceTests(unittest.TestCase):
                     r"^[fF]\s+(\S+)", (ROOT / "rdistnn.pkg").read_text(), re.M,
                 ))
                 self.assertTrue(required.issubset(names), required.difference(names))
+                # A relative contributor-guide link can work in a checkout
+                # while breaking in the public archive, which omits that file.
+                for name in names:
+                    if not name.endswith(".md"):
+                        continue
+                    content = source.read(name).decode("utf-8")
+                    for target in re.findall(r"\[[^\]]*\]\(([^\s)]+)\)", content):
+                        parsed = urlsplit(target)
+                        if parsed.scheme or parsed.netloc or not parsed.path:
+                            continue
+                        resolved = posixpath.normpath(posixpath.join(
+                            posixpath.dirname(name), unquote(parsed.path),
+                        ))
+                        self.assertIn(resolved, names, f"{name}: broken archive link {target}")
                 for name in names:
                     self.assertFalse(name.startswith((
                         ".git/", ".github/", "_dist/", "archives/", "GH_logs/",

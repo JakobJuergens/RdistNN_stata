@@ -47,6 +47,11 @@ program define _rdistnn_report, rclass
     matrix `summary' = `table'[1..6,1..`m']'
     matrix colnames `summary' = estimate std_error z pvalue ci_lower ci_upper
     _rdistnn_report_header
+    if "`e(cmd)'"=="plqr_dnn" {
+        di as text "Localized score moments at supplied theta_eval; no coefficient inference or root solving."
+        di as text "Quantile index tau: " as result %6.3f e(tau)
+        matrix list e(theta_eval), noheader format(%12.6g)
+    }
     if "`e(cmd)'" == "clate_dnn" {
         di as text "Paired reduced-form / first-stage ratio; pointwise Wald inference."
         matrix list e(components), noheader format(%12.6g)

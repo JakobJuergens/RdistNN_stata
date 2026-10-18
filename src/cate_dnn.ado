@@ -699,6 +699,9 @@ program define cate_dnn, eclass
     local signature_vars `xvars' `input_var' `treat_var' `propensity_var' `m0_var' `m1_var' `m_var'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
+    tempname model_signals model_ranks model_distances
+    mata: st_matrix("`model_signals'",_ct_rho); st_matrix("`model_ranks'",_ct_ranks); st_matrix("`model_distances'",_ct_DX)
+    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances')
     _cate_dnn_Display, level(`level')
 end
 

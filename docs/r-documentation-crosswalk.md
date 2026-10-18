@@ -1,9 +1,9 @@
 # R documentation coverage and Stata equivalents
 
-This map compares Stata package **0.1.0.9000** on `master` with the RdistNN
-source at `6fe48273aaa8853c5736841c5a228f8c1592ded9`. The reference inventory is
-R's [article source directory](https://github.com/JakobJuergens/RdistNN/tree/6fe48273aaa8853c5736841c5a228f8c1592ded9/vignettes)
-and [pkgdown reference index](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/_pkgdown.yml).
+This map compares Stata package **0.1.0.9000** on `development` with the RdistNN
+source at `d2db01a78045fd95087e9764adec0a3ab6973fcc`. The reference inventory is
+R's [article source directory](https://github.com/JakobJuergens/RdistNN/tree/d2db01a78045fd95087e9764adec0a3ab6973fcc/vignettes)
+and [pkgdown reference index](https://github.com/JakobJuergens/RdistNN/blob/d2db01a78045fd95087e9764adec0a3ab6973fcc/_pkgdown.yml).
 It covers all 13 articles and 14 reference families in that snapshot. R remains
 the numerical reference for shared functionality. Documentation parity here
 means usable coverage of Stata's full public surface and clear routing for
@@ -36,13 +36,13 @@ reference is `help rdistnn`; each public command has its own installed help.
 |---|---|---|
 | Package overview | `help rdistnn`, [article index](index.md), [README](../README.md) | No separate Stata pkgdown site |
 | CATE and regression — estimators and weights | `cate_dnn`, `np_dnn`, `weights_dnn`; [core guide](cate-and-regression.md), [weights](weights-and-tuning.md) | `np_tdnn`, `weights_matrix`, batch weight objects and separate exported exact/asymptotic function names; Stata chooses the method by an option |
-| S3 methods | Fit/replay, `r(table)`, `r(summary)`, `e(estimates)`, `e(estimate_vcov)`, diagnostic commands, stored grid matrices | No S3 objects, `candidate_fit()`/`candidate_fits()` or `predict()` method. Refit with a new x0/X0 to evaluate new targets; select stored grid rows to report existing candidates |
-| Plotting | `cate_dnn_plot`, `clate_dnn_plot`, `np_dnn_plot`; [plot guide](visualising-fits.md) | No ggplot/autoplot object editing or independent plot-data generic. Stata single-view commands return `r(plot_data)` after building a graph |
+| S3 methods | Fit/replay, `r(table)`, `r(summary)`, `e(estimates)`, `e(estimate_vcov)`, diagnostic commands, stored grid matrices | `rdistnn_results`, `rdistnn_candidate` and `rdistnn_predict` provide numeric reporting and standalone saved-fit reuse. Stata keeps explicit commands rather than S3 objects; PLQR remains moment-only |
+| Plotting | `cate_dnn_plot`, `clate_dnn_plot`, `np_dnn_plot`; [plot guide](visualising-fits.md) | No ggplot/autoplot object editing. `rdistnn_results` extracts core numeric data without graphs; single-view commands also return `r(plot_data)` |
 | Kernel-order tuning | `lambda()`, `tuningmode(grid)`, `lambdagrid()`, `sgrid()`, `sdefault()` in CATE/CLATE/NP; [tuning](weights-and-tuning.md) | No `new_tuning`, `as_tuning`, registry or arbitrary evaluator. PLQR/standalone weights expose explicit s rather than integrated grids |
 | Demo data & utilities | Deterministic [examples](index.md#start-with-a-task) generate their own data | No packaged `cate_demo_data`, `np_demo_data` or demo-subset helpers |
 | General CATE simulation tools | Tutorial examples and [test map](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/README.md) | `sim_cate_*`, method registries and Monte Carlo summary utilities remain R-only; test success is not simulation evidence |
 | Experimental — conditional LATE | `clate_dnn`, CLATE diagnostics/plots; [article](conditional-late.md) | R signal constructors and generic affine-ratio object methods map to inline supplied columns and Stata matrices. R `ratio_confidence_set`, learner/benchmark helpers and extra jackknife diagnostic exports have no Stata equivalents |
-| Experimental — PLQR | `plqr_dnn`; [moment article](plqr-moments.md) | Single target and supplied theta moment covariance only. R's density-backed Jacobian/coefficient reporting at supplied theta, conditioning/calibration plots, reusable result methods and batch candidate interfaces are absent |
+| Experimental — PLQR | `plqr_dnn`; [moment article](plqr-moments.md) | Initial fitting uses one target; saved prediction supports batches of moments at supplied theta. R's density-backed Jacobian/coefficient reporting at supplied theta, conditioning/calibration plots, coefficient prediction uncertainty and integrated candidate grids remain absent |
 | Experimental — local IV-GMM (companion paper) | No Stata public command | `gmm_dnn`, `new_gmm_model`, DR-IV models, GMM result methods, IV demo/simulation helpers remain R-only |
 | Developer API — scores (U-stat kernels) | Built-in CATE/NP/CLATE/PLQR score paths described in their guides | Score specifications, registration, generic evaluation and parameter-aware derivative paths remain R-only |
 | Developer API — distances (rankers) | `distance(l2|mahalanobis)`; [weight guide](weights-and-tuning.md#exact-and-asymptotic-rules) | R L1/scaled-L1/scaled-L2 and custom distance specifications/registries are unavailable as Stata options |
@@ -59,9 +59,9 @@ reference is `help rdistnn`; each public command has its own installed help.
 | `level=.90` | `level(90)`; normally the configured Stata confidence level defaults to 95 |
 | `coef()`, `summary()`, `confint()` | Full canonical e() matrices and r() tables from fit/replay; copy r() results promptly |
 | `diagnostics(fit)` | Estimator-specific `_diagnostics` command; `.dta` saving and common localization return |
-| `candidate_fit(fit, id)` | Inspect row id in stored grid matrices, or refit at its resolved s if a new active fit is required |
-| `predict(fit, X0=...)` | Run the original estimator call on the required data with a new target matrix; replay does not predict |
-| `plot_data_*()` | Build the applicable `_plot` view and copy `r(plot_data)`; a dashboard returns panel metadata |
+| `candidate_fit(fit, id)` | `rdistnn_candidate, candidate(id) store(name)`; explicit `post` activates it |
+| `predict(fit, X0=...)` | `rdistnn_predict, x0matrix(NEW) sefit`; saved numeric model, no active data required |
+| `plot_data_*()` | `rdistnn_results` exports estimates, covariance, diagnostics, weights and contributions without graphs; `_plot` retains view-specific `r(plot_data)` |
 | `se=FALSE` / `jackknife="none"` | `nose` in CATE/CLATE/NP; standalone weights have no SE, PLQR always computes moment covariance |
 
 Old Stata aliases remain documented for compatibility. Removing underscores

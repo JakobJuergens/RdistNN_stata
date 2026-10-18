@@ -169,11 +169,14 @@ matrix list e(targets)
 matrix list e(se_targets)
 ```
 
-To evaluate new target profiles, issue another estimation call with those
-targets. There is no separate Stata `predict` command for these estimators.
-Stored-result summaries and graphs can use saved estimation results;
-observation-level kernel and influence graphs additionally require the
-original estimation data, values and observation order.
+Use `rdistnn_predict, x0matrix(NEW) sefit` to evaluate a saved fit at new
+targets with frozen-score covariance. `rdistnn_candidate, candidate(3)
+store(order3)` retains a standalone candidate fit, and `rdistnn_results`
+extracts numeric tables without graphs. These commands preserve active data
+and estimates by default; `post` explicitly activates a derived fit.
+Current kernel/influence plots use the numeric snapshot after data changes
+or `estimates save`/`estimates use`. Legacy fits retain original-data guards.
+See [reusing fits](reusing-fits.md) for the complete workflow.
 
 ## Read the localization and inference settings
 

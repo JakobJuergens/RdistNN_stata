@@ -70,6 +70,7 @@ local test_files ///
     test-clate-r-parity      ///
     test-clate-dnn-postestimation ///
     test-estimator-reporting ///
+    test-fitted-results     ///
     test-estimator-diagnostics ///
     test-estimator-plots      ///
     test-premerge-clate       ///

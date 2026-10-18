@@ -25,6 +25,12 @@ records numerical and behavioral coverage. R-only TDNN, general local GMM,
 custom registries, ratio confidence-set inversion, PLQR coefficient inference
 and paper-replication facilities are not Stata commands.
 
+Saved-fit workflows use `rdistnn_results` for graph-free numeric tables,
+`rdistnn_candidate, candidate(id) store(name)` for standalone candidate fits,
+and `rdistnn_predict, x0matrix(NEW) sefit` for new targets. These preserve
+active data/results by default; `post` explicitly activates a derived fit.
+See [reusing fits](reusing-fits.md) for serialization and PLQR moment scope.
+
 ## Localization and command contracts
 
 | Control | CATE / CLATE / NP | Standalone weights | PLQR |

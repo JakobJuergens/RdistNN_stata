@@ -521,11 +521,11 @@ other r-class commands replace them. Single-target coefficients are named
 {pstd}
 The batch covariance can support a prespecified linear contrast, for example
 {cmd:lincom tau1-tau2} after a batch fit with inference. It does not provide
-simultaneous bands automatically. Evaluate new profiles with another
-{cmd:cate_dnn} call; there is no separate Stata {cmd:predict} command.
-Observation-level kernel and influence plots require original estimation
-observations, values and order. Other stored-result views can use retained
-estimation results without refitting.
+simultaneous bands automatically. {help rdistnn_predict} evaluates new profiles
+using saved frozen signals and training geometry. Current kernel/influence
+plots use numeric snapshots after data changes; legacy fits retain the
+original-data/order guards. {help rdistnn_candidate} extracts standalone grid
+fits and {help rdistnn_results} supplies graph-free tables.
 
 {marker references}{...}
 {title:References}
@@ -536,3 +536,14 @@ Juergens, J. {browse "https://jakobjuergens.com/research/#orthogonal-inference-c
 {pstd}
 See also {help rdistnn}, {help np_dnn}, {help weights_dnn},
 {help cate_dnn_diagnostics}, and {help cate_dnn_plot}.
+
+{title:Saved model reporting and reuse}
+{pstd}
+Current fits retain versioned numeric observations, frozen signals, ranks and
+geometry in e(model_*), including in estimates save/use files.
+{help rdistnn_results} exports numeric reports without a graph;
+{help rdistnn_candidate} extracts reusable grid fits;
+{help rdistnn_predict} evaluates saved signals at new targets with optional
+frozen-score covariance. Active data and e() are preserved by default.
+post explicitly activates a derived fit; store() retains a named one.
+Legacy fits without a numeric snapshot require a refit for saved-model reuse.

@@ -292,12 +292,12 @@ size. Candidate tables retain marginal SEs rather than a covariance matrix
 for every candidate.
 
 `estimates restore cate_fit` makes its CATE postestimation commands available
-again; use the corresponding NP commands after restoring an NP fit. Stored
-summaries and stored-result graphs do not require refitting. Kernel-weight
-and influence graphs require the original observations, values and order;
-the commands validate the estimation sample before reconstructing weights.
-To estimate at new targets, call the estimator again; there is no Stata
-`predict` interface.
+again; use the corresponding NP commands after restoring an NP fit. Current
+fits retain numeric observations/signals and geometry, so summaries, kernels,
+influence views and `rdistnn_predict` work independently of the active data.
+Legacy kernel/influence views retain original-input and observation-order
+guards. `rdistnn_candidate` extracts a standalone candidate using saved ranks.
+`rdistnn_results` exports tables without graphs. See [reusing fits](reusing-fits.md).
 
 For saved diagnostic tables, use `saving()` on the diagnostics command;
 see [diagnostics and reporting](diagnostics-and-reporting.md). For plot

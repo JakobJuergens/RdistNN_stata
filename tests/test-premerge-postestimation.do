@@ -3,6 +3,11 @@
 // Presence is checked through r(matrices), never assignment _rc: an absent
 // r(matrix) can be assigned successfully as a missing 1-by-1 matrix in Stata.
 version 17
+// Emulate a legacy .ster that predates numeric model snapshots.
+capture program drop _fr_legacy
+program define _fr_legacy, eclass
+    ereturn scalar model_version=.
+end
 do "tests/test_framework.do"
 capture mkdir "build"
 capture mkdir "build/premerge"
@@ -402,7 +407,8 @@ foreach family in cate np clate {
     capture noisily `family'_dnn_plot, type(weights) view(kernel) name(pmpe_repair) replace nodraw
     local repair_rc = _rc
     test_assert "[premerge `family'] repaired formerly marked-out row does not change stored estimation sample" `repair_rc'==0
-    // Same count and unchanged X are insufficient if an input signal changes.
+    _fr_legacy
+    // A legacy fit must verify live inputs and observation order.
     replace y = y+.01 in 20
     capture noisily `family'_dnn_plot, type(weights) view(kernel) name(pmpe_changed) replace nodraw
     local change_rc = _rc
@@ -412,6 +418,7 @@ foreach family in cate np clate {
     // some Stata versions; same-session sorting is tested using a fresh fit.
     quietly `family'_dnn y if source_id>=5 & source_id<=43 in 3/46, ///
         xcols(x1 x2) x0matrix(PMPE_X0) s(6) `opts'
+    _fr_legacy
     gsort -source_id
     capture noisily `family'_dnn_plot, type(weights) view(kernel) name(pmpe_order) replace nodraw
     local order_rc = _rc
@@ -453,6 +460,7 @@ foreach family in cate clate {
     capture noisily `family'_dnn_plot, type(influence) name(pmpe_unused) replace nodraw
     local derived_rc = _rc
     test_assert "[premerge `family'] unrelated derived signal is not part of supplied-nuisance signature" `derived_rc'==0
+    _fr_legacy
     scalar PMPE_original_m0 = m0[1]
     replace m0 = m0+.001 in 1
     capture noisily `family'_dnn_plot, type(influence) name(pmpe_nuisancebad) replace nodraw

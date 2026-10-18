@@ -338,6 +338,9 @@ program define clate_dnn, eclass
     local signature_vars `xvars' `input' `nuisance_vars' `denominator'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
+    tempname model_signals model_ranks model_distances
+    mata: st_matrix("`model_signals'",_cl_signals); st_matrix("`model_ranks'",_cl_ranks); st_matrix("`model_distances'",rdistnn_distance_matrix(_cl_X,_cl_X0,"`resolved_distance'"))
+    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances')
     _clate_dnn_Display, level(`level')
 end
 

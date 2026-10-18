@@ -113,7 +113,7 @@ edits do not change runtime inputs.
 | Linux core AddressSanitizer/UndefinedBehaviorSanitizer | Passed with leak detection disabled; LeakSanitizer is unavailable under the sandbox's ptrace environment |
 | Selected R reference tests | 769 expectations / 79 tests passed |
 
-Commands are the maintained helpers in [CONTRIBUTING](../CONTRIBUTING.md),
+Commands are the maintained helpers in [CONTRIBUTING](https://github.com/JakobJuergens/RdistNN_stata/blob/master/CONTRIBUTING.md),
 plus `python3 -m unittest discover -s tests/ci -v`,
 `python3 tools/ci/documentation_check.py --r-root ../RdistNN`,
 `actionlint .github/workflows/*.yml`, and

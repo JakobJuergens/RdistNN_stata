@@ -273,11 +273,11 @@ diagnostic selection uses the shared grid tables; first-stage component and
 status reports come from target selection for the default fit.
 
 Stored estimate, overlap, diagnostics and tuning views use retained tables.
-Physical-kernel and influence views require the original sample, values and
-observation order; changing them requires refitting. Stata has no CLATE
-`predict` method: call `clate_dnn` again with new reporting targets and the
-same predictions, metric convention and explicit resolved `s()` to
-relocalize. A new estimation command replaces the active results. See
+Current physical-kernel and influence views use the saved numeric sample and
+signals after active data changes. Legacy fits retain original-data/order
+guards. `rdistnn_predict` relocalizes saved frozen signals with optional paired
+ratio covariance; `rdistnn_candidate` creates a standalone grid fit. Both
+preserve active estimates by default. See [reusing fits](reusing-fits.md),
 [diagnostics and reporting](diagnostics-and-reporting.md) and
 [visualising fits](visualising-fits.md) for selection, saving and exports.
 

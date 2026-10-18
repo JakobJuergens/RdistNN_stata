@@ -100,7 +100,7 @@ which cate_dnn_plot
 _rdistnn_assert_from_plus cate_dnn_plot.ado, plusnorm("`plus_norm'")
 which plqr_dnn
 _rdistnn_assert_from_plus plqr_dnn.ado, plusnorm("`plus_norm'")
-foreach command in clate_dnn clate_dnn_diagnostics clate_dnn_plot {
+foreach command in clate_dnn clate_dnn_diagnostics clate_dnn_plot rdistnn_results rdistnn_candidate rdistnn_predict {
     which `command'
     _rdistnn_assert_from_plus `command'.ado, plusnorm("`plus_norm'")
     _rdistnn_assert_from_plus `command'.sthlp, plusnorm("`plus_norm'")
@@ -109,7 +109,7 @@ _rdistnn_assert_from_plus _rdistnn_clate_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_clate_signature.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_plot_helpers.ado, plusnorm("`plus_norm'")
-foreach helper in report report_header estimation_state sample_signature diagnostics diagnostics_save plot_dispatch {
+foreach helper in report report_header estimation_state sample_signature diagnostics diagnostics_save plot_dispatch model_store model_mata model_fit model_plot reuse {
     _rdistnn_assert_from_plus _rdistnn_`helper'.ado, plusnorm("`plus_norm'")
 }
 _rdistnn_assert_from_plus rdistnn_license.md, plusnorm("`plus_norm'")
@@ -352,6 +352,11 @@ if e(k) != 1 | e(s) != floor(.4*160^(3/4)) {
 
 // The CLATE example exercises only freshly installed files, including cold
 // paired evaluator loading, diagnostics and instrument/influence/tuning plots.
+do "__REPO_FROM__/examples/reusing-fits.do"
+if e(model_version)!=1 | e(m)!=3 {
+    di as error "installed saved-fit prediction example failed."
+    exit 459
+}
 do "__REPO_FROM__/examples/clate.do"
 if "`e(cmd)'" != "clate_dnn" | e(m) != 3 {
     di as error "installed CLATE example did not retain its batch results."

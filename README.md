@@ -17,6 +17,10 @@ the local estimation and uncertainty calculations.
 · [CLATE guide](docs/conditional-late.md)
 · [Report an issue](https://github.com/JakobJuergens/RdistNN_stata/issues)
 
+The local `development` branch adds [saved-fit reporting, candidate extraction
+and prediction](docs/reusing-fits.md). These additions await production review;
+the installation below uses production `master`.
+
 ## Installation
 
 Install from GitHub in Stata:

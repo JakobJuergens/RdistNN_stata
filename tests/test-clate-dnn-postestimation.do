@@ -1,5 +1,10 @@
 // CLATE adapters: canonical target tables, paired influence, and shared plots.
 version 17
+// Emulate a legacy .ster that predates numeric model snapshots.
+capture program drop _fr_legacy
+program define _fr_legacy, eclass
+    ereturn scalar model_version=.
+end
 capture mkdir "build"
 capture mkdir "build/clate"
 do "tests/test_framework.do"
@@ -156,6 +161,7 @@ mata: st_numscalar("cldiff", max(abs(st_matrix("CLAFTER")-st_matrix("CLB"))))
 test_assert "[clate restore] estimation matrices and original data retained" scalar(cldiff)<1e-12 & _N==90
 capture noisily clate_dnn
  test_assert "[clate replay] stored result replays after plots" _rc==0
+_fr_legacy
 preserve
 replace y = y + 100 in 1
 capture noisily clate_dnn_plot, type(influence) name(clmutated) replace nodraw
