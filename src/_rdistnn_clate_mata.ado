@@ -13,9 +13,9 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
     real rowvector theta, real matrix V, real matrix componentV,
     real matrix status)
 {
-    real scalar n, m, i, j, h, d, den_scale, scale, variance, corr
+    real scalar n, m, i, j, h, d, den_scale, scale, variance, corr, omega_quarter
     real colvector idx, kept, deleted_ranks, w, sd, good
-    real matrix W, loo, centered, g, normalized, block
+    real matrix W, loo, centered, scaled_centered, g, normalized, block
 
     n=rows(ranks); m=cols(ranks)
     if (n<1 | m<1 | rows(signals)!=n | cols(signals)!=2 |
@@ -60,8 +60,12 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
         }
     }
     centered=loo:-mean(loo)
-    componentV=(n-1)/n*cross(centered,centered)
-    componentV=(componentV+componentV')/2
+    // Scale before the dot product: its unscaled sum can exceed Stata's
+    // range while the final estimator-scale covariance remains finite.
+    scaled_centered=centered*sqrt((n-1)/n)
+    componentV=cross(scaled_centered,scaled_centered)
+    // Preserve the diagonal and avoid doubling finite large covariances.
+    componentV=componentV+(componentV'-componentV)/2
     normalized=J(n,m,.)
     sd=J(m,1,.)
     good=J(m,1,0)
@@ -97,6 +101,14 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
         }
         variance=sd[j]^2
         if(variance>=. | (scale>0 & variance==0)) {
+            status[j,4]=3
+            continue
+        }
+        // R also requires finite neff*variance. Stata's nonmissing range is
+        // smaller than R's IEEE range, so compare one quarter of that value
+        // with DBL_MAX/4 instead of forming an unsupported omega directly.
+        omega_quarter=variance*((1/quadsum(W[,j]:^2))/4)
+        if(omega_quarter>4.4942328371557893e307) {
             status[j,4]=3
             continue
         }

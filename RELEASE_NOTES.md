@@ -28,6 +28,15 @@
   command references and provide six verified standalone examples. R-only
   interfaces and experimental inference boundaries are explicit.
 
+- Align singular Mahalanobis geometry with R's SVD Moore-Penrose inverse,
+  including targets outside the covariate span; retain the full-sample metric
+  through deletions. This also corrects inherited CATE/regression behavior.
+- Harden runtime/install/example verification against stale logs, echoed
+  completion text and nonzero process exits. Repair Windows NMAKE encoding
+  compatibility and expand independent numerical/postestimation audit tests.
+- Avoid intermediate overflow in finite paired CLATE covariance and match
+  R's unavailable-inference status while retaining finite component covariance.
+
 ## 0.1.0 — 2026-10-14
 
 - Initial public release of CATE and nonparametric regression with DNN weights,

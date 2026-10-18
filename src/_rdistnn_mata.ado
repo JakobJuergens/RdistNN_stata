@@ -92,8 +92,8 @@ real colvector rdistnn_l2dist(real matrix X, real rowvector x0)
 
 // ── rdistnn_mahal_cov_inv ─────────────────────────────────────────────
 // Compute the (generalized) inverse of the sample covariance matrix of X.
-// Uses invsym() which applies the sweep operator and handles singular
-// covariance gracefully (zeros out linearly dependent directions).
+// Match R's ordinary inverse with an SVD Moore-Penrose fallback. A sweep
+// generalized inverse can change distances for targets outside the data span.
 //
 // Arguments:
 //   X : n x kx matrix (kx >= 2)
@@ -102,8 +102,9 @@ real colvector rdistnn_l2dist(real matrix X, real rowvector x0)
 //
 real matrix rdistnn_mahal_cov_inv(real matrix X)
 {
-    real matrix     Xc, S
-    real scalar     n
+    real matrix     Xc, S, Si, U, Vt
+    real colvector  values, inverse_values
+    real scalar     n, condition_product, cutoff, j
 
     n  = rows(X)
     if (n < 2) {
@@ -112,7 +113,21 @@ real matrix rdistnn_mahal_cov_inv(real matrix X)
     }
     Xc = X :- mean(X)                // center each column
     S  = cross(Xc, Xc) / (n - 1)    // kx x kx sample covariance
-    return(invsym(S))
+    Si = luinv(S, 0)
+    if (!any(Si :>= .)) {
+        condition_product = norm(S, 1) * norm(Si, 1)
+        // R's solve() rejects reciprocal condition numbers below double eps.
+        if (condition_product < . & condition_product > 0) {
+            if (1/condition_product >= 2.220446049250313e-16) return(Si)
+        }
+    }
+    svd(S, U, values, Vt)
+    cutoff = 1e-10 * max((max(values), 1e-300))
+    inverse_values = J(rows(values), 1, 0)
+    for (j=1; j<=rows(values); j++) {
+        if (values[j] > cutoff) inverse_values[j] = 1/values[j]
+    }
+    return(Vt' * diag(inverse_values) * U')
 }
 
 // ── rdistnn_mahal_dist ────────────────────────────────────────────────

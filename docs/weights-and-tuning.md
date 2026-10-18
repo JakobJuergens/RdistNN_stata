@@ -46,7 +46,8 @@ compare the methods explicitly when the approximation matters.
 Euclidean `distance(l2)` is the default. Its ranking is sensitive to the
 units of the coordinates; standardization can be a substantive choice.
 `distance(mahalanobis)` uses the full estimation sample covariance and a
-generalized inverse for rank-deficient covariance. The metric is fixed
+SVD Moore-Penrose pseudoinverse for rank-deficient covariance, using R's
+relative cutoff of `1e-10`. The metric is fixed
 through deletion covariance calculations. Both use deterministic distance,
 then observation-order tie breaking. Changing a metric changes the
 neighborhood; it is not a cosmetic plot option.

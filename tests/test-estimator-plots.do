@@ -79,11 +79,12 @@ foreach family in cate np clate {
     local nr = r(n_rows)
     local npanels = r(n_panels)
     local panels "`r(panels)'"
+    local returned : r(matrices)
+    local has_plot_data : list posof "plot_data" in returned
+    local has_panel_info : list posof "panel_info" in returned
     capture matrix PAN = r(panel_info)
     local prc = _rc
-    capture matrix PD = r(plot_data)
-    local drc = _rc
-    test_assert "[plots `family'] dashboard returns panel metadata without single data table" `prc'==0 & colsof(PAN)>=3 & (missing(PD[1,1]) & rowsof(PD)==1) & `npanels'>=4 & `nr'==. & "`panels'"!=""
+    test_assert "[plots `family'] dashboard returns panel metadata without single data table" `has_panel_info'>0 & `has_plot_data'==0 & `prc'==0 & colsof(PAN)>=3 & `npanels'>=4 & `nr'==. & "`panels'"!=""
     quietly `family'_dnn_plot, style(profile) name(plot_contract) replace nodraw saving("build/coherence/`family'-profile.svg")
     quietly `family'_dnn_plot, style(profile) name(plot_contract) replace nodraw saving("build/coherence/`family'-profile.png")
     capture confirm file "build/coherence/`family'-profile.svg"

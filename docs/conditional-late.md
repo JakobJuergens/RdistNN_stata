@@ -220,6 +220,8 @@ components and their available covariance. A finite negative first stage
 gives its signed ratio and is flagged, without replacement or trimming.
 Numerical failures remain explicit. Ratio and covariance status must be read
 together: a component covariance can be computed even when no ratio exists.
+Finite component covariance can also remain available when ratio inference
+is numerically unavailable.
 
 For nonzero first stages, the near-zero flag checks
 `abs(Delta_D)/max_i abs(phi_Di) <= denominatortol()`. The default is

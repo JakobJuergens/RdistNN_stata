@@ -52,6 +52,14 @@ machine actually running the check. PowerShell uses native filesystem paths
 and quotes do-file names, including paths containing spaces.
 The Stata setup and test runner normalize Windows backslashes for ado discovery
 from UNC shares, including a WSL checkout.
+All three Stata verification helpers require a zero process exit code and a
+fresh completion marker. Runtime `-KeepLog` copies the previous run to
+`tests.previous.log`; the current run must create its own `tests.log`.
+After the full licensed suite, verify the actual exported confidence-band
+and `nose` geometry against its numerical CSV data with
+`python3 tools/ci/plot_svg_check.py`. It checks four filled bands and three
+profiles without uncertainty, and writes an ignored JSON receipt under
+`build/premerge/`.
 
 Force `global rdistnn_use_plugin 0` for Mata reference checks or `1` to require
 the L2 plugin. Clear the global afterward with `macro drop rdistnn_use_plugin`.

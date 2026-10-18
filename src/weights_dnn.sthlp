@@ -85,7 +85,8 @@ usable sample; excluded observations have missing weights.
 {opt distance(l2|mahalanobis)} chooses Euclidean distance (default) or the
 full-sample covariance metric. Mahalanobis requires at least two covariates
 and two complete observations for this command; singular covariance uses a
-generalized inverse. The estimator wrappers have their own dimension checks.
+SVD Moore-Penrose pseudoinverse with R's relative cutoff of 1e-10.
+The estimator wrappers have their own dimension checks.
 Euclidean neighborhoods depend on covariate units.
 
 {phang}

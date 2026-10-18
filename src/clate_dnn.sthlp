@@ -216,6 +216,8 @@ while components and their available covariance remain. A finite negative
 first stage gives a signed ratio without replacement. Ratio and covariance
 status must be read together: component covariance can be computed when no
 ratio exists. Numerical failures remain distinct from exact zeros.
+Finite component covariance can also remain available when ratio inference
+is numerically unavailable.
 
 {pstd}
 {cmd:denominatortol()} must be finite and nonnegative. For nonzero first

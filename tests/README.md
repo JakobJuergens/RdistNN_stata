@@ -19,6 +19,7 @@ do "tests/tests.do" "test-plqr-dnn-*"
 do "tests/tests.do" "test-weights-dnn-*"
 do "tests/tests.do" "test-mata-*"
 do "tests/tests.do" "test-r-parity-priority"
+do "tests/tests.do" "test-premerge-*"
 ```
 
 The optional argument is a Stata `strmatch()` wildcard matched against the
@@ -34,6 +35,8 @@ assertions as the full suite.
 | NP estimation, validation, and R parity | `test-np-dnn-*.do` |
 | CATE score paths, batch/grid results, diagnostics, plots, and validation | `test-cate-dnn-*.do` |
 | CLATE paired signals/deletions, binary IV, statuses, batch/grid results, R parity, and all CATE plot families | `test-clate-*.do` |
+| Seeded R CLATE edge fixtures, independent subset/integrated-weight deletions, singular metric and full paired covariance | `test-premerge-clate.do` |
+| Adversarial reporting/diagnostic/plot returns, complete caller state, cold restores, sample guards and exported bands | `test-premerge-postestimation.do` |
 | Experimental PLQR moment semantics and covariance | `test-plqr-dnn-*.do` |
 | Fixed shared R values | `test-r-parity-priority.do` |
 | End-to-end estimation and replay | `test-integration.do` |

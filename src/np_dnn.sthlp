@@ -189,8 +189,8 @@ candidate must be feasible.
 through jackknife deletions. L2 distances depend on covariate scales.
 Mahalanobis requires at least two complete observations, including with
 {opt nose}; one localization covariate is permitted. Rank-deficient covariance
-matrices use the {cmd:invsym()} generalized inverse; directions in its null
-space do not contribute to distance.
+matrices use an SVD Moore-Penrose pseudoinverse with R's relative cutoff of
+1e-10; directions in its null space do not contribute to distance.
 
 {phang}{opt method(string)} selects exact finite-sample DNN weights or the
 asymptotic beta-order-statistic approximation, written {cmd:method(asymp)}.
@@ -282,7 +282,7 @@ an infinite z statistic as missing.
 {pstd}
 {cmd:distance(mahalanobis)} requires at least two complete estimation
 observations, including with {cmd:nose}. Rank-deficient covariance matrices for
-larger samples continue to use the generalized inverse.
+larger samples use the SVD Moore-Penrose pseudoinverse.
 
 {pstd}
 Columns of {cmd:e(diagnostics)} are ESS, maximum weight, top-1/top-5/top-10

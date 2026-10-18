@@ -63,6 +63,9 @@ Set-Content -LiteralPath $doFile -Value $doText -Encoding ASCII
 Write-Output "Using Stata executable: $stata"
 $exitCode = Invoke-StataBatchDo -StataExe $stata -DoFile $doFile -WorkingDirectory $RepoRoot
 Write-Output "Stata process exit code: $exitCode"
+if ($exitCode -ne 0) {
+    throw "Stata documentation process failed with exit code $exitCode. Log: $logFile"
+}
 if (!(Test-Path -LiteralPath $logFile)) { throw "Documentation log not found: $logFile" }
 $content = Get-Content -LiteralPath $logFile -Raw
 if ($content -notmatch '(?m)^DOCUMENTATION_EXAMPLES_PASSED 6\s*$' -or

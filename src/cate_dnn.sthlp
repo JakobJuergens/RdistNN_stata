@@ -308,11 +308,12 @@ with missing candidate estimates; the default candidate must be feasible.
 {phang}
 {opt distance(string)} selects the distance metric.  {cmd:l2} (default)
 uses Euclidean distance.  {cmd:mahalanobis} uses the sample covariance
-matrix (via {cmd:invsym()}) to form an ellipsoidal neighborhood;
+matrix inverse to form an ellipsoidal neighborhood;
 at least two complete estimation observations are required, including with
 {opt nose}. One covariate is permitted. Rank-deficient covariance matrices
-continue to use {cmd:invsym()}; directions in its null space do not contribute
-to distance. L2 distances depend on the scales of the supplied covariates.
+use an SVD Moore-Penrose pseudoinverse with R's relative cutoff of 1e-10;
+directions in its null space do not contribute to distance. L2 distances
+depend on the scales of the supplied covariates.
 
 {phang}
 {opt method(string)} selects {cmd:exact} finite-sample DNN weights (default)

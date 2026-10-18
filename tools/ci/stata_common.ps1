@@ -160,7 +160,7 @@ function Assert-StataSuccessLog {
         throw "Stata test failures found. See log: $LogPath"
     }
 
-    $match = [regex]::Match($content, "All\s+(\d+)\s+tests\s+passed\.")
+    $match = [regex]::Match($content, "(?m)^All[ \t]+([1-9]\d*)[ \t]+tests[ \t]+passed\.\r?$")
     if (!$match.Success) {
         throw "Stata success marker not found in log: $LogPath"
     }

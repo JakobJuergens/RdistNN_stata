@@ -92,10 +92,9 @@ echo ""
 echo "=== Checking Stata version floor ==="
 VERSION_ERRORS=0
 for f in src/*.ado tests/*.do; do
-	if grep -nE "^[[:space:]]*version[[:space:]]+16([[:space:]]|$)" "$f" >/dev/null; then
-		echo "  OLD      $f declares version 16; use version 17 or later"
-		grep -nE "^[[:space:]]*version[[:space:]]+16([[:space:]]|$)" "$f" \
-			| sed "s/^/           /"
+	if awk '$1 == "version" && $2 + 0 < 17 {bad=1} END {exit !bad}' "$f"; then
+		echo "  OLD      $f declares a version below 17; use version 17 or later"
+		awk '$1 == "version" && $2 + 0 < 17 {print "           " NR ":" $0}' "$f"
 		VERSION_ERRORS=$((VERSION_ERRORS + 1))
 	fi
 done

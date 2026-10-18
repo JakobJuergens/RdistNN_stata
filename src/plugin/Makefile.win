@@ -1,10 +1,11 @@
-# Makefile.win — RdistNN Stata plugin (Windows, MSVC)
+# Makefile.win - RdistNN Stata plugin (Windows, MSVC)
 #
 # Usage from a "Developer Command Prompt for VS":
-#   nmake /f Makefile.win           — build rdistnn.plugin
-#   nmake /f Makefile.win clean     — remove build artifacts
+#   nmake /f Makefile.win           - build rdistnn.plugin
+#   nmake /f Makefile.win clean     - remove build artifacts
 #
-# Requires: Visual Studio Build Tools 2019 or 2022 (any edition).
+# Requires: Visual Studio C++ Build Tools 2019 or later (any edition).
+# Keep this file ASCII: NMAKE can reject UTF-8 on non-UTF-8 Windows code pages.
 # Open "x64 Native Tools Command Prompt for VS 20xx" before running.
 #
 # The compiled rdistnn.plugin must be placed on Stata's adopath.
@@ -31,11 +32,10 @@ check: $(CORE_TEST)
 clean:
 	-del /f $(TARGET) $(CORE_TEST) *.obj *.exp *.lib
 
-# ── Alternative: build with MinGW/GCC (e.g. via Rtools) ──────────────────
+# Alternative: build with MinGW/GCC (e.g. via Rtools)
 #
 # From a shell where gcc is on PATH (Rtools MSYS2 terminal):
 #
 #   g++ -std=c++17 -O3 -shared -o rdistnn.plugin stplugin.c rdistnn_plugin.cpp
 #
 # Note: On Windows, .plugin files are DLLs regardless of extension.
-# ─────────────────────────────────────────────────────────────────────────

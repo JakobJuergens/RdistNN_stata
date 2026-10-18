@@ -190,8 +190,9 @@ increments, rather than the finite-population exact weights. The exact
 support formula does not apply to that approximation.
 
 L2 distances depend on covariate scales. Mahalanobis distance uses the
-estimation sample's covariance and its `invsym()` generalized inverse. It
-requires at least two complete observations and permits one localization
+estimation sample's covariance inverse, with an SVD Moore-Penrose fallback
+using R's relative cutoff of `1e-10`. It requires at least two complete
+observations and permits one localization
 covariate. A rank-deficient covariance is accepted; the generalized inverse
 can leave directions without distance contribution. The metric is held
 fixed through jackknife deletions.

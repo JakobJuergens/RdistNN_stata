@@ -70,6 +70,8 @@ local test_files ///
     test-estimator-reporting ///
     test-estimator-diagnostics ///
     test-estimator-plots      ///
+    test-premerge-clate       ///
+    test-premerge-postestimation ///
     test-plqr-dnn-core       ///
     test-plqr-dnn-methods    ///
     test-plqr-dnn-errors     ///

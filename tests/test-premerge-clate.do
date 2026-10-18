@@ -1,0 +1,209 @@
+// Seeded R numerical audit, with full paired and cross-target covariance.
+// Generate fixtures with Rscript tools/generate_r_clate_audit_fixtures.R.
+// The generator itself validates independent subset/density-integral oracles.
+version 17
+do "tests/test_framework.do"
+include "tests/fixtures/r_clate_audit_fixtures.do"
+
+capture mata: mata drop ca_matrix_equal()
+mata:
+real scalar ca_matrix_equal(real matrix actual, real matrix expected,
+    real scalar tol)
+{
+    real scalar scale
+    real colvector a,b,ok
+    if (rows(actual)!=rows(expected) | cols(actual)!=cols(expected)) return(0)
+    a=vec(actual); b=vec(expected)
+    if (any((a:>=.):!=(b:>=.))) return(0)
+    ok=(b:<.)
+    if (!any(ok)) return(1)
+    a=select(a,ok); b=select(b,ok)
+    scale=max(abs(b))
+    if (scale==0) return(max(abs(a))<=1e-25)
+    return(max(abs(a-b))/scale<=tol)
+}
+end
+
+test_section "premerge CLATE: R goldens and independent paired-delete oracles"
+forvalues case=1/`ca_cases' {
+    clear
+    svmat double CA_input`case'
+    local p `ca_p`case''
+    local xvars ""
+    forvalues j=1/`p' {
+        rename CA_input`case'`j' x`j'
+        local xvars `xvars' x`j'
+    }
+    local next = `p'+1
+    if `ca_nuisance`case'' {
+        foreach name in Y D A e my0 my1 md0 md1 {
+            rename CA_input`case'`next' `name'
+            local ++next
+        }
+        local route "dcol(D) acol(A) ecol(e) my0col(my0) my1col(my1) md0col(md0) md1col(md1)"
+        local outcome Y
+    }
+    else {
+        rename CA_input`case'`next' py
+        local ++next
+        rename CA_input`case'`next' pd
+        local route "pseudooutcome denominator(pd)"
+        local outcome py
+    }
+    capture noisily clate_dnn `outcome', xcols(`xvars') ///
+        x0matrix(CA_targets`case') `route' `ca_options`case''
+    local fitrc = _rc
+    test_assert "R audit case `case' succeeds: `ca_label`case''" `fitrc'==0
+    if `fitrc' continue
+    foreach pair in "estimates theta" "components components" ///
+        "theta_vcov V" "component_vcov CV" "se_targets se" "status status" {
+        local actual : word 1 of `pair'
+        local expected : word 2 of `pair'
+        mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(`actual')"),st_matrix("CA_`expected'`case'"),2e-8))
+        test_assert "R audit case `case': full `actual' values and missing mask" scalar(ca_equal)==1
+    }
+}
+
+test_section "premerge shared singular Mahalanobis: independent geometry and reductions"
+clear
+svmat double CA_input12
+rename (CA_input121 CA_input122 CA_input123 CA_input124) (x1 x2 py pd)
+// X=(u,2u). Its Moore-Penrose covariance inverse is the literal rank-one
+// formula below; an off-span target (0,1) projects to u=.4. No package
+// inverse/rank/weight helper is used to construct these expected values.
+weights_dnn x1 x2, x0(0 1) s(3) distance(mahalanobis) generate(ca_singular_w)
+mata {
+    ca_u=st_data(.,"x1")
+    ca_uvar=quadsum((ca_u:-mean(ca_u)):^2)/7
+    ca_mp=(1,2\2,4)/(25*ca_uvar)
+    ca_expected_distance=abs(ca_u:-.4)/sqrt(ca_uvar)
+    ca_expected_rank=(7\5\3\1\2\4\6\8)
+    ca_expected_weight=(0\3\10\21\15\6\1\0)/56
+    st_numscalar("ca_equal",ca_matrix_equal(rdistnn_mahal_cov_inv(st_data(.,"x1 x2")),ca_mp,2e-12))
+    st_numscalar("ca_distance_ok",ca_matrix_equal(rdistnn_distance_matrix(st_data(.,"x1 x2"),(0,1),"mahalanobis"),ca_expected_distance,2e-12))
+    st_numscalar("ca_rank_ok",all(rdistnn_ranks(st_data(.,"x1 x2"),(0,1),"mahalanobis"):==ca_expected_rank))
+    st_numscalar("ca_weight_ok",ca_matrix_equal(st_data(.,"ca_singular_w"),ca_expected_weight,2e-12))
+}
+test_assert "singular covariance inverse is Moore-Penrose rank-one formula" scalar(ca_equal)==1
+test_assert "off-span Mahalanobis distances match projected-coordinate formula" scalar(ca_distance_ok)==1
+test_assert "off-span target rank order matches literal oracle" scalar(ca_rank_ok)==1
+test_assert "standalone Mahalanobis weight command matches literal subset weights" scalar(ca_weight_ok)==1
+np_dnn py, xcols(x1 x2) x0matrix(CA_targets12) s(3) distance(mahalanobis)
+mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(estimates)"),st_matrix("CA_theta12"),2e-12) & ca_matrix_equal(st_matrix("e(V)"),st_matrix("CA_V12"),2e-11))
+test_assert "off-span singular NP estimates and full covariance match R ratio with unit denominator" scalar(ca_equal)==1
+cate_dnn py, xcols(x1 x2) x0matrix(CA_targets12) s(3) distance(mahalanobis) pseudooutcome
+mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(estimates)"),st_matrix("CA_theta12"),2e-12) & ca_matrix_equal(st_matrix("e(V)"),st_matrix("CA_V12"),2e-11))
+test_assert "off-span singular CATE estimates and full covariance match R ratio with unit denominator" scalar(ca_equal)==1
+
+test_section "premerge CLATE: affine signal identities and target permutation"
+clear
+svmat double CA_input1
+rename (CA_input11 CA_input12 CA_input13 CA_input14) (x1 x2 py pd)
+clate_dnn py, denominator(pd) pseudooutcome xcols(x1 x2) ///
+    x0matrix(CA_targets1) k(2) s(4)
+matrix CA_baseB = e(estimates)
+matrix CA_baseV = e(theta_vcov)
+matrix CA_baseCV = e(component_vcov)
+matrix CA_baseC = e(components)
+gen double pa = -2*py+3*pd
+clate_dnn pa, denominator(pd) pseudooutcome xcols(x1 x2) ///
+    x0matrix(CA_targets1) k(2) s(4)
+mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(estimates)"),-2*st_matrix("CA_baseB"):+3,2e-12))
+test_assert "affine numerator shifts target ratios" scalar(ca_equal)==1
+mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(theta_vcov)"),4*st_matrix("CA_baseV"),2e-11))
+test_assert "affine numerator scales full ratio covariance" scalar(ca_equal)==1
+mata {
+    ca_T=I(8)
+    for(ca_j=1;ca_j<=4;ca_j++) ca_T[(2*ca_j-1)..(2*ca_j),(2*ca_j-1)..(2*ca_j)]=(-2,3\0,1)
+    st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(component_vcov)"),ca_T*st_matrix("CA_baseCV")*ca_T',2e-11))
+}
+test_assert "affine transformation preserves paired cross-component covariance" scalar(ca_equal)==1
+gen double ps = -1e5*py
+gen double ds = -1e5*pd
+clate_dnn ps, denominator(ds) pseudooutcome xcols(x1 x2) ///
+    x0matrix(CA_targets1) k(2) s(4)
+mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(estimates)"),st_matrix("CA_baseB"),2e-12) & ca_matrix_equal(st_matrix("e(theta_vcov)"),st_matrix("CA_baseV"),2e-11))
+test_assert "common negative scaling preserves full ratio and covariance" scalar(ca_equal)==1
+mata: st_numscalar("ca_equal",all(st_matrix("e(status)")[,2]:==1))
+test_assert "common negative scaling updates denominator signs" scalar(ca_equal)==1
+mata: st_matrix("CA_permuted",st_matrix("CA_targets1")[(4,2,1,3),])
+clate_dnn py, denominator(pd) pseudooutcome xcols(x1 x2) ///
+    x0matrix(CA_permuted) k(2) s(4)
+mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(estimates)"),st_matrix("CA_baseB")[,(4,2,1,3)],2e-12) & ca_matrix_equal(st_matrix("e(theta_vcov)"),st_matrix("CA_baseV")[(4,2,1,3),(4,2,1,3)],2e-11))
+test_assert "target permutation carries full ratio covariance" scalar(ca_equal)==1
+mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(component_vcov)"),st_matrix("CA_baseCV")[(7,8,3,4,1,2,5,6),(7,8,3,4,1,2,5,6)],2e-11))
+test_assert "target permutation carries interleaved full component covariance" scalar(ca_equal)==1
+mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(theta_vcov)")[,1],st_matrix("e(theta_vcov)")[,3],2e-12))
+test_assert "duplicate targets retain identical covariance columns" scalar(ca_equal)==1
+
+test_section "premerge CLATE: grid feasibility default and complete status masks"
+clate_dnn py, denominator(pd) pseudooutcome xcols(x1 x2) ///
+    x0matrix(CA_targets1) k(2) tuningmode(grid) ///
+    sgrid(1 4 4 7 8 9) sdefault(4)
+matrix CA_gridB = e(tuning_estimates)
+matrix CA_gridSE = e(tuning_se)
+matrix CA_gridY = e(tuning_reduced_form)
+matrix CA_gridD = e(tuning_first_stage)
+matrix CA_gridStatus = e(tuning_target_status)
+matrix CA_gridMeta = e(tuning_candidates)
+mata: st_numscalar("ca_equal",all(st_matrix("CA_gridB")[(1,5,6),]:>=.) & all(st_matrix("CA_gridSE")[(1,5,6),]:>=.) & all(st_matrix("CA_gridY")[(1,5,6),]:>=.) & all(st_matrix("CA_gridD")[(1,5,6),]:>=.) & all(st_matrix("CA_gridStatus")[(1..4,17..24),]:>=.))
+test_assert "infeasible grid candidates retain every unavailable target and status" scalar(ca_equal)==1
+mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("CA_gridB")[2,],st_matrix("CA_theta1"),2e-10) & ca_matrix_equal(st_matrix("CA_gridSE")[2,],st_matrix("CA_se1"),2e-9) & ca_matrix_equal(st_matrix("CA_gridB")[2,],st_matrix("CA_gridB")[3,],2e-12))
+test_assert "default and duplicate grid candidates match independent R fixture" scalar(ca_equal)==1
+mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(theta_vcov)"),st_matrix("CA_V1"),2e-9) & ca_matrix_equal(st_matrix("e(component_vcov)"),st_matrix("CA_CV1"),2e-9))
+test_assert "grid active fit preserves full independent paired covariance" scalar(ca_equal)==1
+test_assert "grid default ID and duplicate cache ID retained" e(tuning_default_candidate)==2 & el(CA_gridMeta,2,2)==el(CA_gridMeta,3,2)
+clate_dnn py, denominator(pd) pseudooutcome xcols(x1 x2) ///
+    x0matrix(CA_targets1) k(2) tuningmode(grid) sgrid(2 4 8) sdefault(8) nose
+matrix CA_noseMeta = e(tuning_candidates)
+matrix CA_noseStatus = e(tuning_target_status)
+test_assert "nose grid permits s=n default" e(s)==8 & el(CA_noseMeta,3,4)==1
+mata: st_numscalar("ca_equal",all(st_matrix("e(tuning_se)"):>=.) & all(st_matrix("CA_noseStatus")[,6]:==1) & all(st_matrix("CA_noseStatus")[,7]:==0))
+test_assert "nose grid consistently marks covariance uncomputed" scalar(ca_equal)==1
+
+test_section "premerge CLATE: nuisance relabeling and sample boundary validation"
+clear
+svmat double CA_input26
+rename (CA_input261 CA_input262 CA_input263 CA_input264 CA_input265 ///
+    CA_input266 CA_input267 CA_input268 CA_input269 CA_input2610) ///
+    (x1 x2 Y D A e my0 my1 md0 md1)
+local nuis "xcols(x1 x2) x0matrix(CA_targets26) dcol(D) acol(A) ecol(e) my0col(my0) my1col(my1) md0col(md0) md1col(md1) k(2) s(4) clip(.05) distance(mahalanobis)"
+clate_dnn Y, `nuis'
+matrix CA_ivB = e(estimates)
+matrix CA_ivV = e(theta_vcov)
+matrix CA_ivC = e(components)
+gen byte Af = 1-A
+gen double ef = 1-e
+clate_dnn Y, xcols(x1 x2) x0matrix(CA_targets26) dcol(D) acol(Af) ecol(ef) ///
+    my0col(my1) my1col(my0) md0col(md1) md1col(md0) ///
+    k(2) s(4) clip(.05) distance(mahalanobis)
+mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(estimates)"),st_matrix("CA_ivB"),2e-11) & ca_matrix_equal(st_matrix("e(theta_vcov)"),st_matrix("CA_ivV"),2e-10) & ca_matrix_equal(st_matrix("e(components)"),-st_matrix("CA_ivC"),2e-11))
+test_assert "relabeling instrument arms negates both components and preserves ratio covariance" scalar(ca_equal)==1
+foreach var in e md0 md1 {
+    gen double save_`var' = `var'
+    replace `var' = 1.2 in 1
+    capture clate_dnn Y if _n>1, `nuis'
+    local restricted_rc = _rc
+    test_assert "excluded invalid `var' prediction does not enter fit" `restricted_rc'==0
+    capture clate_dnn Y, `nuis'
+    local included_rc = _rc
+    test_assert "included invalid `var' prediction fails before clipping" `included_rc'==198
+    replace `var' = save_`var'
+}
+replace A = 2 in 1
+capture clate_dnn Y, `nuis'
+local binary_rc = _rc
+test_assert "nonbinary instrument rejected" `binary_rc'==198
+replace A = 0 in 1
+replace Y = . in 1
+clate_dnn Y, `nuis'
+test_assert "missing outcome removed from estimation sample" e(N)==9
+gen byte ca_esample = e(sample)
+test_assert "outcome missing row absent from e(sample)" ca_esample[1]==0
+
+// Public invalid targets must fail cleanly rather than manufacture zero ratios.
+matrix CA_badtarget = (0,. \ 1,1)
+capture clate_dnn Y, xcols(x1 x2) x0matrix(CA_badtarget) ///
+    dcol(D) acol(A) ecol(e) my0col(my0) my1col(my1) md0col(md0) md1col(md1) s(3)
+local target_rc = _rc
+test_assert "missing target coordinate rejected" `target_rc'==198

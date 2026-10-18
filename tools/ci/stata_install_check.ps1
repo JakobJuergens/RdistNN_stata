@@ -407,6 +407,9 @@ exit
 
     $exitCode = Invoke-StataBatchDo -StataExe $stata -DoFile $doFile -WorkingDirectory $tempRoot
     Write-Output "Stata process exit code: $exitCode"
+    if ($exitCode -ne 0) {
+        throw "Stata install-check process failed with exit code $exitCode. Log: $logFile"
+    }
 
     if (!(Test-Path -LiteralPath $logFile -PathType Leaf)) {
         throw "Expected Stata install-check log not found: $logFile"
