@@ -58,7 +58,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_runtime_check
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_install_check.ps1
 ```
 
-The isolated-install helper also executes all six public examples using only
+The isolated-install helper also executes all seven public examples using only
 the temporary PLUS command payload and verifies the installed overview.
 Both helpers accept `-StataExe` and `-RepoRoot`. The expected local Windows
 installation is `C:\Program Files\StataNow19\StataSE-64.exe`; discovery also

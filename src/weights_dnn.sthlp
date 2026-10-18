@@ -13,7 +13,7 @@
 
 {pstd}
 Stata 17 or later. For the package overview and article collection, see
-{help rdistnn}. This help describes package {bf:0.1.0.9000} on {cmd:master}.
+{help rdistnn}. This help describes package {bf:0.1.0.9001} on {cmd:master}.
 
 {marker syntax}{...}
 {title:Syntax}

@@ -7,7 +7,7 @@ CATE, you also supply nuisance predictions or a previously constructed
 pseudo-outcome. The package computes local estimates, delete-1 jackknife
 uncertainty, diagnostics and Stata graphs.
 
-These articles document package **0.1.0.9000** on `master`, including experimental
+These articles document package **0.1.0.9001** on `master`, including experimental
 conditional LATE and shared reporting. Start with the
 [article index](index.md) to find a particular workflow.
 

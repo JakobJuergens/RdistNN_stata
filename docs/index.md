@@ -1,6 +1,6 @@
 # RdistNN for Stata documentation
 
-These guides describe package **0.1.0.9000** on the local `development` branch, including experimental
+These guides describe package **0.1.0.9001** on `master`, including experimental
 conditional LATE and the shared reporting and postestimation interfaces.
 See [installation](../README.md#installation). In Stata, `help rdistnn` opens
 the package overview and links to every installed command reference.

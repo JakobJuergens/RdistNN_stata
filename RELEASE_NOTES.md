@@ -1,6 +1,9 @@
 # Release Notes
 
-## Unreleased development — saved-fit reporting and reuse
+## 0.1.0.9001 — 2026-10-18
+
+Development update on production `master`, aligned with the R companion.
+Tagged releases and downloadable assets are published separately.
 
 - Add `rdistnn_results`, `rdistnn_candidate` and `rdistnn_predict` with graph-free
   exports, explicit posting and named derived fits. Preserve active data and
@@ -18,8 +21,7 @@
 
 ## 0.1.0.9000 — 2026-10-18
 
-Available from the production `master` branch. Tagged releases and their
-downloadable assets are published separately. This post-0.1.0 version follows
+This post-0.1.0 development milestone follows
 the R reference's CLATE/reporting milestone; the
 [documentation crosswalk](docs/r-documentation-crosswalk.md) records the
 remaining differences in feature coverage.

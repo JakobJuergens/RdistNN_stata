@@ -1,6 +1,6 @@
 # Save, report and reuse fitted results
 
-The development version adds three common commands for NP, CATE, CLATE and
+Version 0.1.0.9001 provides three common commands for NP, CATE, CLATE and
 PLQR. They use the R result methods as the reference for shared behavior.
 PLQR retains its supplied-coefficient **moment-only** scope.
 

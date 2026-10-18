@@ -2,7 +2,7 @@
 
 `clate_dnn` estimates a conditional local average treatment effect using a
 binary instrument `A`, binary treatment `D`, and externally supplied nuisance
-predictions. CLATE is experimental in package **0.1.0.9000** on `master`.
+predictions. CLATE is experimental in package **0.1.0.9001** on `master`.
 Start with the [documentation index](index.md) for installation
 and the [runnable oracle example](../examples/clate.do) for a complete script.
 Installed users can run `help clate_dnn` without this article.

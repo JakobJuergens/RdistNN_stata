@@ -1,6 +1,6 @@
 # R documentation coverage and Stata equivalents
 
-This map compares Stata package **0.1.0.9000** on `development` with the RdistNN
+This map compares Stata package **0.1.0.9001** on `master` with the RdistNN
 source at `d2db01a78045fd95087e9764adec0a3ab6973fcc`. The reference inventory is
 R's [article source directory](https://github.com/JakobJuergens/RdistNN/tree/d2db01a78045fd95087e9764adec0a3ab6973fcc/vignettes)
 and [pkgdown reference index](https://github.com/JakobJuergens/RdistNN/blob/d2db01a78045fd95087e9764adec0a3ab6973fcc/_pkgdown.yml).

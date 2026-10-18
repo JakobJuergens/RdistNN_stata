@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0.9000  2026-10-18}{...}
+{* *! version 0.1.0.9001  2026-10-18}{...}
 {viewerjumpto "Commands" "rdistnn##commands"}{...}
 {viewerjumpto "Conventions" "rdistnn##conventions"}{...}
 {viewerjumpto "Workflow" "rdistnn##workflow"}{...}
@@ -13,7 +13,7 @@
 weights, diagnostics and native plots
 
 {pstd}
-Stata 17 or later. This overview describes package {bf:0.1.0.9000} on the development branch,
+Stata 17 or later. This overview describes package {bf:0.1.0.9001} on {cmd:master},
 including experimental conditional LATE and shared reporting.
 RdistNN is the numerical reference for shared
 functionality; the Stata companion has its own documented public surface.

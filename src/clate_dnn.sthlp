@@ -14,7 +14,7 @@
 {cmd:clate_dnn} {hline 2} Experimental conditional LATE from supplied binary-IV predictions
 
 {pstd}
-Stata 17 or later is required. CLATE is experimental in package {bf:0.1.0.9000}
+Stata 17 or later is required. CLATE is experimental in package {bf:0.1.0.9001}
 on {cmd:master}. See {help rdistnn} for package navigation.
 
 {marker syntax}{...}

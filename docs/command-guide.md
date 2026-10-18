@@ -1,6 +1,6 @@
 # Command guide
 
-This is the compact command map for package **0.1.0.9000** on `master`. Start with the
+This is the compact command map for package **0.1.0.9001** on `master`. Start with the
 [article index](index.md), [getting started](getting-started.md), or
 `help rdistnn` inside Stata. Each command's installed help supplies its complete
 syntax and result reference. The articles supply interpretation and runnable
