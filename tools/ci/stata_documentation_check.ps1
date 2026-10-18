@@ -29,7 +29,7 @@ cd "__REPO__"
 do "dev-setup.do"
 help rdistnn
 local passed 0
-foreach example in getting-started cate-and-regression weights-and-tuning diagnostics-and-plots clate plqr-moments {
+foreach example in reusing-fits getting-started cate-and-regression weights-and-tuning diagnostics-and-plots clate plqr-moments {
     capture noisily do "examples/`example'.do"
     local run_rc = _rc
     if `run_rc' {
@@ -39,7 +39,7 @@ foreach example in getting-started cate-and-regression weights-and-tuning diagno
     local ++passed
     di as result "DOCUMENTATION_EXAMPLE_OK `example'"
 }
-assert `passed'==6
+assert `passed'==7
 if __UPDATE_FIGURES__ {
     capture mkdir "docs/figures"
     graph display docs_cate_profile
@@ -53,7 +53,7 @@ if __UPDATE_FIGURES__ {
 }
 // Render installed-format SMCL without requiring a visible Results window.
 translate "src/rdistnn.sthlp" "build/documentation/rdistnn-help.txt", translator(smcl2txt) replace
-di as result "DOCUMENTATION_EXAMPLES_PASSED 6"
+di as result "DOCUMENTATION_EXAMPLES_PASSED 7"
 exit, clear
 '@
 $figureFlag = "0"
@@ -68,8 +68,8 @@ if ($exitCode -ne 0) {
 }
 if (!(Test-Path -LiteralPath $logFile)) { throw "Documentation log not found: $logFile" }
 $content = Get-Content -LiteralPath $logFile -Raw
-if ($content -notmatch '(?m)^DOCUMENTATION_EXAMPLES_PASSED 6\s*$' -or
+if ($content -notmatch '(?m)^DOCUMENTATION_EXAMPLES_PASSED 7\s*$' -or
     $content -match '(?m)^DOCUMENTATION_EXAMPLE_FAILED ') {
     throw "Documentation examples did not all pass. See $logFile"
 }
-Write-Output "All 6 documentation examples and overview help passed."
+Write-Output "All 7 documentation examples and overview help passed."

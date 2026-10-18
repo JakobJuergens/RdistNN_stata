@@ -4,6 +4,15 @@ This file applies to the `RdistNN_stata` repository. Read the enclosing
 workspace's `AGENTS.md` when present: `/home/jakob/research/AGENTS.md` in WSL,
 or the applicable `U_Statistics/AGENTS.md` in a Windows checkout.
 
+## Development and production branches
+
+Develop on the local `development` branch (renamed from `feature/clate`). Keep
+it unpublished until publication is authorized; branches in a public repository
+are public when pushed. Production is `master`. Submit production changes
+through a pull request and squash-merge after review and required checks.
+Do not push development commits directly to `master` without an explicit
+maintainer instruction. See `CONTRIBUTING.md` for the workflow.
+
 ## Project Shape
 
 - `RdistNN_stata` is the Stata companion package for the `RdistNN` R package

@@ -7,7 +7,7 @@ CATE, you also supply nuisance predictions or a previously constructed
 pseudo-outcome. The package computes local estimates, delete-1 jackknife
 uncertainty, diagnostics and Stata graphs.
 
-These articles document package **0.1.0.9000** on `master`, including experimental
+These articles document package **0.1.0.9001** on `master`, including experimental
 conditional LATE and shared reporting. Start with the
 [article index](index.md) to find a particular workflow.
 
@@ -29,7 +29,9 @@ reporting updates. The [README](../README.md#installation)
 also describes installation from a downloaded source archive. Installation
 does not require R or a compiler. Estimation uses the portable ado/Mata
 implementation; the optional native plugin accelerates eligible standalone
-`weights_dnn` calls. See [weights and tuning](weights-and-tuning.md) for the
+`weights_dnn` calls and frozen-score jackknife deletions for all estimators.
+Fast Mata prefix/suffix calculations remain available without the plugin.
+See [weights and tuning](weights-and-tuning.md) for the
 plugin and fallback controls.
 
 The examples below assume the commands are installed. From a source checkout,
@@ -167,11 +169,14 @@ matrix list e(targets)
 matrix list e(se_targets)
 ```
 
-To evaluate new target profiles, issue another estimation call with those
-targets. There is no separate Stata `predict` command for these estimators.
-Stored-result summaries and graphs can use saved estimation results;
-observation-level kernel and influence graphs additionally require the
-original estimation data, values and observation order.
+Use `rdistnn_predict, x0matrix(NEW) sefit` to evaluate a saved fit at new
+targets with frozen-score covariance. `rdistnn_candidate, candidate(3)
+store(order3)` retains a standalone candidate fit, and `rdistnn_results`
+extracts numeric tables without graphs. These commands preserve active data
+and estimates by default; `post` explicitly activates a derived fit.
+Current kernel/influence plots use the numeric snapshot after data changes
+or `estimates save`/`estimates use`. Legacy fits retain original-data guards.
+See [reusing fits](reusing-fits.md) for the complete workflow.
 
 ## Read the localization and inference settings
 

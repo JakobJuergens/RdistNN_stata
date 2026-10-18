@@ -1,0 +1,38 @@
+*! version 0.1.0  2026-10-18
+// Numeric snapshots survive estimates save/use and do not depend on Mata globals.
+program define _rdistnn_model_store, eclass
+    version 17
+    syntax varlist(numeric), SIGNALS(name) RANKS(name) DISTANCES(name)
+    local inputs : list uniq varlist
+    local xvars "`e(xvars)'"
+    tempname data X row_ids targets
+    tempvar sample
+    quietly gen byte `sample'=e(sample)
+    mata: st_matrix("`data'",st_data(.,tokens("`inputs'"),"`sample'"))
+    mata: st_matrix("`X'",st_data(.,tokens("`xvars'"),"`sample'"))
+    mata: st_matrix("`row_ids'",select((1::st_nobs()),st_data(.,"`sample'")))
+    matrix colnames `data'=`inputs'
+    matrix colnames `X'=`xvars'
+    matrix colnames `row_ids'=observation_id
+    local matrices : e(matrices)
+    local target_field "targets"
+    local has_targets : list target_field in matrices
+    if `has_targets' matrix `targets'=e(targets)
+    else mata: st_matrix("`targets'",strtoreal(tokens(st_global("e(x0)"))))
+    local n=e(N)
+    foreach value in `data' `X' `row_ids' `signals' `ranks' `distances' {
+        if rowsof(`value')!=`n' {
+            di as error "Cannot save fitted model: snapshot rows do not match e(N)."
+            exit 498
+        }
+    }
+    ereturn matrix model_inputs=`data', copy
+    ereturn matrix model_X=`X', copy
+    ereturn matrix model_signals=`signals', copy
+    ereturn matrix model_ranks=`ranks', copy
+    ereturn matrix model_distances=`distances', copy
+    ereturn matrix model_row_ids=`row_ids', copy
+    ereturn matrix model_targets=`targets', copy
+    ereturn scalar model_version=1
+    ereturn local model_vars "`inputs'"
+end

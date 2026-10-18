@@ -14,7 +14,7 @@
 {cmd:clate_dnn} {hline 2} Experimental conditional LATE from supplied binary-IV predictions
 
 {pstd}
-Stata 17 or later is required. CLATE is experimental in package {bf:0.1.0.9000}
+Stata 17 or later is required. CLATE is experimental in package {bf:0.1.0.9001}
 on {cmd:master}. See {help rdistnn} for package navigation.
 
 {marker syntax}{...}
@@ -312,10 +312,11 @@ first-stage SE/statistic, paired components and statuses. Shared stored
 slots mean instrument 1/0. Influence concentration uses
 abs(w*(phi_Y-theta*phi_D)), not individual effects or deletion pseudo-values.
 {help clate_dnn_plot} covers estimates, overlap, weights, influence and grids.
-Observation-level kernel/influence views require unchanged original sample,
-values and row order; stored-table views remain available after data changes.
-There is no Stata CLATE predict command: refit at new targets using the same
-predictions and resolved order to relocalize.
+Current kernel/influence views use saved numeric observations and signals.
+Legacy fits without snapshots require unchanged original sample, values and
+row order. {help rdistnn_predict} relocalizes the saved frozen signals at new
+targets; {help rdistnn_candidate} extracts reusable grid fits. Both preserve
+active estimates by default. {help rdistnn_results} supplies graph-free tables.
 
 {marker examples}{...}
 {title:Examples}

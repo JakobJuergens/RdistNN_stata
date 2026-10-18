@@ -40,6 +40,8 @@ local test_files ///
     test-mata-jackknife      ///
     test-mata-jackknife-golden ///
     test-mata-jackknife-vector ///
+    test-mata-jackknife-prefix ///
+    test-jackknife-engines   ///
     test-r-parity-priority   ///
     test-weights-dnn-smoke   ///
     test-weights-dnn-options ///
@@ -68,6 +70,7 @@ local test_files ///
     test-clate-r-parity      ///
     test-clate-dnn-postestimation ///
     test-estimator-reporting ///
+    test-fitted-results     ///
     test-estimator-diagnostics ///
     test-estimator-plots      ///
     test-premerge-clate       ///

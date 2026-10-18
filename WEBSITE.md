@@ -20,7 +20,7 @@ PLQR moment evaluation is experimental and does not provide coefficient inferenc
 
 ## Release announcement
 
-RdistNN for Stata 0.1.0.9000 adds experimental conditional LATE and shared reporting,
+RdistNN for Stata 0.1.0.9001 adds experimental conditional LATE and shared reporting,
 diagnostics, and plotting interfaces for treatment effects and nonparametric
 regression. It combines DNN weights, pointwise uncertainty, and tuning
 sensitivity in native Stata workflows. The examples label oracle

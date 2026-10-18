@@ -1,12 +1,48 @@
 # Release Notes
 
+## 0.1.0.9001 — 2026-10-18
+
+Development update on production `master`, aligned with the R companion.
+Tagged releases and downloadable assets are published separately.
+
+- Add `rdistnn_results`, `rdistnn_candidate` and `rdistnn_predict` with graph-free
+  exports, explicit posting and named derived fits. Preserve active data and
+  estimates by default and retain full CLATE target/status identities.
+- Save versioned numeric model snapshots in estimation results. `.ster` files
+  retain fitted numeric inputs/signals and support prediction, kernel and
+  influence views without original active data. Candidate views reuse cached
+  geometry; new-target prediction uses the fixed training metric.
+- Align PLQR near-tie ranks with R and the shared distance-matrix convention,
+  so fresh estimation and saved prediction resolve ties identically.
+- Unify PLQR moment reporting, retaining supplied coefficients separately.
+  Saved prediction supports batch moments; coefficient inference remains absent.
+- Develop on unpublished local `development` branches. Production changes use
+  reviewed pull requests and squash merges.
+
 ## 0.1.0.9000 — 2026-10-18
 
-Available from the production `master` branch. Tagged releases and their
-downloadable assets are published separately. This post-0.1.0 version follows
+This post-0.1.0 development milestone follows
 the R reference's CLATE/reporting milestone; the
 [documentation crosswalk](docs/r-documentation-crosswalk.md) records the
 remaining differences in feature coverage.
+
+- Share compiled and Mata prefix/suffix frozen-score jackknife engines across
+  NP, CATE, PLQR and CLATE. Reuse rank-weight tables across targets/deletions,
+  retain explicit deletions for parity checks and as a final fallback, and
+  preserve paired and cross-target covariance. Older/unavailable plugins use
+  fast Mata automatically.
+  Center covariance signals before accumulation to preserve zero variance
+  for constant scores and accuracy under large common signal levels.
+- Choose numerical centering references from each target's deletion support
+  in compiled, Mata and naive jackknife paths. Exclude zero-weight outliers
+  before subtraction and include ranks that can gain weight after deletion.
+  Preserve the exact/asymptotic weight rules and R implementation parity.
+- Allow native jackknife bridge matrices above `c(matsize)` without changing
+  the user's setting; remove the artificial dispatch restriction and correct
+  the related documentation.
+- Reuse default-candidate covariance in NP/CATE and duplicate CLATE tuning
+  fits. Short-circuit CLATE's preliminary zero-signal covariance without
+  changing inference feasibility rules.
 
 - Add experimental `clate_dnn` for augmented binary-IV conditional LATE,
   externally supplied nuisance predictions, explicit one-sided compliance,

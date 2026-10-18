@@ -1,4 +1,4 @@
-// Reporting, diagnostics, graph data and original-data guards.
+// Reporting, diagnostics, graph data and reusable numeric snapshots.
 // Install the package from master, or run dev-setup.do from the repository root.
 // All inputs are generated here; this example clears the active dataset.
 // Oracle CATE nuisances illustrate mechanics, not fitted-learner performance.
@@ -95,19 +95,19 @@ assert missing(r(n_rows)) & r(n_panels)==5
 matrix CPI = r(panel_info)
 assert rowsof(CPI)==5 & colsof(CPI)==3
 
-// Invalid view options and changed values/order must fail with useful contracts.
+// Invalid options fail; saved numeric fits survive changes to values/order.
 capture noisily cate_dnn_plot, type(weights) targets(1) replace nodraw
 assert _rc==198
 scalar docs_x1_first = x1[1]
 quietly replace x1 = x1+.01 in 1
 capture noisily cate_dnn_plot, type(weights) view(kernel) replace nodraw
-assert _rc==498
+assert _rc==0
 // Stored-result panels remain available after values change.
 cate_dnn_plot, targets(1) name(docs_stored_est) replace nodraw
 quietly replace x1 = scalar(docs_x1_first) in 1
 gsort -row_id
 capture noisily cate_dnn_plot, type(influence) targets(1) replace nodraw
-assert _rc==498
+assert _rc==0
 sort row_id
 estimates restore docs_cate
 cate_dnn_plot, type(weights) view(kernel) targets(1) ///

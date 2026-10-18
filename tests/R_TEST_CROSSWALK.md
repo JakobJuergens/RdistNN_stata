@@ -13,6 +13,8 @@ a Stata equivalent.
 | Asymptotic DNN weights: normalization, monotonicity, exact approximation, permutation invariance, and `k = s` uniformity | `test-mata-weights-asymp.do`, `test-r-parity-priority.do` |
 | Mata/plugin equivalence and signed-target parsing | `test-weights-dnn-plugin.do` |
 | Scalar, vector, and multi-target rank-shift jackknife covariance against explicit deletion loops | `test-mata-jackknife.do`, `test-mata-jackknife-vector.do`, `test-mata-jackknife-golden.do` |
+| Shared prefix/suffix deletions, retained naive reference, native/Mata parity, missing-engine fallback, native dimensions above matsize, all-estimator covariance/grid reuse | `test-mata-jackknife-prefix.do`, `test-jackknife-engines.do` |
+| Support-aware numerical centering: zero-weight outliers, active ranks after deletion, target-specific covariance, unused extremes, asymptotic tails and analytical variance 9, matching R's `test-jackknife-support-centering.R` | `test-mata-jackknife-prefix.do`, `src/plugin/test_rdistnn_core.cpp` |
 | Paper defaults: estimator `k = 1`, finite-sample `lambda = 0.4`, `s = floor(0.4*n^((kx+1)/(kx+2)))`, and sensitivity grid `(0.3, 0.4, 0.5, 0.75)` | `test-r-parity-priority.do`, `test-np-dnn-parity.do`, `test-cate-dnn-tuning.do` |
 | NP weighted-mean identity, exact/asymptotic methods, Mahalanobis, markout, batch covariance, tuning grids, target/outcome diagnostics, plots, and fixed R batch/candidate values | `test-np-dnn-*.do`, `test-r-parity-priority.do` |
 | CATE AIPW, Robinson, and precomputed-score identities; propensity clipping; batch covariance; tuning grids; diagnostics; and fixed R values | `test-cate-dnn-*.do`, `test-r-parity-priority.do` |
@@ -57,6 +59,15 @@ options, selected data/counts, dashboard metadata, batch/candidate combinations,
 sample value/order guards, unavailable targets and graph export. Rendering is
 also inspected from exported SVG/PNG files. R ggplot object internals are
 outside this functional-interface comparison.
+
+`test-fitted-results.do` covers numeric model serialization, graph-free exports,
+state-preserving candidate extraction, fixed-training-sample prediction, all
+three jackknife engines, both weight methods, general k, singular Mahalanobis
+geometry and explicit posting. `tools/generate_r_reuse_fixtures.R` supplies
+independent R estimates and full joint covariance from frozen-geometry explicit
+deletions for all four estimators. PLQR compares evaluated score moments and
+keeps supplied theta separate. Current snapshot plots survive data changes;
+legacy fits continue to exercise value/order guards in the premerge tests.
 
 ## Premerge audit coverage
 

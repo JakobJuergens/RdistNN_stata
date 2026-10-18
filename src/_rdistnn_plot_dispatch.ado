@@ -224,6 +224,7 @@ end
 
 program define _rdistnn_plot_sample_guard
     version 17
+    if e(model_version)==1 exit
     capture quietly checkestimationsample
     if _rc | "`e(datasignature)'"=="" {
         di as error "The estimation data have changed or cannot be verified; refit `e(cmd)' before plotting observation-level results."

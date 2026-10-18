@@ -137,9 +137,9 @@ program define clate_dnn, eclass
     foreach arg in x0 x0matrix tuningmode lambdagrid sgrid distance method {
         if "``arg''"!="" local opts "`opts' `arg'(``arg'')"
     }
-    // The delegated fit resolves only geometry/tuning. A zero signal prevents
-    // an unused numerator-only covariance from overflowing before the paired
-    // evaluator can retain finite components and report unavailable inference.
+    // The shared jackknife short-circuits zero signals, so this geometry/tuning
+    // delegation performs no unused scalar deletion/covariance calculation.
+    // Keep SE feasibility rules active when paired inference is requested.
     tempvar localization_signal
     quietly gen byte `localization_signal' = 0 if `touse'
     quietly cate_dnn `localization_signal' if `touse', pseudooutcome `opts' `se'
@@ -174,6 +174,22 @@ program define clate_dnn, eclass
         _cl_b = J(1,0,.)
         for (_cl_g=1; _cl_g<=`ng'; _cl_g++) {
             if (_cl_meta[_cl_g,4]==0) continue
+            _cl_prior=0
+            for (_cl_h=1; _cl_h<_cl_g; _cl_h++) {
+                if (_cl_meta[_cl_h,4] & _cl_meta[_cl_h,2]==_cl_meta[_cl_g,2]) {
+                    _cl_prior=_cl_h
+                    break
+                }
+            }
+            if (_cl_prior) {
+                _cl_grid[_cl_g,.]=_cl_grid[_cl_prior,.]
+                _cl_gridse[_cl_g,.]=_cl_gridse[_cl_prior,.]
+                _cl_gridy[_cl_g,.]=_cl_gridy[_cl_prior,.]
+                _cl_gridd[_cl_g,.]=_cl_gridd[_cl_prior,.]
+                _cl_gridstatus[((_cl_g-1)*`m'+1)..(_cl_g*`m'),.] =
+                    (J(`m',1,_cl_g),_cl_gridstatus[((_cl_prior-1)*`m'+1)..(_cl_prior*`m'),2..7])
+                continue
+            }
             rdistnn_clate_fit(_cl_ranks,_cl_signals,`k',_cl_meta[_cl_g,8],
                 "`resolved_method'",`active',`denominatortol',
                 _cl_c,_cl_b,_cl_V,_cl_CV,_cl_status)
@@ -183,7 +199,7 @@ program define clate_dnn, eclass
             _cl_gridd[_cl_g,.] = _cl_c[,2]'
             _cl_gridstatus[((_cl_g-1)*`m'+1)..(_cl_g*`m'),.] =
                 (J(`m',1,_cl_g),(1::`m'),_cl_status)
-            if (_cl_g==`default') {
+            if (_cl_meta[_cl_g,2]==_cl_meta[`default',2]) {
                 st_matrix("`components'",_cl_c)
                 st_matrix("`theta'",_cl_b)
                 st_matrix("`vcov'",_cl_V)
@@ -322,6 +338,9 @@ program define clate_dnn, eclass
     local signature_vars `xvars' `input' `nuisance_vars' `denominator'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
+    tempname model_signals model_ranks model_distances
+    mata: st_matrix("`model_signals'",_cl_signals); st_matrix("`model_ranks'",_cl_ranks); st_matrix("`model_distances'",rdistnn_distance_matrix(_cl_X,_cl_X0,"`resolved_distance'"))
+    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances')
     _clate_dnn_Display, level(`level')
 end
 

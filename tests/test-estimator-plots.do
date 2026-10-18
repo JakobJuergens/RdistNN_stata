@@ -120,17 +120,17 @@ foreach family in cate np clate {
     scalar plot_original_x = x1[1]
     replace x1 = x1+.01 in 1
     capture noisily `family'_dnn_plot, type(weights) view(kernel) name(plot_contract) replace nodraw
-    test_assert "[plots `family'] changed values rejected for kernel" _rc==498
+    test_assert "[plots `family'] snapshot kernel survives changed values" _rc==0
     if "`family'"!="np" {
         capture noisily `family'_dnn_plot, type(influence) name(plot_contract) replace nodraw
-        test_assert "[plots `family'] changed values rejected for influence" _rc==498
+        test_assert "[plots `family'] snapshot influence survives changed values" _rc==0
     }
     replace x1 = scalar(plot_original_x) in 1
     // Restore exact original bytes before order check.
     estimates restore plot_`family'
     gsort -x1
     capture noisily `family'_dnn_plot, type(weights) view(kernel) name(plot_contract) replace nodraw
-    test_assert "[plots `family'] changed order rejected for kernel" _rc==498
+    test_assert "[plots `family'] snapshot kernel survives changed order" _rc==0
     capture noisily `family'_dnn_plot, targets(2) name(plot_contract) replace nodraw
     test_assert "[plots `family'] stored-result plots survive data changes" _rc==0
 }

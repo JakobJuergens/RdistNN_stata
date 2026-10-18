@@ -168,3 +168,13 @@ comparison, see the source-pinned R [PLQR reference](https://github.com/JakobJue
 and [notation article](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/vignettes/notation-and-conventions.Rmd).
 The [documentation crosswalk](r-documentation-crosswalk.md) records the full
 package boundary.
+
+## Saved moment reporting and prediction
+
+`rdistnn_results` returns moment tables with supplied `r(theta_eval)` separately.
+`rdistnn_predict, x0matrix(NEW) sefit` evaluates the saved frozen scores at a
+batch of new targets and returns joint **moment** covariance. `post` or
+`store(name)` creates a reusable derived moment fit. These commands work after
+`estimates save`/`estimates use` without the original active dataset. They do
+not solve for coefficients or supply coefficient uncertainty. See [reusing
+fits](reusing-fits.md) and installed `help rdistnn_predict`.

@@ -34,6 +34,44 @@ bool rejects(Fn fn)
 
 int main()
 {
+    // Two targets and paired signals: catch shifted-suffix and scatter errors.
+    const int jk_ranks[] = {1,2,3,4, 4,3,2,1};
+    const double jk_signals[] = {2,1,4,3, 1,-1,2,1};
+    const double jk_weights[] = {2.0/3,1.0/3,0};
+    const double jk_expected[] = {
+        2,8.0/3,5.0/3,5.0/3, 0,4.0/3,1.0/3,1.0/3,
+        10.0/3,10.0/3,7.0/3,3, 4.0/3,4.0/3,1.0/3,1
+    };
+    std::vector<double> jk_out(16);
+    rdistnn::rank_loo(jk_ranks, jk_signals, jk_weights, 4, 2, 2, jk_out.data());
+    for (std::size_t i=0; i<jk_out.size(); ++i)
+        if (!close(jk_out[i], jk_expected[i])) return fail("prefix/suffix paired deletions");
+    const int bad_jk_ranks[] = {1,1,3,4};
+    std::fill(jk_out.begin(),jk_out.end(),17.0);
+    if (!rejects([&] { rdistnn::rank_loo(bad_jk_ranks,jk_signals,jk_weights,4,1,2,jk_out.data()); }))
+        return fail("jackknife accepted duplicate ranks");
+    for (double value: jk_out)
+        if (value!=17.0) return fail("invalid jackknife modified output");
+
+    std::vector<int> support_ranks(30), support_ranks_m1(29);
+    std::iota(support_ranks.begin(), support_ranks.end(), 1);
+    std::iota(support_ranks_m1.begin(), support_ranks_m1.end(), 1);
+    std::vector<double> support_signal(30, 1e16), support_table(29), support_out(30);
+    support_signal.back() = -1e307;
+    rdistnn::dnn_weights_from_ranks(support_ranks_m1.data(),29,1,10,support_table.data());
+    rdistnn::rank_loo(support_ranks.data(),support_signal.data(),support_table.data(),
+                     30,1,1,support_out.data());
+    for (double value: support_out)
+        if (value!=support_out[0]) return fail("unused outlier creates native deletion variation");
+    // Subtracting the reference from the unused last row would overflow.
+    std::fill(support_signal.begin(),support_signal.end(),1e308);
+    support_signal.back()=-1e308;
+    rdistnn::rank_loo(support_ranks.data(),support_signal.data(),support_table.data(),
+                     30,1,1,support_out.data());
+    for (double value: support_out)
+        if (!std::isfinite(value) || value!=support_out[0])
+            return fail("unused extreme overflows native centering");
+
     const int n = 4;
     const int p = 1;
     const double X[] = {0.0, 1.0, 2.0, 3.0};

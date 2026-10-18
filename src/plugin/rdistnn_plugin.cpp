@@ -11,7 +11,7 @@
 //   kx + 1    : output weight column (written)
 //
 // argv[] after the comma (0-based):
-//   argv[0]           : function name, currently only "weights_l2"
+//   argv[0]           : function name: "weights_l2" or "rank_loo"
 //   argv[1]           : method: "exact" or "asymp"
 //   argv[2]           : k  (integer, # selected within each s-subset)
 //   argv[3]           : s  (integer, subset/kernel order >= k; larger is tighter)
@@ -227,6 +227,60 @@ static ST_retcode do_weights_l2(int argc, char *argv[])
     return 0;
 }
 
+// Matrix API: plugin call rdistnn_plugin, rank_loo ranks signals table output
+// Matrices are supplied by Mata; ranks n x m, signals n x q, table (n-1) x 1,
+// preallocated output n x (m*q). No dataset or distance dependence.
+static ST_retcode do_rank_loo(int argc, char *argv[])
+{
+    if (argc!=5) {
+        SF_error((char *)"rdistnn_plugin rank_loo: require ranks signals table output matrix names.\n");
+        return 198;
+    }
+    const int n=SF_row(argv[1]), m=SF_col(argv[1]), q=SF_col(argv[2]);
+    if (n<2 || m<1 || q<1 || m>INT_MAX/q || SF_row(argv[2])!=n ||
+        SF_row(argv[3])!=n-1 || SF_col(argv[3])!=1 ||
+        SF_row(argv[4])!=n || SF_col(argv[4])!=m*q) {
+        SF_error((char *)"rdistnn_plugin rank_loo: incompatible matrix dimensions.\n");
+        return 198;
+    }
+    try {
+        std::vector<int> ranks(static_cast<std::size_t>(n)*m);
+        std::vector<double> signal(static_cast<std::size_t>(n)*q), table(n-1);
+        ST_double value;
+        ST_retcode rc;
+        for (int j=0; j<m; ++j) for (int i=0; i<n; ++i) {
+            if ((rc=SF_mat_el(argv[1],i+1,j+1,&value))) return rc;
+            if (SF_is_missing(value) || !std::isfinite(value) || value<1 || value>n || value!=std::floor(value))
+                throw std::invalid_argument("ranks must be integer permutations of 1..n");
+            ranks[i+static_cast<std::size_t>(j)*n]=static_cast<int>(value);
+        }
+        for (int j=0; j<q; ++j) for (int i=0; i<n; ++i) {
+            if ((rc=SF_mat_el(argv[2],i+1,j+1,&value))) return rc;
+            if (SF_is_missing(value) || !std::isfinite(value))
+                throw std::invalid_argument("signals must be finite and nonmissing");
+            signal[i+static_cast<std::size_t>(j)*n]=value;
+        }
+        for (int i=0; i<n-1; ++i) {
+            if ((rc=SF_mat_el(argv[3],i+1,1,&value))) return rc;
+            if (SF_is_missing(value) || !std::isfinite(value))
+                throw std::invalid_argument("table must be finite and nonmissing");
+            table[i]=value;
+        }
+        std::vector<double> out(static_cast<std::size_t>(n)*m*q);
+        rdistnn::rank_loo(ranks.data(),signal.data(),table.data(),n,m,q,out.data());
+        for (double v: out) if (!std::isfinite(v) || SF_is_missing(v))
+            throw std::invalid_argument("nonfinite prefix/suffix sum");
+        for (int j=0; j<m*q; ++j) for (int i=0; i<n; ++i)
+            if ((rc=SF_mat_store(argv[4],i+1,j+1,out[i+static_cast<std::size_t>(j)*n]))) return rc;
+    }
+    catch (const std::exception &error) {
+        std::string msg="rdistnn_plugin rank_loo: "+std::string(error.what())+".\n";
+        SF_error(const_cast<char *>(msg.c_str()));
+        return 198;
+    }
+    return 0;
+}
+
 // ── Plugin entry point ─────────────────────────────────────────────────────
 
 STDLL stata_call(int argc, char *argv[])
@@ -239,10 +293,11 @@ STDLL stata_call(int argc, char *argv[])
     if (std::strcmp(argv[0], "weights_l2") == 0) {
         return do_weights_l2(argc, argv);
     }
+    if (std::strcmp(argv[0], "rank_loo") == 0) return do_rank_loo(argc, argv);
 
     char msg[256];
     std::snprintf(msg, sizeof(msg),
-        "rdistnn_plugin: unknown function '%s'. Supported: weights_l2\n", argv[0]);
+        "rdistnn_plugin: unknown function '%s'. Supported: weights_l2 rank_loo\n", argv[0]);
     SF_error(msg);
     return 198;
 }

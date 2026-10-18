@@ -95,10 +95,10 @@ arbitrary fitted nuisances.
 
 {phang}
 {cmd:x()} selects the reporting covariates. {cmd:x0()} supplies exactly one
-coordinate per variable, in that order. Only a single target is supported;
+coordinate per variable, in that order. Initial estimation uses a single target;
 this command has neither {cmd:x0matrix()} nor {cmd:xcols()}.
-Separate calls at several targets replace active estimation results and do
-not return joint covariance across targets.
+After fitting, {help rdistnn_predict} accepts a batch of new targets and returns
+joint moment covariance while retaining supplied coefficients separately.
 
 {phang}
 {cmd:d()} lists q partially linear regressors, with q>=1. They need not be
@@ -259,3 +259,15 @@ explicit statistical and software contract.
 {title:Also see}
 
 {psee}{help rdistnn}, {help weights_dnn}, {help cate_dnn}, {help np_dnn}, {help clate_dnn}
+
+{title:Saved moment reporting and reuse}
+{pstd}
+No local root solving was performed. Supplied coefficients remain separate
+from evaluated score moments.
+{pstd}
+{help rdistnn_results} extracts standardized moment tables and supplied theta
+separately. {help rdistnn_predict} evaluates the saved frozen scores at new
+single/batch targets, optionally returning joint moment covariance. post and
+store() create reusable derived fits. Current estimates save/use retains the
+numeric model without original active data. Coefficient inference and root
+solving remain outside this command's scope.

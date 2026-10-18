@@ -6,6 +6,21 @@ and plots, with experimental CLATE and PLQR moment evaluation. Read
 [the article collection](docs/index.md) and [command guide](docs/command-guide.md) for current contracts. Open an issue
 before proposing a new estimator or a public-interface change.
 
+## Development and production workflow
+
+Use the local `development` branch, renamed from `feature/clate`, for ongoing
+work. It has no upstream until publication is authorized. GitHub cannot make
+an individual branch private in a public repository, so unpublished work stays
+local. The already published historical `feature/clate` branch is separate
+from this local branch and is not automatically renamed or deleted remotely.
+
+For an authorized production update, publish a review branch and open a pull
+request targeting `master`. Describe the final behavior and verification,
+complete the required CI checks and review, and squash-merge the PR. This keeps
+intermediate development commits out of the production history users follow.
+Direct pushes to `master` require an explicit maintainer override. Keep local
+development current with the reviewed production state before the next change.
+
 ## Local setup
 
 Use a repository checkout, Stata 17 or later, and Python 3.10 or later for static
@@ -43,7 +58,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_runtime_check
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_install_check.ps1
 ```
 
-The isolated-install helper also executes all six public examples using only
+The isolated-install helper also executes all seven public examples using only
 the temporary PLUS command payload and verifies the installed overview.
 Both helpers accept `-StataExe` and `-RepoRoot`. The expected local Windows
 installation is `C:\Program Files\StataNow19\StataSE-64.exe`; discovery also
@@ -77,7 +92,7 @@ article and installed-help checks require no R installation; for the optional
 live R article/reference inventory, pass `--r-root` to
 `tools/ci/documentation_check.py`. Keep [the documentation crosswalk](docs/r-documentation-crosswalk.md)
 in sync when either package's public topics change. From a licensed Windows
-checkout, execute all six seeded examples and render the package overview with:
+checkout, execute all seven seeded examples and render the package overview with:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_documentation_check.ps1

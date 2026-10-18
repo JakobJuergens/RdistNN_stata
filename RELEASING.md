@@ -11,7 +11,7 @@ it into a coefficient estimator or add coefficient inference.
 Use a clean repository checkout with the tools in
 [CONTRIBUTING.md](CONTRIBUTING.md). Review the version/tag and release notes.
 The current production branch carries the post-0.1.0 development version
-`0.1.0.9000`, aligned with the R reference's CLATE and shared-reporting
+`0.1.0.9001`, aligned with the R reference's CLATE and shared-reporting
 milestone. Choose future tagged versions in coordination with the R package.
 Updating `master` does not itself publish a tag or replace assets from the
 existing `v0.1.0` release.

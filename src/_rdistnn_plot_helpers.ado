@@ -717,6 +717,11 @@ program define _cate_dnn_plot_weights, rclass
         exit
     }
 
+    if e(model_version)==1 {
+        _rdistnn_model_plot, type(kernel) name(`name') `replace' `nodraw' targets(`targets')
+        return add
+        exit
+    }
     local xvars "`e(xvars)'"
     foreach v of local xvars {
         capture confirm numeric variable `v'
@@ -761,6 +766,12 @@ program define _cate_dnn_plot_influence, rclass
     version 17
     syntax , NAME(name) NLABEL(integer) [TARGETS(numlist integer >=1) ///
         REPLACE NODRAW]
+
+    if e(model_version)==1 {
+        _rdistnn_model_plot, type(influence) name(`name') nlabel(`nlabel') `replace' `nodraw' targets(`targets')
+        return add
+        exit
+    }
 
     local nameopt "name(`name')"
     if "`replace'" != "" local nameopt "name(`name', replace)"

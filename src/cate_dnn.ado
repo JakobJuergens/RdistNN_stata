@@ -504,13 +504,11 @@ program define cate_dnn, eclass
                         _ct_ranks, _ct_rho, `k', _ct_sg, "`method'")
                     _ct_grid_se[_ct_g,.] = sqrt(diagonal(_ct_Vg))'
                 }
-            }
-            if (_ct_g == `default_index') {
-                _ct_W = rdistnn_weights_from_rmat(
-                    _ct_ranks, `k', _ct_candidates[_ct_g, 8], "`method'")
-                if ("`se'" == "") {
-                    _ct_V = rdistnn_jk_cov_multi_from_ranks(
-                        _ct_ranks, _ct_rho, `k', _ct_candidates[_ct_g, 8], "`method'")
+                // Save the default's first representative, including when the
+                // default row duplicates an earlier candidate after other orders.
+                if (_ct_candidates[_ct_g, 2] == _ct_candidates[`default_index', 2]) {
+                    _ct_W = _ct_Wg
+                    if ("`se'" == "") _ct_V = _ct_Vg
                 }
             }
         }
@@ -701,6 +699,9 @@ program define cate_dnn, eclass
     local signature_vars `xvars' `input_var' `treat_var' `propensity_var' `m0_var' `m1_var' `m_var'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
+    tempname model_signals model_ranks model_distances
+    mata: st_matrix("`model_signals'",_ct_rho); st_matrix("`model_ranks'",_ct_ranks); st_matrix("`model_distances'",_ct_DX)
+    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances')
     _cate_dnn_Display, level(`level')
 end
 

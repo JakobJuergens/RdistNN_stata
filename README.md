@@ -17,6 +17,10 @@ the local estimation and uncertainty calculations.
 · [CLATE guide](docs/conditional-late.md)
 · [Report an issue](https://github.com/JakobJuergens/RdistNN_stata/issues)
 
+Use [saved-fit reporting, candidate extraction and prediction](docs/reusing-fits.md)
+to extract numeric tables and evaluate saved models without the original active
+dataset. The current development version is **0.1.0.9001** on production `master`.
+
 ## Installation
 
 Install from GitHub in Stata:
@@ -259,9 +263,20 @@ and [CLATE](docs/conditional-late.md) guides before using these intervals.
 ## Optional native acceleration
 
 The optional plugin accelerates standalone `weights_dnn` calls with L2
-distance. Estimators and Mahalanobis weights use Mata. The bundled plugin is
-a Windows x86-64 PE binary. Eligible calls attempt the plugin on every platform;
+distance and frozen-score jackknife deletions for NP, CATE, PLQR and CLATE.
+Estimator geometry and weight tables use Mata, including Mahalanobis geometry.
+Both compiled and Mata jackknife engines use prefix/suffix sums with one
+rank-weight table per order, avoiding repeated delete-one weight calculations.
+The bundled plugin is a Windows x86-64 PE binary. Eligible calls attempt the plugin on every platform;
 execution falls back to Mata if it is missing or incompatible.
+
+Jackknife dispatch tries compiled prefix/suffix sums, then the fast Mata
+implementation, then retained naive deletions if the fast Mata engine is
+unavailable or its sums are nonfinite. Set `global rdistnn_jackknife_engine`
+to `plugin`, `mata` or `naive` for explicit route/parity checks; drop the global
+to restore automatic dispatch. Native jackknife bridge matrices are created
+through Mata and can exceed `c(matsize)` without changing that setting.
+See the plugin guide for controls.
 
 Release assets include plugins for Windows x86-64, Linux x86-64, macOS arm64
 and macOS x86-64, with checksums. To use native acceleration, install the asset

@@ -135,7 +135,7 @@ cumulative rank weight with .5/.9 guides. Rank profiles and cumulative
 weights are common across targets, so `targets()` is rejected there.
 
 `view(kernel)` plots target-specific weight against distance under the fitted
-L2 or Mahalanobis metric. It reconstructs weights from the original data;
+L2 or Mahalanobis metric. It reconstructs weights from the saved numeric model in current fits;
 the returned matrix stays in original estimation-observation order and
 carries `rank` explicitly. It defaults to all targets up to eight, then
 first/middle/last. Stata's kernel plot does not add the R rank-s radius marker.
@@ -222,7 +222,7 @@ combinations return an error.
 | `overlap`, `mass` (CATE/CLATE) | Yes | — | — | Yes | — | `sharelimits()` |
 | `overlap`, `armess` (CATE/CLATE) | Yes | — | — | — | — | — |
 | `overlap`, `propensity` (CATE/CLATE) | Yes | — | — | Yes | — | — |
-| `influence` (CATE/CLATE) | Yes | — | — | — | — | `nlabel()`, original data |
+| `influence` (CATE/CLATE) | Yes | — | — | — | — | `nlabel()`, saved numeric model |
 | `outcome` (NP) | Yes | — | — | Yes | — | — |
 | `dashboard` | — | — | Yes | Yes | Yes | Full target batch |
 
@@ -330,21 +330,17 @@ you need their data, target restrictions, or panel-specific options.
 
 ## Original-data guards and restored fits
 
-Stored-result estimate, diagnostics, tuning, overlap, outcome and dashboard
-views remain usable after data changes. Rank profiles/cumulative weights
-are recreated from stored n/k/s/method, without observation inputs. Kernel
-and influence views instead validate the original estimation sample,
-referenced covariates and score variables, their values, and row order.
-Changed values, changed sample, missing variables, or reordered observations
-require a refit; an unchanged sample count alone is insufficient.
+Current fits store numeric observations, frozen signals, ranks, distances and
+original observation IDs. Kernel and influence views use this snapshot, so
+`estimates save`/`estimates use` works with changed, reordered or empty active
+data. The caller's dataset and fit are preserved. See [reusing fits](reusing-fits.md).
 
-`estimates store`/`estimates restore` can restore a fit within a session;
-observation-level views additionally need its original verified data and
-sample. Older saved CATE/NP fits without canonical summary fields retain
-coefficient/covariance fallbacks for replay and estimates. Stored diagnostic
-views require the tables needed for that view. Older fits without ordered
-signatures must be refitted for kernel/influence views. A legacy object
-cannot gain missing state by merely restoring it.
+Stored-result and rank-profile views remain available from their stored tables
+and n/k/s/method metadata. Legacy fits without a snapshot must validate the
+original sample, referenced variables, values and observation order for kernel
+or influence views. Changed inputs require a refit. Older CATE/NP results can
+still use b/V fallbacks for stored estimate panels. Restoring a legacy fit
+cannot supply numeric state that was never stored.
 
 The [R visualization article](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/vignettes/visualising-fits.Rmd)
 provides the related R workflow. R-only plot conditioning/calibration,

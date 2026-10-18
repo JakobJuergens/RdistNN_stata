@@ -16,7 +16,7 @@
 
 {pstd}
 Stata 17 or later is required. See {help rdistnn} for the package overview.
-This help describes the interface in package {bf:0.1.0.9000} on {cmd:master}.
+This help describes the interface in package {bf:0.1.0.9001} on {cmd:master}.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -355,16 +355,27 @@ Copy {cmd:r(summary)} or {cmd:r(table)} immediately after fitting or replay:
 other r-class commands replace them. {help np_dnn_diagnostics} selects
 target or candidate tables and can save a {cmd:.dta} file. {help np_dnn_plot}
 provides estimates, diagnostics, tuning, weights, outcome and dashboard
-views. Stored-result views do not refit or require the original observations;
-effective-kernel views additionally require the original estimation sample,
-values and observation order and check them before reconstructing weights.
+views. Current effective-kernel views use saved numeric observations and
+geometry after active data changes. Legacy fits require original inputs,
+sample and row order for those views.
 
 {pstd}
-To evaluate new target profiles, call {cmd:np_dnn} again with the new targets.
-There is no separate Stata {cmd:predict} command. There is no wrapper option
-to retain a full weight matrix; {help weights_dnn} exports one target's
-weights as a variable.
+{help rdistnn_predict} evaluates saved frozen signals at new targets with
+optional covariance. {help rdistnn_candidate} extracts standalone grid fits.
+{help rdistnn_results} exports numeric reports, including long weight tables,
+without graphs. {help weights_dnn} exports one target's weights as a variable.
 
 {pstd}
 See also {help rdistnn}, {help cate_dnn}, {help weights_dnn},
 {help np_dnn_diagnostics}, and {help np_dnn_plot}.
+
+{title:Saved model reporting and reuse}
+{pstd}
+Current fits retain versioned numeric observations, frozen signals, ranks and
+geometry in e(model_*), including in estimates save/use files.
+{help rdistnn_results} exports numeric reports without a graph;
+{help rdistnn_candidate} extracts reusable grid fits;
+{help rdistnn_predict} evaluates saved signals at new targets with optional
+frozen-score covariance. Active data and e() are preserved by default.
+post explicitly activates a derived fit; store() retains a named one.
+Legacy fits without a numeric snapshot require a refit for saved-model reuse.

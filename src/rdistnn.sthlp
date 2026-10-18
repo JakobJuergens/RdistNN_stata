@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0.9000  2026-10-18}{...}
+{* *! version 0.1.0.9001  2026-10-18}{...}
 {viewerjumpto "Commands" "rdistnn##commands"}{...}
 {viewerjumpto "Conventions" "rdistnn##conventions"}{...}
 {viewerjumpto "Workflow" "rdistnn##workflow"}{...}
@@ -13,7 +13,7 @@
 weights, diagnostics and native plots
 
 {pstd}
-Stata 17 or later. This overview describes package {bf:0.1.0.9000} on {cmd:master},
+Stata 17 or later. This overview describes package {bf:0.1.0.9001} on {cmd:master},
 including experimental conditional LATE and shared reporting.
 RdistNN is the numerical reference for shared
 functionality; the Stata companion has its own documented public surface.
@@ -33,6 +33,10 @@ functionality; the Stata companion has its own documented public surface.
 {synopt:{help cate_dnn_plot}}CATE estimates, diagnostics, overlap, influence and weights{p_end}
 {synopt:{help np_dnn_plot}}regression panels including outcome distributions{p_end}
 {synopt:{help clate_dnn_plot}}CLATE panels with instrument and paired-score meaning{p_end}
+
+{synopt:{help rdistnn_results}}graph-free numeric reports and exports{p_end}
+{synopt:{help rdistnn_candidate}}reusable candidate fit from saved ranks{p_end}
+{synopt:{help rdistnn_predict}}evaluate saved frozen signals at new targets{p_end}
 
 {marker conventions}{...}
 {title:Conventions}
@@ -79,12 +83,38 @@ CLATE ratios. Copy r() results before another command overwrites them; use
 Diagnostic selectors preserve original target/candidate IDs and can save .dta
 reports. Single-view plot commands return selected {cmd:r(plot_data)} and
 {cmd:r(n_rows)}; dashboards return panel metadata. Effective-kernel and influence
-views require the original fitted values, sample and observation order.
+views use the numeric snapshot in current fits. Legacy fits require the original
+fitted values, sample and observation order.
 Stored-result views can be used after data changes. See each command's help
 for allowed selectors, view-specific options and result schemas.
+Use {help rdistnn_results} for numeric extraction without graphs,
+{help rdistnn_candidate} for standalone grid fits, and {help rdistnn_predict}
+for saved-fit prediction. estimates save/use retains the numeric model snapshot.
+PLQR returns moments with supplied coefficients reported separately.
 
 {marker inference}{...}
 {title:Inference and experimental scope}
+
+{pstd}
+For numerical stability, all estimator jackknife engines, including naive
+deletions, subtract a common reference per target and signal before summing.
+Only observations with nonzero weight in at least one deletion determine the
+reference. A rank-r weight in the n-1 table can use original ranks r and r+1;
+the latter can gain weight when an earlier observation is deleted. Exact DNN
+deletion support therefore ends at n-s+k (n-s+1 for k=1). Unused observations
+are excluded before subtraction, preventing zero-weight extremes from
+affecting the reference or causing overflow. All n deletions and their
+original covariance scaling remain in the calculation.
+
+{pstd}
+The reference is the smallest active value if all are positive, the largest
+if all are negative, and zero otherwise. This common numerical shift cancels
+in jackknife covariance; point estimates use the original signals. It is
+separate from the usual centering of deletion estimates around their mean.
+Asymptotic weights retain every represented nonzero entry, without the exact
+support cutoff or additional renormalization. See the
+{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/weights-and-tuning.md#numerical-centering":numerical centering guide}
+for the shared R/Stata variance-9 example.
 
 {pstd}
 Reported normal intervals are pointwise. Joint target covariance does not
@@ -116,6 +146,9 @@ custom registries, confidence-set inversion and replication workflows.
 {pstd}
 {browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/README.md":README}
 provides installation from {cmd:master} and version-pinned alternatives. The portable
-ado/Mata baseline needs no compiler. Optional native plugins accelerate only
-standalone L2 weights. This overview and command help install with the package;
+ado/Mata baseline needs no compiler. Optional native plugins accelerate
+standalone L2 weights and frozen-score jackknife deletions for all estimators.
+Both C++ and Mata use prefix/suffix sums; naive deletions remain a final
+fallback and can be selected with {cmd:global rdistnn_jackknife_engine naive}
+for parity checks. This overview and command help install with the package;
 the article/example collection is available from the repository or source ZIP.
