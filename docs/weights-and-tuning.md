@@ -194,12 +194,41 @@ A rank-s radius, weighted distance, 90-percent-mass physical radius and
 within-arm ESS likewise describe different features. Inspect them alongside
 candidate sensitivity rather than treating one threshold as a theorem check.
 
+### Numerical centering
+
+All jackknife engines, including explicit deletions, use a numerical reference
+chosen separately for each target and signal from observations with nonzero
+weight in at least one deletion. This numerical shift precedes the usual
+centering of deletion estimates around their mean. The reference is the
+smallest active value when all are positive, the largest when all are negative,
+and zero otherwise. The same reference is used in every deletion.
+
+A nonzero entry at rank r in the n-1 weight table can use original ranks r
+and r+1: deleting an earlier observation shifts the latter into position r.
+For exact DNN, this union ends at n-s+k (n-s+1 for k=1). Unused observations
+are excluded before subtraction, so a zero-weight outlier cannot affect the
+reference or cause overflow. All n deletion identities and the original
+`(n-1)/n` covariance scale are retained.
+
+Covariance uses shifted deletions; raw deletion calculations restore the common
+weighted offset. Point estimates use the original signals. This preserves the
+estimator and its jackknife covariance in exact arithmetic without refitting
+or statistically recentering the scores. Asymptotic weights retain every
+represented nonzero entry, with no additional cutoff or renormalization.
+
+As a shared R/Stata check, take four observations in increasing distance order,
+signal `(1e16+4, 1e16+8, 1e16+12, -1)`, k=1 and s=3. The last observation
+always has zero weight. Subtracting the active reference gives deletion means
+`(4,0,0,0)`, hence variance `(3/4)*(9+1+1+1)=9` and SE 3. The R and Stata
+unit suites check this analytical result across their fast and naive paths.
+
 ## Native acceleration and R boundaries
 
 The optional platform-specific plugin accelerates standalone L2
 `weights_dnn` calls and frozen-score jackknife deletions for NP, CATE, PLQR and
 CLATE. Estimator geometry and rank-weight tables use Mata. Deletion calculations
 reuse one n-1 weight table with prefix/suffix sums in both C++ and Mata.
+
 By default a usable L2 plugin is attempted, with Mata fallback on load or
 execution failure. `global rdistnn_use_plugin 0` forces Mata; `1` requires a
 working plugin on eligible calls. Mahalanobis geometry remains in Mata;

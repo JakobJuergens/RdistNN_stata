@@ -48,7 +48,7 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
     }
     if(!do_se) return
 
-    loo=rdistnn_loo_from_ranks(ranks,rdistnn_center_signal(signals),k,s,method)
+    loo=rdistnn_loo_from_ranks(ranks,signals,k,s,method,1)
     centered=loo:-mean(loo)
     // Scale before the dot product: its unscaled sum can exceed Stata's
     // range while the final estimator-scale covariance remains finite.

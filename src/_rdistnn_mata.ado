@@ -523,17 +523,21 @@ real matrix rdistnn_loo_naive(real matrix ranks, real matrix signal,
     real scalar k, real scalar s, string scalar method)
 {
     real scalar n, m, q, i, j
-    real colvector kept, r, w
-    real matrix loo
+    real colvector kept, r, w, table, active
+    real rowvector level
+    real matrix loo, z
     n=rows(ranks); m=cols(ranks); q=cols(signal)
     loo=J(n,m*q,.)
-    for(i=1;i<=n;i++) {
-        kept=((1::n):!=i)
-        for(j=1;j<=m;j++) {
+    table=rdistnn_weights_from_ranks((1::(n-1)),k,s,method)
+    active=((table:!=0)\0):|(0\(table:!=0))
+    for(j=1;j<=m;j++) {
+        z=rdistnn_center_signal(signal,active[ranks[,j]],level)
+        for(i=1;i<=n;i++) {
+            kept=((1::n):!=i)
             r=select(ranks[,j],kept)
             r=r:-(r:>ranks[i,j])
             w=rdistnn_weights_from_ranks(r,k,s,method)
-            loo[i,((j-1)*q+1)..(j*q)]=cross(w,select(signal,kept))
+            loo[i,((j-1)*q+1)..(j*q)]=cross(w,select(z,kept)):+level*sum(table)
         }
     }
     return(loo)
@@ -545,18 +549,20 @@ real matrix rdistnn_loo_prefix(real matrix ranks, real matrix signal,
     real colvector table)
 {
     real scalar n, m, q, j, r
-    real colvector ord
+    real colvector ord, active
+    real rowvector level
     real matrix z, left, right, loo
     n=rows(ranks); m=cols(ranks); q=cols(signal)
     loo=J(n,m*q,.)
     for(j=1;j<=m;j++) {
         ord=J(n,1,.)
         ord[ranks[,j]]=(1::n)
-        z=signal[ord,]
+        active=((table:!=0)\0):|(0\(table:!=0))
+        z=rdistnn_center_signal(signal[ord,],active,level)
         left=right=J(n,q,0)
         for(r=2;r<=n;r++) left[r,]=left[r-1,]+table[r-1]*z[r-1,]
         for(r=n-1;r>=1;r--) right[r,]=right[r+1,]+table[r]*z[r+1,]
-        loo[,((j-1)*q+1)..(j*q)]=left[ranks[,j],]+right[ranks[,j],]
+        loo[,((j-1)*q+1)..(j*q)]=(left[ranks[,j],]+right[ranks[,j],]):+level*sum(table)
     }
     return(loo)
 }
@@ -585,14 +591,16 @@ real matrix rdistnn_loo_plugin(real matrix ranks, real matrix signal,
 // Default hierarchy: compiled prefix/suffix -> Mata prefix/suffix -> naive.
 // Explicit engine selectors support parity checks without changing estimators.
 real matrix rdistnn_loo_from_ranks(real matrix ranks, real matrix signal,
-    real scalar k, real scalar s, | string scalar method)
+    real scalar k, real scalar s, | string scalar method, real scalar center,
+    real colvector precomputed_table)
 {
     real scalar n, m, q, i, j, r
-    real colvector seen, table
-    real matrix loo
+    real colvector seen, table, active
+    real matrix loo, z
     string scalar engine, plugin_mode
     pointer(function) scalar prefix
     if(args()<5 | method=="") method="exact"
+    if(args()<6) center=0
     n=rows(ranks); m=cols(ranks); q=cols(signal)
     if((method!="exact" & method!="asymp") |
         n<2 | m<1 | rows(signal)!=n | q<1 | hasmissing(signal) |
@@ -618,11 +626,24 @@ real matrix rdistnn_loo_from_ranks(real matrix ranks, real matrix signal,
         errprintf("rdistnn_jackknife_engine must be auto, plugin, mata or naive.\n")
         exit(error(198))
     }
+    // Keep the zero-signal shortcut used by delegated geometry calculations.
+    if(engine!="naive" & all(signal:==0)) return(J(n,m*q,0))
+    if(args()<7) table=rdistnn_weights_from_ranks((1::(n-1)),k,s,method)
+    else table=precomputed_table
+    if(rows(table)!=n-1 | cols(table)!=1 | hasmissing(table)) {
+        errprintf("rdistnn_loo_from_ranks: deletion table must have n-1 finite entries.\n")
+        exit(error(198))
+    }
+    if(center) {
+        active=((table:!=0)\0):|(0\(table:!=0))
+        loo=J(n,m*q,.)
+        for(j=1;j<=m;j++) {
+            z=rdistnn_center_signal(signal,active[ranks[,j]])
+            loo[,((j-1)*q+1)..(j*q)]=rdistnn_loo_from_ranks(ranks[,j],z,k,s,method,0,table)
+        }
+        return(loo)
+    }
     if(engine=="naive") return(rdistnn_loo_naive(ranks,signal,k,s,method))
-    // CLATE delegates geometry/tuning with a zero signal. Its unused scalar
-    // covariance needs neither a weight table nor any deletion calculations.
-    if(all(signal:==0)) return(J(n,m*q,0))
-    table=rdistnn_weights_from_ranks((1::(n-1)),k,s,method)
     plugin_mode=st_global("rdistnn_use_plugin")
     if(engine=="plugin" | (engine=="auto" & plugin_mode!="0")) {
         loo=rdistnn_loo_plugin(ranks,signal,table)
@@ -648,19 +669,27 @@ real matrix rdistnn_loo_from_ranks(real matrix ranks, real matrix signal,
 
 // A common signal level has zero jackknife covariance. Remove it before
 // accumulating deletions, and never restore it on covariance-only paths.
-// Use the same-sign endpoint nearest zero; mixed-sign columns need no shift.
-// A midpoint or a remote outlier would erase small, locally relevant signals.
-real matrix rdistnn_center_signal(real matrix signal)
+// Use only the union of deletion support to choose the reference, and zero
+// unused rows before subtraction. A deleted earlier rank can bring the next
+// original rank into support. Signed tables require nonzero support.
+real matrix rdistnn_center_signal(real matrix signal, | real colvector active,
+    real rowvector level)
 {
     real scalar j
-    real rowvector lo, hi, level
-    lo=colmin(signal); hi=colmax(signal)
+    real rowvector lo, hi
+    real matrix z, used
+    if(args()<2) active=J(rows(signal),1,1)
+    z=J(rows(signal),cols(signal),0)
     level=J(1,cols(signal),0)
+    if(!any(active)) return(z)
+    used=select(signal,active)
+    lo=colmin(used); hi=colmax(used)
     for(j=1;j<=cols(signal);j++) {
         if(lo[j]>0) level[j]=lo[j]
         else if(hi[j]<0) level[j]=hi[j]
     }
-    return(signal:-level)
+    z[selectindex(active),]=used:-level
+    return(z)
 }
 
 // ── rdistnn_jk_cov_from_ranks ─────────────────────────────────────────
@@ -706,7 +735,7 @@ real matrix rdistnn_jk_cov_from_ranks(real colvector ranks,
         exit(error(198))
     }
 
-    loo = rdistnn_loo_from_ranks(ranks, rdistnn_center_signal(signal), k, s, method)
+    loo = rdistnn_loo_from_ranks(ranks, signal, k, s, method, 1)
     if(all(loo:==0)) return(J(q,q,0))
 
     centered = loo :- mean(loo)
@@ -738,7 +767,7 @@ real matrix rdistnn_jk_cov_multi_from_ranks(real matrix ranks,
         exit(error(198))
     }
 
-    loo = rdistnn_loo_from_ranks(ranks, rdistnn_center_signal(signal), k, s, method)
+    loo = rdistnn_loo_from_ranks(ranks, signal, k, s, method, 1)
     if(all(loo:==0)) return(J(m,m,0))
 
     centered = loo :- mean(loo)

@@ -74,6 +74,98 @@ if `prefix_rc' == 0 {
     quietly do "src/_rdistnn_mata.ado"
 }
 macro drop rdistnn_jackknife_engine
+
+test_section "jackknife centering: asymptotic tails and unused extremes"
+foreach engine in naive mata plugin auto {
+    global rdistnn_jackknife_engine `engine'
+    mata {
+        _jp_tail=(0\0\J(8,1,1))
+        _jp_A=(8/9)^9
+        _jp_B=(7/9)^9
+        _jp_expected=(36/25)*(_jp_A-_jp_B)^2
+        _jp_L=rdistnn_loo_from_ranks((1::10),_jp_tail,1,9,"asymp")
+        _jp_V=rdistnn_jk_cov_from_ranks((1::10),_jp_tail,1,9,"asymp")
+        st_numscalar("_jp_tail_error",max(abs(_jp_L-(J(2,1,_jp_A)\J(8,1,_jp_B)))))
+        st_numscalar("_jp_tail_variance",abs(_jp_V-_jp_expected))
+        st_numscalar("_jp_exact_zero",rdistnn_jk_cov_from_ranks((1::10),_jp_tail,1,9,"exact"))
+    }
+    test_assert "`engine': asymptotic deletions retain weight beyond the exact cutoff" scalar(_jp_tail_error)<1e-12
+    test_assert "`engine': asymptotic variance matches independent R/Stata fixture" scalar(_jp_tail_variance)<1e-12
+    test_assert "`engine': exact rule excludes the same tail" scalar(_jp_exact_zero)==0
+    foreach sign in 1 -1 {
+        // The last row's subtraction would exceed Stata's finite-value range.
+        mata: st_numscalar("_jp_extreme",rdistnn_jk_cov_from_ranks((1::30),`sign'*(J(29,1,6e307)\-6e307),1,10,"exact"))
+        test_assert "`engine'/sign=`sign': unused extreme cannot overflow centering" scalar(_jp_extreme)==0
+    }
+}
+macro drop rdistnn_jackknife_engine
+
+test_section "jackknife covariance: zero-weight opposite-sign observations"
+foreach engine in naive mata plugin auto {
+    global rdistnn_jackknife_engine `engine'
+    foreach k in 1 3 {
+        foreach sign in 1 -1 {
+            mata {
+                _jp_z=`sign'*(J(29,1,1e16)\-1)
+                _jp_v=rdistnn_jk_cov_from_ranks((1::30),_jp_z,`k',10,"exact")
+                st_numscalar("_jp_support",_jp_v)
+                _jp_raw=rdistnn_loo_from_ranks((1::30),_jp_z,`k',10,"exact")
+                st_numscalar("_jp_rawspread",max(_jp_raw)-min(_jp_raw))
+            }
+            test_assert "`engine'/k=`k'/sign=`sign': unused opposite-sign row cannot create variance" scalar(_jp_support)==0
+            test_assert "`engine'/k=`k'/sign=`sign': raw deletions remain constant" scalar(_jp_rawspread)==0
+        }
+        mata {
+            _jp_base=4*(1::30)
+            _jp_shifted=1e16:+_jp_base
+            _jp_shifted[30]=-1e307
+            _jp_v0=rdistnn_jk_cov_from_ranks((1::30),_jp_base,`k',10,"exact")
+            _jp_v1=rdistnn_jk_cov_from_ranks((1::30),_jp_shifted,`k',10,"exact")
+            st_numscalar("_jp_local",abs(_jp_v1-_jp_v0))
+        }
+        test_assert "`engine'/k=`k': large unused row preserves local variation" scalar(_jp_local)<1e-9
+    }
+    mata {
+        _jp_r=(1::60)
+        _jp_R=(_jp_r,61:-_jp_r)
+        _jp_z=(4*(1::30)\-8*(1::30))
+        _jp_shifted=_jp_z+(J(30,1,1e16)\J(30,1,-1e16))
+        _jp_V0=rdistnn_jk_cov_multi_from_ranks(_jp_R,_jp_z,3,40,"exact")
+        _jp_V1=rdistnn_jk_cov_multi_from_ranks(_jp_R,_jp_shifted,3,40,"exact")
+        st_numscalar("_jp_target",max(abs(_jp_V1-_jp_V0)))
+    }
+    test_assert "`engine': target-specific supports preserve joint covariance" scalar(_jp_target)<1e-9
+    // Shifted deletions (4,0,0,0) give V=(3/4)*(9+1+1+1)=9;
+    // this fixture is also checked by the R package.
+    mata: st_numscalar("_jp_golden",rdistnn_jk_cov_from_ranks((1::4),(1e16:+(4\8\12))\-1,1,3,"exact"))
+    test_assert "`engine': large-level R/Stata golden variance is nine" abs(scalar(_jp_golden)-9)<1e-12
+}
+macro drop rdistnn_jackknife_engine
+
+test_section "jackknife support centering: all estimator commands"
+clear
+set obs 30
+gen double jp_x=_n
+gen double jp_y=cond(_n<30,1e16,-1)
+gen double jp_den=1
+gen double jp_d=2*jp_y
+gen double jp_zero=0
+gen double jp_positive=1
+foreach engine in naive mata plugin auto {
+    global rdistnn_jackknife_engine `engine'
+    foreach estimator in np cate clate {
+        local extra ""
+        if "`estimator'"=="cate" local extra "pseudooutcome"
+        if "`estimator'"=="clate" local extra "pseudooutcome denominator(jp_den)"
+        quietly `estimator'_dnn jp_y, xcols(jp_x) x0(0) k(3) s(10) `extra'
+        matrix JP_SUPPORT_V=e(V)
+        test_assert "`engine'/`estimator': unused opposite-sign row leaves zero variance" JP_SUPPORT_V[1,1]==0
+    }
+    quietly plqr_dnn jp_positive, x(jp_x) x0(0) d(jp_d) g(jp_zero) md(jp_zero) thetaeval(0) tau(.5) k(3) s(10)
+    matrix JP_SUPPORT_V=e(moment_vcov)
+    test_assert "`engine'/PLQR: unused opposite-sign row leaves zero moment variance" JP_SUPPORT_V[1,1]==0
+}
+macro drop rdistnn_jackknife_engine
 capture macro drop rdistnn_use_plugin
 
 // Covariance is invariant to a common signal level. Raw split sums at 1e16

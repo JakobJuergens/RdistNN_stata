@@ -354,18 +354,31 @@ inline void rank_loo(const int *ranks, const double *signal, const double *table
     validate_finite_array(signal,static_cast<std::size_t>(n)*q,"signal");
     validate_finite_array(table,static_cast<std::size_t>(n-1),"table");
     std::vector<int> ord(n);
-    std::vector<double> left(n), right(n);
+    std::vector<double> left(n), right(n), shifted(n);
+    double mass=0;
+    for (int a=0; a<n-1; ++a) mass+=table[a];
     for (int j=0; j<m; ++j) {
         const int *r=ranks+static_cast<std::size_t>(j)*n;
         for (int i=0; i<n; ++i) ord[r[i]-1]=i;
         for (int c=0; c<q; ++c) {
             const double *z=signal+static_cast<std::size_t>(c)*n;
+            double lo=std::numeric_limits<double>::infinity();
+            double hi=-std::numeric_limits<double>::infinity();
+            for (int a=0; a<n; ++a) {
+                bool used=(a<n-1 && table[a]!=0) || (a>0 && table[a-1]!=0);
+                if (used) { lo=std::min(lo,z[ord[a]]); hi=std::max(hi,z[ord[a]]); }
+            }
+            double level=!std::isfinite(lo) ? 0 : (lo>0 ? lo : (hi<0 ? hi : 0));
+            for (int a=0; a<n; ++a) {
+                bool used=(a<n-1 && table[a]!=0) || (a>0 && table[a-1]!=0);
+                shifted[a]=used ? z[ord[a]]-level : 0;
+            }
             left[0]=0;
-            for (int a=1; a<n; ++a) left[a]=left[a-1]+table[a-1]*z[ord[a-1]];
+            for (int a=1; a<n; ++a) left[a]=left[a-1]+table[a-1]*shifted[a-1];
             right[n-1]=0;
-            for (int a=n-2; a>=0; --a) right[a]=right[a+1]+table[a]*z[ord[a+1]];
+            for (int a=n-2; a>=0; --a) right[a]=right[a+1]+table[a]*shifted[a+1];
             double *dest=out+(static_cast<std::size_t>(j)*q+c)*n;
-            for (int i=0; i<n; ++i) dest[i]=left[r[i]-1]+right[r[i]-1];
+            for (int i=0; i<n; ++i) dest[i]=(left[r[i]-1]+right[r[i]-1])+level*mass;
         }
     }
 }

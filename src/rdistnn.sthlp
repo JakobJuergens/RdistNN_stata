@@ -87,6 +87,27 @@ for allowed selectors, view-specific options and result schemas.
 {title:Inference and experimental scope}
 
 {pstd}
+For numerical stability, all estimator jackknife engines, including naive
+deletions, subtract a common reference per target and signal before summing.
+Only observations with nonzero weight in at least one deletion determine the
+reference. A rank-r weight in the n-1 table can use original ranks r and r+1;
+the latter can gain weight when an earlier observation is deleted. Exact DNN
+deletion support therefore ends at n-s+k (n-s+1 for k=1). Unused observations
+are excluded before subtraction, preventing zero-weight extremes from
+affecting the reference or causing overflow. All n deletions and their
+original covariance scaling remain in the calculation.
+
+{pstd}
+The reference is the smallest active value if all are positive, the largest
+if all are negative, and zero otherwise. This common numerical shift cancels
+in jackknife covariance; point estimates use the original signals. It is
+separate from the usual centering of deletion estimates around their mean.
+Asymptotic weights retain every represented nonzero entry, without the exact
+support cutoff or additional renormalization. See the
+{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/weights-and-tuning.md#numerical-centering":numerical centering guide}
+for the shared R/Stata variance-9 example.
+
+{pstd}
 Reported normal intervals are pointwise. Joint target covariance does not
 supply simultaneous coverage. Frozen-score jackknife calculations do not
 refit nuisances, remove localization bias or verify the design, nuisance-rate,

@@ -15,6 +15,10 @@ remaining differences in feature coverage.
   fast Mata automatically.
   Center covariance signals before accumulation to preserve zero variance
   for constant scores and accuracy under large common signal levels.
+- Choose numerical centering references from each target's deletion support
+  in compiled, Mata and naive jackknife paths. Exclude zero-weight outliers
+  before subtraction and include ranks that can gain weight after deletion.
+  Preserve the exact/asymptotic weight rules and R implementation parity.
 - Allow native jackknife bridge matrices above `c(matsize)` without changing
   the user's setting; remove the artificial dispatch restriction and correct
   the related documentation.
