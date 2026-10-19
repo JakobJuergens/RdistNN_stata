@@ -51,6 +51,8 @@ try {
         "Makefile.win",
         "rdistnn_core.hpp",
         "rdistnn_distance.hpp",
+        "compensated_arithmetic.hpp",
+        "rank_weight_tables.hpp",
         "rdistnn_plugin.cpp",
         "stplugin.c",
         "stplugin.h",

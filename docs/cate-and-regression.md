@@ -3,7 +3,7 @@
 `cate_dnn` and `np_dnn` share localization, tuning, batch-target and reporting
 conventions. Their inputs determine what the local average means: CATE
 averages an observation-level treatment-effect signal, while NP regression
-averages an outcome. This article documents package **0.1.0.9002** in the development snapshot.
+averages an outcome. This article documents package **0.1.0.9003** in the development snapshot.
 See [getting started](getting-started.md) for installation and a compact tour.
 
 ## Targets and samples
@@ -189,8 +189,8 @@ increments, rather than the finite-population exact weights. The exact
 support formula does not apply to that approximation.
 
 L2 distances depend on covariate scales. Mahalanobis distance uses the
-estimation sample's covariance inverse, with an SVD Moore-Penrose fallback
-using R's relative cutoff of `1e-10`. It requires at least two complete
+estimation sample's centered-design SVD whitening factor, retaining singular
+values greater than `max(n,p) * 2^-52 * largest_singular_value`. It requires at least two complete
 observations and permits one localization
 covariate. A rank-deficient covariance is accepted; the generalized inverse
 can leave directions without distance contribution. The metric is held
@@ -224,7 +224,10 @@ metric; it does not re-estimate that metric on each deletion. No nuisance
 learner is refit.
 
 For CATE, causal identification, overlap, nuisance accuracy and localization
-conditions are required. Orthogonality alone does not validate arbitrary
+conditions are required. AIPW is orthogonal at the true nuisances; the normalized
+Robinson signal generally has first-order propensity drift and needs additional
+propensity control. Oracle identification does not establish orthogonality.
+AIPW orthogonality alone does not validate arbitrary
 same-sample nuisance predictions. Full-sample reuse additionally requires
 the paper's nuisance-rate and full-state stability conditions. Oracle,
 cross-fitted/out-of-fold and full-sample predictions are accepted, but input

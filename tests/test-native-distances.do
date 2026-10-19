@@ -202,7 +202,9 @@ test_assert "missing plugin forcing fails explicitly" _rc!=0
 global rdistnn_plugin_ok `original_ok'
 global rdistnn_distance_engine plugin
 mata: nd_D=rdistnn_distance_matrix(st_matrix("ND_X"),st_matrix("ND_X0"),"mahalanobis")
-test_assert "Mahalanobis remains Mata under forced native selector" "$rdistnn_last_distance_engine"=="mata"
+test_assert "factored Mahalanobis uses forced native L2 selector" "$rdistnn_last_distance_engine"=="plugin"
+mata: nd_D=rdistnn_distance_matrix(st_matrix("ND_X"),st_matrix("ND_X0"),"mahalanobis",rdistnn_mahal_cov_inv(st_matrix("ND_X")))
+test_assert "legacy inverse Mahalanobis retains Mata route" "$rdistnn_last_distance_engine"=="mata"
 clear
 svmat double ND_X, names(ndx)
 gen double nd_y=ndx1+2*ndx2

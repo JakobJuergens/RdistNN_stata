@@ -20,7 +20,7 @@ DISTANCE_TEST = rdistnn_distance_test.exe
 PROTOCOL_TEST = rdistnn_distance_plugin_test.exe
 ROUNDING_TEST = rdistnn_distance_rounding_test.exe
 WEIGHTS_TEST = rdistnn_weights_test.exe
-HEADERS  = rdistnn_core.hpp rdistnn_distance.hpp
+HEADERS  = rdistnn_core.hpp rdistnn_distance.hpp compensated_arithmetic.hpp rank_weight_tables.hpp
 SRCS     = stplugin.c rdistnn_plugin.cpp
 
 $(TARGET): $(SRCS) $(HEADERS) stplugin.h

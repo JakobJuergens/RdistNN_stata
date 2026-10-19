@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0.9002  2026-10-18}{...}
+{* *! version 0.1.0.9003  2026-10-19}{...}
 {viewerjumpto "Commands" "rdistnn##commands"}{...}
 {viewerjumpto "Conventions" "rdistnn##conventions"}{...}
 {viewerjumpto "Workflow" "rdistnn##workflow"}{...}
@@ -13,7 +13,7 @@
 weights, diagnostics and native plots
 
 {pstd}
-Stata 17 or later. This overview describes package {bf:0.1.0.9002} in the development snapshot,
+Stata 17 or later. This overview describes package {bf:0.1.0.9003} in the development snapshot,
 including supported supplied-prediction conditional LATE, two-scale regression
 and shared reporting. These are development-branch additions.
 RdistNN is the numerical reference for shared
@@ -120,6 +120,13 @@ affecting the reference or causing overflow. All n deletions and their
 original covariance scaling remain in the calculation.
 
 {pstd}
+Weighted signal means and rank-weight normalization use compensated sums.
+Native and Mata deletion engines retain correction terms until the final
+prefix/suffix combination. The fallback uses bounded merge buffers, and
+candidate fits and saved prediction reuse the same arithmetic helpers.
+These double-precision safeguards preserve the estimator's statistical definition.
+
+{pstd}
 The reference is the smallest active value if all are positive, the largest
 if all are negative, and zero otherwise. This common numerical shift cancels
 in jackknife covariance; point estimates use the original signals. It is
@@ -162,7 +169,9 @@ provides installation from {cmd:master} and version-pinned alternatives. The por
 ado/Mata baseline needs no compiler. Optional native plugins accelerate
 L1/L2 distances, including fitted scales and batches, through the common
 weight, estimation and saved-prediction path. Scale fitting, stable ranks and
-weight tables remain in Mata. Mahalanobis distance computation remains in Mata.
+weight tables and Mahalanobis factorization remain in Mata. Projected
+Mahalanobis norms use the selected L2 engine. Legacy saved inverses retain
+their original Mata calculation.
 Use {cmd:global rdistnn_distance_engine plugin} or {cmd:mata} for explicit
 distance routes; drop the global to restore automatic dispatch, which keeps
 small jobs in Mata and attempts native distances for substantial batches. Plugins also
@@ -171,3 +180,15 @@ Both C++ and Mata use prefix/suffix sums; naive deletions remain a final
 fallback and can be selected with {cmd:global rdistnn_jackknife_engine naive}
 for parity checks. This overview and command help install with the package;
 the article/example collection is available from the repository or source ZIP.
+
+{title:Numeric covariance range}
+
+{pstd}
+Shared covariance helpers normalize exceptional columns by binary powers
+before centering or squaring and preserve full paired/target dependence.
+Representable extreme variances are recovered after intermediate range
+failures. A nonzero variance outside the finite numeric range gives an error
+requesting rescaling or point-only estimation; CLATE retains its per-target
+numerical-failure status. Exact constants still have zero variance. Stata's
+finite nonmissing range is smaller than R's IEEE range. These guards do not
+change the documented inference conditions.

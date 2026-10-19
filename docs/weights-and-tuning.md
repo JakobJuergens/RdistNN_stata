@@ -48,8 +48,9 @@ compare the methods explicitly when the approximation matters.
 Euclidean `distance(l2)` is the default. Its ranking is sensitive to the
 units of the coordinates; standardization can be a substantive choice.
 `distance(mahalanobis)` uses the full estimation sample covariance and a
-SVD Moore-Penrose pseudoinverse for rank-deficient covariance, using R's
-relative cutoff of `1e-10`. The metric is fixed
+centered-design SVD whitening factor. Retain singular values greater than
+`max(n,p) * 2^-52 * largest_singular_value`; null directions contribute zero.
+This avoids explicitly forming or inverting covariance. The metric is fixed
 through deletion covariance calculations. Both use deterministic distance,
 then observation-order tie breaking. Changing a metric changes the
 neighborhood; it is not a cosmetic plot option.
@@ -199,9 +200,12 @@ candidate sensitivity rather than treating one threshold as a theorem check.
 All jackknife engines, including explicit deletions, use a numerical reference
 chosen separately for each target and signal from observations with nonzero
 weight in at least one deletion. This numerical shift precedes the usual
-centering of deletion estimates around their mean. The reference is the
-smallest active value when all are positive, the largest when all are negative,
-and zero otherwise. The same reference is used in every deletion.
+centering of deletion estimates around their mean. Prefer the first active
+observation in localization-rank order when subtraction is in range and exact.
+A range safeguard retains the same-sign endpoint/zero policy; use zero if a
+subtraction would lose a separately represented signal component. The same
+reference is used in every deletion; raw restored doubles can still round
+away sub-ULP variation, so covariance uses the shifted deletions.
 
 A nonzero entry at rank r in the n-1 weight table can use original ranks r
 and r+1: deleting an earlier observation shifts the latter into position r.
@@ -239,8 +243,8 @@ obeys `rdistnn_use_plugin`: `0` skips native calls and `1` requires them.
 The distance selector takes precedence over that shared control;
 explicit requirements bypass the size policy described in the native guide.
 `rdistnn_last_distance_engine` records the last actual distance route.
-Mahalanobis geometry remains in Mata under every selector;
-its frozen-rank jackknife can use the compiled engine. Restore default dispatch with
+Mahalanobis factorization remains in Mata; its projected norms use the
+selected L2 engine, and its frozen-rank jackknife can use the compiled engine. Restore default dispatch with
 `macro drop rdistnn_use_plugin`. For jackknife parity checks, set
 `global rdistnn_jackknife_engine` to `plugin`, `mata` or `naive`; drop it to
 restore automatic compiled -> fast Mata -> naive dispatch. The explicit fast
@@ -252,7 +256,7 @@ for platform assets, source builds and parity checks.
 
 The [numerical stability guide](numerical-stability.md) describes stable TDNN
 coefficients, Beta interval masses and exceptional-range L2 recovery, together
-with planned compensated accumulation.
+with compensated weighted/deletion sums and stable diagnostic calculations.
 
 R additionally has custom distance/rank-weight/tuning registries, generic
 weight specification objects and exposed jackknife primitives.

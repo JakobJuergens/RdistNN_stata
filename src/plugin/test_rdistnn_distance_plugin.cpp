@@ -1,6 +1,20 @@
 // Execute the real entry point against a narrow host SDK callback fixture.
 // Real Stata integration remains covered by the package's runtime .do tests.
+#include "rdistnn_core.hpp"
+namespace { bool probe_beta_failure=false; }
+namespace rdistnn {
+// Keep the real Beta failure and real plugin boundary. A full rank-weight
+// table reaching these shapes would require millions of rows and a huge k.
+// Substitute that expensive call only in this host-protocol test.
+void weights_l2_beta_probe(const double* X,int n,int p,const double* x0,
+    const double* inv_s,int k,int s,double* out,bool asymp) {
+    if(probe_beta_failure) beta_probability(1e7,1e7,.5);
+    dnn_weights_l2(X,n,p,x0,inv_s,k,s,out,asymp);
+}
+}
+#define dnn_weights_l2 weights_l2_beta_probe
 #include "rdistnn_plugin.cpp"
+#undef dnn_weights_l2
 #include <iostream>
 #include <map>
 #include <stdexcept>
@@ -10,7 +24,23 @@ namespace {
 struct matrix { int n,p; std::vector<double> values; };
 std::map<std::string,matrix> matrices;
 std::string read_failure;
+std::string last_error;
+std::vector<double> data_x,data_w;
+int data_writes=0;
 int reads=0,writes=0;
+ST_int nobs() { return 3; }
+ST_int nvars() { return 2; }
+ST_int in1() { return 1; }
+ST_int in2() { return 3; }
+ST_boolean selected(ST_int) { return 1; }
+ST_int readvar(ST_int j,ST_int i,double* value) {
+    if(i<1 || i>3 || j<1 || j>2) return 503;
+    *value=(j==1 ? data_x : data_w).at(i-1); return 0;
+}
+ST_int storevar(ST_int j,ST_int i,double value) {
+    if(j!=2 || i<1 || i>3) return 503;
+    ++data_writes; data_w.at(i-1)=value; return 0;
+}
 ST_int rowsof(char* name) { auto m=matrices.find(name); return m==matrices.end()?0:m->second.n; }
 ST_int colsof(char* name) { auto m=matrices.find(name); return m==matrices.end()?0:m->second.p; }
 ST_int readel(char* name,int i,int j,double* v) {
@@ -26,7 +56,7 @@ ST_int storeel(char* name,int i,int j,double v) {
     if (m==matrices.end() || i<1 || j<1 || i>m->second.n || j>m->second.p) return 503;
     m->second.values.at((i-1)+static_cast<std::size_t>(j-1)*m->second.n)=v; return 0;
 }
-ST_int error(char*) {return 0;}
+ST_int error(char* message) {last_error=message; return 0;}
 ST_boolean missing(double v) {return v>=8e307;}
 void require(bool ok,const char* msg) { if(!ok) throw std::runtime_error(msg); }
 int invoke(std::initializer_list<const char*> args) {
@@ -36,6 +66,8 @@ int invoke(std::initializer_list<const char*> args) {
 }
 void reset() {
     matrices.clear(); read_failure.clear(); reads=0; writes=0;
+    last_error.clear(); probe_beta_failure=false;
+    data_x={0,1,2}; data_w={73,73,73}; data_writes=0;
     matrices["X"]={3,2,{0,3,-3,0,4,4}};
     matrices["X0"]={2,2,{0,3,0,0}};
     matrices["S"]={1,2,{0.5,2}};
@@ -53,6 +85,8 @@ int main() {
     ST_plugin api={};
     api.rowsof=rowsof; api.colsof=colsof; api.safematel=readel;
     api.safematstore=storeel; api.ismissing=missing; api.spouterr=error;
+    api.nobs=nobs; api.nvars=nvars; api.nobs1=in1; api.nobs2=in2;
+    api.selobs=selected; api.safevdata=readvar; api.safestore=storevar;
     _stata_=&api;
     try {
         reset(); matrices["V"]={1,1,{17}};
@@ -117,6 +151,21 @@ int main() {
         rejected({"distance_batch","l2","X","X0","none","D"});
         require(reads==0,"oversized product read inputs");
         require(stata_call(0,nullptr)!=0,"empty entry point accepted");
+        reset();
+        require(invoke({"weights_l2","asymp","1","2","0"})==0,
+                "converged native Beta weights failed");
+        const double beta_weights[3]={5./9,1./3,1./9};
+        for(int i=0;i<3;++i)
+            require(std::fabs(data_w[i]-beta_weights[i])<1e-14,
+                    "converged native Beta weights changed");
+        reset(); probe_beta_failure=true;
+        require(invoke({"weights_l2","asymp","1","2","0"})==498,
+                "Beta nonconvergence did not report Stata numerical error 498");
+        require(data_writes==0 && data_w==std::vector<double>({73,73,73}),
+                "failed Beta calculation modified caller output");
+        require(last_error.find("Beta")!=std::string::npos &&
+                last_error.find("Mata")!=std::string::npos,
+                "Beta failure omitted its context or recovery guidance");
         std::cout<<"rdistnn distance plugin protocol tests passed\n";
     } catch(const std::exception& e) {
         std::cerr<<"rdistnn plugin test failed: "<<e.what()<<'\n'; return 1;

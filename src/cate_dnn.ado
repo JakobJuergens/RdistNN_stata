@@ -186,8 +186,8 @@ program define cate_dnn, eclass
         }
     }
 
-    if missing(`clip') | `clip' <= 0 | `clip' >= .5 {
-        di as error "clip() must be a finite number strictly between 0 and 0.5."
+    if missing(`clip') | `clip' <= 0 | `clip' >= .5 | 1-`clip'>=1 {
+        di as error "clip() must be a finite number strictly between 0 and 0.5, with 1-clip() < 1."
         exit 198
     }
 
@@ -446,7 +446,7 @@ program define cate_dnn, eclass
                 if `touse'
         }
         else {
-            // Robinson/R-learner: (D-e)*(Y-m)/(e*(1-e))
+            // Normalized Robinson signal; generally has first-order propensity drift.
             quietly gen double `rho_var' = ///
                 (`treat_var' - `eclip') * (`outcome' - `m_var') ///
                 / (`eclip' * (1 - `eclip')) if `touse'
@@ -493,7 +493,7 @@ program define cate_dnn, eclass
             else {
                 _ct_sg = _ct_candidates[_ct_g, 8]
                 _ct_Wg = rdistnn_weights_from_rmat(_ct_ranks, `k', _ct_sg, "`method'")
-                _ct_grid_est[_ct_g,.] = cross(_ct_rho, _ct_Wg)
+                _ct_grid_est[_ct_g,.] = rdistnn_weighted_signals(_ct_rho, _ct_Wg)
                 _ct_wr = rdistnn_weights_from_ranks((1::`n'), `k', _ct_sg, "`method'")
                 _ct_topn = min((5, `n'))
                 _ct_ess = 1 / quadsum(_ct_wr :^ 2)
@@ -545,7 +545,7 @@ program define cate_dnn, eclass
                 _ct_dxj, _ct_wj, .5)
             // Paper diagnostic: ordinary Euclidean radius in original X
             // coordinates, regardless of the metric used to form ranks.
-            _ct_physical_dx = sqrt(rowsum((_ct_X :- _ct_X0[_ct_j,.]) :^ 2))
+            _ct_physical_dx = rdistnn_physical_distances(_ct_X,_ct_X0[_ct_j,.])
             _ct_target_diag[_ct_j, 20] = rdistnn_weighted_quantile(
                 _ct_physical_dx, _ct_wj, .9)
             if ("`score_method'" == "pseudo_outcome") {

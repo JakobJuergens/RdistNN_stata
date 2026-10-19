@@ -22,6 +22,8 @@ the numeric model but omit the original tuning grid. They can be saved using
 estimates save and reused after estimates use, even with an empty active dataset.
 Their e(sample) identifies original rows only when those inputs and their order
 can still be verified; otherwise it is empty. Use saved observation IDs for reports.
+For np_tdnn, posted coefficients retain target1, target2, and so on (target1
+for a single target), preserving coefficient names used by lincom.
 {title:Returned results}
 {pstd}
 Returns r(fit), r(se_fit), r(vcov), r(table), r(summary), r(index), r(data),

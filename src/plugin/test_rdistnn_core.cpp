@@ -34,6 +34,23 @@ bool rejects(Fn fn)
 
 int main()
 {
+    const double signed_zero[] = {-0.0, 0.0, 1.0, -0.0};
+    int zero_order[4];
+    rdistnn::argsort_indices(signed_zero, 4, zero_order);
+    if (zero_order[0]!=0 || zero_order[1]!=1 || zero_order[2]!=3 || zero_order[3]!=2)
+        return fail("signed zero must preserve input-order ties");
+    const auto exact20 = rdistnn_weights::exact_table(20, 1, 2);
+    const int outcome_order[] = {14,2,9,7,19,5,11,20,4,6,16,10,3,17,18,15,1,12,8,13};
+    double ordered20[20];
+    for (int i=0;i<20;++i) ordered20[i]=exact20[outcome_order[i]-1];
+    if (rdistnn_arithmetic::weighted_cdf_index(ordered20,20,.9)!=19)
+        return fail("exact-table pipeline must preserve represented CDF boundary");
+    const double cdf_weights[] = {0, .25, .5, .25};
+    if (rdistnn_arithmetic::weighted_cdf_index(cdf_weights, 4, 0) != 1 ||
+        rdistnn_arithmetic::weighted_cdf_index(cdf_weights, 4, .25) != 2 ||
+        rdistnn_arithmetic::weighted_cdf_index(cdf_weights, 4, .75) != 3 ||
+        rdistnn_arithmetic::weighted_cdf_index(cdf_weights, 4, 1) != 4)
+        return fail("canonical weighted CDF boundaries");
     // Invalid inverse scales must fail without publishing partial distances.
     const double scale_X[] = {0.0, 1.0}, scale_target[] = {0.0};
     const double invalid_inverse[] = {0.0};
@@ -162,6 +179,17 @@ int main()
         if (!close(pipeline[i], expected))
             return fail("full L2 pipeline mismatch");
     }
+
+    // Independent binary-power anchor: deleting the zero leaves A+1-A=1.
+    const int cancellation_ranks[] = {1, 2, 3, 4};
+    const double A = std::ldexp(1.0, 54);
+    const double cancellation_signal[] = {A, 1, 0, -A, 7, 7, 7, 7};
+    const double cancellation_table[] = {1, 1, 1};
+    double cancellation_loo[8];
+    rdistnn::rank_loo(cancellation_ranks, cancellation_signal,
+        cancellation_table, 4, 1, 2, cancellation_loo);
+    if (cancellation_loo[2] != 1 || cancellation_loo[6] != 21)
+        return fail("prefix/suffix merge discarded a correction");
 
     std::cout << "rdistnn core test passed\n";
     return 0;

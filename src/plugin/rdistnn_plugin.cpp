@@ -209,6 +209,14 @@ static ST_retcode do_weights_l2(int argc, char *argv[])
         rdistnn::dnn_weights_l2(X.data(), n, kx, x0.data(),
                                  /*inv_s=*/nullptr, k, s, w.data(), asymp);
     }
+    catch (const rdistnn::beta_evaluation_error &error) {
+        char msg[512];
+        std::snprintf(msg, sizeof(msg),
+            "rdistnn_plugin weights_l2: %s. Use weights_dnn, which evaluates Beta weights in Mata.\n",
+            error.what());
+        SF_error(msg);
+        return 498;
+    }
     catch (const std::exception &error) {
         char msg[512];
         std::snprintf(msg, sizeof(msg),

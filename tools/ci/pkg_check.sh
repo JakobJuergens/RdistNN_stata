@@ -21,6 +21,11 @@ set -euo pipefail
 
 ERRORS=0
 
+# All installation inputs, including internal helpers, are checked here.
+if ! python3 tools/ci/package_hygiene.py; then
+    ERRORS=$((ERRORS + 1))
+fi
+
 # ── 1. rdistnn.pkg file manifest ────────────────────────────────────────────
 echo "=== Checking rdistnn.pkg file entries ==="
 while IFS= read -r line; do
@@ -111,7 +116,7 @@ echo "=== Checking cate_dnn inference documentation ==="
 DOC_CONTRACT_ERRORS=0
 for phrase in \
 	"{title:Inference contract}" \
-	"Orthogonality controls first-order population nuisance drift" \
+	"AIPW orthogonality controls first-order population nuisance drift" \
 	"same-sample nuisance estimates" \
 	"Valid full-sample reuse additionally requires" \
 	"nuisance-rate" \
@@ -267,8 +272,8 @@ for phrase in \
 	fi
 done
 
-if grep -qF 'rdistnn_distance_plugin(' src/_rdistnn_mata.ado && \
-    grep -qF 'plugin_mode!="0"' src/_rdistnn_mata.ado && \
+if grep -qF 'rdistnn_distance_plugin(' src/_rdistnn_distance_mata.ado && \
+    grep -qF 'plugin_mode!="0"' src/_rdistnn_distance_mata.ado && \
     grep -qF 'distance_api' src/_rdistnn_distance_plugin.ado; then
     echo "  OK       shared distances attempt eligible plugins on every platform"
 else

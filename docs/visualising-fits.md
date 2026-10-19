@@ -135,7 +135,7 @@ cumulative rank weight with .5/.9 guides. Rank profiles and cumulative
 weights are common across targets, so `targets()` is rejected there.
 
 `view(kernel)` plots target-specific weight against distance under the fitted
-L2 or Mahalanobis metric. It reconstructs weights from the saved numeric model in current fits;
+localization metric (L1, L2, scaled L1/L2 or Mahalanobis). It reconstructs weights from the saved numeric model in current fits;
 the returned matrix stays in original estimation-observation order and
 carries `rank` explicitly. It defaults to all targets up to eight, then
 first/middle/last. Stata's kernel plot does not add the R rank-s radius marker.

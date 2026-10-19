@@ -1,3 +1,4 @@
+version 17
 // Paired CLATE evaluator. The caller loads _rdistnn_mata first; reloading
 // this extension drops only its own functions and preserves the base library.
 capture mata: mata drop rdistnn_clate_fit()
@@ -15,7 +16,7 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
 {
     real scalar n, m, j, h, d, den_scale, scale, variance, corr, omega_quarter
     real colvector sd, good
-    real matrix W, loo, centered, scaled_centered, g, normalized, block
+    real matrix W, loo, centered, g, normalized, block
 
     n=rows(ranks); m=cols(ranks)
     if (n<1 | m<1 | rows(signals)!=n | cols(signals)!=2 |
@@ -26,7 +27,7 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
         exit(error(198))
     }
     W=rdistnn_weights_from_rmat(ranks,k,s,method)
-    components=W'*signals
+    components=rdistnn_weighted_signals(signals,W)'
     theta=J(1,m,.)
     V=J(m,m,.)
     componentV=J(2*m,2*m,.)
@@ -50,12 +51,7 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
 
     loo=rdistnn_loo_from_ranks(ranks,signals,k,s,method,1)
     centered=loo:-mean(loo)
-    // Scale before the dot product: its unscaled sum can exceed Stata's
-    // range while the final estimator-scale covariance remains finite.
-    scaled_centered=centered*sqrt((n-1)/n)
-    componentV=cross(scaled_centered,scaled_centered)
-    // Preserve the diagonal and avoid doubling finite large covariances.
-    componentV=componentV+(componentV'-componentV)/2
+    componentV=rdistnn_covariance(loo,(n-1)/n,1,1)
     normalized=J(n,m,.)
     sd=J(m,1,.)
     good=J(m,1,0)
@@ -87,7 +83,7 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
         }
         else {
             normalized[,j]=g/scale
-            sd[j]=scale*sqrt((n-1)/n*quadsum(normalized[,j]:^2))
+            sd[j]=sqrt(rdistnn_covariance(g,(n-1)/n,0,1)[1,1])
         }
         variance=sd[j]^2
         if(variance>=. | (scale>0 & variance==0)) {

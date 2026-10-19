@@ -64,8 +64,14 @@ program define _rdistnn_model_fit, eclass
     local eqs ""
     local q=1
     if "`cmd'"=="plqr_dnn" local q=e(kd)
+    local scalar_name "mu"
+    if "`cmd'"=="cate_dnn" local scalar_name "tau"
+    if "`cmd'"=="clate_dnn" local scalar_name "theta"
     forvalues j=1/`m' {
-        if `q'==1 & "`cmd'"!="plqr_dnn" local labels "`labels' target`j'"
+        local label "`scalar_name'"
+        if `m'>1 local label "`scalar_name'`j'"
+        if "`cmd'"=="np_tdnn" local label "target`j'"
+        if `q'==1 & "`cmd'"!="plqr_dnn" local labels "`labels' `label'"
         else {
             local labels "`labels' `e(dvars)'"
             forvalues c=1/`q' {
@@ -95,7 +101,9 @@ program define _rdistnn_model_fit, eclass
             mata: st_matrix("`postV'",st_matrix("`V'")[strtoreal(tokens("`valid'")),strtoreal(tokens("`valid'"))])
             local posted_labels ""
             foreach j of local valid {
-                local posted_labels "`posted_labels' target`j'"
+                local label "theta"
+                if `m'>1 local label "theta`j'"
+                local posted_labels "`posted_labels' `label'"
             }
             matrix colnames `postb'=`posted_labels'
             matrix colnames `postV'=`posted_labels'

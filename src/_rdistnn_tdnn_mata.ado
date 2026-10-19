@@ -30,12 +30,12 @@ real colvector rdistnn_tdnn_table(real scalar n, real scalar s1,
     }
     a=b=J(n,1,0)
     if(method=="exact") {
-        for(r=1;r<=n-s1+1;r++) a[r]=exp(lncomb(n-r,s1-1)-lncomb(n,s1))
-        for(r=1;r<=n-s2+1;r++) b[r]=exp(lncomb(n-r,s2-1)-lncomb(n,s2))
-        total=quadsum(a)
+        for(r=1;r<=n-s1+1;r++) a[r]=exp(rdistnn_log_binomial(n-r,s1-1)-rdistnn_log_binomial(n,s1))
+        for(r=1;r<=n-s2+1;r++) b[r]=exp(rdistnn_log_binomial(n-r,s2-1)-rdistnn_log_binomial(n,s2))
+        total=rdistnn_sum(a)
         if(total<=0 | missing(total)) exit(error(498))
         if(abs(total-1)>1e-12) a=a/total
-        total=quadsum(b)
+        total=rdistnn_sum(b)
         if(total<=0 | missing(total)) exit(error(498))
         if(abs(total-1)>1e-12) b=b/total
     }
@@ -52,7 +52,7 @@ real colvector rdistnn_tdnn_table(real scalar n, real scalar s1,
         exit(error(498))
     }
     if(method=="exact" | normalize) {
-        total=quadsum(w)
+        total=rdistnn_sum(w)
         if(missing(total) | abs(total)<100*epsilon(1)) exit(error(498))
         if(abs(total-1)>1e-10) w=w/total
     }
@@ -97,14 +97,12 @@ real matrix rdistnn_tdnn_cov(real matrix ranks, real matrix signal,
     real scalar normalize)
 {
     real scalar n
-    real matrix loo,V
+    real matrix loo
     n=rows(ranks)
     loo=rdistnn_tdnn_loo_tables(ranks,signal,
         rdistnn_tdnn_table(n,s1,s2,dim,method,normalize),
         rdistnn_tdnn_table(n-1,s1,s2,dim,method,normalize),1)
-    loo=(loo:-mean(loo))*sqrt((n-1)/n)
-    V=cross(loo,loo)
-    return((V+V')/2)
+    return(rdistnn_covariance(loo,(n-1)/n,1))
 }
 
 // No signed-probability quantiles, variances or effective sample sizes.

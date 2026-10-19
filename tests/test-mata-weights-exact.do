@@ -46,11 +46,11 @@ mata {
     n = 10; k = 1; s = 4
     _rnk     = (1::n)
     _w       = rdistnn_weights_exact(_rnk, k, s)
-    // reference: lncomb defined in the same Mata session
-    _logCns  = lncomb(n, s)
+    // Reference: the package's log-binomial helper loaded in this Mata session.
+    _logCns  = rdistnn_log_binomial(n, s)
     _w_ref   = J(n, 1, 0)
     for (i = 1; i <= n-s+1; i++) {
-        _w_ref[i] = exp(lncomb(n-i, s-1) - _logCns)
+        _w_ref[i] = exp(rdistnn_log_binomial(n-i, s-1) - _logCns)
     }
     st_numscalar("_r", mreldif(_w, _w_ref))
 }

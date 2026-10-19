@@ -1,29 +1,35 @@
 *! version 0.1.0  2026-10-18
 version 17
-// One arbitrary-rank-table deletion engine for DNN and signed TDNN adapters.
+// Arbitrary-rank-table deletions and DNN covariance adapters; TDNN reuses tables.
 foreach fn in naive naive_table prefix plugin from_ranks from_table {
     capture mata: mata drop rdistnn_loo_`fn'()
 }
 capture mata: mata drop rdistnn_center_signal()
+capture mata: mata drop rdistnn_jk_cov_from_ranks()
+capture mata: mata drop rdistnn_jk_cov_multi_from_ranks()
+capture mata: mata drop rdistnn_jk_se_from_ranks()
 mata:
 // Explicit table-index deletions are the reference and final fallback.
 real matrix rdistnn_loo_naive_table(real matrix ranks, real matrix signal,
     real colvector table)
 {
     real scalar n,m,q,i,j
-    real colvector kept,r,active
+    real colvector kept,r,active,ord
     real rowvector level
     real matrix loo,z
     n=rows(ranks); m=cols(ranks); q=cols(signal)
     loo=J(n,m*q,.)
     active=((table:!=0)\0):|(0\(table:!=0))
     for(j=1;j<=m;j++) {
-        z=rdistnn_center_signal(signal,active[ranks[,j]],level)
+        ord=J(n,1,.)
+        ord[ranks[,j]]=(1::n)
+        z=rdistnn_center_signal(signal[ord,],active,level)
+        z=z[ranks[,j],]
         for(i=1;i<=n;i++) {
             kept=((1::n):!=i)
             r=select(ranks[,j],kept)
             r=r:-(r:>ranks[i,j])
-            loo[i,((j-1)*q+1)..(j*q)]=cross(table[r],select(z,kept)):+level*sum(table)
+            loo[i,((j-1)*q+1)..(j*q)]=rdistnn_weighted_signals(table[r],select(z,kept)):+level*rdistnn_sum(table)
         }
     }
     return(loo)
@@ -42,21 +48,20 @@ real matrix rdistnn_loo_naive(real matrix ranks, real matrix signal,
 real matrix rdistnn_loo_prefix(real matrix ranks, real matrix signal,
     real colvector table)
 {
-    real scalar n, m, q, j, r
+    real scalar n, m, q, j, mass
     real colvector ord, active
     real rowvector level
-    real matrix z, left, right, loo
+    real matrix z, values, loo
     n=rows(ranks); m=cols(ranks); q=cols(signal)
     loo=J(n,m*q,.)
+    mass=rdistnn_sum(table)
     for(j=1;j<=m;j++) {
         ord=J(n,1,.)
         ord[ranks[,j]]=(1::n)
         active=((table:!=0)\0):|(0\(table:!=0))
         z=rdistnn_center_signal(signal[ord,],active,level)
-        left=right=J(n,q,0)
-        for(r=2;r<=n;r++) left[r,]=left[r-1,]+table[r-1]*z[r-1,]
-        for(r=n-1;r>=1;r--) right[r,]=right[r+1,]+table[r]*z[r+1,]
-        loo[,((j-1)*q+1)..(j*q)]=(left[ranks[,j],]+right[ranks[,j],]):+level*sum(table)
+        values=rdistnn_accumulation_deletions(z,table,level*mass)
+        loo[,((j-1)*q+1)..(j*q)]=values[ranks[,j],]
     }
     return(loo)
 }
@@ -88,7 +93,7 @@ real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
     real colvector table, | real scalar center, string scalar engine)
 {
     real scalar n,m,q,i,j,r
-    real colvector seen,active
+    real colvector seen,active,ord
     real matrix loo,z
     string scalar plugin_mode
     pointer(function) scalar prefix
@@ -123,7 +128,10 @@ real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
         active=((table:!=0)\0):|(0\(table:!=0))
         loo=J(n,m*q,.)
         for(j=1;j<=m;j++) {
-            z=rdistnn_center_signal(signal,active[ranks[,j]])
+            ord=J(n,1,.)
+            ord[ranks[,j]]=(1::n)
+            z=rdistnn_center_signal(signal[ord,],active)
+            z=z[ranks[,j],]
             loo[,((j-1)*q+1)..(j*q)]=rdistnn_loo_from_table(ranks[,j],z,table,0,engine)
         }
         return(loo)
@@ -178,21 +186,110 @@ real matrix rdistnn_loo_from_ranks(real matrix ranks, real matrix signal,
 real matrix rdistnn_center_signal(real matrix signal, | real colvector active,
     real rowvector level)
 {
-    real scalar j
-    real rowvector lo, hi
     real matrix z, used
     if(args()<2) active=J(rows(signal),1,1)
     z=J(rows(signal),cols(signal),0)
     level=J(1,cols(signal),0)
     if(!any(active)) return(z)
     used=select(signal,active)
-    lo=colmin(used); hi=colmax(used)
-    for(j=1;j<=cols(signal);j++) {
-        if(lo[j]>0) level[j]=lo[j]
-        else if(hi[j]<0) level[j]=hi[j]
-    }
+    level=rdistnn_signal_level(used)
     z[selectindex(active),]=used:-level
     return(z)
 }
 
+// ── rdistnn_jk_cov_from_ranks ─────────────────────────────────────────
+// Rank-shift jackknife covariance for a DNN-weighted signal matrix.  When
+// observation i
+// (with rank r_i) is deleted, all remaining observations with rank > r_i
+// are shifted down by 1, preserving the relative ordering under a fixed
+// distance metric.
+//
+// This is exact delete-1 rank recomputation for L2.  For Mahalanobis, callers
+// interpret the covariance metric as fixed at the full estimation sample.
+// This matches the "fast" jackknife in the R reference (jackknife_rank_full).
+//
+// Arguments:
+//   ranks   : n-vector of integer ranks from the full sample (1 = nearest)
+//   signal  : n x q matrix of per-observation contributions
+//   k       : number selected within each s-subset
+//   s       : kernel order
+//   method  : "exact" (default) or "asymp"
+//
+// Returns: q x q jackknife covariance matrix.
+//
+real matrix rdistnn_jk_cov_from_ranks(real colvector ranks,
+                                       real matrix signal,
+                                       real scalar k,
+                                       real scalar s,
+                                       | string scalar method)
+{
+    real scalar     n, q
+    real matrix     loo
+
+    if (args() < 5 | method == "") method = "exact"
+
+    n = rows(ranks)
+    if (rows(signal) != n) {
+        errprintf("rdistnn_jk_cov_from_ranks: rows(signal) must equal rows(ranks).\n")
+        exit(error(198))
+    }
+
+    q = cols(signal)
+    if (q < 1) {
+        errprintf("rdistnn_jk_cov_from_ranks: signal must have at least one column.\n")
+        exit(error(198))
+    }
+
+    loo = rdistnn_loo_from_ranks(ranks, signal, k, s, method, 1)
+    if(all(loo:==0)) return(J(q,q,0))
+
+    return(rdistnn_covariance(loo,(n-1)/n,1))
+}
+
+// Joint rank-shift jackknife covariance for a scalar signal evaluated at
+// multiple targets. Each ranks column is the full-sample rank permutation for
+// one target. The returned m x m matrix retains cross-target covariance.
+real matrix rdistnn_jk_cov_multi_from_ranks(real matrix ranks,
+                                             real colvector signal,
+                                             real scalar k,
+                                             real scalar s,
+                                             | string scalar method)
+{
+    real scalar     n, m
+    real matrix     loo
+
+    if (args() < 5 | method == "") method = "exact"
+    n = rows(ranks)
+    m = cols(ranks)
+    if (rows(signal) != n | cols(signal) != 1) {
+        errprintf("rdistnn_jk_cov_multi_from_ranks: signal must be an n x 1 vector matching ranks.\n")
+        exit(error(198))
+    }
+    if (m < 1) {
+        errprintf("rdistnn_jk_cov_multi_from_ranks: ranks must have at least one target column.\n")
+        exit(error(198))
+    }
+
+    loo = rdistnn_loo_from_ranks(ranks, signal, k, s, method, 1)
+    if(all(loo:==0)) return(J(m,m,0))
+
+    return(rdistnn_covariance(loo,(n-1)/n,1))
+}
+
+// ── rdistnn_jk_se_from_ranks ──────────────────────────────────────────
+// Scalar compatibility wrapper for callers that only need the marginal
+// jackknife SE of one signal column.
+//
+real scalar rdistnn_jk_se_from_ranks(real colvector ranks,
+                                      real colvector signal,
+                                      real scalar k,
+                                      real scalar s,
+                                      | string scalar method)
+{
+    real matrix V
+
+    if (args() < 5 | method == "") method = "exact"
+    V = rdistnn_jk_cov_from_ranks(ranks, signal, k, s, method)
+    return(sqrt(max((V[1,1], 0))))
+}
 end

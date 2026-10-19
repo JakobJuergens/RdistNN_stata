@@ -3,7 +3,7 @@
 program define _rdistnn_report, rclass
     version 17
     syntax [, Level(cilevel)]
-    tempname estimates ses covariance table summary status
+    tempname estimates ses covariance table summary status b se crit
     local matrices : e(matrices)
     if strpos(" `matrices' "," estimates ") {
         matrix `estimates' = e(estimates)
@@ -21,25 +21,27 @@ program define _rdistnn_report, rclass
         }
     }
     local m = colsof(`estimates')
-    local crit = invnormal(.5+`level'/200)
+    scalar `crit' = invnormal(.5+`level'/200)
     matrix `table' = J(9,`m',.)
     if "`e(cmd)'" == "clate_dnn" matrix `status' = e(status)
     forvalues j=1/`m' {
-        local b = el(`estimates',1,`j')
-        local se = el(`ses',1,`j')
-        matrix `table'[1,`j'] = `b'
-        matrix `table'[2,`j'] = `se'
-        matrix `table'[8,`j'] = `crit'
+        // Numeric scalars preserve double precision. Converting large or
+        // tiny values through local text macros rounds the returned tables.
+        scalar `b' = el(`estimates',1,`j')
+        scalar `se' = el(`ses',1,`j')
+        matrix `table'[1,`j'] = scalar(`b')
+        matrix `table'[2,`j'] = scalar(`se')
+        matrix `table'[8,`j'] = scalar(`crit')
         matrix `table'[9,`j'] = 0
-        local wald = !missing(`b',`se')
+        local wald = !missing(scalar(`b'),scalar(`se'))
         if "`e(cmd)'" == "clate_dnn" local wald = (el(`status',`j',5)==1)
         if `wald' {
-            matrix `table'[3,`j'] = `b'/`se'
-            if `se' > 0 matrix `table'[4,`j'] = 2*normal(-abs(`b'/`se'))
+            matrix `table'[3,`j'] = scalar(`b')/scalar(`se')
+            if scalar(`se') > 0 matrix `table'[4,`j'] = 2*normal(-abs(scalar(`b')/scalar(`se')))
             // R represents a nonzero/zero z statistic as infinity; Stata uses missing.
-            else if `b' != 0 matrix `table'[4,`j'] = 0
-            matrix `table'[5,`j'] = `b'-`crit'*`se'
-            matrix `table'[6,`j'] = `b'+`crit'*`se'
+            else if scalar(`b') != 0 matrix `table'[4,`j'] = 0
+            matrix `table'[5,`j'] = scalar(`b')-scalar(`crit')*scalar(`se')
+            matrix `table'[6,`j'] = scalar(`b')+scalar(`crit')*scalar(`se')
         }
     }
     matrix rownames `table' = b se z pvalue ll ul df crit eform

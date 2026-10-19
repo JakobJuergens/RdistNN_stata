@@ -16,10 +16,14 @@ signals and performs the local estimation and uncertainty calculations.
 · [CLATE guide](docs/conditional-late.md)
 · [Report an issue](https://github.com/JakobJuergens/RdistNN_stata/issues)
 
-These instructions describe development version **0.1.0.9002**, maintained on
+These instructions describe development version **0.1.0.9003**, maintained on
 the local `development` branch until reviewed publication. The GitHub install
 below uses the published `master` snapshot; install a local checkout to use
 changes that have not yet been published.
+
+The latest update strengthens tests for saved-fit reuse, candidate uncertainty
+and package installation. Estimator interfaces and pointwise inference limits
+are unchanged. See the [development notes](RELEASE_NOTES.md) for details.
 
 Use [saved-fit reporting, candidate extraction and prediction](docs/reusing-fits.md)
 to report estimates, inspect stored tuning candidates and predict from saved
@@ -284,14 +288,21 @@ The R and Stata implementations share stable close-order TDNN coefficients,
 Beta interval masses that preserve represented tail weights, and recovery of
 finite L2 norms when intermediate squares overflow or underflow. Ordinary
 distance arithmetic retains deterministic ranks and original-row tie breaking.
-Compensated weighted and prefix sums remain [planned work](docs/numerical-stability.md#planned-compensated-weighted-and-prefix-sums).
+Mahalanobis geometry uses a cached centered-design SVD and the same native/Mata
+L2 norms after projection. Shared covariance helpers recover representable
+extreme variances; unrepresentable nonzero variance gives a rescaling error,
+or the existing per-target CLATE numerical-failure status.
+Compensated sums protect weighted means and rank-weight normalization.
+Deletion calculations retain corrections through the final prefix/suffix
+combination, using shared arithmetic across estimator and prediction paths.
 See the [numerical stability guide](docs/numerical-stability.md) for the shared
 arithmetic contract and numeric limits.
 
 The optional plugin computes scalar and batched L1, L2, scaled L1 and scaled
 L2 distances through the shared geometry layer for weights, NP, TDNN, CATE,
 PLQR, CLATE and saved-fit prediction. Scale fitting, stable ranks and weight
-tables use Mata; Mahalanobis distances also remain in Mata. The plugin also
+tables and Mahalanobis factorization use Mata; projected Mahalanobis norms
+use the selected L2 engine. The plugin also
 accelerates frozen-score jackknife deletions for all five estimators.
 Both compiled and Mata jackknife engines use prefix/suffix sums with one
 rank-weight table per order, avoiding repeated delete-one weight calculations.

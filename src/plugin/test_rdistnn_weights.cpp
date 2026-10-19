@@ -39,6 +39,43 @@ double beta_interval_polynomial(int a,int b,double lower,double upper) {
 }
 }
 int main() {
+    for(int n=2;n<=8;++n) for(int s=1;s<=n;++s) for(int k=1;k<=s;++k) {
+        const auto table=rdistnn_weights::exact_table(n,k,s);
+        for(int r=1;r<=n;++r) {
+            double expected=0;
+            for(int l=1;l<=k;++l) if(l<=r && s-l<=n-r)
+                expected+=choose_integer(r-1,l-1)*choose_integer(n-r,s-l)/choose_integer(n,s)/k;
+            check(std::fabs(table[r-1]-expected)<3e-15,"exact order statistic combinatorial oracle");
+        }
+    }
+    const auto exact_tail=rdistnn_weights::exact_table(2000,1,500);
+    for(int i=1;i<2000;++i) check(exact_tail[i]<=exact_tail[i-1],"scaled exact tail monotonicity");
+
+    // The fixed-budget continued fraction cannot resolve this central tail.
+    // Returning its last iterate would silently violate the exact symmetry
+    // I_0.5(a,a)=0.5. Exhaustion must propagate through interval evaluation.
+    const auto beta_failure=[](auto evaluate) {
+        try { evaluate(); }
+        catch(const std::runtime_error& error) {
+            return std::string(error.what()).find("Beta")!=std::string::npos;
+        }
+        return false;
+    };
+    for(bool upper:{false,true}) {
+        check(beta_failure([upper] { rdistnn::beta_probability(1e7,1e7,.5,upper); }),
+              "nonconverged Beta tail reports a numerical failure");
+    }
+    check(beta_failure([] { rdistnn::beta_interval_probability(1e7,1e7,.49,.5); }),
+          "Beta interval propagates a failed endpoint evaluation");
+    check(std::fabs(rdistnn::beta_probability(1000,1000,.5)-.5)<1e-10,
+          "converged symmetric Beta remains available");
+    check(rdistnn::beta_probability(1e7,1e7,0)==0 &&
+          rdistnn::beta_probability(1e7,1e7,1)==1 &&
+          rdistnn::beta_probability(1e7,1e7,0,true)==1 &&
+          rdistnn::beta_probability(1e7,1e7,1,true)==0,
+          "large-shape exact endpoints bypass iteration");
+    check(rdistnn::beta_probability(1,1000,.99,true)==0,
+          "legitimate tail underflow remains zero");
     const int n=100,s=80;
     std::vector<int> ranks(n); std::iota(ranks.begin(),ranks.end(),1);
     std::vector<double> weights(n);

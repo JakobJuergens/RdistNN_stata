@@ -1,3 +1,4 @@
+version 17
 // Re-evaluate a saved model without reading the caller's dataset or retraining.
 // Mata resolves all referenced adapters when compiling the model functions.
 findfile "_rdistnn_tdnn_mata.ado"
@@ -74,14 +75,14 @@ real matrix rdistnn_model_diagnostics(string scalar cmd, real matrix X,
             sum(abs(w):>sqrt(epsilon(1))),1,sorted[min((k,n))],
             sorted[min((s,n))],cross(d,w)/total,rdistnn_weighted_quantile(d,w,.5))
         if(cmd=="np_dnn") {
-            ybar=cross(signals,w)/total
-            out[j,12..17]=(1,ybar,sqrt(cross((signals:-ybar):^2,w)/total),
+            ybar=rdistnn_weighted_signals(signals,w)/total
+            out[j,12..17]=(1,ybar,rdistnn_weighted_sd(signals,w),
                 rdistnn_weighted_quantile(signals,w,.1),
                 rdistnn_weighted_quantile(signals,w,.5),
                 rdistnn_weighted_quantile(signals,w,.9))
         }
         else if(cmd!="plqr_dnn") {
-            out[j,20]=rdistnn_weighted_quantile(sqrt(rowsum((X:-X0[j,]):^2)),w,.9)
+            out[j,20]=rdistnn_weighted_quantile(rdistnn_physical_distances(X,X0[j,]),w,.9)
         }
     }
     if(cmd=="cate_dnn" | cmd=="clate_dnn") {
@@ -147,7 +148,7 @@ void rdistnn_model_evaluate(string scalar target_name, real scalar s,
             st_numscalar("e(dim)"),method,st_numscalar("e(normalize)"))
     }
     else W=rdistnn_weights_from_rmat(ranks,k,s,method)
-    fit=signals'*W; b=vec(fit)'; neff=1:/colsum(W:^2)
+    fit=rdistnn_weighted_signals(signals,W); b=vec(fit)'; neff=1:/colsum(W:^2)
     V=J(m*q,m*q,.)
     components=CV=status=J(1,1,.)
     if(cmd=="clate_dnn") {
@@ -163,8 +164,7 @@ void rdistnn_model_evaluate(string scalar target_name, real scalar s,
         if(q==1) V=rdistnn_jk_cov_multi_from_ranks(ranks,signals,k,s,method)
         else {
             loo=rdistnn_loo_from_ranks(ranks,signals,k,s,method,1)
-            centered=(loo:-mean(loo))*sqrt((n-1)/n)
-            V=cross(centered,centered)
+            V=rdistnn_covariance(loo,(n-1)/n,1)
         }
     }
     A=E=J(0,1,.)

@@ -32,8 +32,8 @@ program define clate_dnn, eclass
         di as error "xcols() is required (alias: x())."
         exit 198
     }
-    if missing(`clip') | `clip'<=0 | `clip'>=.5 {
-        di as error "clip() must be finite and strictly between zero and 0.5."
+    if missing(`clip') | `clip'<=0 | `clip'>=.5 | 1-`clip'>=1 {
+        di as error "clip() must be finite and strictly between zero and 0.5, with 1-clip() < 1."
         exit 198
     }
     if missing(`denominatortol') | `denominatortol'<0 {

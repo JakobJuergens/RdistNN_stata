@@ -1,14 +1,15 @@
 # Website copy for the Stata companion
 
-Ready-to-adapt text for the software section of jakobjuergens.com. Publish
-the announcement after the GitHub release and its checked assets are live.
+Ready-to-adapt text for the software section of jakobjuergens.com, describing
+the local `0.1.0.9003` development snapshot. Publish an announcement only after
+reviewed source, checked release assets and documentation links are live.
 
 ## Software entry
 
 **RdistNN for Stata** — Distributional nearest-neighbor methods for conditional
 average treatment effects and nonparametric regression. The package provides
 pointwise jackknife uncertainty, tuning grids, localization diagnostics, and
-Stata-native plots. Supported CLATE supports binary-IV conditional effects
+Stata-native plots. Supported CLATE provides binary-IV conditional effects
 with paired frozen-score covariance. The package accepts supplied nuisance
 predictions or precomputed signals and complements the R package. Stata 17 or
 later is required.
@@ -18,12 +19,13 @@ PLQR moment evaluation is experimental and does not provide coefficient inferenc
 - [R companion](https://github.com/JakobJuergens/RdistNN)
 - [Accompanying research](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
 
-## Release announcement
+## Announcement draft
 
-RdistNN for Stata 0.1.0.9002 adds conditional LATE and shared reporting,
+RdistNN for Stata 0.1.0.9003 combines conditional LATE and shared reporting,
 diagnostics, and plotting interfaces for treatment effects and nonparametric
-regression. It combines DNN weights, pointwise uncertainty, and tuning
-sensitivity in native Stata workflows. The examples label oracle
+regression. The latest maintenance update consolidates shared components and
+strengthens tests for repeated loading, numerical parity and package installation.
+Estimator interfaces and pointwise inference limits are unchanged. The examples label oracle
 nuisances explicitly and explain the conditions needed for inference with
 estimated nuisances. Experimental PLQR evaluates localized score moments at
 supplied coefficients. The ado/Mata path is portable; optional native assets

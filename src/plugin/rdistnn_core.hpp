@@ -15,6 +15,8 @@
 #pragma once
 
 #include "rdistnn_distance.hpp"
+#include "compensated_arithmetic.hpp"
+#include "rank_weight_tables.hpp"
 
 #include <vector>
 #include <cmath>
@@ -96,6 +98,7 @@ inline void argsort_radix64_nonneg(const double *x, int n, int *out)
 
     std::vector<std::uint64_t> keys(n);
     std::memcpy(keys.data(), x, sizeof(double) * (std::size_t)n);
+    for (int i = 0; i < n; ++i) if (x[i] == 0) keys[i] = 0;
 
     for (int i = 0; i < n; ++i) out[i] = i;
     std::vector<int> buf(n);
@@ -184,52 +187,25 @@ inline void ranks_from_values(const double *x, int n, int *ranks_out)
 // Derivation: w_r is the marginal probability that the obs at global rank r
 // is among the k nearest in a uniformly-random s-subset of all n obs.
 
-// log C(n, k) via lgamma for numerical stability with large n.
-inline double log_binom(int nn, int kk)
-{
-    if (kk < 0 || kk > nn) return -std::numeric_limits<double>::infinity();
-    if (kk == 0 || kk == nn) return 0.0;
-    return std::lgamma(nn + 1) - std::lgamma(kk + 1) - std::lgamma(nn - kk + 1);
-}
-
 // ranks[]: 1-based ranks (length n).  out[]: weights (length n), sum ~= 1.
 inline void dnn_weights_from_ranks(const int *ranks, int n, int k, int s, double *out)
 {
     validate_weight_parameters(n, k, s);
     validate_ranks(ranks, n);
     if (out == nullptr) throw std::invalid_argument("out must not be null");
-    const double log_C_n_s = log_binom(n, s);
-    double wsum = 0.0;
-
-    for (int i = 0; i < n; ++i) {
-        const int r = ranks[i];   // 1-based
-        out[i] = 0.0;
-
-        // Support: r <= n - s + k
-        if (r > n - s + k) continue;
-
-        // l bounds: l in [max(1, s-(n-r)), min(k, r, s)]
-        int l_lo = std::max(1, s - (n - r));
-        int l_hi = std::min({k, r, s});
-        if (l_lo > l_hi) continue;
-
-        double total = 0.0;
-        for (int l = l_lo; l <= l_hi; ++l) {
-            double lp = log_binom(r-1, l-1) + log_binom(n-r, s-l) - log_C_n_s;
-            total += std::exp(lp);
-        }
-        out[i] = total / static_cast<double>(k);
-        wsum  += out[i];
-    }
-
-    // Normalize for floating-point safety (should sum to 1 analytically)
-    if (wsum > 0.0)
-        for (int i = 0; i < n; ++i) out[i] /= wsum;
+    const auto table = rdistnn_weights::exact_table(n, k, s);
+    for (int i = 0; i < n; ++i) out[i] = table[ranks[i] - 1];
 }
 
 // Regularized incomplete Beta, with the small tail evaluated directly by
 // Lentz's continued fraction. The complementary tail is never obtained by
 // subtracting a rounded CDF when it is the requested small probability.
+// Keep numerical failure distinct from argument validation at host boundaries.
+class beta_evaluation_error : public std::runtime_error {
+public:
+    using std::runtime_error::runtime_error;
+};
+
 inline double beta_probability(double a, double b, double x, bool upper=false)
 {
     if (x <= 0.0) return upper ? 1.0 : 0.0;
@@ -244,6 +220,7 @@ inline double beta_probability(double a, double b, double x, bool upper=false)
     if (std::fabs(d)<floor) d=floor;
     d=1.0/d;
     double h=d;
+    bool converged=false;
     for (int m=1;m<=200;++m) {
         const double m2=2.0*m;
         double aa=m*(b-m)*x/((qam+m2)*(a+m2));
@@ -256,8 +233,13 @@ inline double beta_probability(double a, double b, double x, bool upper=false)
         d=1.0/d;
         const double delta=d*c;
         h*=delta;
-        if (std::fabs(delta-1.0)<8*std::numeric_limits<double>::epsilon()) break;
+        if (std::fabs(delta-1.0)<8*std::numeric_limits<double>::epsilon()) {
+            converged=true;
+            break;
+        }
     }
+    if (!converged || !std::isfinite(h) || h<=0.0)
+        throw beta_evaluation_error("incomplete Beta continued fraction failed to converge within 200 iterations");
     const double small=std::exp(log_front+std::log(h/a));
     return upper==reflected ? small : 1.0-small;
 }
@@ -295,13 +277,13 @@ inline void dnn_weights_asymp_from_ranks(const int *ranks, int n, int k, int s,
     }
 
     // Divide by k, map to obs order, normalize
-    double wsum = 0.0;
+    rdistnn_arithmetic::accumulator mass;
     for (int i = 0; i < n; ++i) {
         out[i] = w_rank[ranks[i] - 1] / k;
-        wsum  += out[i];
+        mass.add(out[i]);
     }
-    if (wsum > 0.0)
-        for (int i = 0; i < n; ++i) out[i] /= wsum;
+    if (mass.value() > 0.0)
+        for (int i = 0; i < n; ++i) out[i] /= mass.value();
 }
 
 // Full pipeline: X (n x p, column-major) + x0 (length p) -> weights (length n).
@@ -342,34 +324,7 @@ inline void rank_loo(const int *ranks, const double *signal, const double *table
     for (int j=0; j<m; ++j) validate_ranks(ranks+static_cast<std::size_t>(j)*n,n);
     validate_finite_array(signal,static_cast<std::size_t>(n)*q,"signal");
     validate_finite_array(table,static_cast<std::size_t>(n-1),"table");
-    std::vector<int> ord(n);
-    std::vector<double> left(n), right(n), shifted(n);
-    double mass=0;
-    for (int a=0; a<n-1; ++a) mass+=table[a];
-    for (int j=0; j<m; ++j) {
-        const int *r=ranks+static_cast<std::size_t>(j)*n;
-        for (int i=0; i<n; ++i) ord[r[i]-1]=i;
-        for (int c=0; c<q; ++c) {
-            const double *z=signal+static_cast<std::size_t>(c)*n;
-            double lo=std::numeric_limits<double>::infinity();
-            double hi=-std::numeric_limits<double>::infinity();
-            for (int a=0; a<n; ++a) {
-                bool used=(a<n-1 && table[a]!=0) || (a>0 && table[a-1]!=0);
-                if (used) { lo=std::min(lo,z[ord[a]]); hi=std::max(hi,z[ord[a]]); }
-            }
-            double level=!std::isfinite(lo) ? 0 : (lo>0 ? lo : (hi<0 ? hi : 0));
-            for (int a=0; a<n; ++a) {
-                bool used=(a<n-1 && table[a]!=0) || (a>0 && table[a-1]!=0);
-                shifted[a]=used ? z[ord[a]]-level : 0;
-            }
-            left[0]=0;
-            for (int a=1; a<n; ++a) left[a]=left[a-1]+table[a-1]*shifted[a-1];
-            right[n-1]=0;
-            for (int a=n-2; a>=0; --a) right[a]=right[a+1]+table[a]*shifted[a+1];
-            double *dest=out+(static_cast<std::size_t>(j)*q+c)*n;
-            for (int i=0; i<n; ++i) dest[i]=(left[r[i]-1]+right[r[i]-1])+level*mass;
-        }
-    }
+    rdistnn_arithmetic::rank_loo(ranks,signal,table,n,m,q,out);
 }
 
 } // namespace rdistnn

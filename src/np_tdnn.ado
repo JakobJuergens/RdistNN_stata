@@ -56,7 +56,7 @@ program define np_tdnn, eclass
     mata {
         _td_y=st_data(.,"`outcome'","`touse'")
         st_matrix("`signals'",_td_y)
-        st_matrix("`b'",cross(_td_y,st_matrix("`W'")))
+        st_matrix("`b'",rdistnn_weighted_signals(_td_y,st_matrix("`W'")))
     }
     local labels ""
     forvalues j=1/`m' {
