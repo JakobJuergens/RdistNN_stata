@@ -16,21 +16,46 @@ LDFLAGS  = /LD /nologo
 
 TARGET   = rdistnn.plugin
 CORE_TEST = rdistnn_core_test.exe
+DISTANCE_TEST = rdistnn_distance_test.exe
+PROTOCOL_TEST = rdistnn_distance_plugin_test.exe
+ROUNDING_TEST = rdistnn_distance_rounding_test.exe
+WEIGHTS_TEST = rdistnn_weights_test.exe
+HEADERS  = rdistnn_core.hpp rdistnn_distance.hpp
 SRCS     = stplugin.c rdistnn_plugin.cpp
 
-$(TARGET): $(SRCS) rdistnn_core.hpp stplugin.h
+$(TARGET): $(SRCS) $(HEADERS) stplugin.h
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) /Fe$(TARGET) $(SRCS)
 	-del /f rdistnn_plugin.obj stplugin.obj rdistnn.exp rdistnn.lib 2>nul
 
-$(CORE_TEST): test_rdistnn_core.cpp rdistnn_core.hpp
+$(CORE_TEST): test_rdistnn_core.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) /Fe$(CORE_TEST) test_rdistnn_core.cpp
 	-del /f test_rdistnn_core.obj 2>nul
 
-check: $(CORE_TEST)
+$(DISTANCE_TEST): test_rdistnn_distance.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) /Fe$(DISTANCE_TEST) test_rdistnn_distance.cpp
+	-del /f test_rdistnn_distance.obj 2>nul
+
+$(PROTOCOL_TEST): test_rdistnn_distance_plugin.cpp rdistnn_plugin.cpp $(HEADERS) stplugin.h
+	$(CXX) $(CXXFLAGS) /Fe$(PROTOCOL_TEST) test_rdistnn_distance_plugin.cpp
+	-del /f test_rdistnn_distance_plugin.obj 2>nul
+
+$(ROUNDING_TEST): test_rdistnn_distance_rounding.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) /Fe$(ROUNDING_TEST) test_rdistnn_distance_rounding.cpp
+	-del /f test_rdistnn_distance_rounding.obj 2>nul
+
+$(WEIGHTS_TEST): test_rdistnn_weights.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) /Fe$(WEIGHTS_TEST) test_rdistnn_weights.cpp
+	-del /f test_rdistnn_weights.obj 2>nul
+
+check: $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST) $(WEIGHTS_TEST)
 	$(CORE_TEST)
+	$(DISTANCE_TEST) 2 2 0.5790338377234229 1.4758492921057114
+	$(PROTOCOL_TEST)
+	$(ROUNDING_TEST) 2 2 0.5790338377234229 1.4758492921057114
+	$(WEIGHTS_TEST)
 
 clean:
-	-del /f $(TARGET) $(CORE_TEST) *.obj *.exp *.lib
+	-del /f $(TARGET) $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST) $(WEIGHTS_TEST) *.obj *.exp *.lib
 
 # Alternative: build with MinGW/GCC (e.g. via Rtools)
 #

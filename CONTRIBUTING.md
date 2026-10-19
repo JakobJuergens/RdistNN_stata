@@ -1,7 +1,7 @@
 # Contributing to RdistNN for Stata
 
-The package provides CATE, nonparametric regression, weights, diagnostics,
-and plots, with experimental CLATE and PLQR moment evaluation. Read
+The package provides CATE, single/two-scale nonparametric regression, CLATE,
+weights, diagnostics and plots. PLQR moment evaluation remains experimental. Read
 [AGENTS.md](AGENTS.md) before editing, and use installed command help and
 [the article collection](docs/index.md) and [command guide](docs/command-guide.md) for current contracts. Open an issue
 before proposing a new estimator or a public-interface change.
@@ -38,6 +38,51 @@ session setup step; running it by an absolute filename from another directory
 does not change the working directory automatically. Native plugin development
 additionally requires a C++17 compiler; see [src/plugin/README.md](src/plugin/README.md).
 
+## Numerical parity contract
+
+Require agreement both between R and Stata for shared methods and between
+compiled C++ and R/Mata implementations of each method. Compare identical
+numeric inputs and row order, targets, fitted geometry, signals, weight
+normalization and covariance definitions. Keep exact versus asymptotic weights
+and frozen-rank versus geometry-refitting deletions distinct when they define
+different computations. Export numeric fixture data across languages; using
+the same seed in R and Stata does not establish identical random draws.
+
+Require exact ranks, stable original-row tie order, support, target identities,
+statuses and missing-value masks after documented representation mappings.
+Compare continuous estimates, distances, weights and covariance at explicit,
+justified tolerances, using exact numeric equality where arithmetic is fully
+specified. A small numeric difference cannot excuse a changed neighbor,
+support or status. Investigate discrepancies before widening tolerances or
+regenerating fixtures.
+
+Keep decision-sensitive operation order and precision aligned. For distances,
+subtract before applying frozen inverse scales, accumulate coordinates in
+double precision and round L2 squared contributions before addition. Preserve
+the shared support-aware centering and deletion/covariance contracts. Reuse
+helpers across estimators. Compiler contraction, wider accumulation and
+parallel reductions require regression coverage when they can affect decisions.
+Align engines toward stable independent references: equivalent formulas using
+`ln1p`/`expm1`, direct tail probabilities and scaled sums of squares can avoid
+cancellation and intermediate range failures. Use compensated accumulation
+selectively and benchmark constant runtime/allocation costs before replacing
+vectorized operations. Apply a stability correction across affected engines;
+agreement between two inaccurate implementations is insufficient.
+Platform math libraries and linear algebra can still cause small numeric
+differences; universal bit-for-bit identity is not a package-wide promise.
+
+Force and establish each engine independently, and test automatic fallback
+separately. Native acceptance requires the real plugin API; a portable-only
+run must report native checks as unavailable. Retain independent analytic or
+explicit-loop references. For an affected primitive, cover relevant ties,
+offsets, tiny/constant coordinates, scale clamping, signed weights, zero
+variance, missingness and overflow. Follow it through batching, target
+reordering/duplicates, candidates, covariance and restored prediction where
+applicable. Run relevant native regressions on supported build architectures
+and record compiler/math-library/thread settings when investigating differences.
+The [test-suite map](tests/README.md) and
+[R test crosswalk](tests/R_TEST_CROSSWALK.md) identify existing coverage.
+
 ## Verification
 
 Static checks from the repository root:
@@ -58,7 +103,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_runtime_check
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_install_check.ps1
 ```
 
-The isolated-install helper also executes all seven public examples using only
+The isolated-install helper also executes all eight public examples using only
 the temporary PLUS command payload and verifies the installed overview.
 Both helpers accept `-StataExe` and `-RepoRoot`. The expected local Windows
 installation is `C:\Program Files\StataNow19\StataSE-64.exe`; discovery also
@@ -76,10 +121,11 @@ and `nose` geometry against its numerical CSV data with
 profiles without uncertainty, and writes an ignored JSON receipt under
 `build/premerge/`.
 
-Force `global rdistnn_use_plugin 0` for Mata reference checks or `1` to require
-the L2 plugin. Clear the global afterward with `macro drop rdistnn_use_plugin`.
-The native build helper executes deterministic core tests and inspects the
-host binary:
+Use `global rdistnn_distance_engine mata` or `plugin` for explicit distance
+parity checks. Drop it for auto dispatch, where `rdistnn_use_plugin 0` skips
+native calls and `1` requires them. Reset test globals after use. The native
+build helper executes core, distance and real-entry-point protocol tests and
+inspects the host binary:
 
 ```powershell
 pwsh -NoProfile -File tools/ci/plugin_build_check.ps1
@@ -92,7 +138,7 @@ article and installed-help checks require no R installation; for the optional
 live R article/reference inventory, pass `--r-root` to
 `tools/ci/documentation_check.py`. Keep [the documentation crosswalk](docs/r-documentation-crosswalk.md)
 in sync when either package's public topics change. From a licensed Windows
-checkout, execute all seven seeded examples and render the package overview with:
+checkout, execute all eight seeded examples and render the package overview with:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_documentation_check.ps1

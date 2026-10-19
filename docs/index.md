@@ -1,7 +1,8 @@
 # RdistNN for Stata documentation
 
-These guides describe package **0.1.0.9001** on `master`, including experimental
-conditional LATE and the shared reporting and postestimation interfaces.
+These guides describe the **0.1.0.9002** development snapshot, including
+supported supplied-prediction CLATE, two-scale regression, and shared reporting
+and postestimation interfaces.
 See [installation](../README.md#installation). In Stata, `help rdistnn` opens
 the package overview and links to every installed command reference.
 
@@ -16,8 +17,9 @@ the package overview and links to every installed command reference.
 | Save fits, extract tables and evaluate new targets | [Reusing fits](reusing-fits.md) | [Saved results](../examples/reusing-fits.do) |
 | Read tables, assess localization, save diagnostic data | [Diagnostics and reporting](diagnostics-and-reporting.md) | [Diagnostics and plots](../examples/diagnostics-and-plots.do) |
 | Choose panels, compare targets/candidates, export graphs | [Visualising fits](visualising-fits.md) | [Diagnostics and plots](../examples/diagnostics-and-plots.do) |
-| Estimate experimental conditional LATE with supplied IV predictions | [Conditional LATE](conditional-late.md) | [Oracle binary-IV example](../examples/clate.do) |
+| Estimate conditional LATE with supplied IV predictions | [Conditional LATE](conditional-late.md) | [Oracle binary-IV example](../examples/clate.do) |
 | Evaluate experimental PLQR moments at a supplied coefficient | [PLQR moments](plqr-moments.md) | [PLQR moments](../examples/plqr-moments.do) |
+| Fit two-scale regression with signed weights | [Two-scale regression](two-scale-regression.md) | [Two-scale example](../examples/two-scale-regression.do) |
 | Translate R workflows and identify unavailable features | [R documentation crosswalk](r-documentation-crosswalk.md) | [Numerical test crosswalk](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/R_TEST_CROSSWALK.md) |
 
 Each example is a standalone do-file that clears the active dataset and sets
@@ -33,8 +35,10 @@ to the current directory. Read its opening comments before running it.
 |---|---|---|
 | `cate_dnn` | `help cate_dnn` | AIPW, Robinson-form or supplied-score CATE |
 | `np_dnn` | `help np_dnn` | Nonparametric conditional means |
-| `weights_dnn` | `help weights_dnn` | One target's exact/asymptotic DNN weights |
-| `clate_dnn` | `help clate_dnn` | Experimental augmented binary-IV or paired-signal ratios |
+| `weights_dnn` | `help weights_dnn` | Single/batch exact/asymptotic DNN weights and geometry |
+| `np_tdnn`, `weights_tdnn` | `help COMMAND` | Signed two-scale regression and weights |
+| `np_tdnn_diagnostics`, `np_tdnn_plot` | `help COMMAND` | Signed-weight diagnostics and two-scale plots |
+| `clate_dnn` | `help clate_dnn` | Augmented binary-IV or paired-signal ratios |
 | `rdistnn_results`, `rdistnn_candidate`, `rdistnn_predict` | `help COMMAND` | Graph-free extraction and reusable saved fits |
 | `plqr_dnn` | `help plqr_dnn` | Experimental supplied-coefficient score moments |
 | `cate_dnn_diagnostics`, `clate_dnn_diagnostics`, `np_dnn_diagnostics` | `help COMMAND` | Stored target/candidate reports and `.dta` export |
@@ -66,3 +70,6 @@ record the earlier implementation checks; they are separate from current
 user instructions. The [documentation verification receipt](documentation-verification.md)
 records the earlier article/help/example update. [Release notes](../RELEASE_NOTES.md)
 record package changes and experimental features.
+
+[Numerical stability](numerical-stability.md) explains shared arithmetic and
+records the planned compensated weighted/prefix-sum work.

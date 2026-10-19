@@ -6,29 +6,37 @@ covariate profiles, report pointwise estimates and delete-one jackknife
 standard errors, and inspect localization, overlap and sensitivity to tuning
 choices.
 
-CATE and nonparametric regression are the main workflows. The package also
-provides **experimental conditional LATE (CLATE)** with shared reporting,
-diagnostics and Stata-native plots. You supply nuisance predictions for the
-causal estimators; the package constructs the adjusted signals and performs
-the local estimation and uncertainty calculations.
+CATE, nonparametric regression and conditional LATE (CLATE) are supported
+workflows, with shared reporting and plotting interfaces. You supply nuisance
+predictions for the causal estimators; the package constructs the adjusted
+signals and performs the local estimation and uncertainty calculations.
 
 [Get started](docs/getting-started.md)
 · [Command guide](docs/command-guide.md)
 · [CLATE guide](docs/conditional-late.md)
 · [Report an issue](https://github.com/JakobJuergens/RdistNN_stata/issues)
 
+These instructions describe development version **0.1.0.9002**, maintained on
+the local `development` branch until reviewed publication. The GitHub install
+below uses the published `master` snapshot; install a local checkout to use
+changes that have not yet been published.
+
 Use [saved-fit reporting, candidate extraction and prediction](docs/reusing-fits.md)
-to extract numeric tables and evaluate saved models without the original active
-dataset. The current development version is **0.1.0.9001** on production `master`.
+to report estimates, inspect stored tuning candidates and predict from saved
+fits. The [R companion](https://github.com/JakobJuergens/RdistNN) provides the
+same core estimation workflows; the [crosswalk](docs/r-documentation-crosswalk.md)
+records shared capabilities and R-only interfaces.
 
 ## Installation
 
-Install from GitHub in Stata:
+Install the published GitHub snapshot:
 
 ```stata
 net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/master/") replace
 help rdistnn
 ```
+
+From a local source checkout, use `net install rdistnn, from("path/to/checkout") replace`.
 
 Stata **17 or later** is required. Ordinary use needs no R installation,
 Python or compiler. The ado/Mata implementation supports Windows, macOS and
@@ -47,17 +55,18 @@ using the directory containing `rdistnn.pkg`.
 
 ## Choose a workflow
 
-| Goal | Command | Inputs and scope |
+| Goal | Entry point | Inputs and scope |
 | --- | --- | --- |
 | Conditional average treatment effects | `cate_dnn` | Outcome, binary treatment and supplied outcome/propensity predictions, or a supplied pseudo-outcome |
 | Conditional mean regression | `np_dnn` | Outcome and covariates; no nuisance predictions needed |
-| Conditional effects among compliers | `clate_dnn` | Binary instrument and treatment, outcome and supplied instrument-arm nuisance predictions; **experimental** |
-| A ratio of two local conditional means | `clate_dnn, pseudooutcome denominator()` | Two aligned signals with paired covariance; **experimental** |
-| Inspect or reuse DNN weights | `weights_dnn` | Covariates and a target; exports exact or asymptotic rank weights |
+| Conditional effects among compliers | `clate_dnn` | Binary instrument and treatment, outcome and supplied instrument-arm nuisance predictions |
+| A ratio of two local conditional means | `clate_dnn, pseudooutcome denominator()` | Two aligned signals with paired covariance |
+| Two-scale regression | `np_tdnn`, `weights_tdnn` | Signed combination of two DNN scales; additional smoothness conditions |
+| Inspect or reuse DNN weights | `weights_dnn` | Covariates and single/batch targets; exports weights, ranks and distances |
 
 Use `xcols()` to select localization covariates, `x0()` for one target, or
-`x0matrix()` for a matrix with one target per row. CATE, CLATE and regression
-support exact weights (the default), `method(asymp)`, L2/Mahalanobis distance,
+`x0matrix()` for a matrix with one target per row. CATE, CLATE and single-scale regression
+support exact weights (the default), `method(asymp)`, L1/L2, scaled L1/L2 and Mahalanobis distance,
 and candidate tuning grids. For supplied-coefficient quantile-score moments,
 see the [experimental PLQR guide](docs/plqr-moments.md); `plqr_dnn` does not
 solve for coefficients or provide coefficient inference.
@@ -117,8 +126,12 @@ show weighted outcome quantiles: their 10th–90th percentile range describes
 local outcome dispersion, rather than uncertainty about the mean.
 Each estimator replaces Stata's active estimation results; use its matching
 diagnostics and plot commands after fitting it.
+Regression shares numeric reporting, candidate extraction and saved-fit
+prediction with CATE and CLATE. Joint covariance uses common deletions across
+targets; saved prediction retains training outcomes and geometry. For signed
+two-scale regression, see the [TDNN guide](docs/two-scale-regression.md).
 
-## Conditional LATE (experimental)
+## Conditional LATE
 
 With a binary instrument and binary treatment, `clate_dnn` estimates the
 conditional effect among compliers under the IV assumptions. Supply the
@@ -205,8 +218,9 @@ to regression.
 Add `saving("figure.png")` or `saving("figure.pdf")` to export a graph;
 diagnostic commands accept `saving("diagnostics.dta")`. Use `targets()` and
 `candidates()` to inspect selected profiles and tuning choices. Observation-
-level plots require the original estimation data and order; refit after
-changing them. See [diagnostics and reporting](docs/diagnostics-and-reporting.md)
+level plots use the fitted numeric snapshot, including after data edits or
+`clear`. Legacy fits without that snapshot require the original estimation
+data and order. See [diagnostics and reporting](docs/diagnostics-and-reporting.md)
 and [visualising fits](docs/visualising-fits.md) for options and returned data.
 
 ![CATE estimates with pointwise confidence bounds from the simulated diagnostics tutorial](docs/figures/cate-profile.png)
@@ -237,7 +251,9 @@ Jackknife uncertainty requires `s < n`. `nose` skips uncertainty calculations.
 The manuscript's DNN derivations use exact weights and `k=1`; larger fixed
 `k` and asymptotic weights need their corresponding statistical conditions.
 
-## Inference and localization
+<a id="inference-and-localization"></a>
+
+## Interpreting inference
 
 Reported confidence intervals are **pointwise**, rather than simultaneous
 bands across a covariate profile. Valid inference requires the relevant
@@ -260,21 +276,43 @@ reporting, without a weak-instrument-uniform guarantee. See the
 estimator-specific inference sections in the [CATE/regression](docs/cate-and-regression.md)
 and [CLATE](docs/conditional-late.md) guides before using these intervals.
 
-## Optional native acceleration
+<a id="optional-native-acceleration"></a>
 
-The optional plugin accelerates standalone `weights_dnn` calls with L2
-distance and frozen-score jackknife deletions for NP, CATE, PLQR and CLATE.
-Estimator geometry and weight tables use Mata, including Mahalanobis geometry.
+## Numerical behavior and engines
+
+The R and Stata implementations share stable close-order TDNN coefficients,
+Beta interval masses that preserve represented tail weights, and recovery of
+finite L2 norms when intermediate squares overflow or underflow. Ordinary
+distance arithmetic retains deterministic ranks and original-row tie breaking.
+Compensated weighted and prefix sums remain [planned work](docs/numerical-stability.md#planned-compensated-weighted-and-prefix-sums).
+See the [numerical stability guide](docs/numerical-stability.md) for the shared
+arithmetic contract and numeric limits.
+
+The optional plugin computes scalar and batched L1, L2, scaled L1 and scaled
+L2 distances through the shared geometry layer for weights, NP, TDNN, CATE,
+PLQR, CLATE and saved-fit prediction. Scale fitting, stable ranks and weight
+tables use Mata; Mahalanobis distances also remain in Mata. The plugin also
+accelerates frozen-score jackknife deletions for all five estimators.
 Both compiled and Mata jackknife engines use prefix/suffix sums with one
 rank-weight table per order, avoiding repeated delete-one weight calculations.
-The bundled plugin is a Windows x86-64 PE binary. Eligible calls attempt the plugin on every platform;
-execution falls back to Mata if it is missing or incompatible.
+The bundled plugin is a Windows x86-64 PE binary. Substantial batches attempt the plugin on every platform;
+execution falls back to Mata if it is missing, incompatible or lacks the new
+distance API. An older binary can still provide its existing jackknife API.
+
+Set `global rdistnn_distance_engine plugin` to require compiled distances or
+`mata` to select their portable reference; drop the global for automatic
+dispatch. This selector takes precedence over `rdistnn_use_plugin`, whose
+values `0` and `1` disable or require eligible native calls in auto mode.
+`rdistnn_last_distance_engine` records the route of the last distance calculation.
+Automatic distance dispatch keeps scalar and small batches in Mata because
+matrix transfer can outweigh the C++ savings; explicit requirements bypass
+this size policy. See the [plugin guide](src/plugin/README.md) for the bounds.
 
 Jackknife dispatch tries compiled prefix/suffix sums, then the fast Mata
 implementation, then retained naive deletions if the fast Mata engine is
 unavailable or its sums are nonfinite. Set `global rdistnn_jackknife_engine`
 to `plugin`, `mata` or `naive` for explicit route/parity checks; drop the global
-to restore automatic dispatch. Native jackknife bridge matrices are created
+to restore automatic dispatch. Native distance and jackknife matrices are created
 through Mata and can exceed `c(matsize)` without changing that setting.
 See the plugin guide for controls.
 
@@ -288,7 +326,7 @@ matching your platform as `rdistnn.plugin` on Stata's adopath. See the
 - [Getting started](docs/getting-started.md) covers installation and a first result.
 - [Notation and conventions](docs/notation-and-conventions.md) explains arguments and returned quantities.
 - [Diagnostics and reporting](docs/diagnostics-and-reporting.md) covers local support, summaries and saved tables.
-- [The article collection](docs/index.md) links all guides and six standalone examples; `help rdistnn` opens the installed command references.
+- [The article collection](docs/index.md) links all guides and eight standalone examples; `help rdistnn` opens the installed command references.
 - [The R documentation crosswalk](docs/r-documentation-crosswalk.md) maps shared workflows and R-only features. [RdistNN](https://github.com/JakobJuergens/RdistNN) is the numerical reference for shared implementations.
 
 The package accompanies

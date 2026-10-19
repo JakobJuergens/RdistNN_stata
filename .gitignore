@@ -16,6 +16,10 @@ archives/*.zip
 /src/plugin/rdistnn.plugin
 /src/plugin/rdistnn_core_test
 /src/plugin/rdistnn_core_test.exe
+/src/plugin/rdistnn_distance*_test
+/src/plugin/rdistnn_distance*_test.exe
+/src/plugin/rdistnn_weights_test
+/src/plugin/rdistnn_weights_test.exe
 /src/plugin/*.o
 /src/plugin/*.obj
 /src/plugin/*.exp

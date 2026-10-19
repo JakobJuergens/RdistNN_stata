@@ -9,7 +9,7 @@
 
 {title:Title}
 
-{phang}{bf:clate_dnn_plot} {hline 2} Stata graphs for experimental CLATE fits
+{phang}{bf:clate_dnn_plot} {hline 2} Stata graphs for CLATE fits
 
 {marker syntax}{...}
 {title:Syntax}

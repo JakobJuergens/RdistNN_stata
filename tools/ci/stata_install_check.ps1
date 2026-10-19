@@ -100,7 +100,7 @@ which cate_dnn_plot
 _rdistnn_assert_from_plus cate_dnn_plot.ado, plusnorm("`plus_norm'")
 which plqr_dnn
 _rdistnn_assert_from_plus plqr_dnn.ado, plusnorm("`plus_norm'")
-foreach command in clate_dnn clate_dnn_diagnostics clate_dnn_plot rdistnn_results rdistnn_candidate rdistnn_predict {
+foreach command in clate_dnn clate_dnn_diagnostics clate_dnn_plot rdistnn_results rdistnn_candidate rdistnn_predict np_tdnn weights_tdnn np_tdnn_diagnostics np_tdnn_plot {
     which `command'
     _rdistnn_assert_from_plus `command'.ado, plusnorm("`plus_norm'")
     _rdistnn_assert_from_plus `command'.sthlp, plusnorm("`plus_norm'")
@@ -109,7 +109,7 @@ _rdistnn_assert_from_plus _rdistnn_clate_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_clate_signature.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_plot_helpers.ado, plusnorm("`plus_norm'")
-foreach helper in report report_header estimation_state sample_signature diagnostics diagnostics_save plot_dispatch model_store model_mata model_fit model_plot reuse {
+foreach helper in report report_header estimation_state sample_signature diagnostics diagnostics_save plot_dispatch model_store model_mata model_fit model_plot reuse tdnn_mata rank_loo distance_plugin {
     _rdistnn_assert_from_plus _rdistnn_`helper'.ado, plusnorm("`plus_norm'")
 }
 _rdistnn_assert_from_plus rdistnn_license.md, plusnorm("`plus_norm'")
@@ -155,6 +155,36 @@ if r(N) == 0 | r(max) > 1e-12 {
     di as error "installed plugin weights do not match Mata for signed x0()."
     exit 459
 }
+
+// Require the new distance API from the installed binary, not checkout sources.
+matrix install_distance_api=(.)
+plugin call rdistnn_plugin, distance_api install_distance_api
+if install_distance_api[1,1] != 1 exit 459
+foreach metric in l1 l2 l1_scaled l2_scaled {
+    global rdistnn_distance_engine mata
+    quietly weights_dnn x1 x2, x0(0.2 -0.3) k(3) s(12) distance(`metric')
+    matrix install_distances=r(distances)
+    matrix install_weights=r(weights)
+    global rdistnn_distance_engine plugin
+    quietly weights_dnn x1 x2, x0(0.2 -0.3) k(3) s(12) distance(`metric')
+    if "$rdistnn_last_distance_engine" != "plugin" exit 459
+    mata: assert(max(abs(st_matrix("r(distances)")-st_matrix("install_distances"))) < 1e-12)
+    mata: assert(max(abs(st_matrix("r(weights)")-st_matrix("install_weights"))) < 1e-12)
+}
+quietly np_dnn y, x(x1 x2) x0(0 0) k(3) s(12) distance(l1_scaled)
+tempfile native_install_fit
+quietly estimates save "`native_install_fit'", replace
+preserve
+clear
+quietly estimates use "`native_install_fit'"
+matrix install_new_targets=(0.2,-0.3 \ 0.4,0.1)
+quietly rdistnn_predict, x0matrix(install_new_targets) sefit
+if "$rdistnn_last_distance_engine" != "plugin" | _N != 0 exit 459
+matrix install_prediction=r(fit)
+mata: assert(!hasmissing(st_matrix("install_prediction")))
+restore
+capture macro drop rdistnn_distance_engine
+capture macro drop rdistnn_last_distance_engine
 
 np_dnn y, x(x1 x2) x0(0 0) k(3) s(12)
 if _b[mu] >= . | _se[mu] >= . {
@@ -389,9 +419,9 @@ foreach family in clate cate np {
     matrix PLOT_INSTALL = r(plot_data)
     assert rowsof(PLOT_INSTALL)==2
 }
-// All six public examples run from installed commands: the original quick
-// start and CLATE example were run above; these complete the article collection.
-foreach example in cate-and-regression weights-and-tuning diagnostics-and-plots plqr-moments {
+// All eight public examples run from installed commands: quick start, saved
+// reuse and CLATE ran above; these complete the article collection.
+foreach example in cate-and-regression weights-and-tuning diagnostics-and-plots plqr-moments two-scale-regression {
     do "__REPO_FROM__/examples/`example'.do"
 }
 di as result "INSTALL_CHECK_PASSED"

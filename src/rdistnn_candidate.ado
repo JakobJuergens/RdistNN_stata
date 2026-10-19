@@ -2,7 +2,7 @@
 program define rdistnn_candidate, rclass
     version 17
     syntax, CANDIDATE(integer) [POST STORE(name) Level(cilevel)]
-    if !inlist("`e(cmd)'","np_dnn","cate_dnn","clate_dnn","plqr_dnn") error 301
+    if !inlist("`e(cmd)'","np_dnn","np_tdnn","cate_dnn","clate_dnn","plqr_dnn") error 301
     local matrices : e(matrices)
     local field "tuning_candidates"
     if !`:list field in matrices' {

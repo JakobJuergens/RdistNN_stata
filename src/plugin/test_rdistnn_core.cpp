@@ -34,6 +34,16 @@ bool rejects(Fn fn)
 
 int main()
 {
+    // Invalid inverse scales must fail without publishing partial distances.
+    const double scale_X[] = {0.0, 1.0}, scale_target[] = {0.0};
+    const double invalid_inverse[] = {0.0};
+    double scale_out[] = {17.0, 17.0};
+    if (!rejects([&] { rdistnn::dist_l2_core(scale_X, 2, 1, scale_target,
+                                             invalid_inverse, scale_out); }))
+        return fail("zero inverse scale was not rejected");
+    if (scale_out[0]!=17.0 || scale_out[1]!=17.0)
+        return fail("invalid inverse scale modified output");
+
     // Two targets and paired signals: catch shifted-suffix and scatter errors.
     const int jk_ranks[] = {1,2,3,4, 4,3,2,1};
     const double jk_signals[] = {2,1,4,3, 1,-1,2,1};

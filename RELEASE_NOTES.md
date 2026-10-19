@@ -1,5 +1,39 @@
 # Release Notes
 
+## 0.1.0.9002 — unreleased development update
+
+- Match R quantile interpolation near rank-sensitive ties, recover finite SD
+  scales after intermediate overflow/underflow, and reject failed scale fits
+  before clamping. Recover scaled L1 differences consistently across Mata and
+  C++, and retain signed TDNN covariance metadata after saved-fit prediction.
+
+- Stabilize close-order TDNN coefficients, asymptotic Beta tail increments and
+  extreme L2 norms consistently with R. Shared helpers serve native/Mata
+  weights, estimation and saved prediction; ordinary-input distance rounding
+  remains aligned. Record compensated weighted/prefix sums as planned work in
+  the numerical-stability guide, with accuracy and performance acceptance gates.
+
+- Add shared compiled scalar/batch L1, L2 and scaled-distance kernels for all
+  estimators, weight commands and saved prediction. Keep fitted geometry,
+  stable ranks and weight tables shared with Mata. Probe the distance API
+  independently so older plugins retain their existing functionality and
+  default distance dispatch falls back to Mata. Add forced-route controls,
+  R native/fallback fixtures, overflow validation and end-to-end parity tests.
+  Keep small distance workloads in Mata automatically to avoid matrix-transfer
+  overhead; explicit native requirements bypass the size policy. Round L2
+  squared coordinates explicitly to preserve stable ties on FMA-capable hosts.
+- Add L1 and scaled L1/L2 geometry with R-compatible fitted scaling rules;
+  freeze geometry across deletions and saved-fit prediction. Export batched
+  weight, rank and distance matrices with original observation identifiers.
+- Add `np_tdnn` and `weights_tdnn` with exact/asymptotic signed two-scale
+  tables, joint delete-one covariance, numeric reporting, saved-model prediction,
+  signed diagnostics and plots. All estimators share one arbitrary-rank-table
+  native/Mata/reference deletion dispatcher.
+- Promote supplied-prediction binary-IV CLATE and ordinary paired-signal ratio
+  computation to supported workflows. Preserve pointwise inference assumptions
+  and all scope limits; ratio confidence-set inversion remains R-only and
+  experimental. PLQR and local IV-GMM retain their existing lifecycle status.
+
 ## 0.1.0.9001 — 2026-10-18
 
 Development update on production `master`, aligned with the R companion.

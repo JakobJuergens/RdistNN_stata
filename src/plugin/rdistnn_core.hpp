@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include "rdistnn_distance.hpp"
+
 #include <vector>
 #include <cmath>
 #include <cstdint>
@@ -73,20 +75,7 @@ inline void dist_l2_core(const double *X, int n, int p,
                           double *out,
                           bool squared = false)
 {
-    validate_sample_dimensions(n, p);
-    validate_finite_array(X, static_cast<std::size_t>(n) * p, "X");
-    validate_finite_array(x0, static_cast<std::size_t>(p), "x0");
-    if (inv_s != nullptr) validate_finite_array(inv_s, static_cast<std::size_t>(p), "inv_s");
-    if (out == nullptr) throw std::invalid_argument("out must not be null");
-    for (int i = 0; i < n; ++i) {
-        double acc = 0.0;
-        for (int j = 0; j < p; ++j) {
-            const double diff = X[i + (std::size_t)j * n] - x0[j];
-            const double d    = inv_s ? diff * inv_s[j] : diff;
-            acc += d * d;
-        }
-        out[i] = squared ? acc : std::sqrt(acc);
-    }
+    distance_batch_core(X,n,p,x0,1,inv_s,out,distance_metric::l2,squared);
 }
 
 // ── Stable argsort — radix fast path for non-negative finite values ────────
@@ -238,6 +227,50 @@ inline void dnn_weights_from_ranks(const int *ranks, int n, int k, int s, double
         for (int i = 0; i < n; ++i) out[i] /= wsum;
 }
 
+// Regularized incomplete Beta, with the small tail evaluated directly by
+// Lentz's continued fraction. The complementary tail is never obtained by
+// subtracting a rounded CDF when it is the requested small probability.
+inline double beta_probability(double a, double b, double x, bool upper=false)
+{
+    if (x <= 0.0) return upper ? 1.0 : 0.0;
+    if (x >= 1.0) return upper ? 0.0 : 1.0;
+    const double log_front=a*std::log(x)+b*std::log1p(-x)
+        -(std::lgamma(a)+std::lgamma(b)-std::lgamma(a+b));
+    const bool reflected=x>a/(a+b);
+    if (reflected) { std::swap(a,b); x=1.0-x; }
+    const double qab=a+b,qap=a+1.0,qam=a-1.0;
+    const double floor=1e-30;
+    double c=1.0,d=1.0-qab*x/qap;
+    if (std::fabs(d)<floor) d=floor;
+    d=1.0/d;
+    double h=d;
+    for (int m=1;m<=200;++m) {
+        const double m2=2.0*m;
+        double aa=m*(b-m)*x/((qam+m2)*(a+m2));
+        d=1.0+aa*d; if (std::fabs(d)<floor) d=floor;
+        c=1.0+aa/c; if (std::fabs(c)<floor) c=floor;
+        d=1.0/d; h*=d*c;
+        aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));
+        d=1.0+aa*d; if (std::fabs(d)<floor) d=floor;
+        c=1.0+aa/c; if (std::fabs(c)<floor) c=floor;
+        d=1.0/d;
+        const double delta=d*c;
+        h*=delta;
+        if (std::fabs(delta-1.0)<8*std::numeric_limits<double>::epsilon()) break;
+    }
+    const double small=std::exp(log_front+std::log(h/a));
+    return upper==reflected ? small : 1.0-small;
+}
+
+// Use the same lower-endpoint crossover as R and Mata. No positive mass
+// cutoff: representable tails remain part of the asymptotic support.
+inline double beta_interval_probability(double a, double b, double lower, double upper)
+{
+    if (lower<=a/(a+b))
+        return beta_probability(a,b,upper)-beta_probability(a,b,lower);
+    return beta_probability(a,b,lower,true)-beta_probability(a,b,upper,true);
+}
+
 // ── Asymptotic DNN weights (Beta order-statistic increments) ──────────────
 //
 // w_rank[j] = (1/k) * Σ_{l=1}^{k} [F_Beta(l,s-l+1)(j/n) - F_Beta(l,s-l+1)((j-1)/n)]
@@ -255,53 +288,9 @@ inline void dnn_weights_asymp_from_ranks(const int *ranks, int n, int k, int s,
         double a = static_cast<double>(l);
         double b = static_cast<double>(s - l + 1);
         for (int j = 1; j <= n; ++j) {
-            // F_Beta(a,b)(j/n) - F_Beta(a,b)((j-1)/n)
-            // Use std::beta_distribution... not in standard C++. Use lgamma approach.
-            // regularized incomplete beta: use Boost or manual.
-            // For portability, compute via the log-beta PDF approximation.
-            // ibeta(a, b, x) = regularized incomplete beta = I_x(a, b)
-            // We use the digamma/lgamma series for the CDF difference.
-            // Simple: CDF(j/n) - CDF((j-1)/n) ≈ pdf(j/n) * (1/n) for large n,
-            // but we want it exact. Use recursion on the incomplete beta function.
-            // Implementation: compute via the continued fraction or series.
-            // For our use case (k,s moderate), use direct series evaluation.
-            double x1 = static_cast<double>(j)     / n;
-            double x0 = static_cast<double>(j - 1) / n;
-            // regularized_ibeta via simple series (good for moderate a,b)
-            auto reg_ibeta = [](double a_, double b_, double x) -> double {
-                if (x <= 0.0) return 0.0;
-                if (x >= 1.0) return 1.0;
-                // Use continued fraction (Lentz) for stability
-                // log B(a,b) = lgamma(a)+lgamma(b)-lgamma(a+b)
-                double lbeta = std::lgamma(a_) + std::lgamma(b_) - std::lgamma(a_ + b_);
-                // Use symmetry for x > (a_)/(a_+b_)
-                bool sym = (x > (a_ / (a_ + b_)));
-                if (sym) { std::swap(a_, b_); x = 1.0 - x; }
-                // Lentz continued fraction for I_x(a,b)
-                double qab = a_ + b_, qap = a_ + 1.0, qam = a_ - 1.0;
-                double c = 1.0, d = 1.0 - qab * x / qap;
-                if (std::fabs(d) < 1e-30) d = 1e-30;
-                d = 1.0 / d;
-                double h = d;
-                for (int m = 1; m <= 200; ++m) {
-                    double m2 = 2.0 * m;
-                    double aa = m * (b_ - m) * x / ((qam + m2) * (a_ + m2));
-                    d = 1.0 + aa * d; if (std::fabs(d) < 1e-30) d = 1e-30;
-                    c = 1.0 + aa / c; if (std::fabs(c) < 1e-30) c = 1e-30;
-                    d = 1.0 / d; h *= d * c;
-                    aa = -(a_ + m) * (qab + m) * x / ((a_ + m2) * (qap + m2));
-                    d = 1.0 + aa * d; if (std::fabs(d) < 1e-30) d = 1e-30;
-                    c = 1.0 + aa / c; if (std::fabs(c) < 1e-30) c = 1e-30;
-                    d = 1.0 / d;
-                    double del = d * c;
-                    h *= del;
-                    if (std::fabs(del - 1.0) < 1e-12) break;
-                }
-                double result = std::exp(a_ * std::log(x) + b_ * std::log(1.0 - x)
-                                         - lbeta) / a_ * h;
-                return sym ? 1.0 - result : result;
-            };
-            w_rank[j - 1] += reg_ibeta(a, b, x1) - reg_ibeta(a, b, x0);
+            const double x1=static_cast<double>(j)/n;
+            const double x0=static_cast<double>(j-1)/n;
+            w_rank[j-1]+=beta_interval_probability(a,b,x0,x1);
         }
     }
 

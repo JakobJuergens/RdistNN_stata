@@ -18,8 +18,8 @@ maintainer instruction. See `CONTRIBUTING.md` for the workflow.
 - `RdistNN_stata` is the Stata companion package for the `RdistNN` R package
   and the `Cond_Z_Estimation` paper.
 - Estimation/weight commands are `np_dnn`, `cate_dnn`, experimental
-  `plqr_dnn`, experimental `clate_dnn`, and `weights_dnn`; NP, CATE and CLATE
-  also have diagnostics/plot commands.
+  `plqr_dnn`, `clate_dnn`, `np_tdnn`, `weights_tdnn`, and `weights_dnn`.
+  NP, TDNN, CATE and CLATE also have diagnostics/plot commands.
 - Read `README.md` before changing command behavior, package layout, or
   installation instructions. User documentation starts at `docs/index.md`
   and installed `help rdistnn`; see CONTRIBUTING for documentation checks.
@@ -49,6 +49,10 @@ installed on one machine is not evidence that it is on another machine's PATH.
 
 - Keep ado/Mata/plugin behavior aligned with the documented command contracts
   in `README.md`.
+- Maintain parity within C++/Mata engines as well as with shared R methods.
+  Follow `CONTRIBUTING.md`'s numerical parity contract: exact discrete
+  decisions, justified numeric tolerances, shared arithmetic helpers and
+  evidence that forced engines actually ran.
 - Use `bash tools/ci/pkg_check.sh` for static package integrity checks.
 - Generate source archives under a temporary or ignored build directory, then
   run `bash tools/ci/archive_check.sh <path-to-source.zip>`. Validated release
@@ -61,9 +65,11 @@ installed on one machine is not evidence that it is on another machine's PATH.
 - Use `powershell -NoProfile -ExecutionPolicy Bypass -File
   tools/ci/stata_install_check.ps1` to verify a clean `net install` into
   temporary `PLUS`/`PERSONAL` directories.
-- For `weights_dnn` plugin parity work, use `global rdistnn_use_plugin 0` to
-  force the Mata reference path and `global rdistnn_use_plugin 1` to require
-  the L2 plugin path.  The default is to use the plugin when installed.
+- For distance parity work, use `global rdistnn_distance_engine mata` or
+  `plugin` to select the shared L1/L2/scaled path explicitly. Drop the global
+  for auto dispatch, where `rdistnn_use_plugin 0` skips native calls and `1`
+  requires them. Mahalanobis distances remain Mata. The separate
+  `rdistnn_jackknife_engine` selector controls deletion calculations.
 - Do not treat generated logs such as `tests.log` as source of truth unless the
   task is explicitly about test-output archaeology.
 - If Stata itself is needed for verification, first check whether a CLI command

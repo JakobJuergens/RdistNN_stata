@@ -48,6 +48,16 @@ local test_files ///
     test-weights-dnn-errors  ///
     test-weights-dnn-plugin  ///
     test-weights-dnn-r-invariants ///
+    test-geometry-batch      ///
+    test-geometry-numerical-stability ///
+    test-native-distances    ///
+    test-native-distances-estimators ///
+    test-native-distances-compat ///
+    test-weight-numerical-stability ///
+    test-distance-range-stability ///
+    test-stability-r-parity ///
+    test-tdnn               ///
+    test-tdnn-saved          ///
     test-np-dnn-smoke        ///
     test-np-dnn-methods      ///
     test-np-dnn-errors       ///

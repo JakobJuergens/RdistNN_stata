@@ -36,7 +36,8 @@ program define cate_dnn, eclass
         LAMBDAGrid(numlist)              ///  paper-rule candidate multipliers
         SGRID(numlist)                   ///  direct Stata candidate orders
         SDEFAULT(integer 0)              ///  default order for sgrid()
-        Distance(string)                 ///  l2 (default) | mahalanobis
+        Distance(string)                 ///  localization geometry
+        SCALERule(string) SCALEVec(numlist) SCALEEPS(real 1e-12) ///
         METHod(string)                   ///  exact (default) | asymp
         Level(cilevel)                   ///  CI level (default 95)
         noSE                             ///  skip jackknife standard error
@@ -228,8 +229,8 @@ program define cate_dnn, eclass
     }
 
     if "`distance'" == "" local distance "l2"
-    if !inlist("`distance'", "l2", "mahalanobis") {
-        di as error "distance() must be l2 or mahalanobis."
+    if !inlist("`distance'", "l2", "mahalanobis", "l1", "l1_scaled", "l2_scaled") {
+        di as error "distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis."
         exit 198
     }
 
@@ -462,7 +463,8 @@ program define cate_dnn, eclass
     mata {
         _ct_X     = st_data(., "`xvars'", "`touse'")
         _ct_X0    = st_matrix("`targets_mat'")
-        _ct_DX    = rdistnn_distance_matrix(_ct_X, _ct_X0, "`distance'")
+        _ct_geometry = rdistnn_fit_geometry(_ct_X,"`distance'","`scalerule'",strtoreal(tokens("`scalevec'")),`scaleeps')
+        _ct_DX    = rdistnn_distance_matrix(_ct_X, _ct_X0, "`distance'", _ct_geometry)
         _ct_ranks = rdistnn_ranks_from_dmat(_ct_DX)
         _ct_rho   = st_data(., "`rho_use'", "`touse'")
         _ct_candidates = st_matrix("`candidate_mat'")
@@ -668,6 +670,9 @@ program define cate_dnn, eclass
         ereturn scalar tuning_n_failed = 0
         ereturn scalar tuning_n_unique = `nunique_feasible'
     }
+    if "`scalerule'"=="" local scalerule "sd"
+    ereturn local scalerule "`scalerule'"
+    ereturn scalar scaleeps=`scaleeps'
     ereturn local  x0       "`x0'"
     ereturn local  x0matrix "`x0matrix'"
     ereturn local  target_source "`target_source'"
@@ -699,9 +704,14 @@ program define cate_dnn, eclass
     local signature_vars `xvars' `input_var' `treat_var' `propensity_var' `m0_var' `m1_var' `m_var'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
-    tempname model_signals model_ranks model_distances
+    tempname model_signals model_ranks model_distances model_geometry
     mata: st_matrix("`model_signals'",_ct_rho); st_matrix("`model_ranks'",_ct_ranks); st_matrix("`model_distances'",_ct_DX)
-    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances')
+    local geometry_option ""
+    if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
+        mata: st_matrix("`model_geometry'",_ct_geometry)
+        local geometry_option "geometry(`model_geometry')"
+    }
+    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances') `geometry_option'
     _cate_dnn_Display, level(`level')
 end
 

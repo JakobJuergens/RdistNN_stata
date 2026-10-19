@@ -1,6 +1,6 @@
 # Diagnostics and reporting
 
-After fitting `cate_dnn`, experimental `clate_dnn`, or `np_dnn`, use the
+After fitting `cate_dnn`, `clate_dnn`, or `np_dnn`, use the
 matching `_diagnostics` command to inspect what each local estimate averages.
 Use estimator replay for coefficient tables, and use diagnostics to assess
 weight concentration, locality, and the inputs relevant to that estimator.

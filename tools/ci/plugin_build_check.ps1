@@ -50,10 +50,15 @@ try {
         "Makefile",
         "Makefile.win",
         "rdistnn_core.hpp",
+        "rdistnn_distance.hpp",
         "rdistnn_plugin.cpp",
         "stplugin.c",
         "stplugin.h",
-        "test_rdistnn_core.cpp"
+        "test_rdistnn_core.cpp",
+        "test_rdistnn_weights.cpp",
+        "test_rdistnn_distance.cpp",
+        "test_rdistnn_distance_plugin.cpp",
+        "test_rdistnn_distance_rounding.cpp"
     )) {
         Copy-Item -LiteralPath (Join-Path $sourceDir $file) -Destination $tempRoot
     }

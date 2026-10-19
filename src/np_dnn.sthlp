@@ -16,7 +16,7 @@
 
 {pstd}
 Stata 17 or later is required. See {help rdistnn} for the package overview.
-This help describes the interface in package {bf:0.1.0.9001} on {cmd:master}.
+This help describes the interface in package {bf:0.1.0.9002} in the development snapshot.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -43,7 +43,10 @@ This help describes the interface in package {bf:0.1.0.9001} on {cmd:master}.
 {synopt:{opt lambdagrid(numlist)}}candidate multipliers for grid mode{p_end}
 {synopt:{opt sgrid(numlist)}}direct integer candidate orders for grid mode{p_end}
 {synopt:{opt sdefault(#)}}default order for {cmd:sgrid()}{p_end}
-{synopt:{opt distance(string)}}{cmd:l2} (default) or {cmd:mahalanobis}{p_end}
+{synopt:{opt distance(string)}}l1, l2 (default), l1_scaled, l2_scaled, or mahalanobis{p_end}
+{synopt:{opt scalerule(string)}}sd (default), mad, iqr, range, or custom{p_end}
+{synopt:{opt scalevec(numlist)}}custom scales, one per covariate{p_end}
+{synopt:{opt scaleeps(#)}}positive scale floor; default 1e-12{p_end}
 {synopt:{opt method(string)}}{cmd:exact} (default) or {cmd:asymp}{p_end}
 
 {syntab:Reporting}
@@ -84,8 +87,8 @@ for estimate, tuning, localization, outcome, weight, and dashboard plots.
 {pstd}
 The outcome may also be a caller-defined scalar signal, with the resulting
 interpretation determined by that signal. To estimate treatment effects from
-supplied nuisances or CATE pseudo-outcomes, see {help cate_dnn}. There is no
-Stata implementation of the R package's two-scale {cmd:np_tdnn()}.
+supplied nuisances or CATE pseudo-outcomes, see {help cate_dnn}. For two-scale
+nonparametric regression, see {help np_tdnn}.
 
 {marker sample}{...}
 {title:Sample and targets}
@@ -206,6 +209,24 @@ Estimates and diagnostics remain available; common SEs, tests and interval
 bounds are missing. {cmd:e(se_method)} and {cmd:e(jackknife)} are {cmd:none}.
 
 {marker results}{...}
+
+{title:Distance scaling}
+
+{pstd}
+{cmd:distance(l1)} uses Manhattan distance. {cmd:distance(l2)} uses Euclidean
+distance (default). {cmd:l1_scaled} and {cmd:l2_scaled} divide each coordinate
+by a scale fitted on the complete estimation sample before computing the
+corresponding distance. {cmd:scalerule(sd)} is the default; alternatives are
+{cmd:mad} (median absolute deviation, constant 1.4826), {cmd:iqr} (R type-7
+quartiles), {cmd:range}, and {cmd:custom}. Sample SD uses the n-1 divisor and
+requires two observations. Supply {cmd:scalevec(numlist)} only with
+{cmd:scalerule(custom)}, with one finite scale per covariate. Custom values
+are absolute scales, not inverse scales. Each scale is floored at the positive
+finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
+custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
+The fitted scales or Mahalanobis inverse covariance remain fixed across
+jackknife deletions and saved-model predictions. Ties retain original row order.
+
 {title:Stored results}
 
 {pstd}

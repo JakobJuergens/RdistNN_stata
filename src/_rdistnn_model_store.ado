@@ -2,7 +2,7 @@
 // Numeric snapshots survive estimates save/use and do not depend on Mata globals.
 program define _rdistnn_model_store, eclass
     version 17
-    syntax varlist(numeric), SIGNALS(name) RANKS(name) DISTANCES(name)
+    syntax varlist(numeric), SIGNALS(name) RANKS(name) DISTANCES(name) [GEOMETRY(name)]
     local inputs : list uniq varlist
     local xvars "`e(xvars)'"
     tempname data X row_ids targets
@@ -33,6 +33,20 @@ program define _rdistnn_model_store, eclass
     ereturn matrix model_distances=`distances', copy
     ereturn matrix model_row_ids=`row_ids', copy
     ereturn matrix model_targets=`targets', copy
+    if "`geometry'"!="" {
+        if rowsof(`geometry')>0 & colsof(`geometry')>0 {
+            ereturn matrix model_geometry=`geometry', copy
+        }
+    }
+    else if inlist("`e(distance)'","l1_scaled","l2_scaled") {
+        di as error "Scaled fitted models require explicit frozen geometry()."
+        exit 498
+    }
+    else if "`e(distance)'"=="mahalanobis" {
+        tempname fitted_geometry
+        mata: st_matrix("`fitted_geometry'",rdistnn_fit_geometry(st_matrix("`X'"),st_global("e(distance)"),"sd",J(1,0,.),1e-12))
+        ereturn matrix model_geometry=`fitted_geometry', copy
+    }
     ereturn scalar model_version=1
     ereturn local model_vars "`inputs'"
 end

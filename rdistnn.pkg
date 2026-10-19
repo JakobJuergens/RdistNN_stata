@@ -1,6 +1,6 @@
 v 3
 d 'RDISTNN': Conditional effects and regression with DNN weights
-d Version: 0.1.0.9001
+d Version: 0.1.0.9002
 d Distribution-Date: 20261018
 d
 d Conditional average treatment effects and
@@ -15,7 +15,7 @@ d inference.
 d
 d Companion to the R package RdistNN and the conditional Z-estimation paper;
 d current working-paper citation metadata is maintained in RdistNN.
-d Experimental augmented binary-IV CLATE with paired
+d Supported supplied-prediction binary-IV CLATE with paired
 d frozen-score covariance, CATE-style tuning, diagnostics and native plots.
 d
 d Author: Jakob Juergens
@@ -53,7 +53,18 @@ f src/plqr_dnn.sthlp
 f src/rdistnn.plugin
 f src/weights_dnn.ado
 f src/weights_dnn.sthlp
+f src/np_tdnn.ado
+f src/np_tdnn.sthlp
+f src/np_tdnn_diagnostics.ado
+f src/np_tdnn_diagnostics.sthlp
+f src/np_tdnn_plot.ado
+f src/np_tdnn_plot.sthlp
+f src/weights_tdnn.ado
+f src/weights_tdnn.sthlp
+f src/_rdistnn_tdnn_mata.ado
 f src/_rdistnn_mata.ado
+f src/_rdistnn_rank_loo.ado
+f src/_rdistnn_distance_plugin.ado
 f src/_rdistnn_clate_mata.ado
 f src/_rdistnn_clate_signature.ado
 f src/_rdistnn_plot_helpers.ado

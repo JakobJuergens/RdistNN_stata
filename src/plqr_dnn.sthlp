@@ -44,7 +44,10 @@ Stata 17 or later is required. See {help rdistnn} for package navigation.
 {synopt:{opt tau(#)}}quantile index in (0,1); default .5{p_end}
 {synopt:{opt k(#)}}neighbors averaged within each size-s subsample; default 1{p_end}
 {synopt:{opt s(#)}}integer subsample order, k<=s<n; default paper rule{p_end}
-{synopt:{opt distance(string)}}l2 (default) or mahalanobis{p_end}
+{synopt:{opt distance(string)}}l1, l2 (default), l1_scaled, l2_scaled, or mahalanobis{p_end}
+{synopt:{opt scalerule(string)}}sd (default), mad, iqr, range, or custom{p_end}
+{synopt:{opt scalevec(numlist)}}custom scales, one per covariate{p_end}
+{synopt:{opt scaleeps(#)}}positive scale floor; default 1e-12{p_end}
 {synopt:{opt method(string)}}exact (default) or asymp{p_end}
 {synopt:{opt level(#)}}accepted on fit/replay; produces no confidence intervals or tests{p_end}
 {synoptline}
@@ -172,6 +175,24 @@ without coefficient tests; {cmd:level()} changes no interval because none is
 computed. There are no Stata PLQR diagnostics or plot commands.
 
 {marker results}{...}
+
+{title:Distance scaling}
+
+{pstd}
+{cmd:distance(l1)} uses Manhattan distance. {cmd:distance(l2)} uses Euclidean
+distance (default). {cmd:l1_scaled} and {cmd:l2_scaled} divide each coordinate
+by a scale fitted on the complete estimation sample before computing the
+corresponding distance. {cmd:scalerule(sd)} is the default; alternatives are
+{cmd:mad} (median absolute deviation, constant 1.4826), {cmd:iqr} (R type-7
+quartiles), {cmd:range}, and {cmd:custom}. Sample SD uses the n-1 divisor and
+requires two observations. Supply {cmd:scalevec(numlist)} only with
+{cmd:scalerule(custom)}, with one finite scale per covariate. Custom values
+are absolute scales, not inverse scales. Each scale is floored at the positive
+finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
+custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
+The fitted scales or Mahalanobis inverse covariance remain fixed across
+jackknife deletions and saved-model predictions. Ties retain original row order.
+
 {title:Stored results}
 
 {pstd}

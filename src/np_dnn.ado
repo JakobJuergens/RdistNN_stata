@@ -23,7 +23,8 @@ program define np_dnn, eclass
         LAMBDAGrid(numlist)              ///  paper-rule candidate multipliers
         SGRID(numlist)                   ///  direct Stata candidate orders
         SDEFAULT(integer 0)              ///  default order for sgrid()
-        Distance(string)                 ///  l2 (default) | mahalanobis
+        Distance(string)                 ///  localization geometry
+        SCALERule(string) SCALEVec(numlist) SCALEEPS(real 1e-12) ///
         Method(string)                   ///  exact (default) | asymp
         Level(cilevel)                   ///  CI level (default 95)
         noSE                             ///  skip jackknife standard errors
@@ -113,8 +114,8 @@ program define np_dnn, eclass
         exit 198
     }
     if "`distance'" == "" local distance "l2"
-    if !inlist("`distance'", "l2", "mahalanobis") {
-        di as error "distance() must be l2 or mahalanobis."
+    if !inlist("`distance'", "l2", "mahalanobis", "l1", "l1_scaled", "l2_scaled") {
+        di as error "distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis."
         exit 198
     }
     if "`distance'" == "mahalanobis" & `n' < 2 {
@@ -315,7 +316,8 @@ program define np_dnn, eclass
     mata {
         _np_X = st_data(., "`xvars'", "`touse'")
         _np_X0 = st_matrix("`targets_mat'")
-        _np_DX = rdistnn_distance_matrix(_np_X, _np_X0, "`distance'")
+        _np_geometry = rdistnn_fit_geometry(_np_X,"`distance'","`scalerule'",strtoreal(tokens("`scalevec'")),`scaleeps')
+        _np_DX = rdistnn_distance_matrix(_np_X, _np_X0, "`distance'", _np_geometry)
         _np_ranks = rdistnn_ranks_from_dmat(_np_DX)
         _np_y = st_data(., "`outcome'", "`touse'")
         _np_candidates = st_matrix("`candidate_mat'")
@@ -476,6 +478,9 @@ program define np_dnn, eclass
         ereturn scalar tuning_n_failed = 0
         ereturn scalar tuning_n_unique = `nunique_feasible'
     }
+    if "`scalerule'"=="" local scalerule "sd"
+    ereturn local scalerule "`scalerule'"
+    ereturn scalar scaleeps=`scaleeps'
     ereturn local x0 "`x0'"
     ereturn local x0matrix "`x0matrix'"
     ereturn local target_source "`target_source'"
@@ -498,9 +503,14 @@ program define np_dnn, eclass
     local signature_vars `xvars' `outcome'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
-    tempname model_signals model_ranks model_distances
+    tempname model_signals model_ranks model_distances model_geometry
     mata: st_matrix("`model_signals'",_np_y); st_matrix("`model_ranks'",_np_ranks); st_matrix("`model_distances'",_np_DX)
-    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances')
+    local geometry_option ""
+    if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
+        mata: st_matrix("`model_geometry'",_np_geometry)
+        local geometry_option "geometry(`model_geometry')"
+    }
+    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances') `geometry_option'
     _np_dnn_Display, level(`level')
 end
 
