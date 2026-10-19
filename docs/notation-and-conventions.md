@@ -1,7 +1,7 @@
 # Notation and conventions
 
 This is the Stata counterpart of RdistNN's notation guide. It describes the
-interface in package **0.1.0.9002** in the development snapshot. Use [getting started](getting-started.md)
+interface in package **0.1.0.9003** in the development snapshot. Use [getting started](getting-started.md)
 for a first fit and [the R crosswalk](r-documentation-crosswalk.md) when
 translating an R script.
 
@@ -29,8 +29,9 @@ original target IDs used by diagnostic and plot selectors. Target values
 must follow the order in `xcols()`; names on an arbitrary Stata matrix do
 not reorder its columns.
 
-`weights_dnn` takes its localization variables positionally and supports one
-`x0()` at a time. PLQR takes `x()` and one `x0()`; its coefficient vector has
+`weights_dnn` takes its localization variables positionally and accepts one
+`x0()` or batch `x0matrix()` targets. Its `generate()` output remains a
+single-target option. PLQR takes `x()` and one `x0()`; its coefficient vector has
 one entry per `d()` regressor, independently of p. It has no batch target or
 integrated grid interface. Current command differences are documented,
 rather than inferred from the common estimator names.

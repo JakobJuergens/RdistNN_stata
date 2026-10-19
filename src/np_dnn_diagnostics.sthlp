@@ -34,7 +34,7 @@ positive weights can be excluded. Larger s tightens localization.
 
 {pstd}
 radius_rank_k and radius_rank_s are distances to those nearest ranks under
-the fitted L2/Mahalanobis metric, not positive-support radii. Weighted distance
+the fitted localization metric (L1, L2, scaled L1/L2 or Mahalanobis), not positive-support radii. Weighted distance
 mean/median describe where the mass lies. Current Stata fits retain these
 diagnostics automatically; there is no W/dx retention option to specify.
 A high ESS or favorable radius does not establish Gaussian inference,
@@ -48,6 +48,13 @@ NP summaries describe the weighted outcome distribution. weighted_mean_y equals
  Outcome quantile ranges are not confidence bounds for the mean.
 
 {marker options}{...}
+{pstd}
+Weighted SD uses binary scaling and a centered weighted norm, so a finite SD
+can be returned even when its squared variance exceeds the numeric range.
+Weighted quantiles use a compensated total and prefix in stable value order;
+the first observation reaching the requested probability is selected without
+a boundary tolerance.
+
 {title:Options}
 
 {phang}{opt targets(numlist)} selects original e(targets) row numbers,

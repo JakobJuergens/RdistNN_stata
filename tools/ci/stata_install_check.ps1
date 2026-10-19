@@ -108,8 +108,9 @@ foreach command in clate_dnn clate_dnn_diagnostics clate_dnn_plot rdistnn_result
 _rdistnn_assert_from_plus _rdistnn_clate_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_clate_signature.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_mata.ado, plusnorm("`plus_norm'")
+_rdistnn_assert_from_plus _rdistnn_distance_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_plot_helpers.ado, plusnorm("`plus_norm'")
-foreach helper in report report_header estimation_state sample_signature diagnostics diagnostics_save plot_dispatch model_store model_mata model_fit model_plot reuse tdnn_mata rank_loo distance_plugin {
+foreach helper in report report_header estimation_state sample_signature diagnostics diagnostics_save plot_dispatch model_store model_mata model_fit model_plot reuse tdnn_mata rank_weights rank_loo distance_plugin accumulation covariance geometry plot_mata {
     _rdistnn_assert_from_plus _rdistnn_`helper'.ado, plusnorm("`plus_norm'")
 }
 _rdistnn_assert_from_plus rdistnn_license.md, plusnorm("`plus_norm'")

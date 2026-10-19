@@ -1,8 +1,11 @@
 # RdistNN for Stata documentation
 
-These guides describe the **0.1.0.9002** development snapshot, including
+These guides describe the **0.1.0.9003** development snapshot, including
 supported supplied-prediction CLATE, two-scale regression, and shared reporting
 and postestimation interfaces.
+The [development notes](../RELEASE_NOTES.md) describe the latest maintenance
+and regression-coverage changes; estimator interfaces and inference limits are
+unchanged.
 See [installation](../README.md#installation). In Stata, `help rdistnn` opens
 the package overview and links to every installed command reference.
 
@@ -72,4 +75,4 @@ records the earlier article/help/example update. [Release notes](../RELEASE_NOTE
 record package changes and experimental features.
 
 [Numerical stability](numerical-stability.md) explains shared arithmetic and
-records the planned compensated weighted/prefix-sum work.
+documents implemented compensated weighted/prefix sums and stable diagnostics.

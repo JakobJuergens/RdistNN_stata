@@ -5,7 +5,8 @@ Stata 17 or later without a native compiler. The plugin computes scalar and
 batched L1/L2 distances, with optional fitted inverse scales. A single matrix
 bridge serves both weight commands, NP, TDNN, CATE, PLQR, CLATE and saved-fit
 prediction. Scale fitting, stable ranking and rank-weight tables stay in the
-shared Mata layer. Mahalanobis distances remain in Mata. The separate compiled
+shared Mata layer. Mahalanobis factorization uses Mata; projected norms
+reuse the same L2 kernels. The separate compiled
 jackknife consumes fixed ranks and signals, including frozen Mahalanobis ranks.
 
 The binary committed at `src/rdistnn.plugin` is a Windows x86-64 PE DLL.
@@ -16,8 +17,8 @@ fails. Install a matching native Linux or macOS binary on those hosts.
 Select distances independently with `global rdistnn_distance_engine plugin`,
 `mata` or `auto` (the default). Explicit `plugin` requires the new API and
 reports failures; explicit `mata` selects the reference implementation.
-These selectors apply to L1/L2 and scaled variants; Mahalanobis always uses
-Mata. In `auto`, `global rdistnn_use_plugin 0` skips native calls and `1`
+These selectors apply to L1/L2, scaled variants and projected Mahalanobis
+norms. Legacy inverse snapshots retain their original Mata calculation. In `auto`, `global rdistnn_use_plugin 0` skips native calls and `1`
 requires them. The explicit distance selector takes precedence over this
 shared control. Drop test globals afterward to restore normal dispatch.
 `rdistnn_last_distance_engine` records the last actual distance calculation;
@@ -49,7 +50,7 @@ huge scaled differences use binary-halved operands when the inverse scale is
 below one. This keeps finite norms usable while aligning arithmetic with
 Stata's missing-value boundary. Ordinary rows retain the established operation
 order. See the [numerical stability guide](../../docs/numerical-stability.md)
-for the shared contract and planned compensated accumulation.
+for the shared contract and compensated accumulation.
 
 For jackknife calculations the default order is compiled prefix/suffix sums,
 Mata prefix/suffix sums, then the retained naive deletion loop if the Mata fast
@@ -119,6 +120,15 @@ rejects malformed dimensions, missing/nonfinite values, nonpositive inverse
 scales and arithmetic overflow before publishing results. Temporary output
 protects the caller's data. The older `weights_l2` operation remains available
 for compatibility; public weights now reuse the shared distance/rank pipeline.
+
+The legacy operation's incomplete-Beta continued fraction has a 200-iteration
+budget and requires a finite positive converged state. The pure kernel throws
+`beta_evaluation_error` on failure; the plugin boundary reports numerical
+error 498 and directs callers to `weights_dnn`, whose Beta weights use Mata.
+No output observations are written on this failure. Ordinary successful
+iterations, exact endpoints and representable tiny tails keep their arithmetic.
+Native tests cover failure propagation through interval evaluation and the
+actual plugin entry point, including preservation of the caller's output.
 
 Run `make check` or `nmake /f Makefile.win check` for native tests. With a
 matching plugin and licensed Stata, run

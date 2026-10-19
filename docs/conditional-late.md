@@ -3,7 +3,7 @@
 `clate_dnn` estimates a conditional local average treatment effect using a
 binary instrument `A`, binary treatment `D`, and externally supplied nuisance
 predictions. Supplied-prediction CLATE and ordinary paired-signal ratios are
-supported workflows in development version **0.1.0.9002** under the documented pointwise
+supported workflows in development version **0.1.0.9003** under the documented pointwise
 inference conditions.
 Start with the [documentation index](index.md) for installation
 and the [runnable oracle example](../examples/clate.do) for a complete script.

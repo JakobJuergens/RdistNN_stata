@@ -33,6 +33,7 @@ quietly do "src/_rdistnn_mata.ado"
 // ── ordered list of test files ────────────────────────────────────────────
 local test_files ///
     test-plot-command-order ///
+    test-module-loading     ///
     test-mata-distances      ///
     test-mata-rank-r-mirror  ///
     test-mata-weights-exact  ///
@@ -42,6 +43,13 @@ local test_files ///
     test-mata-jackknife-vector ///
     test-mata-jackknife-prefix ///
     test-jackknife-engines   ///
+    test-compensated-accumulation ///
+    test-centering-translation ///
+    test-exact-rank-portability ///
+    test-cate-signal-contract ///
+    test-derived-fit-contract ///
+    test-weighted-distribution-range ///
+    test-accumulation-r-parity ///
     test-r-parity-priority   ///
     test-weights-dnn-smoke   ///
     test-weights-dnn-options ///
@@ -50,6 +58,9 @@ local test_files ///
     test-weights-dnn-r-invariants ///
     test-geometry-batch      ///
     test-geometry-numerical-stability ///
+    test-mahalanobis-factor ///
+    test-covariance-range ///
+    test-covariance-geometry-r-parity ///
     test-native-distances    ///
     test-native-distances-estimators ///
     test-native-distances-compat ///

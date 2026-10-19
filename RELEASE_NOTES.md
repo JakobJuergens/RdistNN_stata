@@ -1,6 +1,55 @@
 # Release Notes
 
-## 0.1.0.9002 — unreleased development update
+## 0.1.0.9003 — unreleased development update
+
+- Use shared ordered reductions for Mahalanobis projections and correct
+  cancellation-sensitive covariance cross terms, including mean-subtraction
+  residuals, to align scalar/batch and cross-platform behavior with R.
+- Preserve TDNN target coefficient names after saved-fit prediction posting.
+  Require every native accumulation fixture kernel and verify that the new
+  rank-weight and plotting modules resolve from a clean installation.
+  Refresh the shared numerical fixtures for the current arithmetic.
+- Give distance/ranking, rank weights and deletion/covariance routines dedicated
+  owners behind the existing shared loader, preserving commands and calculations.
+- Test cold and repeated loading against independent numerical references,
+  preserve unrelated caller functions, and clean up fixture state. Organize
+  regression suites by behavior.
+- Check unique private Mata definitions, complete installation inputs and
+  canonical manifest paths, plus optional mirrored-header parity with R.
+  Align documentation and the development version with the R companion.
+
+## 0.1.0.9002 — earlier development snapshot
+
+- Stabilize ordinary SD/covariance and mixed-sign large-offset deletion centering;
+  preserve small cancellation contributions and all represented remote tails.
+- Generate exact rank tables with the same bounded-workspace PMF recurrence in
+  R, Mata and native code. Preserve stable signed-zero ties in native sorting.
+- Preserve mu/tau/theta coefficient names after candidate/prediction posting;
+  reject clipping bounds whose upper endpoint rounds to one. Clarify Robinson
+  propensity sensitivity and update metric/batch-weight documentation.
+
+
+- Align weighted-quantile boundary decisions with R/native compensated total
+  and prefix arithmetic. Use exact binary selected-index fixtures.
+- Recover finite physical CATE/CLATE radii and NP outcome SDs without squaring
+  physical units outside their range; saved-fit prediction reuses the helpers.
+
+- Align weighted signal means and rank-weight normalization with R through
+  shared compensated arithmetic. Native and Mata deletion engines retain
+  corrections through the prefix/suffix merge with bounded working storage;
+  candidates and saved prediction use the same estimator adapters.
+- Reject nonconverged Beta continued fractions in the legacy native
+  `weights_l2` API. Report numerical error 498 with Mata recovery guidance
+  before writing output; standard command weight tables already use Mata.
+- Fit Mahalanobis whitening directly from the centered training design with
+  the shared R singular-value rank cutoff. Preserve resolvable directions,
+  reuse native/Mata L2 norms after projection, and keep legacy inverse snapshots.
+- Centralize covariance centering, binary range normalization and symmetric
+  assembly across DNN, TDNN, CATE, CLATE, PLQR moments and saved prediction.
+  Recover representable extreme variances; use rescaling errors or existing
+  CLATE target statuses for unrepresentable nonzero variance.
+- Preserve full numeric precision when constructing reporting tables and
+  returning saved-fit prediction uncertainty, including extreme scales.
 
 - Match R quantile interpolation near rank-sensitive ties, recover finite SD
   scales after intermediate overflow/underflow, and reject failed scale fits
@@ -10,8 +59,8 @@
 - Stabilize close-order TDNN coefficients, asymptotic Beta tail increments and
   extreme L2 norms consistently with R. Shared helpers serve native/Mata
   weights, estimation and saved prediction; ordinary-input distance rounding
-  remains aligned. Record compensated weighted/prefix sums as planned work in
-  the numerical-stability guide, with accuracy and performance acceptance gates.
+  remains aligned. Shared compensated weighted/deletion sums are described in
+  the numerical-stability guide with their precision and engine contracts.
 
 - Add shared compiled scalar/batch L1, L2 and scaled-distance kernels for all
   estimators, weight commands and saved prediction. Keep fitted geometry,

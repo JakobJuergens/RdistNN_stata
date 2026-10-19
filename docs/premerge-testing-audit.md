@@ -1,5 +1,11 @@
 # Premerge testing audit
 
+Historical audit of the feature snapshot below. Its branch, coverage and
+experimental-status statements describe that snapshot. For the current
+supported CLATE workflow and unchanged pointwise inference conditions, see
+[conditional LATE](conditional-late.md) and the
+[development notes](../RELEASE_NOTES.md).
+
 Date: 2026-10-18. Starting feature snapshot: `5744599f11e61d24f21e5e1c258f1e9fb591b6ff`.
 Production reference: `origin/master` at `c8957c6f3359701f84bf88727b1af40b1eafa48e`,
 refreshed through the protected workspace fetch wrapper. The three feature

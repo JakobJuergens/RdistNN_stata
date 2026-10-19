@@ -10,8 +10,10 @@ it into a coefficient estimator or add coefficient inference.
 
 Use a clean repository checkout with the tools in
 [CONTRIBUTING.md](CONTRIBUTING.md). Review the version/tag and release notes.
-The local development branch carries version `0.1.0.9002` for the geometry,
-TDNN, CLATE and numerical-stability update, alongside the R companion. Choose future tagged versions in coordination with the R package.
+The local development branch carries version `0.1.0.9003`, alongside the R
+companion. This snapshot adds module and testing maintenance to the geometry,
+TDNN, CLATE and numerical-stability work described in the release notes.
+Choose future tagged versions in coordination with the R package.
 Updating `master` does not itself publish a tag or replace assets from the
 existing `v0.1.0` release.
 Keep `rdistnn.pkg`'s `Version` and `Distribution-Date` metadata aligned with
@@ -105,8 +107,9 @@ Article/example links should resolve inside the ZIP; developer-only controls,
 tests and tools use explicit repository URLs. An optional `--r-root` check
 compares the crosswalk with the live R article/reference inventory.
 
-The current articles describe the productiin the development snapshot interface. Keep ordinary
-installation links on that branch and use immutable tags for pinned installs.
+The current articles describe the production interface in this development
+snapshot. Keep ordinary installation links on `master` and use immutable tags
+for pinned installs.
 CLATE and the shared reporting additions belong to version 0.1.0.9000; the unchanged
 v0.1.0 tag predates them. Preserve CLATE's documented pointwise inference boundaries
 and PLQR's supplied-coefficient, moment-only scope in release copy.

@@ -34,7 +34,7 @@ positive weights can be excluded. Larger s tightens localization.
 
 {pstd}
 radius_rank_k and radius_rank_s are distances to those nearest ranks under
-the fitted L2/Mahalanobis metric, not positive-support radii. Weighted distance
+the fitted localization metric (L1, L2, scaled L1/L2 or Mahalanobis), not positive-support radii. Weighted distance
 mean/median describe where the mass lies. Current Stata fits retain these
 diagnostics automatically; there is no W/dx retention option to specify.
 A high ESS or favorable radius does not establish Gaussian inference,
@@ -55,6 +55,12 @@ jackknife pseudo-values. The share is missing when all contributions are zero,
 even if score_contribution_available is one. Undefined ratios or nonfinite contributions have score_contribution_available=0.
 
 {marker options}{...}
+{pstd}
+Physical radii use scaled Euclidean norms to avoid intermediate square overflow
+or underflow. Weighted quantiles select the first observation whose compensated
+prefix divided by compensated total reaches the probability, in stable value
+order, without a boundary tolerance.
+
 {title:Options}
 
 {phang}{opt targets(numlist)} selects original e(targets) row numbers,

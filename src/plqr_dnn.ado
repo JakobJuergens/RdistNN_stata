@@ -165,7 +165,7 @@ program define plqr_dnn, eclass
         _pl_w      = rdistnn_weights_from_ranks(_pl_ranks, `k', `s', "`method'")
         _pl_resid  = `tau' :- (_pl_y :<= (_pl_D * _pl_theta :+ _pl_g0))
         _pl_score  = (_pl_D :- _pl_md) :* (_pl_resid * J(1, cols(_pl_D), 1))
-        _pl_moment = cross(_pl_w, _pl_score)
+        _pl_moment = rdistnn_weighted_signals(_pl_w, _pl_score)
         _pl_V      = rdistnn_jk_cov_from_ranks(_pl_ranks, _pl_score, `k', `s', "`method'")
         _pl_neff   = 1 / sum(_pl_w :^2)
         st_matrix("`b'", _pl_moment)

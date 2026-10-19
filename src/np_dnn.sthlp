@@ -16,7 +16,7 @@
 
 {pstd}
 Stata 17 or later is required. See {help rdistnn} for the package overview.
-This help describes the interface in package {bf:0.1.0.9002} in the development snapshot.
+This help describes the interface in package {bf:0.1.0.9003} in the development snapshot.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -191,8 +191,9 @@ candidate must be feasible.
 through jackknife deletions. L2 distances depend on covariate scales.
 Mahalanobis requires at least two complete observations, including with
 {opt nose}; one localization covariate is permitted. Rank-deficient covariance
-matrices use an SVD Moore-Penrose pseudoinverse with R's relative cutoff of
-1e-10; directions in its null space do not contribute to distance.
+matrices use centered-design SVD whitening, retaining singular values greater
+than max(n,p)*2^-52 times the largest singular value. Directions in its null
+space do not contribute to distance.
 
 {phang}{opt method(string)} selects exact finite-sample DNN weights or the
 asymptotic beta-order-statistic approximation, written {cmd:method(asymp)}.
@@ -224,7 +225,7 @@ requires two observations. Supply {cmd:scalevec(numlist)} only with
 are absolute scales, not inverse scales. Each scale is floored at the positive
 finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
-The fitted scales or Mahalanobis inverse covariance remain fixed across
+The fitted scales or Mahalanobis whitening factor remain fixed across
 jackknife deletions and saved-model predictions. Ties retain original row order.
 
 {title:Stored results}

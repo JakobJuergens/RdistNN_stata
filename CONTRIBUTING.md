@@ -94,6 +94,22 @@ python3 tools/ci/documentation_check.py
 git diff --check
 ```
 
+`pkg_check.sh` checks internal helpers as well as public commands against the
+installation manifest. Keep private Mata functions prefixed `rdistnn_`, declare
+version 17 or later, and let each source module own its reload guards. The
+package gate rejects duplicate typed Mata function definitions across modules.
+With the sibling R checkout present, additionally run
+`python3 tools/ci/package_hygiene.py --r-root ../RdistNN` to verify shared headers.
+
+`_rdistnn_mata.ado` is the shared loading gateway. Arithmetic and weighted
+distribution helpers belong to `_rdistnn_accumulation.ado`; covariance and
+whitening factors have their existing dedicated modules. Fitted geometry,
+distances and stable ranks belong to `_rdistnn_distance_mata.ado`, weight laws
+and rank mapping to `_rdistnn_rank_weights.ado`, and deletions/covariance
+adapters to `_rdistnn_rank_loo.ado`. Keep estimator-specific policy in its
+adapter. The gateway preserves the same entry point for all consumers and
+loads common arithmetic before geometry, weights and inference.
+
 The [test-suite map](tests/README.md) explains focused runs and fixture
 ownership. On Windows with licensed Stata installed, run the full suite and
 a clean installation:

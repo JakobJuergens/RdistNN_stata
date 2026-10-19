@@ -346,7 +346,7 @@ program define np_dnn, eclass
             else {
                 _np_sg = _np_candidates[_np_g, 8]
                 _np_Wg = rdistnn_weights_from_rmat(_np_ranks, `k', _np_sg, "`method'")
-                _np_grid_est[_np_g,.] = cross(_np_y, _np_Wg)
+                _np_grid_est[_np_g,.] = rdistnn_weighted_signals(_np_y, _np_Wg)
                 _np_wr = rdistnn_weights_from_ranks((1::`n'), `k', _np_sg, "`method'")
                 _np_topn = min((5, `n'))
                 _np_ess = 1 / quadsum(_np_wr :^ 2)
@@ -377,7 +377,7 @@ program define np_dnn, eclass
             _np_word = order((_np_wj, (1::`n')), (-1, 2))
             _np_dxsort = sort(_np_dxj, 1)
             _np_wsum = quadsum(_np_wj)
-            _np_ybar = cross(_np_y, _np_wj) / _np_wsum
+            _np_ybar = rdistnn_weighted_signals(_np_y, _np_wj) / _np_wsum
             _np_target_diag[_np_j, 1] = 1 / quadsum(_np_wj :^ 2)
             _np_target_diag[_np_j, 2] = max(_np_wj)
             _np_target_diag[_np_j, 3] = quadsum(_np_wj[_np_word[1]])
@@ -395,8 +395,7 @@ program define np_dnn, eclass
                 _np_dxj, _np_wj, .5)
             _np_target_diag[_np_j, 12] = 1
             _np_target_diag[_np_j, 13] = _np_ybar
-            _np_target_diag[_np_j, 14] = sqrt(
-                cross((_np_y :- _np_ybar) :^ 2, _np_wj) / _np_wsum)
+            _np_target_diag[_np_j, 14] = rdistnn_weighted_sd(_np_y, _np_wj)
             _np_target_diag[_np_j, 15] = rdistnn_weighted_quantile(
                 _np_y, _np_wj, .1)
             _np_target_diag[_np_j, 16] = rdistnn_weighted_quantile(

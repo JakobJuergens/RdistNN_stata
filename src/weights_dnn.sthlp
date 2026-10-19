@@ -13,7 +13,7 @@
 
 {pstd}
 Stata 17 or later. For the package overview and article collection, see
-{help rdistnn}. This help describes package {bf:0.1.0.9002} in the development snapshot.
+{help rdistnn}. This help describes package {bf:0.1.0.9003} in the development snapshot.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -90,7 +90,9 @@ usable sample; excluded observations have missing weights.
 Mahalanobis
 full-sample covariance metric. Mahalanobis requires at least two covariates
 and two complete observations for this command; singular covariance uses a
-SVD Moore-Penrose pseudoinverse with R's relative cutoff of 1e-10.
+centered-design SVD whitening factor. Singular values greater than
+max(n,p)*2^-52 times the largest singular value are retained; null directions
+contribute zero. The covariance matrix and its inverse are not formed.
 The estimator wrappers have their own dimension checks.
 Euclidean neighborhoods depend on covariate units.
 
@@ -116,7 +118,8 @@ plugin for eligible calls in auto mode. Drop the global to restore default dispa
 {cmd:mata} forces their reference path, and {cmd:auto} restores automatic dispatch.
 This selector takes precedence over {cmd:rdistnn_use_plugin}.
 {cmd:rdistnn_last_distance_engine} records the last actual distance route.
-Requiring the plugin does not add native Mahalanobis distance computation.
+Mahalanobis factorization uses Mata; its projected L2 norms use the selected
+engine. Legacy saved inverse metrics retain their original Mata calculation.
 For jackknife parity checks, {cmd:global rdistnn_jackknife_engine naive}
 selects explicit deletions; {cmd:mata} selects fast Mata and {cmd:plugin}
 requires compiled prefix/suffix sums. Drop that global for automatic compiled,
@@ -139,7 +142,7 @@ requires two observations. Supply {cmd:scalevec(numlist)} only with
 are absolute scales, not inverse scales. Each scale is floored at the positive
 finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
-The fitted scales or Mahalanobis inverse covariance remain fixed across
+The fitted scales or Mahalanobis whitening factor remain fixed across
 jackknife deletions and saved-model predictions. Ties retain original row order.
 
 {title:Stored results}
@@ -156,7 +159,8 @@ Copy r-class results before running another command that overwrites them.
 {cmd:r(weights)}, {cmd:r(ranks)} and {cmd:r(distances)} retain n-by-m numeric
 matrices; {cmd:r(row_ids)} maps their rows to original observation numbers.
 {cmd:r(targets)} and {cmd:r(neff_targets)} retain target coordinates and ESS.
-{cmd:r(geometry)} retains fitted scales or inverse covariance when used.
+{cmd:r(geometry)} retains fitted scales or packed Mahalanobis whitening
+geometry when used; older snapshots may contain an inverse covariance.
 {cmd:r(m)} is the target count; scalar {cmd:r(neff)} refers to the first target. To reconstruct an estimator's weighted signal,
 match its complete-case sample using a copy of {cmd:e(sample)}, as well as
 its target, k, s, method and distance. Covariate-only weights may otherwise

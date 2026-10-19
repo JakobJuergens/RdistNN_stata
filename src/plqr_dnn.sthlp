@@ -190,7 +190,7 @@ requires two observations. Supply {cmd:scalevec(numlist)} only with
 are absolute scales, not inverse scales. Each scale is floored at the positive
 finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
-The fitted scales or Mahalanobis inverse covariance remain fixed across
+The fitted scales or Mahalanobis whitening factor remain fixed across
 jackknife deletions and saved-model predictions. Ties retain original row order.
 
 {title:Stored results}

@@ -122,6 +122,20 @@ quietly summarize w_direct, meanonly
 test_assert "[plugin] exact k=s is uniform" ///
     abs(r(min)-1/120) < 1e-12 & abs(r(max)-1/120) < 1e-12
 
+// Exercise the legacy native Beta path itself. Public weights_dnn uses Mata
+// rank tables even when its distance engine is forced to the plugin.
+preserve
+clear
+set obs 3
+gen double beta_x = _n-1
+gen double beta_w = 73
+cap plugin call rdistnn_plugin beta_x beta_w, weights_l2 asymp 1 2 "0"
+local beta_rc = _rc
+test_assert "[plugin] converged direct native Beta weights succeed" `beta_rc'==0
+test_assert "[plugin] direct native Beta weights match analytic interval masses" ///
+    abs(beta_w[1]-5/9)<1e-14 & abs(beta_w[2]-1/3)<1e-14 & abs(beta_w[3]-1/9)<1e-14
+restore
+
 // ════════════════════════════════════════════════════════════
 test_section "weights_dnn: [plugin] signed x0 parity"
 // ════════════════════════════════════════════════════════════

@@ -68,7 +68,8 @@ installed on one machine is not evidence that it is on another machine's PATH.
 - For distance parity work, use `global rdistnn_distance_engine mata` or
   `plugin` to select the shared L1/L2/scaled path explicitly. Drop the global
   for auto dispatch, where `rdistnn_use_plugin 0` skips native calls and `1`
-  requires them. Mahalanobis distances remain Mata. The separate
+  requires them. Mahalanobis factorization uses Mata; projected distances use
+  the selected L2 engine. Legacy inverse snapshots retain their Mata route. The separate
   `rdistnn_jackknife_engine` selector controls deletion calculations.
 - Do not treat generated logs such as `tests.log` as source of truth unless the
   task is explicitly about test-output archaeology.

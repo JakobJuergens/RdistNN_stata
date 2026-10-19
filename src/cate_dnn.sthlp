@@ -18,7 +18,7 @@ distributional nearest neighbors
 
 {pstd}
 Stata 17 or later is required. See {help rdistnn} for the package overview.
-This help describes the interface in package {bf:0.1.0.9002} in the development snapshot.
+This help describes the interface in package {bf:0.1.0.9003} in the development snapshot.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -158,7 +158,11 @@ sample for comparisons when required columns have different missingness.
 {title:Inference contract}
 
 {pstd}
-Orthogonality controls first-order population nuisance drift.  It does not, by
+AIPW orthogonality controls first-order population nuisance drift. The normalized
+Robinson signal generally is not orthogonal to propensity error and needs
+additional propensity control. With a correct pooled mean its expectation is
+{it:e0(1-e0)tau/[ehat(1-ehat)]}, so oracle identification does not imply
+orthogonality. AIPW orthogonality does not, by
 itself, justify treating arbitrary nuisance predictions estimated on the same
 observations as valid inputs for the reported inference.
 
@@ -310,10 +314,11 @@ with missing candidate estimates; the default candidate must be feasible.
 {phang}
 {opt distance(string)} selects the distance metric.  {cmd:l2} (default)
 uses Euclidean distance.  {cmd:mahalanobis} uses the sample covariance
-matrix inverse to form an ellipsoidal neighborhood;
+geometry to form an ellipsoidal neighborhood;
 at least two complete estimation observations are required, including with
 {opt nose}. One covariate is permitted. Rank-deficient covariance matrices
-use an SVD Moore-Penrose pseudoinverse with R's relative cutoff of 1e-10;
+use the centered-design SVD metric. Singular values greater than
+max(n,p)*2^-52 times the largest singular value are retained;
 directions in its null space do not contribute to distance. L2 distances
 depend on the scales of the supplied covariates.
 
@@ -351,7 +356,7 @@ requires two observations. Supply {cmd:scalevec(numlist)} only with
 are absolute scales, not inverse scales. Each scale is floored at the positive
 finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
-The fitted scales or Mahalanobis inverse covariance remain fixed across
+The fitted scales or Mahalanobis whitening factor remain fixed across
 jackknife deletions and saved-model predictions. Ties retain original row order.
 
 {title:Stored results}

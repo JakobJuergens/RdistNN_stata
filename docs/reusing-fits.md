@@ -1,6 +1,6 @@
 # Save, report and reuse fitted results
 
-Version 0.1.0.9002 provides three common commands for DNN/TDNN regression, CATE, CLATE and
+Version 0.1.0.9003 provides three common commands for DNN/TDNN regression, CATE, CLATE and
 PLQR. They use the R result methods as the reference for shared behavior.
 PLQR retains its supplied-coefficient **moment-only** scope.
 
@@ -100,5 +100,7 @@ remain outside the shared surface; see the [crosswalk](r-documentation-crosswalk
 `np_tdnn` also supports `rdistnn_results` and `rdistnn_predict`, including
 full covariance, saved-model restore and explicit posting. Both orders, the
 localization dimension, normalization and fitted geometry remain fixed. Its
-diagnostics describe signed weights, and no candidate grid is retained.
+posted coefficient names remain `target1`, `target2`, and so on, including
+`target1` for a single target, so existing coefficient contrasts remain valid.
+Its diagnostics describe signed weights, and no candidate grid is retained.
 See [two-scale regression](two-scale-regression.md).

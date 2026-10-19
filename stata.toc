@@ -3,7 +3,7 @@ d RDISTNN: Conditional effects and regression with DNN weights
 d
 d Stata companion to RdistNN: CATE, nonparametric regression, pointwise
 d jackknife uncertainty, tuning grids, diagnostics, and native plots.
-d Experimental binary-IV CLATE retains paired frozen-score covariance and
+d Supported binary-IV CLATE retains paired frozen-score covariance and
 d shares the reporting, diagnostics, and plotting interfaces.
 d Experimental PLQR support evaluates moments at supplied theta; it is not a
 d coefficient estimator.
