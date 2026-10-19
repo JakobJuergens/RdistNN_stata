@@ -267,13 +267,13 @@ for phrase in \
 	fi
 done
 
-if grep -qF 'local __try_plugin' src/weights_dnn.ado && \
-	grep -qF '!= "0")' src/weights_dnn.ado && \
-	! grep -qF 'local __default_plugin' src/weights_dnn.ado; then
-	echo "  OK       weights_dnn attempts eligible plugins on every platform"
+if grep -qF 'rdistnn_distance_plugin(' src/_rdistnn_mata.ado && \
+    grep -qF 'plugin_mode!="0"' src/_rdistnn_mata.ado && \
+    grep -qF 'distance_api' src/_rdistnn_distance_plugin.ado; then
+    echo "  OK       shared distances attempt eligible plugins on every platform"
 else
-	echo "  MISSING  weights_dnn must attempt eligible plugins unless forced to Mata"
-	PLATFORM_ERRORS=$((PLATFORM_ERRORS + 1))
+    echo "  MISSING  shared distances must probe optional native API with Mata fallback"
+    PLATFORM_ERRORS=$((PLATFORM_ERRORS + 1))
 fi
 
 for file in tools/ci/plugin_build_check.ps1 .github/workflows/plugin-build.yml src/plugin/README.md; do
@@ -328,7 +328,7 @@ else
 fi
 
 echo ""
-echo "=== Checking experimental CLATE installation and inference contract ==="
+echo "=== Checking CLATE installation and inference contract ==="
 if grep -qF 'f src/_rdistnn_clate_mata.ado' rdistnn.pkg; then
     echo "  OK       paired CLATE evaluator is installed"
 else

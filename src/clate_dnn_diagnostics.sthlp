@@ -8,7 +8,7 @@
 
 {title:Title}
 
-{phang}{bf:clate_dnn_diagnostics} {hline 2} Inspect experimental CLATE localization and scientific diagnostics
+{phang}{bf:clate_dnn_diagnostics} {hline 2} Inspect CLATE localization and scientific diagnostics
 
 {marker syntax}{...}
 {title:Syntax}

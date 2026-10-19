@@ -2,7 +2,7 @@
 {* *! version 0.1.0  2026-10-18}{...}
 {title:rdistnn_results — Extract fitted results without drawing a graph}
 {pstd}
-After {help np_dnn}, {help cate_dnn}, {help clate_dnn} or {help plqr_dnn}:
+After {help np_dnn}, {help np_tdnn}, {help cate_dnn}, {help clate_dnn} or {help plqr_dnn}:
 {p 8 12 2}{cmd:rdistnn_results} [{cmd:, type(}{it:type}{cmd:) targets(}{it:numlist}{cmd:)}
 {cmd:level(}{it:#}{cmd:) saving(}{it:filename}{cmd:) replace}]{p_end}
 {pstd}

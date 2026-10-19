@@ -1,6 +1,6 @@
 # Command guide
 
-This is the compact command map for package **0.1.0.9001** on `master`. Start with the
+This is the compact command map for package **0.1.0.9002** in the development snapshot. Start with the
 [article index](index.md), [getting started](getting-started.md), or
 `help rdistnn` inside Stata. Each command's installed help supplies its complete
 syntax and result reference. The articles supply interpretation and runnable
@@ -12,8 +12,10 @@ examples.
 |---|---|---|
 | AIPW, Robinson-form or supplied-score CATE | `cate_dnn` | [CATE and regression](cate-and-regression.md), [do-file](../examples/cate-and-regression.do) |
 | Nonparametric conditional means | `np_dnn` | [CATE and regression](cate-and-regression.md), same do-file |
-| One target's normalized rank weights | `weights_dnn` | [Weights/tuning](weights-and-tuning.md), [do-file](../examples/weights-and-tuning.do) |
-| Experimental binary-IV or paired-signal ratios | `clate_dnn` | [Conditional LATE](conditional-late.md), [do-file](../examples/clate.do) |
+| Single/batch normalized rank weights | `weights_dnn` | [Weights/tuning](weights-and-tuning.md), [do-file](../examples/weights-and-tuning.do) |
+| Two-scale conditional means and signed weights | `np_tdnn`, `weights_tdnn` | [Two-scale regression](two-scale-regression.md), [do-file](../examples/two-scale-regression.do) |
+| Two-scale signed diagnostics and plots | `np_tdnn_diagnostics`, `np_tdnn_plot` | [Two-scale regression](two-scale-regression.md) |
+| Binary-IV or paired-signal ratios | `clate_dnn` | [Conditional LATE](conditional-late.md), [do-file](../examples/clate.do) |
 | Experimental supplied-theta score moments | `plqr_dnn` | [PLQR moments](plqr-moments.md), [do-file](../examples/plqr-moments.do) |
 | Stored target/candidate diagnostic reports | `cate_dnn_diagnostics`, `clate_dnn_diagnostics`, `np_dnn_diagnostics` | [Reporting](diagnostics-and-reporting.md) |
 | Estimates, geometry and scientific graph views | `cate_dnn_plot`, `clate_dnn_plot`, `np_dnn_plot` | [Visualization](visualising-fits.md), [do-file](../examples/diagnostics-and-plots.do) |
@@ -21,7 +23,7 @@ examples.
 The [R documentation crosswalk](r-documentation-crosswalk.md) maps every R
 article/reference family and identifies absent functionality. The separate
 [R-to-Stata test crosswalk](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/R_TEST_CROSSWALK.md)
-records numerical and behavioral coverage. R-only TDNN, general local GMM,
+records numerical and behavioral coverage. R-only general local GMM,
 custom registries, ratio confidence-set inversion, PLQR coefficient inference
 and paper-replication facilities are not Stata commands.
 
@@ -36,9 +38,9 @@ See [reusing fits](reusing-fits.md) for serialization and PLQR moment scope.
 | Control | CATE / CLATE / NP | Standalone weights | PLQR |
 |---|---|---|---|
 | Covariates | `xcols()`; legacy `x()` | Positional varlist | `x()` |
-| Targets | Exactly one `x0()` or `x0matrix()` | One `x0()` | One `x0()` |
+| Targets | Exactly one `x0()` or `x0matrix()` | Exactly one `x0()` or `x0matrix()` | One `x0()` |
 | Method | `method(exact|asymp)` | Same | Same |
-| Distance | `distance(l2|mahalanobis)` | Same | Same |
+| Distance | `distance(l1|l2|l1_scaled|l2_scaled|mahalanobis)` | Same | Same |
 | k | Positive integer, default 1 | Same | Same |
 | Order | Explicit `s()` or paper/grid rule | `s()`; 0 resolves fixed .4 rule | `s()`; 0 resolves fixed .4 rule |
 | Tuning | `lambda()`, `tuningmode()`, `lambdagrid()` or `sgrid()`, `sdefault()` | No integrated grids/multiplier option | No integrated grids/multiplier option |
@@ -78,7 +80,7 @@ Raw selected propensities must be finite and in [0,1] before clipping;
 estimate. The [full guide](cate-and-regression.md) gives formulas, aliases,
 sample rules and inference requirements for all routes and NP.
 
-## Conditional LATE (experimental)
+## Conditional LATE
 
 The [oracle CLATE example](../examples/clate.do) fits:
 

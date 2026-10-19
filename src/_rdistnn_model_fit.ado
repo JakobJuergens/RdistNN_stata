@@ -3,7 +3,7 @@
 program define _rdistnn_model_fit, eclass
     version 17
     syntax, TARGETS(name) S(integer) [COVariance(string) CANDIDATE(integer 0)]
-    if !inlist("`e(cmd)'","np_dnn","cate_dnn","clate_dnn","plqr_dnn") error 301
+    if !inlist("`e(cmd)'","np_dnn","np_tdnn","cate_dnn","clate_dnn","plqr_dnn") error 301
     if e(model_version)!=1 {
         di as error "Active estimates have no supported saved model; refit with the current package version."
         exit 498
@@ -148,6 +148,7 @@ program define _rdistnn_model_fit, eclass
     ereturn matrix neff_targets=`neff', copy
     ereturn matrix ess_targets=`neff', copy
     local cols "ess max_weight top1_weight_share top5_weight_share top10_weight_share n_nonzero_weight distance_available radius_rank_k radius_rank_s weighted_mean_distance weighted_median_distance"
+    if "`cmd'"=="np_tdnn" local cols "signed_sum positive_mass negative_mass abs_mass inverse_l2_concentration max_abs_weight n_nonzero_weight abs_mean_distance"
     if "`cmd'"=="np_dnn" local cols "`cols' outcome_available weighted_mean_y weighted_sd_y weighted_y_q10 weighted_y_q50 weighted_y_q90"
     if inlist("`cmd'","cate_dnn","clate_dnn") local cols "`cols' overlap_available treated_mass control_mass treated_share propensity_available weighted_mean_propensity weighted_propensity_q10 weighted_propensity_q90 physical_radius_90 arm_ess_available treated_ess control_ess score_contribution_available top5_score_share"
     matrix colnames `diagnostics'=`cols'
@@ -189,6 +190,12 @@ program define _rdistnn_model_fit, eclass
     }
     ereturn local tuning_mode "default"
     ereturn local tuning_source "saved_fit"
-    ereturn local se_method=cond(`active',cond("`cmd'"=="clate_dnn","paired_rank_shift","rank_shift"),"none")
+    local se_method "none"
+    if `active' {
+        if "`cmd'"=="clate_dnn" local se_method "paired_rank_shift"
+        else if "`cmd'"=="np_tdnn" local se_method "signed_rank_shift"
+        else local se_method "rank_shift"
+    }
+    ereturn local se_method "`se_method'"
     ereturn local jackknife=cond(`active',"fast","none")
 end

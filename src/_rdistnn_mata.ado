@@ -17,12 +17,20 @@
 // ---------------------------------------------------------------------
 capture mata: mata drop lncomb()
 capture mata: mata drop rdistnn_l2dist()
+capture mata: mata drop rdistnn_type7()
+capture mata: mata drop rdistnn_sample_sd()
+capture mata: mata drop rdistnn_scale_sum()
+capture mata: mata drop rdistnn_binary_scale()
+capture mata: mata drop rdistnn_fit_geometry()
 capture mata: mata drop rdistnn_mahal_cov_inv()
 capture mata: mata drop rdistnn_mahal_dist()
 capture mata: mata drop rdistnn_order()
 capture mata: mata drop rdistnn_weights_exact()
 capture mata: mata drop rdistnn_weights_asymp()
+capture mata: mata drop rdistnn_beta_interval()
 capture mata: mata drop rdistnn_ranks()
+capture mata: mata drop rdistnn_l2_range_row()
+capture mata: mata drop rdistnn_scaled_difference()
 capture mata: mata drop rdistnn_distance_matrix()
 capture mata: mata drop rdistnn_ranks_from_dmat()
 capture mata: mata drop rdistnn_ranks_matrix()
@@ -53,8 +61,8 @@ capture mata: mata drop rdistnn_plot_influence()
 // Sets global $rdistnn_plugin_ok = 1 if the compiled plugin is found
 // on adopath, 0 otherwise.  Commands may still choose the pure-Mata path
 // unless plugin use is explicitly enabled for parity testing.
-// Note: the plugin only implements L2 distance.  Mahalanobis always
-// uses the Mata path regardless of this global.
+// L1/L2 distance variants and frozen-rank deletions have independent engine
+// selectors; Mahalanobis geometry remains in Mata.
 // ---------------------------------------------------------------------
 if ("$rdistnn_plugin_ok" == "") {
     // _rc == 0   : declared for the first time
@@ -240,6 +248,15 @@ real colvector rdistnn_weights_exact(real colvector ranks,
     return(w)
 }
 
+// Stable Beta interval probability; use the small upper tail directly above
+// the shared lower-endpoint crossover. Preserve every representable mass.
+real scalar rdistnn_beta_interval(real scalar a, real scalar b,
+    real scalar lower, real scalar upper)
+{
+    if(lower<=a/(a+b)) return(ibeta(a,b,upper)-ibeta(a,b,lower))
+    return(ibetatail(a,b,lower)-ibetatail(a,b,upper))
+}
+
 // ── rdistnn_weights_asymp ─────────────────────────────────────────────
 // Asymptotic DNN weights via Beta order-statistic increments.
 //
@@ -271,7 +288,7 @@ real colvector rdistnn_weights_asymp(real colvector ranks,
     for (l = 1; l <= k; l++) {
         // Beta(l, s-l+1) CDF increments on ((j-1)/n, j/n] for j=1..n
         for (i = 1; i <= n; i++) {
-            w_rank[i] = w_rank[i] + (ibeta(l, s-l+1, i/n) - ibeta(l, s-l+1, (i-1)/n))
+            w_rank[i] = w_rank[i] + rdistnn_beta_interval(l, s-l+1, (i-1)/n, i/n)
         }
     }
     w_rank = w_rank / k
@@ -300,57 +317,293 @@ real colvector rdistnn_weights_asymp(real colvector ranks,
 //
 // Returns: n-vector of integer ranks (1 = nearest).
 //
-real colvector rdistnn_ranks(real matrix X, real rowvector x0,
-                              | string scalar distance)
+// R type-7 sample quantile, including even-sample median interpolation.
+real scalar rdistnn_type7(real colvector x, real scalar prob)
 {
-    real matrix Sinv
-    if (args() < 3 | distance == "" | distance == "l2") {
-        return(rdistnn_order(rdistnn_l2dist(X, x0)))
-    }
-    else if (distance == "mahalanobis") {
-        Sinv = rdistnn_mahal_cov_inv(X)
-        return(rdistnn_order(rdistnn_mahal_dist(X, x0, Sinv)))
-    }
-    else {
-        errprintf("rdistnn_ranks: unknown distance '%s'. Use 'l2' or 'mahalanobis'.\n", distance)
-        exit(error(198))
-    }
+    real scalar h,lo,fraction,left,right
+    x=sort(x,1); h=1+(rows(x)-1)*prob; lo=floor(h)
+    left=x[lo]; fraction=h-lo
+    if(fraction==0 | lo==rows(x)) return(left)
+    right=x[lo+1]
+    if(left==right) return(left)
+    // Match R type 7, including the rounded endpoint products. Subtracting
+    // endpoints first can overflow or move a rank-sensitive IQR by one ULP.
+    left=(1-fraction)*left
+    right=fraction*right
+    return(left+right)
 }
 
-// Compute an n x m matrix of ordinary distances for all target rows. L2
-// ranking may use squared distances, but user-facing diagnostics use the
-// Euclidean scale and therefore take the square root here.
-real matrix rdistnn_distance_matrix(real matrix X, real matrix X0,
-                                     | string scalar distance)
+// Compensated sums are limited to bounded exceptional-scale calculations.
+// Products are rounded before entering this shared accumulation convention.
+real scalar rdistnn_scale_sum(real colvector x)
 {
-    real scalar j, m
-    real matrix dmat, Sinv
-
-    if (cols(X0) != cols(X)) {
-        errprintf("rdistnn_distance_matrix: cols(X0) must equal cols(X).\n")
-        exit(error(198))
+    real scalar i,total,correction,next_total,value
+    total=0; correction=0
+    for(i=1;i<=rows(x);i++) {
+        value=x[i]; next_total=total+value
+        if(abs(total)>=abs(value)) correction=correction+((total-next_total)+value)
+        else correction=correction+((value-next_total)+total)
+        total=next_total
     }
-    m = rows(X0)
-    if (m < 1) {
-        errprintf("rdistnn_distance_matrix: X0 must contain at least one target row.\n")
-        exit(error(198))
-    }
+    return(total+correction)
+}
 
-    dmat = J(rows(X), m, .)
-    if (args() < 3 | distance == "" | distance == "l2") {
-        for (j = 1; j <= m; j++) {
-            dmat[,j] = sqrt(rdistnn_l2dist(X, X0[j,.]))
+// Mata's ^ uses a transcendental path; construct the binary scale with exact
+// multiplications instead. At most eleven iterations cover all double inputs.
+real scalar rdistnn_binary_scale(real scalar amplitude)
+{
+    real scalar exponent,power,factor
+    exponent=max((-1074,min((1022,floor(ln(amplitude)/ln(2))))))
+    factor=exponent<0 ? .5 : 2
+    exponent=abs(exponent); power=1
+    while(exponent>0) {
+        if(mod(exponent,2)) power=power*factor
+        exponent=floor(exponent/2)
+        if(exponent>0) factor=factor*factor
+    }
+    return(power)
+}
+
+// Common conservative range gates keep R and Mata on the same arithmetic.
+// Binary normalization preserves local differences around large offsets;
+// shifting by the first observation keeps the normalized mean well scaled.
+real scalar rdistnn_sample_sd(real colvector x)
+{
+    real scalar amplitude,spread,scale,n
+    real colvector z
+    n=rows(x); amplitude=max(abs(x))
+    if(amplitude<sqrt(4.4942328371557898e307/n)) {
+        z=x:-mean(x); spread=max(abs(z))
+        if(spread==0) return(0)
+        if(spread>=sqrt(2.2250738585072014e-308)*sqrt(n)) {
+            return(sqrt(quadcross(z,z)/(n-1)))
         }
     }
-    else if (distance == "mahalanobis") {
-        Sinv = rdistnn_mahal_cov_inv(X)
-        for (j = 1; j <= m; j++) {
-            dmat[,j] = rdistnn_mahal_dist(X, X0[j,.], Sinv)
+    scale=rdistnn_binary_scale(amplitude)
+    z=x:/scale; z=z:-z[1]
+    z=z:-rdistnn_scale_sum(z)/n
+    return(sqrt(rdistnn_scale_sum(z:*z)/(n-1))*scale)
+}
+
+// Fit once on the complete training sample. Scaled distances retain scales
+// (not inverse scales); Mahalanobis retains its fitted inverse covariance.
+real matrix rdistnn_fit_geometry(real matrix X, string scalar distance,
+    string scalar rule, real rowvector scalevec, real scalar eps)
+{
+    real scalar j,n,p,med
+    real rowvector scales
+    real colvector x
+    n=rows(X); p=cols(X)
+    if(n<1 | p<1 | hasmissing(X) | missing(eps) | eps<=0) {
+        errprintf("Geometry requires finite training data and positive finite scaleeps().\n")
+        exit(error(198))
+    }
+    if(rule=="") rule="sd"
+    if(!any(("sd","mad","iqr","range","custom"):==rule)) {
+        errprintf("scalerule() must be sd, mad, iqr, range, or custom.\n")
+        exit(error(198))
+    }
+    if((rule=="custom" & (cols(scalevec)!=p | hasmissing(scalevec))) |
+        (rule!="custom" & cols(scalevec)>0)) {
+        errprintf("scalevec() requires scalerule(custom) and one finite scale per covariate.\n")
+        exit(error(198))
+    }
+    if(distance=="mahalanobis") return(rdistnn_mahal_cov_inv(X))
+    if(distance=="l1" | distance=="l2" | distance=="") return(J(0,0,.))
+    if(distance!="l1_scaled" & distance!="l2_scaled") {
+        errprintf("distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis.\n")
+        exit(error(198))
+    }
+    scales=J(1,p,.)
+    for(j=1;j<=p;j++) {
+        x=X[,j]
+        if(rule=="custom") scales[j]=abs(scalevec[j])
+        else if(rule=="sd") {
+            if(n<2) {
+                errprintf("scalerule(sd) requires at least two training observations.\n")
+                exit(error(2001))
+            }
+            scales[j]=rdistnn_sample_sd(x)
+        }
+        else if(rule=="mad") {
+            med=rdistnn_type7(x,.5)
+            scales[j]=1.4826*rdistnn_type7(abs(x:-med),.5)
+        }
+        else if(rule=="iqr") scales[j]=rdistnn_type7(x,.75)-rdistnn_type7(x,.25)
+        else scales[j]=max(x)-min(x)
+        // Mata's max() skips missing values, so validate before clamping.
+        if(missing(scales[j])) {
+            errprintf("Fitted scales are nonfinite; rescale covariates.\n")
+            exit(error(498))
+        }
+        scales[j]=max((scales[j],eps))
+    }
+    if(hasmissing(scales)) {
+        errprintf("Fitted scales are nonfinite; rescale covariates.\n")
+        exit(error(498))
+    }
+    return(scales)
+}
+
+real colvector rdistnn_ranks(real matrix X, real rowvector x0,
+    | string scalar distance, real matrix geometry)
+{
+    if(args()<3) distance="l2"
+    if(args()<4) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
+    return(rdistnn_order(rdistnn_distance_matrix(X,x0,distance,geometry)))
+}
+
+// Shared scalar recovery for scaled L1/L2; valid final differences may fit
+// even when the raw subtraction is a Mata missing value.
+real scalar rdistnn_scaled_difference(real scalar x,real scalar target,
+    real scalar inverse)
+{
+    real scalar d,half_x,half_t
+    d=x-target
+    if(missing(d) & abs(inverse)<1) {
+        half_x=x*0.5; half_t=target*0.5
+        return((half_x-half_t)*(inverse+inverse))
+    }
+    return(d*inverse)
+}
+
+// Recompute an exceptional row with constant accumulator workspace. Ordinary
+// rows keep subtract-then-scale, rounded squares and sequential addition.
+// R/native use the same 2^1023 intermediate boundary as Mata missing values.
+real scalar rdistnn_l2_range_row(real matrix X, real scalar i,
+    real rowvector target, real matrix geometry, real scalar scaled)
+{
+    real scalar c,d,a,scale,ssq,ratio,term
+    scale=0; ssq=1
+    for(c=1;c<=cols(X);c++) {
+        d=X[i,c]-target[c]
+        if(scaled) d=rdistnn_scaled_difference(X[i,c],target[c],1/geometry[c])
+        a=abs(d)
+        if(missing(a)) return(.)
+        if(a!=0) {
+            if(scale<a) {
+                ratio=scale/a
+                term=ssq*(ratio*ratio)
+                ssq=1+term
+                scale=a
+            }
+            else {
+                ratio=a/scale
+                term=ratio*ratio
+                ssq=ssq+term
+            }
         }
     }
-    else {
-        errprintf("rdistnn_distance_matrix: unknown distance '%s'. Use 'l2' or 'mahalanobis'.\n", distance)
+    return(scale*sqrt(ssq))
+}
+
+// Ordinary distances; frozen geometry can be reused for subsets/new targets.
+real matrix rdistnn_distance_matrix(real matrix X, real matrix X0,
+    | string scalar distance, real matrix geometry)
+{
+    real scalar j,m,c,i
+    real matrix dmat,A
+    real colvector total,exceptional,square,redo
+    string scalar engine,plugin_mode
+    real scalar native_batch
+    st_global("rdistnn_last_distance_engine","")
+    engine=st_global("rdistnn_distance_engine")
+    if(engine=="") engine="auto"
+    if(!any(engine:==("auto","plugin","mata"))) {
+        errprintf("rdistnn_distance_engine must be auto, plugin or mata.\n")
         exit(error(198))
+    }
+    if(rows(X)<1 | cols(X)<1 | cols(X0)!=cols(X) | rows(X0)<1 | hasmissing(X) | hasmissing(X0)) {
+        errprintf("Distances require finite aligned covariates and target rows.\n")
+        exit(error(198))
+    }
+    if(args()<3 | distance=="") distance="l2"
+    if(args()<4) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
+    if(distance=="l1_scaled" | distance=="l2_scaled") {
+        if(rows(geometry)!=1 | cols(geometry)!=cols(X) | hasmissing(geometry) | any(geometry:<=0)) {
+            errprintf("Frozen scale geometry must contain one positive scale per covariate.\n")
+            exit(error(498))
+        }
+    }
+    if(distance=="mahalanobis") {
+        if(rows(geometry)!=cols(X) | cols(geometry)!=cols(X) | hasmissing(geometry)) {
+            errprintf("Frozen Mahalanobis geometry has incompatible dimensions.\n")
+            exit(error(498))
+        }
+    }
+    if(any(distance:==("l1","l2","l1_scaled","l2_scaled"))) {
+        plugin_mode=st_global("rdistnn_use_plugin")
+        // Host matrix transfers dominate small calls. This conservative gate
+        // keeps ordinary scalar/small jobs on Mata; explicit requirements
+        // always bypass it. The batch kernel itself has no such size limit.
+        native_batch=(cols(X)>=16 & rows(X0)>=16 &
+            rows(X)*cols(X)*rows(X0)>=2e7)
+        if(engine=="plugin" | (engine=="auto" & plugin_mode!="0" &
+            (plugin_mode=="1" | native_batch))) {
+            dmat=rdistnn_distance_plugin(X,X0,distance,geometry)
+            if(rows(dmat)==rows(X) & cols(dmat)==rows(X0)) {
+                st_global("rdistnn_last_distance_engine","plugin")
+                return(dmat)
+            }
+            if(engine=="plugin" | plugin_mode=="1") {
+                errprintf("Compiled distance API unavailable or failed; install an updated plugin or use automatic/Mata dispatch.\n")
+                exit(error(498))
+            }
+        }
+    }
+    st_global("rdistnn_last_distance_engine","mata")
+    m=rows(X0); dmat=J(rows(X),m,.)
+    for(j=1;j<=m;j++) {
+        A=X:-X0[j,]
+        if(distance=="l1_scaled" | distance=="l2_scaled") A=A:*(1:/geometry)
+        // Match the R/native coordinate order, including rounding at near ties.
+        // rowsum() may use wider accumulation and therefore change ranks.
+        if(distance=="l1" | distance=="l1_scaled") {
+            if(distance=="l1_scaled" & hasmissing(A)) {
+                // Revisit only failed coordinates; finite ordinary products
+                // and their accumulation order are left intact.
+                for(c=1;c<=cols(A);c++) {
+                    redo=selectindex(A[,c]:>=.)
+                    for(i=1;i<=length(redo);i++) {
+                        A[redo[i],c]=rdistnn_scaled_difference(
+                            X[redo[i],c],X0[j,c],1/geometry[c])
+                    }
+                }
+            }
+            total=J(rows(X),1,0)
+            for(c=1;c<=cols(A);c++) total=total:+abs(A[,c])
+            dmat[,j]=total
+        }
+        else if(distance=="l2" | distance=="l2_scaled") {
+            total=J(rows(X),1,0)
+            exceptional=J(rows(X),1,0)
+            for(c=1;c<=cols(A);c++) {
+                square=A[,c]:*A[,c]
+                // Missing squares propagate to total; form row masks only
+                // when a square might have underflowed, matching the R gate.
+                if(any(square:<2.2250738585072014e-308)) {
+                    exceptional=exceptional :|
+                        ((A[,c]:!=0) :& (square:<2.2250738585072014e-308))
+                }
+                total=total:+square
+            }
+            dmat[,j]=sqrt(total)
+            redo=selectindex(exceptional :| (total:>=.))
+            // selectindex() returns a 1 x 0 empty vector for scalar false.
+            for(i=1;i<=length(redo);i++) {
+                dmat[redo[i],j]=rdistnn_l2_range_row(X,redo[i],X0[j,],
+                    geometry,distance=="l2_scaled")
+            }
+        }
+        else if(distance=="mahalanobis") dmat[,j]=rdistnn_mahal_dist(X,X0[j,],geometry)
+        else {
+            errprintf("Unknown distance '%s'.\n",distance)
+            exit(error(198))
+        }
+    }
+    if(hasmissing(dmat)) {
+        errprintf("Distances overflowed; rescale covariates or increase scaleeps().\n")
+        exit(error(498))
     }
     return(dmat)
 }
@@ -375,11 +628,12 @@ real matrix rdistnn_ranks_from_dmat(real matrix dmat)
 // Rank every observation separately for each row of X0. The returned n x m
 // matrix has one full rank permutation per target column.
 real matrix rdistnn_ranks_matrix(real matrix X, real matrix X0,
-                                  | string scalar distance)
+                                  | string scalar distance, real matrix geometry)
 {
     if (args() < 3) distance = "l2"
+    if (args() < 4) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
     return(rdistnn_ranks_from_dmat(
-        rdistnn_distance_matrix(X, X0, distance)))
+        rdistnn_distance_matrix(X, X0, distance, geometry)))
 }
 
 // Left-continuous weighted empirical quantile used by R diagnostics.
@@ -506,190 +760,10 @@ real colvector rdistnn_weights(real matrix X, real rowvector x0,
     if (args() < 5 | method == "")   method   = "exact"
     if (args() < 6 | distance == "") distance = "l2"
 
-    if (distance == "mahalanobis") {
-        if (args() < 7 | rows(Sinv) == 0) Sinv = rdistnn_mahal_cov_inv(X)
-        dist = rdistnn_mahal_dist(X, x0, Sinv)
-    }
-    else {
-        dist = rdistnn_l2dist(X, x0)
-    }
+    if (args() < 7 | rows(Sinv) == 0) Sinv=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
+    dist=rdistnn_distance_matrix(X,x0,distance,Sinv)
     ranks = rdistnn_order(dist)
     return(rdistnn_weights_from_ranks(ranks, k, s, method))
-}
-
-// Explicit rank-shift deletions retained as a reference and final fallback.
-// Output columns are target blocks, with q signal columns in each block.
-real matrix rdistnn_loo_naive(real matrix ranks, real matrix signal,
-    real scalar k, real scalar s, string scalar method)
-{
-    real scalar n, m, q, i, j
-    real colvector kept, r, w, table, active
-    real rowvector level
-    real matrix loo, z
-    n=rows(ranks); m=cols(ranks); q=cols(signal)
-    loo=J(n,m*q,.)
-    table=rdistnn_weights_from_ranks((1::(n-1)),k,s,method)
-    active=((table:!=0)\0):|(0\(table:!=0))
-    for(j=1;j<=m;j++) {
-        z=rdistnn_center_signal(signal,active[ranks[,j]],level)
-        for(i=1;i<=n;i++) {
-            kept=((1::n):!=i)
-            r=select(ranks[,j],kept)
-            r=r:-(r:>ranks[i,j])
-            w=rdistnn_weights_from_ranks(r,k,s,method)
-            loo[i,((j-1)*q+1)..(j*q)]=cross(w,select(z,kept)):+level*sum(table)
-        }
-    }
-    return(loo)
-}
-
-// Two linear passes per target/component. The table at n-1 is shared across
-// every deletion and target; no deletion-specific rank or signal copies.
-real matrix rdistnn_loo_prefix(real matrix ranks, real matrix signal,
-    real colvector table)
-{
-    real scalar n, m, q, j, r
-    real colvector ord, active
-    real rowvector level
-    real matrix z, left, right, loo
-    n=rows(ranks); m=cols(ranks); q=cols(signal)
-    loo=J(n,m*q,.)
-    for(j=1;j<=m;j++) {
-        ord=J(n,1,.)
-        ord[ranks[,j]]=(1::n)
-        active=((table:!=0)\0):|(0\(table:!=0))
-        z=rdistnn_center_signal(signal[ord,],active,level)
-        left=right=J(n,q,0)
-        for(r=2;r<=n;r++) left[r,]=left[r-1,]+table[r-1]*z[r-1,]
-        for(r=n-1;r>=1;r--) right[r,]=right[r+1,]+table[r]*z[r+1,]
-        loo[,((j-1)*q+1)..(j*q)]=(left[ranks[,j],]+right[ranks[,j],]):+level*sum(table)
-    }
-    return(loo)
-}
-
-// The bridge uses Mata-created Stata matrices, which may exceed c(matsize).
-// Attempt the native engine without changing the user's matrix setting.
-real matrix rdistnn_loo_plugin(real matrix ranks, real matrix signal,
-    real colvector table)
-{
-    string rowvector names
-    real scalar rc, i
-    real matrix loo
-    if(st_global("rdistnn_plugin_ok")!="1") return(J(0,0,.))
-    names=st_tempname(4)
-    st_matrix(names[1],ranks)
-    st_matrix(names[2],signal)
-    st_matrix(names[3],table)
-    st_matrix(names[4],J(rows(ranks),cols(ranks)*cols(signal),.))
-    rc=_stata("plugin call rdistnn_plugin, rank_loo "+invtokens(names),1)
-    loo=J(0,0,.)
-    if(rc==0) loo=st_matrix(names[4])
-    for(i=1;i<=4;i++) st_matrix(names[i],J(0,0,.))
-    return(loo)
-}
-
-// Default hierarchy: compiled prefix/suffix -> Mata prefix/suffix -> naive.
-// Explicit engine selectors support parity checks without changing estimators.
-real matrix rdistnn_loo_from_ranks(real matrix ranks, real matrix signal,
-    real scalar k, real scalar s, | string scalar method, real scalar center,
-    real colvector precomputed_table)
-{
-    real scalar n, m, q, i, j, r
-    real colvector seen, table, active
-    real matrix loo, z
-    string scalar engine, plugin_mode
-    pointer(function) scalar prefix
-    if(args()<5 | method=="") method="exact"
-    if(args()<6) center=0
-    n=rows(ranks); m=cols(ranks); q=cols(signal)
-    if((method!="exact" & method!="asymp") |
-        n<2 | m<1 | rows(signal)!=n | q<1 | hasmissing(signal) |
-        hasmissing(ranks) | k<1 | k!=floor(k) | s<k | s>=n | s!=floor(s) |
-        min(ranks)<1 | max(ranks)>n | any(ranks:!=floor(ranks))) {
-        errprintf("rdistnn_loo_from_ranks: require finite aligned signals, rank permutations and 1 <= k <= s < n.\n")
-        exit(error(198))
-    }
-    for(j=1;j<=m;j++) {
-        seen=J(n,1,0)
-        for(i=1;i<=n;i++) {
-            r=ranks[i,j]
-            if(seen[r]) {
-                errprintf("rdistnn_loo_from_ranks: each ranks column must be a permutation of 1..n.\n")
-                exit(error(198))
-            }
-            seen[r]=1
-        }
-    }
-    engine=st_global("rdistnn_jackknife_engine")
-    if(engine=="") engine="auto"
-    if(!any(engine:==("auto","plugin","mata","naive"))) {
-        errprintf("rdistnn_jackknife_engine must be auto, plugin, mata or naive.\n")
-        exit(error(198))
-    }
-    // Keep the zero-signal shortcut used by delegated geometry calculations.
-    if(engine!="naive" & all(signal:==0)) return(J(n,m*q,0))
-    if(args()<7) table=rdistnn_weights_from_ranks((1::(n-1)),k,s,method)
-    else table=precomputed_table
-    if(rows(table)!=n-1 | cols(table)!=1 | hasmissing(table)) {
-        errprintf("rdistnn_loo_from_ranks: deletion table must have n-1 finite entries.\n")
-        exit(error(198))
-    }
-    if(center) {
-        active=((table:!=0)\0):|(0\(table:!=0))
-        loo=J(n,m*q,.)
-        for(j=1;j<=m;j++) {
-            z=rdistnn_center_signal(signal,active[ranks[,j]])
-            loo[,((j-1)*q+1)..(j*q)]=rdistnn_loo_from_ranks(ranks[,j],z,k,s,method,0,table)
-        }
-        return(loo)
-    }
-    if(engine=="naive") return(rdistnn_loo_naive(ranks,signal,k,s,method))
-    plugin_mode=st_global("rdistnn_use_plugin")
-    if(engine=="plugin" | (engine=="auto" & plugin_mode!="0")) {
-        loo=rdistnn_loo_plugin(ranks,signal,table)
-        if(rows(loo)==n & !hasmissing(loo)) return(loo)
-        if(engine=="plugin" | plugin_mode=="1") {
-            errprintf("Compiled rank_loo unavailable or failed; install an updated plugin or allow Mata fallback.\n")
-            exit(error(498))
-        }
-    }
-    // Resolve dynamically so the retained reference still works if the fast
-    // Mata function is unavailable. Nonfinite fast sums also retry the reference.
-    prefix=findexternal("rdistnn_loo_prefix()")
-    if(prefix!=NULL) {
-        loo=(*prefix)(ranks,signal,table)
-        if(!hasmissing(loo)) return(loo)
-    }
-    if(engine=="mata") {
-        errprintf("Mata prefix/suffix engine unavailable or produced nonfinite deletions.\n")
-        exit(error(498))
-    }
-    return(rdistnn_loo_naive(ranks,signal,k,s,method))
-}
-
-// A common signal level has zero jackknife covariance. Remove it before
-// accumulating deletions, and never restore it on covariance-only paths.
-// Use only the union of deletion support to choose the reference, and zero
-// unused rows before subtraction. A deleted earlier rank can bring the next
-// original rank into support. Signed tables require nonzero support.
-real matrix rdistnn_center_signal(real matrix signal, | real colvector active,
-    real rowvector level)
-{
-    real scalar j
-    real rowvector lo, hi
-    real matrix z, used
-    if(args()<2) active=J(rows(signal),1,1)
-    z=J(rows(signal),cols(signal),0)
-    level=J(1,cols(signal),0)
-    if(!any(active)) return(z)
-    used=select(signal,active)
-    lo=colmin(used); hi=colmax(used)
-    for(j=1;j<=cols(signal);j++) {
-        if(lo[j]>0) level[j]=lo[j]
-        else if(hi[j]<0) level[j]=hi[j]
-    }
-    z[selectindex(active),]=used:-level
-    return(z)
 }
 
 // ── rdistnn_jk_cov_from_ranks ─────────────────────────────────────────
@@ -975,3 +1049,11 @@ real matrix rdistnn_plot_influence(real matrix X,
 }
 
 end
+
+// Shared optional-native distance bridge, separate from geometry fitting.
+findfile "_rdistnn_distance_plugin.ado"
+quietly run "`r(fn)'"
+
+// Keep the shared arbitrary-table engine separate from geometry and weights.
+findfile "_rdistnn_rank_loo.ado"
+quietly run "`r(fn)'"

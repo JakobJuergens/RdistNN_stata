@@ -23,7 +23,8 @@ program define plqr_dnn, eclass
         tau(real 0.5)                    ///  quantile index
         k(integer 1)                     ///  # selected within each s-subset
         s(integer 0)                     ///  subset/kernel order; larger = tighter
-        Distance(string)                 ///  l2 (default) | mahalanobis
+        Distance(string)                 ///  localization geometry
+        SCALERule(string) SCALEVec(numlist) SCALEEPS(real 1e-12) ///
         Method(string)                   ///  exact (default) | asymp
         Level(cilevel)                   ///
         ]
@@ -105,8 +106,8 @@ program define plqr_dnn, eclass
     }
 
     if "`distance'" == "" local distance "l2"
-    if !inlist("`distance'", "l2", "mahalanobis") {
-        di as error "distance() must be l2 or mahalanobis."
+    if !inlist("`distance'", "l2", "mahalanobis", "l1", "l1_scaled", "l2_scaled") {
+        di as error "distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis."
         exit 198
     }
     if "`distance'" == "mahalanobis" & `kx' < 2 {
@@ -158,7 +159,8 @@ program define plqr_dnn, eclass
         _pl_theta  = (`theta_mata')'
         // Match the R reference and the other estimators: rank the reported
         // distance matrix, with original observation order resolving ties.
-        _pl_DX     = rdistnn_distance_matrix(_pl_X, _pl_x0, "`distance'")
+        _pl_geometry = rdistnn_fit_geometry(_pl_X,"`distance'","`scalerule'",strtoreal(tokens("`scalevec'")),`scaleeps')
+        _pl_DX     = rdistnn_distance_matrix(_pl_X, _pl_x0, "`distance'", _pl_geometry)
         _pl_ranks  = rdistnn_ranks_from_dmat(_pl_DX)
         _pl_w      = rdistnn_weights_from_ranks(_pl_ranks, `k', `s', "`method'")
         _pl_resid  = `tau' :- (_pl_y :<= (_pl_D * _pl_theta :+ _pl_g0))
@@ -194,6 +196,9 @@ program define plqr_dnn, eclass
     ereturn scalar m      = 1
     ereturn scalar p      = `kx'
     ereturn scalar tau    = `tau'
+    if "`scalerule'"=="" local scalerule "sd"
+    ereturn local scalerule "`scalerule'"
+    ereturn scalar scaleeps=`scaleeps'
     ereturn local  x0       "`x0'"
     ereturn local  xvars    "`xvars'"
     ereturn local  dvars    "`dvars'"
@@ -213,11 +218,16 @@ program define plqr_dnn, eclass
     ereturn local  cmd      "plqr_dnn"
     ereturn local  cmdline  "plqr_dnn `0'"
 
-    tempname model_signals model_ranks model_distances
+    tempname model_signals model_ranks model_distances model_geometry
     mata: st_matrix("`model_signals'",_pl_score); st_matrix("`model_ranks'",_pl_ranks); st_matrix("`model_distances'",_pl_DX)
     local snapshot_vars `xvars' `outcome' `dvars' `gvar' `mdvars'
     local snapshot_vars : list uniq snapshot_vars
-    quietly _rdistnn_model_store `snapshot_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances')
+    local geometry_option ""
+    if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
+        mata: st_matrix("`model_geometry'",_pl_geometry)
+        local geometry_option "geometry(`model_geometry')"
+    }
+    quietly _rdistnn_model_store `snapshot_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances') `geometry_option'
     tempname ses targets
     mata: st_matrix("`ses'",sqrt(diagonal(st_matrix("e(V)")))'); st_matrix("`targets'",_pl_x0)
     matrix colnames `ses'=`dvars'

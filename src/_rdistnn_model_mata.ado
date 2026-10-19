@@ -1,4 +1,7 @@
 // Re-evaluate a saved model without reading the caller's dataset or retraining.
+// Mata resolves all referenced adapters when compiling the model functions.
+findfile "_rdistnn_tdnn_mata.ado"
+quietly run "`r(fn)'"
 capture mata: mata drop rdistnn_model_diagnostics()
 capture mata: mata drop rdistnn_model_evaluate()
 capture mata: mata drop rdistnn_model_weights()
@@ -39,7 +42,11 @@ real matrix rdistnn_model_weights(real rowvector targets)
     real matrix R,D,W,out
     real scalar j,t,n
     R=st_matrix("e(model_ranks)"); D=st_matrix("e(model_distances)")
-    W=rdistnn_weights_from_rmat(R,st_numscalar("e(k)"),st_numscalar("e(s)"),st_global("e(method)"))
+    if(st_global("e(cmd)")=="np_tdnn") {
+        W=rdistnn_tdnn_weights(R,st_numscalar("e(s1)"),st_numscalar("e(s2)"),
+            st_numscalar("e(dim)"),st_global("e(method)"),st_numscalar("e(normalize)"))
+    }
+    else W=rdistnn_weights_from_rmat(R,st_numscalar("e(k)"),st_numscalar("e(s)"),st_global("e(method)"))
     n=rows(R); out=J(0,5,.)
     for(j=1;j<=cols(targets);j++) {
         t=targets[j]
@@ -95,7 +102,7 @@ void rdistnn_model_evaluate(string scalar target_name, real scalar s,
     real scalar n,m,q,k,tol,j,clip
     real rowvector index
     real matrix X,X0,signals,ranks,DX,W,diag,components,CV,status,V,fit,A,E,data
-    real matrix old_targets,loo,centered
+    real matrix old_targets,loo,centered,geometry
     real rowvector b,neff
     cmd=st_global("e(cmd)"); method=st_global("e(method)")
     distance=st_global("e(distance)"); k=st_numscalar("e(k)")
@@ -116,7 +123,13 @@ void rdistnn_model_evaluate(string scalar target_name, real scalar s,
         }
     }
     if(rows(ranks)==0) {
-        DX=rdistnn_distance_matrix(X,X0,distance)
+        geometry=J(0,0,.)
+        if(distance=="mahalanobis" | distance=="l1_scaled" | distance=="l2_scaled") {
+            geometry=st_matrix("e(model_geometry)")
+            // Version-1 fits did not store geometry; only Mahalanobis existed.
+            if(rows(geometry)==0 & distance=="mahalanobis") geometry=rdistnn_mahal_cov_inv(X)
+        }
+        DX=rdistnn_distance_matrix(X,X0,distance,geometry)
         ranks=rdistnn_ranks_from_dmat(DX)
     }
     if(rows(ranks)!=n | cols(ranks)!=m | rows(DX)!=n | cols(DX)!=m | hasmissing(DX)) {
@@ -129,7 +142,11 @@ void rdistnn_model_evaluate(string scalar target_name, real scalar s,
             exit(error(498))
         }
     }
-    W=rdistnn_weights_from_rmat(ranks,k,s,method)
+    if(cmd=="np_tdnn") {
+        W=rdistnn_tdnn_weights(ranks,st_numscalar("e(s1)"),st_numscalar("e(s2)"),
+            st_numscalar("e(dim)"),method,st_numscalar("e(normalize)"))
+    }
+    else W=rdistnn_weights_from_rmat(ranks,k,s,method)
     fit=signals'*W; b=vec(fit)'; neff=1:/colsum(W:^2)
     V=J(m*q,m*q,.)
     components=CV=status=J(1,1,.)
@@ -137,6 +154,10 @@ void rdistnn_model_evaluate(string scalar target_name, real scalar s,
         tol=st_numscalar("e(denominator_tol)")
         rdistnn_clate_fit(ranks,signals,k,s,method,do_se,tol,components,b,V,CV,status)
         fit=b
+    }
+    else if(do_se & cmd=="np_tdnn") {
+        V=rdistnn_tdnn_cov(ranks,signals,st_numscalar("e(s1)"),st_numscalar("e(s2)"),
+            st_numscalar("e(dim)"),method,st_numscalar("e(normalize)"))
     }
     else if(do_se) {
         if(q==1) V=rdistnn_jk_cov_multi_from_ranks(ranks,signals,k,s,method)
@@ -162,7 +183,8 @@ void rdistnn_model_evaluate(string scalar target_name, real scalar s,
             if(clip<.) E=rowmax((J(n,1,clip),rowmin((E,J(n,1,1-clip)))))
         }
     }
-    diag=rdistnn_model_diagnostics(cmd,X,X0,signals,W,DX,k,s,b,A,E)
+    if(cmd=="np_tdnn") diag=rdistnn_tdnn_diagnostics(W,DX)
+    else diag=rdistnn_model_diagnostics(cmd,X,X0,signals,W,DX,k,s,b,A,E)
     st_matrix(names[1],b); st_matrix(names[2],V); st_matrix(names[3],diag)
     st_matrix(names[4],components); st_matrix(names[5],CV); st_matrix(names[6],status)
     st_matrix(names[7],neff); st_matrix(names[8],ranks); st_matrix(names[9],DX)

@@ -41,6 +41,15 @@ assertions as the full suite.
 | Adversarial reporting/diagnostic/plot returns, complete caller state, cold restores, sample guards and exported bands | `test-premerge-postestimation.do` |
 | Saved-model snapshots, graph-free reports, all-engine prediction, reusable candidates, cold .ster restores and independent R joint covariance | `test-fitted-results.do` |
 | Experimental PLQR moment semantics and covariance | `test-plqr-dnn-*.do` |
+| L1/scaled geometry, batch weight exports, frozen new-target prediction | `test-geometry-batch.do` |
+| Rank-sensitive R quantiles, finite extreme fitted SD/MAD, failed-scale validation and scaled L1 recovery | `test-geometry-numerical-stability.do` |
+| Actual R native/fallback distance and rank fixtures; forced distance routes, invalid protocol inputs, overflow, matrix dimensions above matsize | `test-native-distances.do` |
+| Native/Mata equivalence for every estimator, metric/scaling rule and weight method, tuning and saved-fit prediction | `test-native-distances-estimators.do` |
+| Actual older-plugin capability probing, automatic fallback and forced-mode errors (separate old-binary process) | `test-native-distances-compat.do` |
+| Two-scale signed regression/weights, full covariance, reporting and saved reuse | `test-tdnn.do`, `test-tdnn-saved.do` |
+| Independent tiny Beta masses, close-order TDNN coefficients and affected estimator/prediction paths | `test-weight-numerical-stability.do`, `src/plugin/test_rdistnn_weights.cpp` |
+| Extreme L2 recovery, shared arithmetic boundaries, exact ranks and genuine output overflow | `test-distance-range-stability.do`, `src/plugin/test_rdistnn_distance.cpp`, `src/plugin/test_rdistnn_distance_plugin.cpp` |
+| Actual R native/fallback extreme-distance estimates, joint covariance and restored prediction | `test-stability-r-parity.do`, `fixtures/r_stability_fixtures.do` |
 | Fixed shared R values | `test-r-parity-priority.do` |
 | End-to-end estimation and replay | `test-integration.do` |
 | Cold-session CATE/NP plotting order | `test-plot-command-order.do` |
@@ -53,6 +62,32 @@ The plot-order regression runs first in the full suite to exercise cold ado
 autoloading; it also runs independently through the exact filename filter.
 
 ## Fixtures and controls
+
+The [numerical parity contract](../CONTRIBUTING.md#numerical-parity-contract)
+requires within-package native/Mata comparisons as well as shared R/Stata
+comparisons. Establish forced routes independently of automatic fallback;
+check discrete ranks, support, statuses and missingness exactly alongside
+justified tolerances for numeric values. Matching two optimized paths alone
+does not replace an independent reference.
+
+`Rscript tools/generate_r_native_distance_fixtures.R` generates distance/rank
+fixtures from the sibling R package's actual C++ functions and forced R
+fallbacks, and checks independent scalar references. These include large
+offsets, constant coordinates, scale clamping, duplicate/reordered targets and
+near ties sensitive to double accumulation. The kernel test requires a real
+new distance API; it does not count unavailable native execution as a pass.
+The end-to-end test fixes the jackknife to Mata to isolate distance dispatch.
+The compatibility test skips in the normal suite: execute it in a separate
+Stata process that has loaded an older plugin and sets
+`global rdistnn_test_old_distance_plugin 1` to verify actual old-binary behavior.
+
+`Rscript tools/generate_r_stability_fixtures.R` generates the stability fixtures
+from actual R compiled and forced fallback paths. It checks analytic Beta tails,
+distance/rank parity, estimates, joint covariance and serialized prediction.
+The fixture header records source hashes. Regeneration additionally uses Python 3
+standard-library exact combinations and 90-digit Decimal arithmetic for a signed
+TDNN oracle. Licensed tests require both forced
+Mata and plugin distances; unavailable native execution is a failure.
 
 The centering regressions in `test-mata-jackknife-prefix.do` run the compiled,
 Mata, naive and automatic routes. They cover all estimator commands, opposite-
@@ -106,8 +141,8 @@ names with the public documentation crosswalk. It is a structural check;
 source review and runnable examples establish semantic accuracy.
 
 With licensed Windows Stata, `tools/ci/stata_documentation_check.ps1` runs all
-six standalone example do-files and renders the overview help. It requires
+eight standalone example do-files and renders the overview help. It requires
 the dedicated completion marker for every example and stops on failure.
-The isolated-install helper repeats all six examples against a temporary PLUS
+The isolated-install helper repeats all eight examples against a temporary PLUS
 payload and verifies the installed overview. This docs-only workflow complements
 the numerical regression suite rather than rerunning unchanged estimator tests.

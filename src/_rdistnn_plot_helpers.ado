@@ -33,9 +33,10 @@ program define _cate_dnn_plot_estimates, rclass
         local estimand "CLATE"
         local plot_title "DNN CLATE estimates"
     }
-    if "`e(cmd)'" == "np_dnn" {
+    if inlist("`e(cmd)'", "np_dnn", "np_tdnn") {
         local estimand "Conditional mean"
         local plot_title "DNN nonparametric regression estimates"
+        if "`e(cmd)'"=="np_tdnn" local plot_title "Two-scale regression estimates"
     }
 
     if !`use_candidates' {
@@ -205,6 +206,7 @@ program define _cate_dnn_plot_estimates, rclass
     if `ng' > 1 local legendopt `"legend(order(`legend_order') cols(1))"'
 
     local subtitle "n = `=e(N)', k = `=e(k)', s = `=e(s)'"
+    if "`e(cmd)'"=="np_tdnn" local subtitle "n = `=e(N)', s1 = `=e(s1)', s2 = `=e(s2)', dim = `=e(dim)'"
     if "`style'" == "forest" {
         twoway `plots', xline(0, lpattern(dash) lcolor(gs8)) ///
             xtitle("`estimand' estimate") ytitle("Target") ///

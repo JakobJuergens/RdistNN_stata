@@ -11,6 +11,14 @@ a Stata equivalent.
 | L2 and Mahalanobis distances, deterministic rank ties, translation/scale invariance, and singular covariance | `test-mata-distances.do`, `test-mata-rank-r-mirror.do` |
 | Exact DNN weights: normalization, closed forms, brute-force subsets, support boundaries, and permutation invariance | `test-mata-weights-exact.do`, `test-weights-dnn-r-invariants.do` |
 | Asymptotic DNN weights: normalization, monotonicity, exact approximation, permutation invariance, and `k = s` uniformity | `test-mata-weights-asymp.do`, `test-r-parity-priority.do` |
+| Tiny Beta interval masses and close-order TDNN coefficients against analytic/independent references | `test-weight-numerical-stability.do`, `src/plugin/test_rdistnn_weights.cpp`, `fixtures/r_stability_fixtures.do` |
+| Extreme L2 recovery and common exceptional boundaries, actual compiled/fallback ranks, full covariance and restored prediction | `test-distance-range-stability.do`, `test-stability-r-parity.do`, `fixtures/r_stability_fixtures.do` |
+| L1, scaled L1/L2 with R sd/MAD/type-7 IQR/range/custom scales; batched weight exports and frozen saved geometry | `test-geometry-batch.do` |
+| R quantile near-tie ranks/estimates, analytic extreme fitted scales, failed-scale guards and scaled L1 recovery | `test-geometry-numerical-stability.do`, `fixtures/r_geometry_fixtures.do` |
+| Actual R C++ and forced fallback L1/L2/scaled distances/ranks, large offsets, double-accumulation ties, scalar/batch and duplicate targets | `test-native-distances.do`, `fixtures/r_native_distance_fixtures.do` |
+| Forced native/Mata geometry across all five estimators and both weight methods, fitted scales, grids/covariance, candidates and cold saved prediction | `test-native-distances-estimators.do` |
+| Capability negotiation with an actual older plugin, default fallback and required-native failures | `test-native-distances-compat.do` (separate old-plugin process) |
+| TDNN exact/asymptotic signed rank tables, support-aware covariance, scalar/batch equivalence and saved-state reuse | `test-tdnn.do`, `test-tdnn-saved.do` |
 | Mata/plugin equivalence and signed-target parsing | `test-weights-dnn-plugin.do` |
 | Scalar, vector, and multi-target rank-shift jackknife covariance against explicit deletion loops | `test-mata-jackknife.do`, `test-mata-jackknife-vector.do`, `test-mata-jackknife-golden.do` |
 | Shared prefix/suffix deletions, retained naive reference, native/Mata parity, missing-engine fallback, native dimensions above matsize, all-estimator covariance/grid reuse | `test-mata-jackknife-prefix.do`, `test-jackknife-engines.do` |
@@ -47,9 +55,8 @@ confidence levels, canonical full-target matrices, `nose`, zero variance,
 undefined CLATE targets and legacy CATE/NP result replay. Reference six-column
 summaries at 90 and 95 percent come from
 `tools/generate_r_reporting_fixtures.R` and `fixtures/r_reporting_fixtures.do`.
-CATE and CLATE paired-signal summaries call R's actual CATE and affine-ratio
-summary methods. NP uses its R estimate/SE and the shared normal convention;
-R NP has no summary method. The generator converts R infinities to missing
+CATE, NP and CLATE paired-signal summaries call R's actual CATE, NP and
+affine-ratio summary methods. The generator converts R infinities to missing
 because Stata matrices cannot represent them.
 
 `test-estimator-diagnostics.do` checks common target/candidate grammar,
@@ -91,7 +98,6 @@ The following R tests do not currently map to a Stata command and should not be
 ported as superficial assertions:
 
 - custom distance, rank-weight, score, and tuning registries;
-- TDNN weights, TDNN estimators, and TDNN jackknife paths;
 - general local GMM models and IV simulation/replication helpers;
 - R container dispatch (`matrix`, `data.frame`, tibble), S3 methods, and
   `predict()` behavior;

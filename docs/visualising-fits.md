@@ -1,6 +1,6 @@
 # Visualising fits
 
-`cate_dnn_plot`, experimental `clate_dnn_plot`, and `np_dnn_plot` turn the
+`cate_dnn_plot`, `clate_dnn_plot`, and `np_dnn_plot` turn the
 active fit into Stata graphs. Choose a panel based on the question: estimates
 for pointwise uncertainty, diagnostics for concentration, weights for local
 geometry, overlap for arm support, influence for score contributions, and
@@ -343,7 +343,8 @@ still use b/V fallbacks for stored estimate panels. Restoring a legacy fit
 cannot supply numeric state that was never stored.
 
 The [R visualization article](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/vignettes/visualising-fits.Rmd)
-provides the related R workflow. R-only plot conditioning/calibration,
-two-scale regression and generic GMM plotting are not Stata commands;
+provides the related R workflow. R-only conditioning/calibration and generic
+GMM plotting are not Stata commands. Two-scale regression has its own
+[signed-weight plot adapter](two-scale-regression.md);
 see the [documentation crosswalk](r-documentation-crosswalk.md) and
 [notation and conventions](notation-and-conventions.md).

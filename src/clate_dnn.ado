@@ -1,5 +1,5 @@
 *! version 0.1.0  2026-10-17  Jakob Juergens
-*! Experimental conditional LATE with supplied binary-IV nuisance predictions
+*! Conditional LATE with supplied binary-IV nuisance predictions
 
 program define clate_dnn, eclass
     version 17
@@ -19,7 +19,7 @@ program define clate_dnn, eclass
         TRAINING(string) K(integer 1) S(integer 0) ///
         TUNINGMode(string) LAMBDA(real .4) LAMBDAGrid(numlist) ///
         SGRID(numlist) SDEFAULT(integer 0) ///
-        DISTance(string) METHod(string) Level(cilevel) noSE]
+        DISTance(string) SCALERule(string) SCALEVec(numlist) SCALEEPS(real 1e-12) METHod(string) Level(cilevel) noSE]
 
     local original_cmdline `"clate_dnn `0'"'
     local input `varlist'
@@ -134,15 +134,20 @@ program define clate_dnn, eclass
     // Use the existing CATE localization/tuning contract, then replace its
     // scalar-signal calculation with the paired ratio calculation below.
     local opts "xcols(`xvars') k(`k') s(`s') lambda(`lambda') sdefault(`sdefault') level(`level')"
-    foreach arg in x0 x0matrix tuningmode lambdagrid sgrid distance method {
+    foreach arg in x0 x0matrix tuningmode lambdagrid sgrid distance method scalerule scalevec {
         if "``arg''"!="" local opts "`opts' `arg'(``arg'')"
     }
+    local opts "`opts' scaleeps(`scaleeps')"
     // The shared jackknife short-circuits zero signals, so this geometry/tuning
     // delegation performs no unused scalar deletion/covariance calculation.
     // Keep SE feasibility rules active when paired inference is requested.
     tempvar localization_signal
     quietly gen byte `localization_signal' = 0 if `touse'
     quietly cate_dnn `localization_signal' if `touse', pseudooutcome `opts' `se'
+    mata: _cl_geometry=J(0,0,.)
+    if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
+        mata: _cl_geometry=st_matrix("e(model_geometry)")
+    }
     local n = e(N)
     local m = e(m)
     local resolved_s = e(s)
@@ -165,7 +170,7 @@ program define clate_dnn, eclass
     mata {
         _cl_X = st_data(., "`xvars'", "`touse'")
         _cl_X0 = st_matrix("`targets'")
-        _cl_ranks = rdistnn_ranks_matrix(_cl_X,_cl_X0,"`resolved_distance'")
+        _cl_ranks = rdistnn_ranks_matrix(_cl_X,_cl_X0,"`resolved_distance'",_cl_geometry)
         _cl_signals = st_data(., "`phiy' `phid'", "`touse'")
         _cl_meta = st_matrix("`meta'")
         _cl_grid = _cl_gridse = _cl_gridy = _cl_gridd = J(`ng',`m',.)
@@ -338,9 +343,14 @@ program define clate_dnn, eclass
     local signature_vars `xvars' `input' `nuisance_vars' `denominator'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
-    tempname model_signals model_ranks model_distances
-    mata: st_matrix("`model_signals'",_cl_signals); st_matrix("`model_ranks'",_cl_ranks); st_matrix("`model_distances'",rdistnn_distance_matrix(_cl_X,_cl_X0,"`resolved_distance'"))
-    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances')
+    tempname model_signals model_ranks model_distances model_geometry
+    mata: st_matrix("`model_signals'",_cl_signals); st_matrix("`model_ranks'",_cl_ranks); st_matrix("`model_distances'",rdistnn_distance_matrix(_cl_X,_cl_X0,"`resolved_distance'",_cl_geometry))
+    local geometry_option ""
+    if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
+        mata: st_matrix("`model_geometry'",_cl_geometry)
+        local geometry_option "geometry(`model_geometry')"
+    }
+    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances') `geometry_option'
     _clate_dnn_Display, level(`level')
 end
 

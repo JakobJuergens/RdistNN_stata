@@ -7,8 +7,8 @@ CATE, you also supply nuisance predictions or a previously constructed
 pseudo-outcome. The package computes local estimates, delete-1 jackknife
 uncertainty, diagnostics and Stata graphs.
 
-These articles document package **0.1.0.9001** on `master`, including experimental
-conditional LATE and shared reporting. Start with the
+These articles document package **0.1.0.9002** in the development snapshot, including supported supplied-prediction
+conditional LATE and two-scale regression and shared reporting. Start with the
 [article index](index.md) to find a particular workflow.
 
 ## Install and open help
@@ -206,6 +206,7 @@ or check those assumptions.
 Continue with [CATE and regression](cate-and-regression.md) for full score,
 sample and covariance conventions. The [notation guide](notation-and-conventions.md)
 connects the commands to the paper, while [conditional LATE](conditional-late.md)
-and [PLQR moments](plqr-moments.md) describe the experimental workflows.
+describes supported CLATE; [PLQR moments](plqr-moments.md) describes the
+experimental quantile-score workflow.
 The [R documentation crosswalk](r-documentation-crosswalk.md) identifies
 features available only in the R package.

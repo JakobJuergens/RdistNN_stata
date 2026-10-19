@@ -23,18 +23,39 @@ endif
 
 TARGET := rdistnn.plugin
 CORE_TEST := rdistnn_core_test
+DISTANCE_TEST := rdistnn_distance_test
+PROTOCOL_TEST := rdistnn_distance_plugin_test
+ROUNDING_TEST := rdistnn_distance_rounding_test
+WEIGHTS_TEST := rdistnn_weights_test
+HEADERS := rdistnn_core.hpp rdistnn_distance.hpp
 SRCS   := stplugin.c rdistnn_plugin.cpp
 
-$(TARGET): $(SRCS) rdistnn_core.hpp stplugin.h
+$(TARGET): $(SRCS) $(HEADERS) stplugin.h
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) -o $@ $(SRCS)
 
-$(CORE_TEST): test_rdistnn_core.cpp rdistnn_core.hpp
+$(CORE_TEST): test_rdistnn_core.cpp $(HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ test_rdistnn_core.cpp
 
-check: $(CORE_TEST)
+$(DISTANCE_TEST): test_rdistnn_distance.cpp $(HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ test_rdistnn_distance.cpp
+
+$(PROTOCOL_TEST): test_rdistnn_distance_plugin.cpp rdistnn_plugin.cpp $(HEADERS) stplugin.h
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ test_rdistnn_distance_plugin.cpp
+
+$(ROUNDING_TEST): test_rdistnn_distance_rounding.cpp $(HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ test_rdistnn_distance_rounding.cpp
+
+$(WEIGHTS_TEST): test_rdistnn_weights.cpp $(HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ test_rdistnn_weights.cpp
+
+check: $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST) $(WEIGHTS_TEST)
 	./$(CORE_TEST)
+	./$(DISTANCE_TEST) 2 2 0.5790338377234229 1.4758492921057114
+	./$(PROTOCOL_TEST)
+	./$(ROUNDING_TEST) 2 2 0.5790338377234229 1.4758492921057114
+	./$(WEIGHTS_TEST)
 
 clean:
-	rm -f $(TARGET) $(CORE_TEST)
+	rm -f $(TARGET) $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST) $(WEIGHTS_TEST)
 
 .PHONY: check clean

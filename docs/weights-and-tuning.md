@@ -39,7 +39,9 @@ This is the default `method(exact)`; it does not enumerate all subsets.
 Beta order-statistic increments. With F_l the Beta(l,s-l+1) CDF, it uses
 `sum_l [F_l(r/n)-F_l((r-1)/n)]/k`, then normalizes. This is generally a
 full-rank approximation; floating-point arithmetic may turn very small tail
-weights into zero. Do not apply the exact finite-population support cutoff
+weights into zero. Interval masses select lower or direct upper tails to avoid
+subtracting CDF values rounded to one; no additional tail cutoff is imposed.
+Do not apply the exact finite-population support cutoff
 to the asymptotic rule. Changing methods changes weights and estimates;
 compare the methods explicitly when the approximation matters.
 
@@ -63,18 +65,16 @@ summarize w
 Run this on numeric covariates in the active dataset. `if`/`in` and complete
 covariates determine the weight sample. `generate()` creates a new double
 variable in original observation order, with missing values outside that
-sample. Use a new variable name. Without `generate()`, the command reports
-ESS but does not return a weight vector/matrix. It is r-class and posts no
-estimation results; save `r(neff)`, `r(n)`, `r(k)`, `r(s)` and `r(kx)` before
+sample. Use a new variable name. Numeric weights, ranks and distances are always
+returned in `r(weights)`, `r(ranks)` and `r(distances)`, with complete-sample
+rows and target columns. `r(row_ids)` maps rows to original observation numbers.
+The command is r-class and posts no estimation results; copy its returns before
 another r-class command overwrites them.
 
-`weights_dnn` supports a single `x0()` and no grid options. It requires at
-least two covariates for Mahalanobis, PLQR also requires at least two covariates for Mahalanobis. CATE, CLATE and
-NP permit a one-coordinate metric. All require at least two usable
-observations for that metric. Use a loop with separate generated variables
-for multiple standalone weight targets. Unlike R's `weights_matrix()` and
-weight-result extras, Stata does not expose a public batch W/rank/order/
-distance return object.
+Use `x0matrix()` instead of `x0()` for multiple targets; `generate()` requires
+one target. Standalone weights have no grid options. Mahalanobis requires at
+least two covariates in `weights_dnn` and PLQR; CATE, CLATE and NP permit one.
+All require at least two usable observations for that metric.
 
 To reuse weights for a fitted signal, match its complete-case sample as well
 as X, x0, method, distance, k and s. Computing weights over observations that
@@ -224,26 +224,61 @@ unit suites check this analytical result across their fast and naive paths.
 
 ## Native acceleration and R boundaries
 
-The optional platform-specific plugin accelerates standalone L2
-`weights_dnn` calls and frozen-score jackknife deletions for NP, CATE, PLQR and
-CLATE. Estimator geometry and rank-weight tables use Mata. Deletion calculations
+The optional platform-specific plugin computes scalar/batched L1, L2, scaled
+L1 and scaled L2 distances for weight commands, all five estimators and
+saved-fit prediction. Scale fitting, stable ranks and rank-weight tables use
+Mata. The plugin also accelerates frozen-score jackknife deletions. Deletion calculations
 reuse one n-1 weight table with prefix/suffix sums in both C++ and Mata.
 
-By default a usable L2 plugin is attempted, with Mata fallback on load or
-execution failure. `global rdistnn_use_plugin 0` forces Mata; `1` requires a
-working plugin on eligible calls. Mahalanobis geometry remains in Mata;
+Automatic distance dispatch keeps small jobs in Mata and attempts a usable
+plugin for substantial batches, with Mata fallback if the API is absent or
+execution fails. The capability probe is cached after its first use. Set
+`global rdistnn_distance_engine plugin` to require this API, or `mata` to
+force the portable distance path. Dropping that global restores `auto`, which
+obeys `rdistnn_use_plugin`: `0` skips native calls and `1` requires them.
+The distance selector takes precedence over that shared control;
+explicit requirements bypass the size policy described in the native guide.
+`rdistnn_last_distance_engine` records the last actual distance route.
+Mahalanobis geometry remains in Mata under every selector;
 its frozen-rank jackknife can use the compiled engine. Restore default dispatch with
 `macro drop rdistnn_use_plugin`. For jackknife parity checks, set
 `global rdistnn_jackknife_engine` to `plugin`, `mata` or `naive`; drop it to
 restore automatic compiled -> fast Mata -> naive dispatch. The explicit fast
-selectors report failures. Auto mode uses fast Mata when a plugin is old,
+selectors report failures. Default auto mode uses fast Mata when a plugin is old,
 missing, incompatible or fails during execution, and retains naive deletions
 as the final fallback. Native bridge matrices created through Mata can exceed
 `c(matsize)`; dispatch preserves that setting. See the [native guide](../src/plugin/README.md)
 for platform assets, source builds and parity checks.
 
-R additionally has custom distance/rank-weight/tuning registries, two-scale
-TDNN weights, generic weight matrices and exposed jackknife primitives.
+The [numerical stability guide](numerical-stability.md) describes stable TDNN
+coefficients, Beta interval masses and exceptional-range L2 recovery, together
+with planned compensated accumulation.
+
+R additionally has custom distance/rank-weight/tuning registries, generic
+weight specification objects and exposed jackknife primitives.
 These have no Stata public command equivalents. The
 [R documentation crosswalk](r-documentation-crosswalk.md) routes advanced
 readers to the R sources without implying those APIs exist in Stata.
+
+## Distance geometry
+
+All estimation and weight commands accept `distance(l1)`, `distance(l2)`,
+`distance(l1_scaled)`, `distance(l2_scaled)` and `distance(mahalanobis)`.
+Scaled metrics fit one scale per covariate on the complete estimation sample.
+`scalerule(sd)` uses the sample standard deviation; `mad` uses median absolute
+deviation multiplied by 1.4826; `iqr` uses R's type-7 quartiles; `range` uses
+the observed range. `scalerule(custom) scalevec(...)` supplies the scales
+directly in covariate order. Absolute custom scales and the `scaleeps()`
+floor follow R's contract. The epsilon defaults to 1e-12.
+
+Scales and Mahalanobis geometry stay fixed across all deletion calculations
+and saved-model predictions. A new target does not refit its metric.
+
+`weights_dnn` accepts either `x0()` or `x0matrix()`. It returns complete-sample
+rows by target columns in `r(weights)`, `r(ranks)` and `r(distances)`, plus
+`r(row_ids)` mapping each row to the original dataset. `generate()` is available
+for one target; it leaves excluded observations missing.
+
+For signed two-scale tables use `weights_tdnn`; see
+[two-scale regression](two-scale-regression.md). Probability-weight summaries
+from single-scale DNN must not be applied to signed weights.

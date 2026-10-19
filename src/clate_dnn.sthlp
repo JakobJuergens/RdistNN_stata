@@ -11,11 +11,12 @@
 {title:Title}
 
 {phang}
-{cmd:clate_dnn} {hline 2} Experimental conditional LATE from supplied binary-IV predictions
+{cmd:clate_dnn} {hline 2} Conditional LATE from supplied binary-IV predictions
 
 {pstd}
-Stata 17 or later is required. CLATE is experimental in package {bf:0.1.0.9001}
-on {cmd:master}. See {help rdistnn} for package navigation.
+Stata 17 or later is required. Supplied-prediction CLATE and ordinary paired-signal
+ratios are supported workflows in the development version {bf:0.1.0.9002} under the documented
+pointwise inference conditions. See {help rdistnn} for package navigation.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -63,7 +64,10 @@ columns follow {cmd:xcols()} order. {cmd:md0col()} is required unless
 {synopt:{opt lambdagrid(numlist)}}replace grid multipliers; default .3 .4 .5 .75{p_end}
 {synopt:{opt sgrid(numlist)}}direct integer candidate orders, replacing multiplier grid{p_end}
 {synopt:{opt sdefault(#)}}default order for sgrid(), not a candidate row number{p_end}
-{synopt:{opt distance(string)}}l2 (default) or mahalanobis{p_end}
+{synopt:{opt distance(string)}}l1, l2 (default), l1_scaled, l2_scaled, or mahalanobis{p_end}
+{synopt:{opt scalerule(string)}}sd (default), mad, iqr, range, or custom{p_end}
+{synopt:{opt scalevec(numlist)}}custom scales, one per covariate{p_end}
+{synopt:{opt scaleeps(#)}}positive scale floor; default 1e-12{p_end}
 {synopt:{opt method(string)}}exact (default) or asymp{p_end}
 {synopt:{opt nose}}estimates without jackknife covariance{p_end}
 {synopt:{opt level(#)}}pointwise normal confidence level; defaults to {cmd:c(level)}, normally 95{p_end}
@@ -232,6 +236,24 @@ uncertainty and covariance status 1. No zero coefficient substitutes for an
 undefined ratio. All requested target positions remain in canonical tables.
 
 {marker results}{...}
+
+{title:Distance scaling}
+
+{pstd}
+{cmd:distance(l1)} uses Manhattan distance. {cmd:distance(l2)} uses Euclidean
+distance (default). {cmd:l1_scaled} and {cmd:l2_scaled} divide each coordinate
+by a scale fitted on the complete estimation sample before computing the
+corresponding distance. {cmd:scalerule(sd)} is the default; alternatives are
+{cmd:mad} (median absolute deviation, constant 1.4826), {cmd:iqr} (R type-7
+quartiles), {cmd:range}, and {cmd:custom}. Sample SD uses the n-1 divisor and
+requires two observations. Supply {cmd:scalevec(numlist)} only with
+{cmd:scalerule(custom)}, with one finite scale per covariate. Custom values
+are absolute scales, not inverse scales. Each scale is floored at the positive
+finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
+custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
+The fitted scales or Mahalanobis inverse covariance remain fixed across
+jackknife deletions and saved-model predictions. Ties retain original row order.
+
 {title:Stored results}
 
 {pstd}

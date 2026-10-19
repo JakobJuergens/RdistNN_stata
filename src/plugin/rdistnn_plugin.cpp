@@ -11,7 +11,7 @@
 //   kx + 1    : output weight column (written)
 //
 // argv[] after the comma (0-based):
-//   argv[0]           : function name: "weights_l2" or "rank_loo"
+//   argv[0]           : operation (weights_l2 convention below)
 //   argv[1]           : method: "exact" or "asymp"
 //   argv[2]           : k  (integer, # selected within each s-subset)
 //   argv[3]           : s  (integer, subset/kernel order >= k; larger is tighter)
@@ -197,7 +197,7 @@ static ST_retcode do_weights_l2(int argc, char *argv[])
     }
 
     // Read X: n x kx, column-major (column j stored at X + j*n)
-    std::vector<double> X(static_cast<std::size_t>(n) * kx);
+    std::vector<double> X(rdistnn::checked_distance_size(n,kx));
     for (int j = 0; j < kx; ++j) {
         ST_retcode rc = read_column(j + 1, obs_list, X.data() + static_cast<std::size_t>(j) * n);
         if (rc) return rc;
@@ -281,23 +281,96 @@ static ST_retcode do_rank_loo(int argc, char *argv[])
     return 0;
 }
 
+// Matrix API: distance_batch metric X X0 inverse_scales output.
+// inverse_scales is a 1 x p matrix name or literal "none". Validate and read
+// every input before publishing any cell, including when output aliases input.
+static ST_retcode read_distance_matrix(char* name,int n,int p,std::vector<double>& values)
+{
+    values.resize(rdistnn::checked_distance_size(n,p));
+    ST_double value;
+    for (int j=0;j<p;++j) for (int i=0;i<n;++i) {
+        const ST_retcode rc=SF_mat_el(name,i+1,j+1,&value);
+        if (rc) return rc;
+        if (SF_is_missing(value) || !std::isfinite(value))
+            throw std::invalid_argument("distance inputs must be finite and nonmissing");
+        values[i+static_cast<std::size_t>(j)*n]=value;
+    }
+    return 0;
+}
+
+static ST_retcode do_distance_batch(int argc,char* argv[])
+{
+    if (argc!=6)
+        throw std::invalid_argument("distance_batch requires metric X X0 inverse_scales output");
+    rdistnn::distance_metric metric;
+    if (std::strcmp(argv[1],"l1")==0) metric=rdistnn::distance_metric::l1;
+    else if (std::strcmp(argv[1],"l2")==0) metric=rdistnn::distance_metric::l2;
+    else throw std::invalid_argument("distance_batch metric must be l1 or l2");
+    const int n=SF_row(argv[2]), p=SF_col(argv[2]), m=SF_row(argv[3]);
+    const auto nx=rdistnn::checked_distance_size(n,p);
+    const auto nt=rdistnn::checked_distance_size(m,p);
+    const auto nd=rdistnn::checked_distance_size(n,m);
+    if (SF_col(argv[3])!=p || SF_row(argv[5])!=n || SF_col(argv[5])!=m)
+        throw std::invalid_argument("distance_batch has incompatible matrix dimensions");
+    const bool scaled=std::strcmp(argv[4],"none")!=0;
+    if (scaled && (SF_row(argv[4])!=1 || SF_col(argv[4])!=p))
+        throw std::invalid_argument("distance_batch inverse scales must be a 1 by p matrix");
+    std::vector<double> X, X0, inverse;
+    X.reserve(nx); X0.reserve(nt);
+    ST_retcode rc=read_distance_matrix(argv[2],n,p,X);
+    if (rc) return rc;
+    rc=read_distance_matrix(argv[3],m,p,X0);
+    if (rc) return rc;
+    if (scaled) {
+        rc=read_distance_matrix(argv[4],1,p,inverse);
+        if (rc) return rc;
+    }
+    std::vector<double> out(nd);
+    rdistnn::distance_batch_core(X.data(),n,p,X0.data(),m,
+                                 scaled?inverse.data():nullptr,out.data(),metric);
+    for (double v:out)
+        if (SF_is_missing(v))
+            throw std::invalid_argument("distance result exceeds Stata's finite range");
+    for (int j=0;j<m;++j) for (int i=0;i<n;++i) {
+        rc=SF_mat_store(argv[5],i+1,j+1,out[i+static_cast<std::size_t>(j)*n]);
+        if (rc) return rc;
+    }
+    return 0;
+}
+
+// Capability probe for the shared distance dispatcher. A compatible plugin
+// writes API version 1 to a preallocated 1 x 1 matrix.
+static ST_retcode do_distance_api(int argc,char* argv[])
+{
+    if (argc!=2 || SF_row(argv[1])!=1 || SF_col(argv[1])!=1)
+        throw std::invalid_argument("distance_api requires a preallocated 1 by 1 output matrix");
+    return SF_mat_store(argv[1],1,1,1.0);
+}
+
 // ── Plugin entry point ─────────────────────────────────────────────────────
 
 STDLL stata_call(int argc, char *argv[])
 {
-    if (argc < 1) {
-        SF_error((char *)"rdistnn_plugin: function name required as first argument.\n");
+    // Includes allocation failures in all handlers: no C++ exception may cross
+    // the Stata plugin ABI. Fixed buffers keep error handling allocation-free.
+    try {
+        if (argc<1 || !argv)
+            throw std::invalid_argument("function name required as first argument");
+        for (int i=0;i<argc;++i)
+            if (!argv[i] || argv[i][0]=='\0')
+                throw std::invalid_argument("plugin arguments must be nonempty");
+        if (std::strcmp(argv[0],"weights_l2")==0) return do_weights_l2(argc,argv);
+        if (std::strcmp(argv[0],"rank_loo")==0) return do_rank_loo(argc,argv);
+        if (std::strcmp(argv[0],"distance_batch")==0) return do_distance_batch(argc,argv);
+        if (std::strcmp(argv[0],"distance_api")==0) return do_distance_api(argc,argv);
+        throw std::invalid_argument("unknown operation; supported: weights_l2 rank_loo distance_batch distance_api");
+    } catch (const std::exception& error) {
+        char msg[768];
+        std::snprintf(msg,sizeof(msg),"rdistnn_plugin: %s.\n",error.what());
+        SF_error(msg);
+        return 198;
+    } catch (...) {
+        SF_error((char*)"rdistnn_plugin: unexpected native failure.\n");
         return 198;
     }
-
-    if (std::strcmp(argv[0], "weights_l2") == 0) {
-        return do_weights_l2(argc, argv);
-    }
-    if (std::strcmp(argv[0], "rank_loo") == 0) return do_rank_loo(argc, argv);
-
-    char msg[256];
-    std::snprintf(msg, sizeof(msg),
-        "rdistnn_plugin: unknown function '%s'. Supported: weights_l2 rank_loo\n", argv[0]);
-    SF_error(msg);
-    return 198;
 }

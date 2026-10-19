@@ -3,7 +3,7 @@
 `cate_dnn` and `np_dnn` share localization, tuning, batch-target and reporting
 conventions. Their inputs determine what the local average means: CATE
 averages an observation-level treatment-effect signal, while NP regression
-averages an outcome. This article documents package **0.1.0.9001** on `master`.
+averages an outcome. This article documents package **0.1.0.9002** in the development snapshot.
 See [getting started](getting-started.md) for installation and a compact tour.
 
 ## Targets and samples
@@ -165,8 +165,8 @@ describe that distribution rather than uncertainty for the conditional mean.
 `np_dnn_plot, type(outcome)` displays these distributional summaries;
 `type(estimates)` displays mean estimates and their normal intervals.
 
-The R package's two-scale regression `np_tdnn()` is not implemented in the
-Stata companion. See the [R documentation crosswalk](r-documentation-crosswalk.md)
+Two-scale regression is available through `np_tdnn`; see the
+[two-scale guide](two-scale-regression.md) for its signed weights and inference scope. See the [R documentation crosswalk](r-documentation-crosswalk.md)
 for this and other interface differences.
 
 ## Localization, distance and tuning

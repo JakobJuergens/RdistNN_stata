@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0.9001  2026-10-18}{...}
+{* *! version 0.1.0.9002  2026-10-18}{...}
 {viewerjumpto "Commands" "rdistnn##commands"}{...}
 {viewerjumpto "Conventions" "rdistnn##conventions"}{...}
 {viewerjumpto "Workflow" "rdistnn##workflow"}{...}
@@ -13,8 +13,9 @@
 weights, diagnostics and native plots
 
 {pstd}
-Stata 17 or later. This overview describes package {bf:0.1.0.9001} on {cmd:master},
-including experimental conditional LATE and shared reporting.
+Stata 17 or later. This overview describes package {bf:0.1.0.9002} in the development snapshot,
+including supported supplied-prediction conditional LATE, two-scale regression
+and shared reporting. These are development-branch additions.
 RdistNN is the numerical reference for shared
 functionality; the Stata companion has its own documented public surface.
 
@@ -24,8 +25,12 @@ functionality; the Stata companion has its own documented public surface.
 {synoptset 28}{...}
 {synopt:{help cate_dnn}}CATE using AIPW, Robinson-form or supplied scores{p_end}
 {synopt:{help np_dnn}}nonparametric conditional means{p_end}
-{synopt:{help weights_dnn}}one target's exact/asymptotic normalized weights{p_end}
-{synopt:{help clate_dnn}}experimental binary-IV or paired-signal ratios{p_end}
+{synopt:{help weights_dnn}}single/batch exact/asymptotic normalized weights{p_end}
+{synopt:{help np_tdnn}}two-scale regression with signed weights{p_end}
+{synopt:{help weights_tdnn}}single/batch signed two-scale rank weights{p_end}
+{synopt:{help np_tdnn_diagnostics}}signed-weight mass and concentration tables{p_end}
+{synopt:{help np_tdnn_plot}}two-scale estimates, signed weights and diagnostics{p_end}
+{synopt:{help clate_dnn}}binary-IV or paired-signal ratios{p_end}
 {synopt:{help plqr_dnn}}experimental moments at supplied PLQR coefficients{p_end}
 {synopt:{help cate_dnn_diagnostics}}CATE target/candidate tables and saving{p_end}
 {synopt:{help np_dnn_diagnostics}}regression localization/outcome tables{p_end}
@@ -46,14 +51,22 @@ The active dataset supplies numeric observations and nuisance prediction columns
 CATE, CLATE and NP use {cmd:xcols()} plus exactly one of {cmd:x0()} or
 {cmd:x0matrix()}. The target matrix has one row per target and one column per
 covariate, in xcols order. Standalone weights take covariates positionally and
-one x0; PLQR takes x(), d(), g(), md() and one x0. None fits nuisance learners.
+one x0 or a target matrix; PLQR takes x(), d(), g(), md() and one x0.
+None fits nuisance learners.
 
 {pstd}
 The default nearest-neighbor count is k=1. Kernel order s is the subset size,
 not a request to keep only the first s full-sample observations. Exact support
 ends at rank n-s+k. Larger s tightens localization; ESS=1/sum(w_i^2) measures
-weight concentration. Exact/asymptotic methods and L2/Mahalanobis metrics are
+weight concentration. Exact/asymptotic methods and L1/L2, scaled L1/L2 and Mahalanobis metrics are
 available subject to each command's sample/dimension checks.
+
+{pstd}
+{help np_tdnn} combines two orders s1<s2 for conditional mean regression.
+Its weights can be negative. Use its signed-weight diagnostics rather than
+probability-weighted outcome quantiles or cumulative probability shares.
+Both orders, normalization and fitted geometry remain fixed in deletions and
+saved predictions. CLATE and CATE retain single-scale DNN.
 
 {pstd}
 CATE/CLATE/NP support batch targets, lambda-based defaults and integrated
@@ -140,14 +153,20 @@ outcome quantiles describe the outcome distribution, not a confidence interval.
 links getting started, notation, CATE/regression, weights/tuning, diagnostics,
 visualization, CLATE and PLQR guides with deterministic standalone do-files.
 {browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/r-documentation-crosswalk.md":R documentation crosswalk}
-maps every R article/reference family and identifies R-only TDNN, GMM,
+maps every R article/reference family and identifies R-only GMM,
 custom registries, confidence-set inversion and replication workflows.
 
 {pstd}
 {browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/README.md":README}
 provides installation from {cmd:master} and version-pinned alternatives. The portable
 ado/Mata baseline needs no compiler. Optional native plugins accelerate
-standalone L2 weights and frozen-score jackknife deletions for all estimators.
+L1/L2 distances, including fitted scales and batches, through the common
+weight, estimation and saved-prediction path. Scale fitting, stable ranks and
+weight tables remain in Mata. Mahalanobis distance computation remains in Mata.
+Use {cmd:global rdistnn_distance_engine plugin} or {cmd:mata} for explicit
+distance routes; drop the global to restore automatic dispatch, which keeps
+small jobs in Mata and attempts native distances for substantial batches. Plugins also
+accelerate frozen-score jackknife deletions for all estimators.
 Both C++ and Mata use prefix/suffix sums; naive deletions remain a final
 fallback and can be selected with {cmd:global rdistnn_jackknife_engine naive}
 for parity checks. This overview and command help install with the package;

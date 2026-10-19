@@ -2,7 +2,7 @@
 program define rdistnn_results, rclass
     version 17
     syntax [, TYPE(string) TARGETS(numlist integer >=1) Level(cilevel) SAVING(string asis) REPLACE]
-    if !inlist("`e(cmd)'","np_dnn","cate_dnn","clate_dnn","plqr_dnn") error 301
+    if !inlist("`e(cmd)'","np_dnn","np_tdnn","cate_dnn","clate_dnn","plqr_dnn") error 301
     if "`type'"=="" local type estimates
     if !inlist("`type'","estimates","vcov","components","status","diagnostics","weights","influence") error 198
     local m=e(m)
