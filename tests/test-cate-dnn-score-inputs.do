@@ -27,27 +27,6 @@ test_assert "[score] AIPW and pseudo-outcome SEs agree" abs(`se_aipw' - `se_pseu
 test_assert "[score] AIPW metadata recorded" "`score_aipw'" == "aipw"
 test_assert "[score] pseudo-outcome metadata recorded" "`score_pseudo'" == "pseudo_outcome"
 
-test_section "cate_dnn: [score] Robinson pseudo-outcome"
-
-rdnn_dgp_basic, n(130) seed(2102)
-gen double m_pool = e * m1 + (1 - e) * m0
-gen double eclip_r = min(max(e, 1e-8), 1 - 1e-8)
-gen double rho_r = (D - eclip_r) * (y - m_pool) / (eclip_r * (1 - eclip_r))
-
-cate_dnn y, treat(D) x(x1 x2) x0(-0.3 0.25) k(3) s(9) ///
-    propensity(e) mhat(m_pool)
-local tau_robinson = _b[tau]
-local se_robinson = _se[tau]
-local score_robinson "`e(score_method)'"
-
-cate_dnn rho_r, x(x1 x2) x0(-0.3 0.25) k(3) s(9) pseudooutcome
-local tau_r_manual = _b[tau]
-local se_r_manual = _se[tau]
-
-test_assert "[score] Robinson and manual pseudo-outcome estimates agree" abs(`tau_robinson' - `tau_r_manual') < 1e-10
-test_assert "[score] Robinson and manual pseudo-outcome SEs agree" abs(`se_robinson' - `se_r_manual') < 1e-10
-test_assert "[score] Robinson metadata recorded" "`score_robinson'" == "robinson"
-
 test_section "cate_dnn: [nose] estimate-only fit and R default k"
 
 rdnn_dgp_basic, n(50) seed(2103)

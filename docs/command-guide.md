@@ -1,6 +1,6 @@
 # Command guide
 
-This is the compact command map for package **0.1.0.9003** in the development snapshot. Start with the
+This is the compact command map for package **0.1.0.9004** in the development snapshot. Start with the
 [article index](index.md), [getting started](getting-started.md), or
 `help rdistnn` inside Stata. Each command's installed help supplies its complete
 syntax and result reference. The articles supply interpretation and runnable
@@ -10,7 +10,7 @@ examples.
 
 | Task | Command | Guide/example |
 |---|---|---|
-| AIPW, Robinson-form or supplied-score CATE | `cate_dnn` | [CATE and regression](cate-and-regression.md), [do-file](../examples/cate-and-regression.do) |
+| AIPW or supplied-score CATE | `cate_dnn` | [CATE and regression](cate-and-regression.md), [do-file](../examples/cate-and-regression.do) |
 | Nonparametric conditional means | `np_dnn` | [CATE and regression](cate-and-regression.md), same do-file |
 | Single/batch normalized rank weights | `weights_dnn` | [Weights/tuning](weights-and-tuning.md), [do-file](../examples/weights-and-tuning.do) |
 | Two-scale conditional means and signed weights | `np_tdnn`, `weights_tdnn` | [Two-scale regression](two-scale-regression.md), [do-file](../examples/two-scale-regression.do) |
@@ -71,9 +71,7 @@ cate_dnn Y, tcol(D) xcols(x1 x2) x0matrix(X0) ///
 np_dnn Y, xcols(x1 x2) x0matrix(X0) tuningmode(grid)
 ```
 
-CATE's full AIPW route needs treatment, propensity and both arm means. Its
-Robinson route substitutes `mcol()` for the arm means; it averages the
-specified residual-product score rather than solving residual least squares.
+CATE's AIPW route needs treatment, propensity and both arm means.
 The positional signal with `pseudooutcome` needs no nuisance columns.
 Raw selected propensities must be finite and in [0,1] before clipping;
 `clip(1e-8)` is the default. `nose` skips covariance without removing the

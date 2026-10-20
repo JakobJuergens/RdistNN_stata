@@ -47,6 +47,7 @@ local test_files ///
     test-centering-translation ///
     test-exact-rank-portability ///
     test-cate-signal-contract ///
+    test-localization-reporting    ///
     test-derived-fit-contract ///
     test-weighted-distribution-range ///
     test-accumulation-r-parity ///

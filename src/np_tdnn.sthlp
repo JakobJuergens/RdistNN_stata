@@ -36,6 +36,12 @@ The default positive scale floor is 1e-12. Fitted geometry is saved for reuse.
 
 {title:Inference}
 
+{pstd}
+The documented sampling framework uses independent observations; cluster
+and survey-design inference are not supplied. Input row order breaks distance
+ties, so permuting tied observations can change estimates.
+
+
 {p 4 4 2}
 Intervals are pointwise normal intervals based on delete-one jackknife
 covariance. Signed bias correction alone does not establish negligible bias,

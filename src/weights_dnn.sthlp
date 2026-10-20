@@ -13,7 +13,7 @@
 
 {pstd}
 Stata 17 or later. For the package overview and article collection, see
-{help rdistnn}. This help describes package {bf:0.1.0.9003} in the development snapshot.
+{help rdistnn}. This help describes package {bf:0.1.0.9004} in the development snapshot.
 
 {marker syntax}{...}
 {title:Syntax}

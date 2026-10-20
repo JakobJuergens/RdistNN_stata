@@ -192,18 +192,6 @@ test_assert "[golden] AIPW weighted propensity quantiles match RdistNN" ///
 test_assert "[golden] AIPW physical-radius quantile matches RdistNN" ///
     scalar(_cate_aipw_physical_radius) < 1e-12
 
-quietly cate_dnn y_cate, tcol(D) xcols(x1 x2) x0(0.2 -0.1) ///
-    ecol(e) mcol(m) k(2) s(5) method(exact)
-local robinson_tau = _b[tau]
-local robinson_se = _se[tau]
-local robinson_ess = e(neff)
-test_assert "[golden] Robinson estimate matches RdistNN" ///
-    abs(`robinson_tau' - R_cate_robinson_exact[1,1]) < 1e-12
-test_assert "[golden] Robinson SE matches RdistNN" ///
-    abs(`robinson_se' - R_cate_robinson_exact[2,1]) < 1e-12
-test_assert "[golden] Robinson ESS matches RdistNN" ///
-    abs(`robinson_ess' - R_cate_robinson_exact[3,1]) < 1e-12
-
 test_section "R parity priorities: [propensity] endpoint pseudo-outcomes"
 
 preserve
@@ -219,32 +207,21 @@ gen double m1 = m0 + .75
 gen double m = m0 + e*(m1-m0)
 gen double e_used = min(max(e,1e-8),1-1e-8)
 gen double rho_a = m1-m0 + D*(y-m1)/e_used - (1-D)*(y-m0)/(1-e_used)
-gen double rho_r = (D-e_used)*(y-m)/(e_used*(1-e_used))
 mkmat e_used, matrix(E_used_stata)
 mkmat rho_a, matrix(Psi_a_stata)
-mkmat rho_r, matrix(Psi_r_stata)
 mata {
     st_numscalar("_edge_e", max(abs(st_matrix("E_used_stata") - st_matrix("R_cate_edge_e_used"))))
     st_numscalar("_edge_a", max(abs(st_matrix("Psi_a_stata") - st_matrix("R_cate_edge_aipw_psi"))))
-    st_numscalar("_edge_r", max(abs(st_matrix("Psi_r_stata") - st_matrix("R_cate_edge_robinson_psi"))))
-    st_numscalar("_edge_r_scale", max((1, max(abs(st_matrix("R_cate_edge_robinson_psi"))))))
 }
 test_assert "[propensity] clipped propensity vector matches RdistNN" scalar(_edge_e) < 1e-15
 test_assert "[propensity] AIPW pseudo-outcomes match RdistNN" scalar(_edge_a) < 1e-8
-test_assert "[propensity] Robinson pseudo-outcomes match RdistNN" ///
-    scalar(_edge_r) / scalar(_edge_r_scale) < 1e-12
 
 quietly cate_dnn y, xcols(x1 x2) x0(0 0) tcol(D) ecol(e) ///
     m0col(m0) m1col(m1) k(1) s(1) nose
 local edge_aipw_tau = _b[tau]
 matrix D_edge = e(diagnostics)
-quietly cate_dnn y, xcols(x1 x2) x0(0 0) tcol(D) ecol(e) ///
-    mcol(m) k(1) s(1) nose
-local edge_robinson_tau = _b[tau]
 test_assert "[propensity] AIPW endpoint estimate matches RdistNN" ///
     abs(`edge_aipw_tau' - R_cate_edge_tau[1,1]) < 1e-8
-test_assert "[propensity] Robinson endpoint estimate matches RdistNN" ///
-    abs(`edge_robinson_tau' - R_cate_edge_tau[2,1]) / max(1, abs(R_cate_edge_tau[2,1])) < 1e-12
 mata: st_numscalar("_edge_quantiles", max(abs(st_matrix("D_edge")[1,(11,18,19,20)] - st_matrix("R_cate_edge_quantile_diagnostics"))))
 test_assert "[propensity] endpoint weighted quantile diagnostics match RdistNN" ///
     scalar(_edge_quantiles) < 1e-12

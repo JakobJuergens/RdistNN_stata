@@ -16,7 +16,7 @@
 
 {pstd}
 Stata 17 or later is required. See {help rdistnn} for the package overview.
-This help describes the interface in package {bf:0.1.0.9003} in the development snapshot.
+This help describes the interface in package {bf:0.1.0.9004} in the development snapshot.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -56,6 +56,12 @@ This help describes the interface in package {bf:0.1.0.9003} in the development 
 
 {marker description}{...}
 {title:Description}
+
+{pstd}
+The documented sampling framework uses independent observations. Cluster and
+survey-design inference are not supplied. Input row order breaks distance ties;
+reordering tied observations can change estimates. Reported order fractions
+are descriptive and do not establish inference conditions.
 
 {pstd}
 {cmd:np_dnn} estimates E[Y | X=x0] at one or more target covariate profiles.

@@ -240,12 +240,6 @@ aipw_fit <- cate_dnn(
   method = "exact", k = 2L, s = 5L,
   se = TRUE, jackknife = "fast", return = c("W", "ess", "dx", "psi", "nuisance")
 )
-robinson_fit <- cate_dnn(
-  data = dat, x_cols = c("x1", "x2"), y_col = "y_cate", t_col = "D",
-  m_col = "m", e_col = "e", x0 = x0,
-  method = "exact", k = 2L, s = 5L,
-  se = TRUE, jackknife = "fast", return = "ess"
-)
 emit_matrix("cate_aipw_exact", c(aipw_fit$tau, aipw_fit$se, aipw_fit$ess))
 emit_matrix(
   "cate_aipw_paper_diagnostics",
@@ -261,11 +255,6 @@ emit_matrix(
     "weighted_propensity_q90", "physical_radius_90"
   ), drop = FALSE])
 )
-emit_matrix(
-  "cate_robinson_exact",
-  c(robinson_fit$tau, robinson_fit$se, robinson_fit$ess)
-)
-
 edge <- data.frame(
   x1 = seq_len(8L),
   x2 = rep(0, 8L),
@@ -281,15 +270,9 @@ edge_aipw <- cate_dnn(
   e_col = "e", m0_col = "m0", m1_col = "m1", x0 = c(0, 0),
   k = 1L, s = 1L, se = FALSE, return = c("W", "psi", "nuisance", "dx")
 )
-edge_robinson <- cate_dnn(
-  data = edge, x_cols = c("x1", "x2"), y_col = "y", t_col = "D",
-  e_col = "e", m_col = "m", x0 = c(0, 0),
-  k = 1L, s = 1L, se = FALSE, return = c("W", "psi", "nuisance", "dx")
-)
 emit_matrix("cate_edge_e_used", edge_aipw$nuisance$e)
 emit_matrix("cate_edge_aipw_psi", edge_aipw$psi)
-emit_matrix("cate_edge_robinson_psi", edge_robinson$psi)
-emit_matrix("cate_edge_tau", c(edge_aipw$tau, edge_robinson$tau))
+emit_matrix("cate_edge_tau", edge_aipw$tau)
 emit_matrix(
   "cate_edge_quantile_diagnostics",
   data.matrix(diagnostics(edge_aipw)[, c(

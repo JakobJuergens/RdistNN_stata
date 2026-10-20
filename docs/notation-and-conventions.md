@@ -1,7 +1,7 @@
 # Notation and conventions
 
 This is the Stata counterpart of RdistNN's notation guide. It describes the
-interface in package **0.1.0.9003** in the development snapshot. Use [getting started](getting-started.md)
+interface in package **0.1.0.9004** in the development snapshot. Use [getting started](getting-started.md)
 for a first fit and [the R crosswalk](r-documentation-crosswalk.md) when
 translating an R script.
 

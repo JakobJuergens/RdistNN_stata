@@ -10,10 +10,15 @@ it into a coefficient estimator or add coefficient inference.
 
 Use a clean repository checkout with the tools in
 [CONTRIBUTING.md](CONTRIBUTING.md). Review the version/tag and release notes.
-The local development branch carries version `0.1.0.9003`, alongside the R
-companion. This snapshot adds module and testing maintenance to the geometry,
-TDNN, CLATE and numerical-stability work described in the release notes.
-Choose future tagged versions in coordination with the R package.
+Version `0.1.0.9004` identifies the current development snapshot, aligned
+with the R companion. Publish its changes together in a reviewed squash merge
+carrying version `0.1.0.9004`. Version `0.1.0.9003` identifies the previous
+production snapshot. Exact
+tables, compensated reductions, whitening rank policy, shared covariance and
+the native Beta nonconvergence guard first shipped in the merged
+0.1.0.9003 snapshot. Earlier TDNN/distance work remains under 0.1.0.9002. Retain the
+development version for candidates; choose future tagged versions only when
+authorized.
 Updating `master` does not itself publish a tag or replace assets from the
 existing `v0.1.0` release.
 Keep `rdistnn.pkg`'s `Version` and `Distribution-Date` metadata aligned with
@@ -30,6 +35,24 @@ does not promise identical feature coverage. Review the
 [R-to-Stata crosswalk](docs/r-documentation-crosswalk.md) when assigning a
 version and retain its explicit R-only and experimental boundaries.
 
+Commit candidates locally. Publishing review branches/PRs, tags, assets or
+websites requires separate authorization; do not push to `master`. An immutable
+merged-source installation is:
+
+```stata
+net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/877c560373db915a5f5d23157e2b09cbbdf045f1/") replace
+```
+
+This pins merged source, separately from checked release artifacts. Unpinned
+`master` follows development; `v0.1.0` selects the existing older public tag.
+Unpublished candidates require a local checkout at their full commit or the
+checked curated ZIP; their GitHub URLs do not exist yet. After both commits
+are final, bind them in one external release-set manifest under ignored
+outputs. Include tested trees, artifact filenames/sizes/SHA-256, runtime and
+compiler information, commands, hosted run IDs/tested SHAs and explicit
+PASS/FAIL/BLOCKED/NOT_RUN gates. Keep historical scientific dependency identity
+separate, and avoid circular committed HEAD references.
+
 1. Run static package integrity and maintenance checks:
 
    ```bash
@@ -45,6 +68,16 @@ version and retain its explicit R-only and experimental boundaries.
    powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_runtime_check.ps1
    powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_install_check.ps1
    ```
+
+   Run the entire registered runtime suite without a test-name filter on the
+   final source tree. Isolate stale logs first, require process exit zero and
+   the framework's actual zero-failure summary, and bind the fresh log hash and
+   invocation timestamps to that tree. A failed full run plus focused passes
+   does not meet this gate. Do not assume a fixed assertion count. If licensed
+   Stata cannot run, mark the gate BLOCKED and preserve that distinction from
+   native builds and static checks. Also run the licensed documentation helper
+   and inspect the curated ZIP through the isolated-install helper using
+   temporary PLUS/PERSONAL directories and the archive payload as its source.
 
    In Stata, after `do dev-setup.do`, execute
    `do examples/getting-started.do`. Use `graph display cate_example` and

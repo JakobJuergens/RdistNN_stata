@@ -21,9 +21,12 @@ program define _rdistnn_report_header
     if "`e(cmd)'" == "np_tdnn" {
         di as text "Orders s1 = " as result e(s1) as text "  s2 = " as result e(s2) ///
             as text "  Localization dimension = " as result e(dim)
+        di as text "s1/n = " as result %6.3g (e(s1)/e(N)) ///
+            as text "  s2/n = " as result %6.3g (e(s2)/e(N))
         local concentration "Inverse squared-weight concentration"
     }
-    else di as text "k = " as result e(k) as text "  s = " as result e(s)
+    else di as text "k = " as result e(k) as text "  s = " as result e(s) ///
+        as text "  s/n = " as result %6.3g (e(s)/e(N))
     if `m' == 1 di as text "`concentration': " as result %9.3g e(neff)
     else di as text "`concentration' range: " as result %9.3g e(neff_min) ///
         as text " to " as result %9.3g e(neff_max)

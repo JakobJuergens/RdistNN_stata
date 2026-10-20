@@ -1,6 +1,6 @@
 # RdistNN for Stata documentation
 
-These guides describe the **0.1.0.9003** development snapshot, including
+These guides describe the **0.1.0.9004** development snapshot, including
 supported supplied-prediction CLATE, two-scale regression, and shared reporting
 and postestimation interfaces.
 The [development notes](../RELEASE_NOTES.md) describe the latest maintenance
@@ -36,7 +36,7 @@ to the current directory. Read its opening comments before running it.
 
 | Commands | Installed help | Role |
 |---|---|---|
-| `cate_dnn` | `help cate_dnn` | AIPW, Robinson-form or supplied-score CATE |
+| `cate_dnn` | `help cate_dnn` | AIPW or supplied-score CATE |
 | `np_dnn` | `help np_dnn` | Nonparametric conditional means |
 | `weights_dnn` | `help weights_dnn` | Single/batch exact/asymptotic DNN weights and geometry |
 | `np_tdnn`, `weights_tdnn` | `help COMMAND` | Signed two-scale regression and weights |

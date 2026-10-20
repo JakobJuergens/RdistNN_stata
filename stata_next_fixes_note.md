@@ -6,10 +6,9 @@ source/tests for implemented behavior and verification. The original review
 below is preserved; its descriptions of missing features may be superseded.
 
 Status update, 2026-07-11: the CATE score-input surface now covers the R
-package's three core paths: full AIPW nuisances, the Robinson/R-learner score
-with `mcol()`, and a precomputed positional signal selected by
-`pseudooutcome`.  Canonical option names follow R by removing underscores only
-(`xcols`, `tcol`, `ecol`, `m0col`, `m1col`, and `mcol`), while the original
+package's supported paths: full AIPW nuisances and a precomputed positional
+signal selected by `pseudooutcome`. Canonical option names follow R by removing
+underscores only (`xcols`, `tcol`, `ecol`, `m0col`, and `m1col`), while the original
 Stata names remain compatibility aliases.  `cate_dnn` now defaults to the
 paper/R value `k(1)`, supports
 estimate-only `nose` fits (including `s = n`), records the score and inference

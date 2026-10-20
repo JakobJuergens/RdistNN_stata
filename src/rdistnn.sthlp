@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0.9003  2026-10-19}{...}
+{* *! version 0.1.0.9004  2026-10-20}{...}
 {viewerjumpto "Commands" "rdistnn##commands"}{...}
 {viewerjumpto "Conventions" "rdistnn##conventions"}{...}
 {viewerjumpto "Workflow" "rdistnn##workflow"}{...}
@@ -13,7 +13,7 @@
 weights, diagnostics and native plots
 
 {pstd}
-Stata 17 or later. This overview describes package {bf:0.1.0.9003} in the development snapshot,
+Stata 17 or later. This overview describes package {bf:0.1.0.9004} in the development snapshot,
 including supported supplied-prediction conditional LATE, two-scale regression
 and shared reporting. These are development-branch additions.
 RdistNN is the numerical reference for shared
@@ -23,7 +23,7 @@ functionality; the Stata companion has its own documented public surface.
 {title:Commands}
 
 {synoptset 28}{...}
-{synopt:{help cate_dnn}}CATE using AIPW, Robinson-form or supplied scores{p_end}
+{synopt:{help cate_dnn}}CATE using AIPW or supplied scores{p_end}
 {synopt:{help np_dnn}}nonparametric conditional means{p_end}
 {synopt:{help weights_dnn}}single/batch exact/asymptotic normalized weights{p_end}
 {synopt:{help np_tdnn}}two-scale regression with signed weights{p_end}

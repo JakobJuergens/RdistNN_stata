@@ -35,7 +35,7 @@ cap cate_dnn y, x(x1 x2) x0(0 0) propensity(e) m0(m0) m1(m1)
 test_assert "[errors] missing treat() rejected (rc=198)" _rc == 198
 
 cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) propensity(e) mhat(m0) m0(m0) m1(m1)
-test_assert "[errors] Robinson and AIPW nuisances rejected together (rc=198)" _rc == 198
+test_assert "[errors] unsupported pooled-mean option rejected (rc=198)" _rc == 198
 
 cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) propensity(e) m0(m0)
 test_assert "[errors] partial AIPW nuisances rejected (rc=198)" _rc == 198

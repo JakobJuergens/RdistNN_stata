@@ -3,7 +3,7 @@
 `cate_dnn` and `np_dnn` share localization, tuning, batch-target and reporting
 conventions. Their inputs determine what the local average means: CATE
 averages an observation-level treatment-effect signal, while NP regression
-averages an outcome. This article documents package **0.1.0.9003** in the development snapshot.
+averages an outcome. This article documents package **0.1.0.9004** in the development snapshot.
 See [getting started](getting-started.md) for installation and a compact tour.
 
 ## Targets and samples
@@ -34,7 +34,6 @@ target rows. The estimation sample then follows the selected input route:
 | NP regression | Outcome and `xcols()` |
 | Precomputed CATE score | Positional score and `xcols()` |
 | AIPW CATE | Outcome, treatment, `xcols()`, propensity, both arm means |
-| Robinson CATE | Outcome, treatment, `xcols()`, propensity, pooled mean |
 
 There is an additional propensity validation step for nuisance-based CATE:
 **every raw `ecol()` value selected by `if`/`in` must be nonmissing and in
@@ -51,7 +50,7 @@ can use different rows if their required columns have different missingness;
 restrict them to a common sample before comparing estimates. Keep supplied
 nuisance predictions aligned by observation, including after merges or sorts.
 
-## CATE: three signal routes
+## CATE: signal inputs
 
 Let `D` be binary treatment, `Y` the outcome, and `U` the full state used to
 adjust for treatment assignment. Localization can use a subset `X` of `U`.
@@ -81,26 +80,7 @@ The returned estimate at each target is `sum_i w_i(x)*rho_i`. This route
 retains treatment-mass, propensity and within-arm effective-sample-size
 diagnostics in addition to the common weight and distance summaries.
 
-### Robinson-form nuisance inputs
-
-Supply the pooled mean `m(U)=E[Y|U]` with propensity and treatment:
-
-```stata
-cate_dnn Y, xcols(x1 x2) x0matrix(X0) tcol(D) ///
-    ecol(ehat) mcol(mhat)
-```
-
-The implemented signal is
-
-```text
-rho_i = (D_i-eclip_i)*(Y_i-m_i)/(eclip_i*(1-eclip_i)).
-```
-
-The command averages this signal with DNN weights. It does not estimate a
-residual least-squares coefficient or divide by the local mean of
-`(D-eclip)^2`. This distinction matters when comparing an R-learner from
-another package. `mcol()` is the pooled outcome mean, not an arm-specific
-mean; it cannot be combined with `m0col()` or `m1col()`.
+The normalized Robinson pseudo-outcome is not implemented because it falls outside the accompanying paper's theoretical results.
 
 ### Precomputed pseudo-outcome
 
@@ -117,12 +97,12 @@ are the caller's responsibility. Treatment-overlap and arm-ESS fields are
 unavailable because the signal alone does not reveal treatment or propensity.
 Weight, distance, physical-radius and score-contribution diagnostics remain
 available. The runnable
-[CATE and regression example](../examples/cate-and-regression.do) shows all
-three routes on the same observations.
+[CATE and regression example](../examples/cate-and-regression.do) shows
+both routes on the same observations.
 
 ### Clipping and aliases
 
-For both nuisance routes,
+For AIPW nuisance construction,
 `eclip = min(max(e,clip),1-clip)`, with default `clip(1e-8)` and
 `0 < clip < .5`. Raw values outside `[0,1]` are rejected. Clipped propensities
 are used in the signal, stored propensity summaries and reconstructed
@@ -139,7 +119,6 @@ Preferred names mirror the R arguments with underscores removed:
 | `ecol()` | `propensity()` | Treatment propensity |
 | `m0col()` | `m0()` | Control mean |
 | `m1col()` | `m1()` | Treated mean |
-| `mcol()` | `mhat()` | Pooled mean |
 
 Do not supply both spellings of one quantity. `pseudooutcome`, `x0matrix()`
 and `tuningmode()` correspond to R's `pseudo_outcome`, `X0` and `tuning_mode`.
@@ -224,13 +203,10 @@ metric; it does not re-estimate that metric on each deletion. No nuisance
 learner is refit.
 
 For CATE, causal identification, overlap, nuisance accuracy and localization
-conditions are required. AIPW is orthogonal at the true nuisances; the normalized
-Robinson signal generally has first-order propensity drift and needs additional
-propensity control. Oracle identification does not establish orthogonality.
-AIPW orthogonality alone does not validate arbitrary
-same-sample nuisance predictions. Full-sample reuse additionally requires
-the paper's nuisance-rate and full-state stability conditions. Oracle,
-cross-fitted/out-of-fold and full-sample predictions are accepted, but input
+conditions are required. AIPW orthogonality controls first-order population
+nuisance drift. Valid full-sample reuse additionally requires the paper's
+nuisance-rate and full-state stability conditions. Oracle, out-of-fold and
+full-sample predictions are accepted, but input
 acceptance is not a diagnostic of their theoretical validity. NP inference
 similarly needs regression and localization-bias conditions. The jackknife
 does not remove target bias for either estimator.

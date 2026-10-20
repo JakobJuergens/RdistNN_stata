@@ -125,7 +125,7 @@ actual IDs and is_default marks the fitted candidate.
 Default estimate/diagnostic/overlap selections use all targets.
 Kernel/influence defaults to all targets through eight, then
 first/middle/last. Tuning has the separate three-target default above.
-Overlap requires AIPW/Robinson treatment/propensity inputs and is unavailable for precomputed pseudo-outcome fits.
+Overlap requires AIPW treatment/propensity inputs and is unavailable for precomputed pseudo-outcome fits.
 
 {pstd}
 saving() recognizes .gph, .png, .pdf, .svg, .tif, .jpg, and .eps.

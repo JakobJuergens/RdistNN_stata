@@ -75,13 +75,13 @@ plots, Mahalanobis distance, and plot data/builder contracts. These use
 An ignored `git archive origin/master` checkout supplies actual production
 code without switching the working tree. Fresh production and feature fits
 compare **264 stored numerical matrices across 36 fits**: NP, AIPW CATE,
-Robinson CATE, precomputed CATE and PLQR moments; exact/asymptotic methods;
+precomputed CATE and PLQR moments; exact/asymptotic methods;
 L2/full-rank Mahalanobis; requested/omitted uncertainty where supported.
 PLQR has no `nose` option and remains a supplied-coefficient moment command.
 
 Actual production `.ster` files are additionally checked through the new
-replay, target diagnostics and estimate plots. All four files (NP and the
-three CATE score routes) pass those checks without canonical reporting fields.
+replay, target diagnostics and estimate plots. All four historical files (NP and CATE fits from
+that production snapshot) pass those checks without canonical reporting fields.
 
 `test-premerge-postestimation.do` checks CATE/CLATE/NP selection ordering and
 duplicates, candidate aliases/infeasibility, saved diagnostic contents, replay
