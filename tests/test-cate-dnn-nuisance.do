@@ -67,8 +67,6 @@ replace e = 1 - 1e-12 in 4
 replace e = .35 in 5
 gen double e_used = min(max(e, 1e-6), 1 - 1e-6)
 gen double rho_aipw_clip = D*(y-m1)/e_used - (1-D)*(y-m0)/(1-e_used) + m1-m0
-gen double m_pool_clip = e_used*m1 + (1-e_used)*m0
-gen double rho_robinson_clip = (D-e_used)*(y-m_pool_clip)/(e_used*(1-e_used))
 
 quietly cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(3) s(12) ///
     ecol(e) m0col(m0) m1col(m1) clip(1e-6)
@@ -82,14 +80,6 @@ test_assert "[nuisance] AIPW endpoints use configured clipped propensity" ///
 test_assert "[nuisance] clip metadata records estimator value" abs(`stored_clip' - 1e-6) < 1e-15
 test_assert "[nuisance] propensity metadata identifies clipped state" ///
     "`propensity_version'" == "clipped"
-
-quietly cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(3) s(12) ///
-    ecol(e) mcol(m_pool_clip) clip(1e-6)
-local robinson_b = _b[tau]
-local robinson_se = _se[tau]
-quietly cate_dnn rho_robinson_clip, xcols(x1 x2) x0(0 0) k(3) s(12) pseudooutcome
-test_assert "[nuisance] Robinson endpoints use configured clipped propensity" ///
-    abs(`robinson_b' - _b[tau]) < 1e-12 & abs(`robinson_se' - _se[tau]) < 1e-12
 
 // ════════════════════════════════════════════════════════════
 test_section "cate_dnn: [opts] method and distance options"

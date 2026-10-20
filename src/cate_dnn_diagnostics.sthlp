@@ -43,7 +43,7 @@ negligible target bias, or credible nuisance/causal assumptions.
 Arm mass and normalized within-arm ESS concern treatment D=1/D=0.
 Within-arm ESS is (sum_arm w)^2/sum_arm(w^2), missing when arm mass is zero.
 Overlap, arm-ESS and propensity flags are zero for precomputed pseudo-outcome fits,
-with unavailable values missing. AIPW/Robinson routes supply these fields.
+with unavailable values missing. AIPW routes supply these fields.
 Propensity summaries use clipped probabilities, which does not establish overlap.
 
 {pstd}

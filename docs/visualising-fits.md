@@ -149,7 +149,7 @@ before treating a large or small diagnostic as evidence of inferential validity.
 
 ## Treatment and instrument overlap
 
-After a CATE AIPW/Robinson fit or CLATE supplied-IV-nuisance fit:
+After a CATE AIPW fit or CLATE supplied-IV-nuisance fit:
 
 ```stata
 cate_dnn_plot, type(overlap) view(mass) sharelimits(.1 .9) replace nodraw

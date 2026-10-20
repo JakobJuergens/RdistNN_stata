@@ -7,7 +7,7 @@ CATE, you also supply nuisance predictions or a previously constructed
 pseudo-outcome. The package computes local estimates, delete-1 jackknife
 uncertainty, diagnostics and Stata graphs.
 
-These articles document package **0.1.0.9003** in the development snapshot, including supported supplied-prediction
+These articles document package **0.1.0.9004** in the development snapshot, including supported supplied-prediction
 conditional LATE and two-scale regression and shared reporting. Start with the
 [article index](index.md) to find a particular workflow.
 
@@ -39,7 +39,7 @@ The examples below assume the commands are installed. From a source checkout,
 The complete onboarding script is
 [examples/getting-started.do](../examples/getting-started.do); a second
 [CATE and regression script](../examples/cate-and-regression.do) covers all
-three CATE score routes and result extraction. Both clear the active dataset.
+both CATE score routes and result extraction. Both clear the active dataset.
 
 ## Generate a small example
 
@@ -113,19 +113,7 @@ are in [visualising fits](visualising-fits.md).
 
 ## Choose the CATE score input
 
-The AIPW call above is one of three supported routes. If your workflow
-supplies a pooled conditional outcome mean `m(X) = E[Y|X]`, use the Robinson
-route:
-
-```stata
-gen double m_oracle = e_oracle*m1_oracle + (1-e_oracle)*m0_oracle
-cate_dnn Y, tcol(D) xcols(x1 x2) x0(0 0) ///
-    ecol(e_oracle) mcol(m_oracle)
-```
-
-Its signal is `(D-eclip)*(Y-m)/(eclip*(1-eclip))`; the command takes a
-DNN-weighted mean of that signal. It does not solve a residual least-squares
-R-learner problem. With a precomputed CATE pseudo-outcome, supply the signal
+With a precomputed CATE pseudo-outcome, supply the signal
 as the positional variable and add `pseudooutcome`:
 
 ```stata
@@ -210,3 +198,15 @@ describes supported CLATE; [PLQR moments](plqr-moments.md) describes the
 experimental quantile-score workflow.
 The [R documentation crosswalk](r-documentation-crosswalk.md) identifies
 features available only in the R package.
+
+## Migrating earlier CATE inputs
+
+CATE now constructs AIPW signals from propensity and both arm-specific outcome
+means, or accepts a caller-supplied signal with `pseudooutcome`. The former
+`mcol()`/`mhat()` construction is removed; replacing a pooled outcome mean with
+two copies is not an equivalent migration. R demo examples use `aipw_oracle`
+and include `m1_oracle`; the retired `rho_oracle` was a different signal.
+
+The inference framework uses independent observations, without cluster or
+survey-design inference. Row order resolves distance ties. The printed `s/n`
+is descriptive; diagnostics report support without calibrated warning cutoffs.

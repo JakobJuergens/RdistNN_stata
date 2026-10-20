@@ -36,9 +36,6 @@ gen double rho = m1_oracle-m0_oracle + D*(Y-m1_oracle)/eclip ///
     - (1-D)*(Y-m0_oracle)/(1-eclip)
 cate_dnn rho, xcols(x1 x2) x0(0 0) pseudooutcome nose
 
-// Robinson/R-learner route with the oracle pooled outcome mean.
-gen double m_oracle = e_oracle*m1_oracle + (1-e_oracle)*m0_oracle
-cate_dnn Y, tcol(D) xcols(x1 x2) x0(0 0) ecol(e_oracle) mcol(m_oracle)
 
 weights_dnn x1 x2, x0(0 0) k(1) generate(w_example)
 summarize w_example

@@ -1,9 +1,9 @@
 # R documentation coverage and Stata equivalents
 
-This map compares Stata package **0.1.0.9003** in the development snapshot with the RdistNN
-source at `d2db01a78045fd95087e9764adec0a3ab6973fcc`. The reference inventory is
-R's [article source directory](https://github.com/JakobJuergens/RdistNN/tree/d2db01a78045fd95087e9764adec0a3ab6973fcc/vignettes)
-and [pkgdown reference index](https://github.com/JakobJuergens/RdistNN/blob/d2db01a78045fd95087e9764adec0a3ab6973fcc/_pkgdown.yml).
+This map compares Stata package **0.1.0.9004** in the development snapshot with the RdistNN
+source at `f2c7bc36e8da040831b668281e50e18b2f1a4b3c`. The reference inventory is
+R's [article source directory](https://github.com/JakobJuergens/RdistNN/tree/f2c7bc36e8da040831b668281e50e18b2f1a4b3c/vignettes)
+and [pkgdown reference index](https://github.com/JakobJuergens/RdistNN/blob/f2c7bc36e8da040831b668281e50e18b2f1a4b3c/_pkgdown.yml).
 The current map follows all 13 articles and 15 reference families, including
 the supported CLATE group and separate experimental confidence sets. R remains
 the numerical reference for shared functionality. Documentation parity here
@@ -14,7 +14,7 @@ R-only functionality; it does not add R APIs to Stata.
 
 | R article source | Stata coverage | Boundary |
 |---|---|---|
-| `getting-started.Rmd` | [Getting started](getting-started.md), [CATE and regression](cate-and-regression.md) | All three CATE routes and NP; two-scale regression uses `np_tdnn` |
+| `getting-started.Rmd` | [Getting started](getting-started.md), [CATE and regression](cate-and-regression.md) | Both CATE routes and NP; two-scale regression uses `np_tdnn` |
 | `notation-and-conventions.Rmd` | [Notation and conventions](notation-and-conventions.md) | Dataset columns/target matrices and e()/r() replace R input containers/objects |
 | `diagnostics-reporting.Rmd` | [Diagnostics and reporting](diagnostics-and-reporting.md) | Shared localization and estimator-specific tables; PLQR conditioning diagnostics remain R-only |
 | `visualising-fits.Rmd` | [Visualising fits](visualising-fits.md) | Applicable Stata-native views and returned plot data; ggplot composition remains R-only |
@@ -26,7 +26,7 @@ R-only functionality; it does not add R APIs to Stata.
 | `conditional-late.Rmd` | [Conditional LATE](conditional-late.md) | Binary-IV/supplied-signal routes, reporting, grids and applicable plots; R demo/learner helpers remain R-only |
 | `conditional-late-inference.Rmd` | [CLATE covariance and inference](conditional-late.md), [reporting](diagnostics-and-reporting.md) | Paired pointwise Wald inference/status; ratio confidence-set inversion remains R-only |
 | `local-iv-estimation.Rmd` | [CLATE scope](conditional-late.md), this map | Experimental local IV-GMM and its simulation tools have no Stata command; CLATE is not a replacement for general GMM |
-| `paper-affine-replication.Rmd` | This map and [inference scope](../README.md#interpreting-inference) | R's installed affine manuscript evidence/simulation/SIPP bundle is R-only; Stata examples are simulated tutorials, not paper replication |
+| `paper-affine-replication.Rmd` | This map and [inference scope](../README.md#interpreting-inference) | R's installed paper evidence/simulation/SIPP bundle is R-only; Stata examples are simulated tutorials, not paper replication |
 
 ## Reference families
 
@@ -71,7 +71,7 @@ is a useful naming guide for CATE/NP options, not a universal translator:
 PLQR uses `x()`, `d()`, `g()`, `md()` and `thetaeval()`, while CLATE has its
 own binary-IV and paired-signal grammar.
 
-Stata's joint target covariance is useful for contrasts. It still does not
+R CATE now exposes joint target covariance through `vcov()`, alongside Stata's `e(V)`. This covariance is useful for contrasts. It still does not
 make default pointwise intervals simultaneous, and a joint CLATE covariance
 matrix is different from R's marginal covariance-list presentation. Use
 full canonical target matrices for CLATE because undefined coefficients are

@@ -108,7 +108,7 @@ scores are defined.
 
 | Active route | Weight/distance | Arm mass, arm ESS, propensity | Score concentration | Outcome distribution |
 | --- | --- | --- | --- | --- |
-| CATE AIPW or Robinson | Yes | Treatment and clipped treatment propensity | Yes | Not an NP diagnostic |
+| CATE AIPW | Yes | Treatment and clipped treatment propensity | Yes | Not an NP diagnostic |
 | CATE `pseudooutcome` | Yes | Unavailable | Yes | Not an NP diagnostic |
 | CLATE supplied IV nuisances | Yes | Instrument and clipped instrument propensity | For defined finite paired scores | Not an NP diagnostic |
 | CLATE paired signals | Yes | Unavailable | For defined finite paired scores | Not an NP diagnostic |
@@ -271,3 +271,14 @@ records R features without a Stata implementation; the corresponding
 [R diagnostics article](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/vignettes/diagnostics-reporting.Rmd)
 is a conceptual reference, while Stata syntax and availability above describe
 this implementation.
+
+## Reading support and order fractions
+
+The reporting header shows `s/n`, or both order fractions for TDNN. These are
+descriptive settings, not calibrated validity or conservatism thresholds.
+CATE target diagnostics include treated/control effective sample sizes and
+absolute score-contribution concentration. CLATE uses instrument arms and
+retains its paired first-stage diagnostics. Distinguish these from weight
+concentration and from R's squared jackknife-contribution shares.
+Numerical clipping does not establish overlap. No new warning thresholds or
+stored-result layouts are introduced.

@@ -25,8 +25,6 @@ program define cate_dnn, eclass
         M0COL(varname numeric)           ///  R-aligned m0_col convention
         M1(varname numeric)              ///  estimated/oracle E[Y|X,D=1]
         M1COL(varname numeric)           ///  R-aligned m1_col convention
-        MHAT(varname numeric)            ///  estimated/oracle E[Y|X]
-        MCOL(varname numeric)            ///  R-aligned m_col convention
         PSEUDOOutcome                    ///  positional variable is CATE signal
         CLIP(real 1e-8)                  ///  propensity clipping constant
         k(integer 1)                     ///  # selected within each s-subset
@@ -90,13 +88,6 @@ program define cate_dnn, eclass
     local m1_var `m1'
     if "`m1col'" != "" local m1_var `m1col'
 
-    if "`mhat'" != "" & "`mcol'" != "" {
-        di as error "Specify either mhat() or mcol(), not both."
-        exit 198
-    }
-    local m_var `mhat'
-    if "`mcol'" != "" local m_var `mcol'
-
     local pseudo_flag "`pseudooutcome'"
 
     // ── resolve evaluation targets ────────────────────────────────────
@@ -154,11 +145,10 @@ program define cate_dnn, eclass
     matrix colnames `targets_mat' = `xvars'
 
     // ── resolve score interface ───────────────────────────────────────
-    // The Stata interface mirrors the three R cate_dnn() score paths:
-    // precomputed pseudo-outcome, full AIPW, and Robinson/R-learner.
+    // CATE supports precomputed pseudo-outcomes and full AIPW construction.
     local score_method ""
     if "`pseudo_flag'" != "" {
-        if "`treat_var'`propensity_var'`m0_var'`m1_var'`m_var'" != "" {
+        if "`treat_var'`propensity_var'`m0_var'`m1_var'" != "" {
             di as error "pseudo_outcome cannot be combined with nuisance options."
             exit 198
         }
@@ -170,20 +160,11 @@ program define cate_dnn, eclass
             di as error "tcol() and ecol() are required when constructing a pseudo-outcome."
             exit 198
         }
-        if "`m_var'" != "" & ("`m0_var'" != "" | "`m1_var'" != "") {
-            di as error "Specify either mcol() (Robinson) or m0col() and m1col() (AIPW), not both."
+        if "`m0_var'" == "" | "`m1_var'" == "" {
+            di as error "Supply both m0col() and m1col() for AIPW, or use pseudooutcome."
             exit 198
         }
-        if "`m_var'" != "" {
-            local score_method "robinson"
-        }
-        else if "`m0_var'" != "" & "`m1_var'" != "" {
-            local score_method "aipw"
-        }
-        else {
-            di as error "Supply mcol() for Robinson, or both m0col() and m1col() for AIPW."
-            exit 198
-        }
+        local score_method "aipw"
     }
 
     if missing(`clip') | `clip' <= 0 | `clip' >= .5 | 1-`clip'>=1 {
@@ -207,9 +188,6 @@ program define cate_dnn, eclass
     }
     if "`score_method'" == "pseudo_outcome" {
         markout `touse' `xvars' `input_var'
-    }
-    else if "`score_method'" == "robinson" {
-        markout `touse' `outcome' `treat_var' `xvars' `propensity_var' `m_var'
     }
     else {
         markout `touse' `outcome' `treat_var' `xvars' `propensity_var' `m0_var' `m1_var'
@@ -437,20 +415,11 @@ program define cate_dnn, eclass
 
         tempvar eclip rho_var
         quietly gen double `eclip' = min(max(`propensity_var', `clip'), 1 - `clip') if `touse'
-        if "`score_method'" == "aipw" {
-            // phi = m1-m0 + D*(Y-m1)/e - (1-D)*(Y-m0)/(1-e)
-            quietly gen double `rho_var' = ///
-                `treat_var' * (`outcome' - `m1_var') / `eclip' ///
-                - (1 - `treat_var') * (`outcome' - `m0_var') / (1 - `eclip') ///
-                + (`m1_var' - `m0_var') ///
-                if `touse'
-        }
-        else {
-            // Normalized Robinson signal; generally has first-order propensity drift.
-            quietly gen double `rho_var' = ///
-                (`treat_var' - `eclip') * (`outcome' - `m_var') ///
-                / (`eclip' * (1 - `eclip')) if `touse'
-        }
+        // phi = m1-m0 + D*(Y-m1)/e - (1-D)*(Y-m0)/(1-e)
+        quietly gen double `rho_var' = ///
+            `treat_var' * (`outcome' - `m1_var') / `eclip' ///
+            - (1 - `treat_var') * (`outcome' - `m0_var') / (1 - `eclip') ///
+            + (`m1_var' - `m0_var') if `touse'
         local rho_use `rho_var'
     }
 
@@ -697,7 +666,6 @@ program define cate_dnn, eclass
     ereturn local  e_col    "`propensity_var'"
     ereturn local  m0_col   "`m0_var'"
     ereturn local  m1_col   "`m1_var'"
-    ereturn local  m_col    "`m_var'"
     ereturn local  cmd      "cate_dnn"
     ereturn local  cmdline  "cate_dnn `0'"
 

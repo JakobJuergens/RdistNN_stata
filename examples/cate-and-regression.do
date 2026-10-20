@@ -1,4 +1,4 @@
-// RdistNN CATE and regression: all three score routes, batches and reporting.
+// RdistNN CATE and regression: both score routes, batches and reporting.
 // Install the package from master, or run dev-setup.do from the repository root.
 // The script clears the active dataset; it writes no files.
 // Nuisances below are oracle values, not predictions fitted on these data.
@@ -56,18 +56,6 @@ assert route_v_difference < 1e-10
 assert e(s) == AIPW_s
 assert "`e(score_method)'" == "pseudo_outcome"
 
-// Robinson averages a residual-product signal, rather than solving a
-// residual least-squares R-learner problem. The pooled mean is supplied.
-cate_dnn Y, xcols(x1 x2) x0matrix(X0) tcol(D) ///
-    ecol(e_oracle) mcol(m_oracle)
-matrix Robinson_b = e(b)
-estimates store cate_robinson
-assert "`e(score_method)'" == "robinson"
-gen double rho_robinson = (D-eclip)*(Y-m_oracle)/(eclip*(1-eclip))
-cate_dnn rho_robinson, xcols(x1 x2) x0matrix(X0) pseudooutcome
-matrix Robinson_supplied_b = e(b)
-mata: st_numscalar("robinson_difference", max(abs(st_matrix("Robinson_b")-st_matrix("Robinson_supplied_b"))))
-assert robinson_difference < 1e-10
 
 // Replay changes the pointwise interval level without changing estimates.
 estimates restore cate_aipw

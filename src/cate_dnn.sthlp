@@ -18,7 +18,7 @@ distributional nearest neighbors
 
 {pstd}
 Stata 17 or later is required. See {help rdistnn} for the package overview.
-This help describes the interface in package {bf:0.1.0.9003} in the development snapshot.
+This help describes the interface in package {bf:0.1.0.9004} in the development snapshot.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -37,15 +37,14 @@ This help describes the interface in package {bf:0.1.0.9003} in the development 
 {syntab:Localization (required)}
 {synopt:{opth xcols(varlist)}}covariates used to define the neighborhood{p_end}
 {synopt:{opt x0(numlist)}}single evaluation point; one value per covariate{p_end}
-{synopt:{opt x0matrix(matrix_name)}}named m x kx matrix corresponding to R's {cmd:X0}{p_end}
+{synopt:{opt x0matrix(matrix_name)}}matrix with one reporting profile per row{p_end}
 
 {syntab:Score input (choose one path)}
-{synopt:{opt pseudooutcome}}positional variable is R's {cmd:pseudo_outcome}{p_end}
-{synopt:{opth tcol(varname)}}binary treatment, corresponding to R's {cmd:t_col}{p_end}
-{synopt:{opth ecol(varname)}}propensity, corresponding to R's {cmd:e_col}{p_end}
-{synopt:{opth m0col(varname)}}control outcome mean, corresponding to R's {cmd:m0_col}{p_end}
-{synopt:{opth m1col(varname)}}treated outcome mean, corresponding to R's {cmd:m1_col}{p_end}
-{synopt:{opth mcol(varname)}}pooled outcome mean, corresponding to R's {cmd:m_col}{p_end}
+{synopt:{opt pseudooutcome}}positional variable is a supplied treatment-effect signal{p_end}
+{synopt:{opth tcol(varname)}}binary treatment indicator{p_end}
+{synopt:{opth ecol(varname)}}estimated probability of treatment{p_end}
+{synopt:{opth m0col(varname)}}estimated outcome mean under control{p_end}
+{synopt:{opth m1col(varname)}}estimated outcome mean under treatment{p_end}
 {synopt:{opt clip(#)}}propensity clipping constant in (0, 0.5); default {cmd:1e-8}{p_end}
 
 {syntab:Tuning}
@@ -72,6 +71,12 @@ This help describes the interface in package {bf:0.1.0.9003} in the development 
 {title:Description}
 
 {pstd}
+The documented sampling framework uses independent observations. Cluster and
+survey-design inference are not supplied. Input row order breaks distance ties;
+reordering tied observations can change estimates. Reported order fractions
+are descriptive and do not establish inference conditions.
+
+{pstd}
 {cmd:cate_dnn} estimates the conditional average treatment effect
 tau(x0) = E[Y(1) - Y(0) | X = x0] at one or more covariate points using
 distributional nearest-neighbor (DNN) rank weights. Supply
@@ -80,9 +85,8 @@ matrix whose rows are targets and whose columns correspond to {opt xcols()}.
 
 {pstd}
 The estimator applies DNN rank weights w_i(x0) to per-observation
-pseudo-outcomes, yielding a localized weighted mean.  Three score-input paths
-are available: a precomputed pseudo-outcome, a full AIPW score, or a
-Robinson-form residual-product score. Nuisance models are fitted externally;
+pseudo-outcomes, yielding a localized weighted mean.  Two score-input paths
+are available: a precomputed pseudo-outcome or a full AIPW score. Nuisance models are fitted externally;
 the command only consumes their prediction variables.
 
 {pstd}
@@ -93,22 +97,13 @@ AIPW pseudo-outcome is
 {phang2}phi_i = D_i*(Y_i-m1_i)/eclip_i - (1-D_i)*(Y_i-m0_i)/(1-eclip_i) + (m1_i-m0_i){p_end}
 
 {pstd}
-The Robinson pseudo-outcome is
-
-{phang2}phi_i = (D_i-eclip_i)*(Y_i-mhat_i)/(eclip_i*(1-eclip_i)).{p_end}
-
-{pstd}
-This route averages phi_i with DNN weights. It does not solve a residual
-least-squares R-learner problem or divide by the local mean of (D-eclip)^2.
-Here mhat is the pooled E[Y|U], where U is the full adjustment state used
-to fit the nuisance. The localization variables X may be a subset of U.
+The normalized Robinson pseudo-outcome is not implemented because it falls outside the accompanying paper's theoretical results.
 
 {pstd}
 For nuisance-based paths, eclip_i = min(max(e_i, clip), 1-clip), where
 {opt clip()} defaults to 1e-8. Raw propensity values must be finite and lie in
 [0,1]; values outside that range are rejected rather than mapped back into it.
-Supply {opt ecol()} and either {opt m0col()} with {opt m1col()} (AIPW),
-or {opt mcol()} (Robinson).
+Supply {opt ecol()}, {opt m0col()}, and {opt m1col()} for AIPW.
 
 {pstd}
 {bf:Inference warning:} Neyman orthogonality alone does not validate arbitrary
@@ -140,7 +135,7 @@ Restrict {cmd:if} explicitly when those rows should be excluded.
 
 {pstd}
 After that validation, AIPW excludes observations missing Y, D, X, e, m0 or
-m1; Robinson excludes observations missing Y, D, X, e or mhat. The
+m1. The
 precomputed-score route excludes observations missing the positional score
 or X. Remaining treatment values must be coded 0/1. {cmd:e(N)} records the
 complete sample size, and {cmd:e(sample)} identifies its observations.
@@ -158,11 +153,7 @@ sample for comparisons when required columns have different missingness.
 {title:Inference contract}
 
 {pstd}
-AIPW orthogonality controls first-order population nuisance drift. The normalized
-Robinson signal generally is not orthogonal to propensity error and needs
-additional propensity control. With a correct pooled mean its expectation is
-{it:e0(1-e0)tau/[ehat(1-ehat)]}, so oracle identification does not imply
-orthogonality. AIPW orthogonality does not, by
+AIPW orthogonality controls first-order population nuisance drift. It does not, by
 itself, justify treating arbitrary nuisance predictions estimated on the same
 observations as valid inputs for the reported inference.
 
@@ -223,7 +214,7 @@ corresponding to R's {cmd:t_col}.
 {opth ecol(varname)} provides e(U) = P(D=1|U), corresponding to R's
 {cmd:e_col}.  Values must lie in [0, 1].  Values at or very near the endpoints
 are replaced by the clipped propensity used consistently throughout the AIPW
-or Robinson score and propensity diagnostics.
+score and propensity diagnostics.
 
 {phang}
 {opt clip(#)} specifies the finite propensity clipping constant. It must lie
@@ -238,23 +229,18 @@ precomputed pseudo-outcome.
 {opth m1col(varname)} provides E[Y|U, D=1], corresponding to R's
 {cmd:m1_col}.  Use it with {opt m0col()} for full AIPW.
 
-{phang}
-{opth mcol(varname)} provides the pooled E[Y|U] for the Robinson-form path and
-corresponds to R's {cmd:m_col}.  It is mutually exclusive with {opt m0col()}
-and {opt m1col()}.
-
 {dlgtab:Compatibility aliases}
 
 {pstd}
 Stata option names cannot contain underscores.  The canonical mapping removes
 only R's underscores: {cmd:x_cols -> xcols()}, {cmd:t_col -> tcol()},
 {cmd:e_col -> ecol()}, {cmd:m0_col -> m0col()}, {cmd:m1_col -> m1col()},
-{cmd:m_col -> mcol()}, and {cmd:pseudo_outcome -> pseudooutcome}.  R's
+and {cmd:pseudo_outcome -> pseudooutcome}.  R's
 {cmd:X0} matrix is {cmd:x0matrix()}, {cmd:tuning_mode} is
 {cmd:tuningmode()}, and {cmd:lambda_grid} is {cmd:lambdagrid()}; {cmd:x0()}
 and {cmd:lambda()} are identical in both APIs.
 The earlier Stata names {cmd:x()}, {cmd:treat()}, {cmd:propensity()},
-{cmd:m0()}, {cmd:m1()}, and {cmd:mhat()} remain accepted but cannot be combined
+{cmd:m0()} and {cmd:m1()} remain accepted but cannot be combined
 with their canonical counterparts.
 The accepted compatibility flag {opt noconstant} has no effect: the command
 does not estimate an intercept.
@@ -436,7 +422,7 @@ estimate-only fit. Rounded duplicates share a {cmd:computed_id}.
 {synopt:{cmd:e(x_cols)}}R-aligned alias of {cmd:e(xvars)}{p_end}
 {synopt:{cmd:e(distance)}}distance metric used{p_end}
 {synopt:{cmd:e(method)}}weight method used{p_end}
-{synopt:{cmd:e(score_method)}}{cmd:aipw}, {cmd:robinson}, or {cmd:pseudo_outcome}{p_end}
+{synopt:{cmd:e(score_method)}}{cmd:aipw} or {cmd:pseudo_outcome}{p_end}
 {synopt:{cmd:e(propensity_version)}}{cmd:clipped} for nuisance scores or {cmd:not_used}{p_end}
 {synopt:{cmd:e(se_method)}}{cmd:rank_shift} or {cmd:none}{p_end}
 {synopt:{cmd:e(jackknife)}}R-aligned {cmd:fast} or {cmd:none}{p_end}
@@ -446,7 +432,7 @@ estimate-only fit. Rounded duplicates share a {cmd:computed_id}.
 {synopt:{cmd:e(tuning_reason_codes)}}numeric reason-code map used by {cmd:e(tuning_candidates)}{p_end}
 {synopt:{cmd:e(signal)}}positional outcome or pseudo-outcome variable{p_end}
 {synopt:{cmd:e(t_col)}, {cmd:e(e_col)}}resolved treatment and propensity variables{p_end}
-{synopt:{cmd:e(m0_col)}, {cmd:e(m1_col)}, {cmd:e(m_col)}}resolved nuisance variables{p_end}
+{synopt:{cmd:e(m0_col)}, {cmd:e(m1_col)}}resolved nuisance variables{p_end}
 
 {marker examples}{...}
 {title:Examples}
@@ -482,11 +468,6 @@ conditions.{p_end}
 {pstd}Use a precomputed pseudo-outcome and skip standard errors.{p_end}
 {phang2}{cmd:. gen rho = D*(Y-m1_true)/e_oracle - (1-D)*(Y-m0_true)/(1-e_oracle) + m1_true-m0_true}{p_end}
 {phang2}{cmd:. cate_dnn rho, xcols(x1 x2) x0(0 0) pseudooutcome nose}{p_end}
-
-{pstd}Use the Robinson-form signal with a pooled outcome regression.{p_end}
-{phang2}{cmd:. gen mhat_true = e_oracle*m1_true + (1-e_oracle)*m0_true}{p_end}
-{phang2}{cmd:. cate_dnn Y, tcol(D) xcols(x1 x2) x0(0 0)}{...}
-{phang2}{cmd:    ecol(e_oracle) mcol(mhat_true)}{p_end}
 
 {pstd}Evaluate the AIPW score at three targets in one call.{p_end}
 {phang2}{cmd:. matrix X0 = (0,0 \ 0.5,-0.25 \ -0.5,0.75)}{p_end}
@@ -573,3 +554,12 @@ geometry in e(model_*), including in estimates save/use files.
 frozen-score covariance. Active data and e() are preserved by default.
 post explicitly activates a derived fit; store() retains a named one.
 Legacy fits without a numeric snapshot require a refit for saved-model reuse.
+
+{title:Migration from earlier CATE inputs}
+
+{pstd}
+The pooled-mean options {cmd:mcol()} and {cmd:mhat()} have been removed.
+Use propensity and both arm-specific outcome means for AIPW construction, or
+an externally justified signal with {opt pseudooutcome}. A pooled outcome
+mean cannot be substituted for both arm means. Retired saved score routes
+cannot reconstruct influence calculations; refit using a supported route.

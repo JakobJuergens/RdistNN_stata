@@ -142,26 +142,12 @@ quietly cate_dnn rho_aipw_b, xcols(x1 x2) x0matrix(X0_scores) k(2) s(7) pseudoou
 matrix B_pseudo_b = e(b)
 matrix V_pseudo_b = e(V)
 
-gen double m_pool_b = e*m1 + (1-e)*m0
-gen double rho_robinson_b = (D-eclip_b)*(y-m_pool_b)/(eclip_b*(1-eclip_b))
-quietly cate_dnn y, tcol(D) xcols(x1 x2) x0matrix(X0_scores) k(2) s(7) ///
-    ecol(e) mcol(m_pool_b)
-matrix B_robinson_b = e(b)
-matrix V_robinson_b = e(V)
-quietly cate_dnn rho_robinson_b, xcols(x1 x2) x0matrix(X0_scores) k(2) s(7) pseudooutcome
-matrix B_rpseudo_b = e(b)
-matrix V_rpseudo_b = e(V)
-
 mata {
     st_numscalar("_batch_aipw_b", max(abs(st_matrix("B_aipw_b") - st_matrix("B_pseudo_b"))))
     st_numscalar("_batch_aipw_v", max(abs(st_matrix("V_aipw_b") - st_matrix("V_pseudo_b"))))
-    st_numscalar("_batch_robinson_b", max(abs(st_matrix("B_robinson_b") - st_matrix("B_rpseudo_b"))))
-    st_numscalar("_batch_robinson_v", max(abs(st_matrix("V_robinson_b") - st_matrix("V_rpseudo_b"))))
 }
 test_assert "[batch] AIPW and precomputed estimates agree" scalar(_batch_aipw_b) < 1e-10
 test_assert "[batch] AIPW and precomputed covariance agree" scalar(_batch_aipw_v) < 1e-10
-test_assert "[batch] Robinson and precomputed estimates agree" scalar(_batch_robinson_b) < 1e-10
-test_assert "[batch] Robinson and precomputed covariance agree" scalar(_batch_robinson_v) < 1e-10
 
 test_section "cate_dnn: [batch] nose and replay"
 

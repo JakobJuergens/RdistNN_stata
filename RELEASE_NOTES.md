@@ -1,6 +1,30 @@
 # Release Notes
 
-## 0.1.0.9003 — unreleased development update
+## 0.1.0.9004 — development snapshot
+
+The changes below are grouped in one reviewed, flattened (squash-merged)
+production update carrying version 0.1.0.9004. Publishing this source update
+does not create a tag or replace assets from the existing v0.1.0 release.
+
+- Show single- and two-scale order fractions in reporting and replay without
+  changing stored results. Clarify support diagnostics, sampling and tie
+  assumptions, installation scope and migration from removed CATE inputs.
+- Add an independent nonuniform tied-distance subset/deletion reference and
+  input-order regression shared with R's joint CATE covariance tests.
+
+- Remove the normalized Robinson CATE pseudo-outcome route because it falls
+  outside the accompanying paper's theoretical results. AIPW nuisance inputs
+  and caller-supplied signals remain available.
+
+- Clarify immutable source installation, candidate identities, development
+  chronology and the confidentiality of saved numeric model state. Use the
+  public paper name in the documentation crosswalk.
+
+## 0.1.0.9003 — merged development snapshot
+
+The changes below were previously merged into public production source at
+`877c560373db915a5f5d23157e2b09cbbdf045f1`. Candidate verification, tags and
+downloadable assets are separate; the existing v0.1.0 release is unchanged.
 
 - Use shared ordered reductions for Mahalanobis projections and correct
   cancellation-sensitive covariance cross terms, including mean-subtraction
@@ -17,16 +41,12 @@
 - Check unique private Mata definitions, complete installation inputs and
   canonical manifest paths, plus optional mirrored-header parity with R.
   Align documentation and the development version with the R companion.
-
-## 0.1.0.9002 — earlier development snapshot
-
 - Stabilize ordinary SD/covariance and mixed-sign large-offset deletion centering;
   preserve small cancellation contributions and all represented remote tails.
 - Generate exact rank tables with the same bounded-workspace PMF recurrence in
   R, Mata and native code. Preserve stable signed-zero ties in native sorting.
 - Preserve mu/tau/theta coefficient names after candidate/prediction posting;
-  reject clipping bounds whose upper endpoint rounds to one. Clarify Robinson
-  propensity sensitivity and update metric/batch-weight documentation.
+  reject clipping bounds whose upper endpoint rounds to one. Update metric/batch-weight documentation.
 
 
 - Align weighted-quantile boundary decisions with R/native compensated total
@@ -51,6 +71,8 @@
 - Preserve full numeric precision when constructing reporting tables and
   returning saved-fit prediction uncertainty, including extreme scales.
 
+## 0.1.0.9002 — earlier development snapshot
+
 - Match R quantile interpolation near rank-sensitive ties, recover finite SD
   scales after intermediate overflow/underflow, and reject failed scale fits
   before clamping. Recover scaled L1 differences consistently across Mata and
@@ -59,8 +81,8 @@
 - Stabilize close-order TDNN coefficients, asymptotic Beta tail increments and
   extreme L2 norms consistently with R. Shared helpers serve native/Mata
   weights, estimation and saved prediction; ordinary-input distance rounding
-  remains aligned. Shared compensated weighted/deletion sums are described in
-  the numerical-stability guide with their precision and engine contracts.
+  remains aligned. Compensated weighted/deletion sums were still planned in
+  this snapshot and were implemented in 0.1.0.9003.
 
 - Add shared compiled scalar/batch L1, L2 and scaled-distance kernels for all
   estimators, weight commands and saved prediction. Keep fitted geometry,

@@ -15,7 +15,7 @@
 
 {pstd}
 Stata 17 or later is required. Supplied-prediction CLATE and ordinary paired-signal
-ratios are supported workflows in the development version {bf:0.1.0.9003} under the documented
+ratios are supported workflows in the development version {bf:0.1.0.9004} under the documented
 pointwise inference conditions. See {help rdistnn} for package navigation.
 
 {marker syntax}{...}
@@ -166,6 +166,12 @@ without changing the fitted arrays. It does not create simultaneous bands.
 
 {marker inference}{...}
 {title:Inference contract}
+
+{pstd}
+The documented sampling framework uses independent observations; cluster
+and survey-design inference are not supplied. Input row order breaks distance
+ties, so permuting tied observations can change estimates.
+
 
 {pstd}
 Covariance uses paired frozen-score rank-shift deletions with the same s,

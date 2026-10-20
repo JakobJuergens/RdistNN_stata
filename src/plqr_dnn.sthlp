@@ -150,6 +150,12 @@ during deletions. See {help weights_dnn} for the shared rank-weight rules.
 {title:Moment covariance and inferential scale}
 
 {pstd}
+The documented sampling framework uses independent observations; cluster
+and survey-design inference are not supplied. Input row order breaks distance
+ties, so permuting tied observations can change estimates.
+
+
+{pstd}
 Each deletion removes one observation, shifts the retained ranks, and
 recomputes weights at the same target, s, k and method. Supplied coefficients,
 shape predictions, residualizer predictions and observation-level scores

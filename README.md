@@ -16,15 +16,6 @@ signals and performs the local estimation and uncertainty calculations.
 · [CLATE guide](docs/conditional-late.md)
 · [Report an issue](https://github.com/JakobJuergens/RdistNN_stata/issues)
 
-These instructions describe development version **0.1.0.9003**, maintained on
-the local `development` branch until reviewed publication. The GitHub install
-below uses the published `master` snapshot; install a local checkout to use
-changes that have not yet been published.
-
-The latest update strengthens tests for saved-fit reuse, candidate uncertainty
-and package installation. Estimator interfaces and pointwise inference limits
-are unchanged. See the [development notes](RELEASE_NOTES.md) for details.
-
 Use [saved-fit reporting, candidate extraction and prediction](docs/reusing-fits.md)
 to report estimates, inspect stored tuning candidates and predict from saved
 fits. The [R companion](https://github.com/JakobJuergens/RdistNN) provides the
@@ -40,7 +31,10 @@ net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/Rdist
 help rdistnn
 ```
 
-From a local source checkout, use `net install rdistnn, from("path/to/checkout") replace`.
+These guides describe the **0.1.0.9004 development snapshot**. The GitHub
+command installs the production source on `master`.
+Retain the source commit or archive identity: different source snapshots can
+share the same development version.
 
 Stata **17 or later** is required. Ordinary use needs no R installation,
 Python or compiler. The ado/Mata implementation supports Windows, macOS and
@@ -104,13 +98,25 @@ cate_dnn_diagnostics
 cate_dnn_plot, type(estimates) style(profile) replace
 ```
 
-This estimates AIPW CATE at five profiles, holding `x2` at zero. For a
-Robinson score, supply `ecol()` and the pooled outcome mean in `mcol()`.
-For an externally constructed score, use
+This estimates AIPW CATE at five profiles, holding `x2` at zero. For an externally constructed score, use
 `cate_dnn score, xcols(x1 x2) x0(0 0) pseudooutcome`.
 The [CATE and regression guide](docs/cate-and-regression.md) explains the
 input routes and returned results; the
 [complete quick start](examples/getting-started.do) runs each route.
+
+The candidate supports AIPW nuisance construction and supplied signals. Earlier
+`mcol()` and `mhat()` options have been removed. Supply both arm-specific
+outcome means and propensity for AIPW, or an externally justified signal with
+`pseudooutcome`; a pooled mean is not a substitute for both arm means.
+
+The header reports `s/n` descriptively. Use `cate_dnn_diagnostics` to inspect
+arm effective sample sizes, weight and score concentration, and propensity
+summaries; `detail` exposes the full target table. Numerical clipping does
+not establish overlap and no new heuristic warning thresholds are applied.
+
+The documented sampling framework uses independent observations. Cluster and
+survey-design inference are not supplied. Equal distances are ordered by input
+row, so permuting tied observations can change an estimate.
 
 ## Nonparametric regression
 

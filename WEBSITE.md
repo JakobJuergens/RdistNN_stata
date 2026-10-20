@@ -1,7 +1,7 @@
 # Website copy for the Stata companion
 
 Ready-to-adapt text for the software section of jakobjuergens.com, describing
-the local `0.1.0.9003` development snapshot. Publish an announcement only after
+the unpublished `0.1.0.9004` development candidate. Publish an announcement only after
 reviewed source, checked release assets and documentation links are live.
 
 ## Software entry
@@ -21,11 +21,12 @@ PLQR moment evaluation is experimental and does not provide coefficient inferenc
 
 ## Announcement draft
 
-RdistNN for Stata 0.1.0.9003 combines conditional LATE and shared reporting,
+RdistNN for Stata 0.1.0.9004 combines conditional LATE and shared reporting,
 diagnostics, and plotting interfaces for treatment effects and nonparametric
-regression. The latest maintenance update consolidates shared components and
-strengthens tests for repeated loading, numerical parity and package installation.
-Estimator interfaces and pointwise inference limits are unchanged. The examples label oracle
+regression. The update reports localization fractions and clarifies support diagnostics,
+sampling assumptions and input-order ties. Built-in CATE signals use AIPW;
+externally justified supplied signals remain available. Migration from removed
+nuisance inputs and pointwise inference limits are documented. The examples label oracle
 nuisances explicitly and explain the conditions needed for inference with
 estimated nuisances. Experimental PLQR evaluates localized score moments at
 supplied coefficients. The ado/Mata path is portable; optional native assets

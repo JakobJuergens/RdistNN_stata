@@ -1,6 +1,6 @@
 # Save, report and reuse fitted results
 
-Version 0.1.0.9003 provides three common commands for DNN/TDNN regression, CATE, CLATE and
+Version 0.1.0.9004 provides three common commands for DNN/TDNN regression, CATE, CLATE and
 PLQR. They use the R result methods as the reference for shared behavior.
 PLQR retains its supplied-coefficient **moment-only** scope.
 
@@ -49,6 +49,11 @@ model snapshot. Infeasible candidate IDs error without changing the parent.
 Stata PLQR has no integrated candidate grid.
 
 ## Predict using saved observations and signals
+
+**Saved-fit confidentiality:** `estimates save` writes observation-level numeric
+inputs and frozen signals into the `.ster` file. Apply the underlying data's
+sharing restrictions to saved fits; clearing the active dataset does not remove
+those observations from the saved model. Do not distribute confidential fits.
 
 ```stata
 estimates save fitted_model, replace

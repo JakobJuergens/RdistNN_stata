@@ -789,18 +789,20 @@ program define _cate_dnn_plot_influence, rclass
     }
     local isclate = ("`e(cmd)'" == "clate_dnn")
     local score_method "`e(score_method)'"
+    if !`isclate' & !inlist("`score_method'", "aipw", "pseudo_outcome") {
+        di as error "This saved CATE score construction is no longer supported; refit using AIPW."
+        exit 498
+    }
     local signal_var "`e(signal)'"
     local outcome_var "`e(outcome)'"
     local treat_var "`e(t_col)'"
     local propensity_var "`e(e_col)'"
     local m0_var "`e(m0_col)'"
     local m1_var "`e(m1_col)'"
-    local m_var "`e(m_col)'"
     local needed "`signal_var'"
     if "`score_method'" != "pseudo_outcome" {
         local needed "`outcome_var' `treat_var' `propensity_var'"
-        if "`score_method'" == "aipw" local needed "`needed' `m0_var' `m1_var'"
-        else local needed "`needed' `m_var'"
+        local needed "`needed' `m0_var' `m1_var'"
     }
     if `isclate' {
         local needed "`e(signal)' `e(denominator)'"
@@ -849,15 +851,9 @@ program define _cate_dnn_plot_influence, rclass
     }
     else {
         quietly gen double `eclip' = min(max(`propensity_var', e(clip)), 1-e(clip)) if `esample'
-        if "`score_method'" == "aipw" {
-            quietly gen double `rho' = `treat_var' * (`outcome_var' - `m1_var') / `eclip' ///
-                - (1 - `treat_var') * (`outcome_var' - `m0_var') / (1 - `eclip') ///
-                + `m1_var' - `m0_var' if `esample'
-        }
-        else {
-            quietly gen double `rho' = (`treat_var' - `eclip') * ///
-                (`outcome_var' - `m_var') / (`eclip' * (1 - `eclip')) if `esample'
-        }
+        quietly gen double `rho' = `treat_var' * (`outcome_var' - `m1_var') / `eclip' ///
+            - (1 - `treat_var') * (`outcome_var' - `m0_var') / (1 - `eclip') ///
+            + `m1_var' - `m0_var' if `esample'
     }
 
     findfile "_rdistnn_mata.ado"

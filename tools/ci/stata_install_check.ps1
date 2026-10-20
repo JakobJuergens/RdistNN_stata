@@ -339,17 +339,6 @@ capture graph drop install_estimates install_diagnostics install_overlap ///
     install_np_estimates install_np_diagnostics install_np_tuning ///
     install_np_weights install_np_outcome install_np_dashboard
 
-gen double mhat = e*m1 + (1-e)*m0
-gen double rho_robinson = (D-eclip)*(y-mhat)/(eclip*(1-eclip))
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) propensity(e) mhat(mhat) k(3) s(12)
-local tau_robinson = _b[tau]
-local se_robinson = _se[tau]
-cate_dnn rho_robinson, x(x1 x2) x0(0 0) pseudooutcome k(3) s(12)
-if abs(_b[tau] - `tau_robinson') > 1e-10 | abs(_se[tau] - `se_robinson') > 1e-10 {
-    di as error "installed cate_dnn pseudooutcome path does not match Robinson."
-    exit 459
-}
-
 cate_dnn rho_aipw, x(x1 x2) x0(0 0) pseudooutcome s(160) nose
 if _b[tau] >= . | e(k) != 1 | "`e(se_method)'" != "none" {
     di as error "installed cate_dnn nose/default-k path returned invalid results."
