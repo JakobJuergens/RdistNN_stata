@@ -13,7 +13,7 @@
 
 {pstd}
 Stata 17 or later. For the package overview and article collection, see
-{help rdistnn}. This help describes package {bf:0.1.0.9005}.
+{help rdistnn}. This help describes package {bf:0.1.1}.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -51,8 +51,8 @@ The asymptotic rule uses averaged Beta(l,s-l+1) CDF increments over adjacent
 rank fractions and renormalizes. Lower or direct upper tails avoid subtracting
 CDF values rounded to one. It is generally a full-rank approximation;
 floating-point tail weights can be zero. Both methods normalize to sum one.
-Distance ties are broken by observation order. Match row order when comparing
-with R or reconstructing a fit.
+Exact distance ties use the original covariates lexicographically in their
+supplied column order. Identical covariate rows retain observation-order ties.
 
 {pstd}
 The order s has direction opposite to the usual bandwidth convention.
@@ -119,7 +119,7 @@ plugin for eligible calls in auto mode. Drop the global to restore default dispa
 This selector takes precedence over {cmd:rdistnn_use_plugin}.
 {cmd:rdistnn_last_distance_engine} records the last actual distance route.
 Mahalanobis factorization uses Mata; its projected L2 norms use the selected
-engine. Legacy saved inverse metrics retain their original Mata calculation.
+engine.
 For jackknife parity checks, {cmd:global rdistnn_jackknife_engine naive}
 selects explicit deletions; {cmd:mata} selects fast Mata and {cmd:plugin}
 requires compiled prefix/suffix sums. Drop that global for automatic compiled,
@@ -143,7 +143,10 @@ are absolute scales, not inverse scales. Each scale is floored at the positive
 finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
 The fitted scales or Mahalanobis whitening factor remain fixed across
-jackknife deletions and saved-model predictions. Ties retain original row order.
+jackknife deletions and saved-model predictions. Exact distance ties use the
+original covariates lexicographically in their supplied column order, then
+observation order for identical covariate rows. Outcomes and nuisances do not
+enter this ordering; rank weights and effective sample size are preserved.
 
 {title:Stored results}
 
@@ -160,7 +163,7 @@ Copy r-class results before running another command that overwrites them.
 matrices; {cmd:r(row_ids)} maps their rows to original observation numbers.
 {cmd:r(targets)} and {cmd:r(neff_targets)} retain target coordinates and ESS.
 {cmd:r(geometry)} retains fitted scales or packed Mahalanobis whitening
-geometry when used; older snapshots may contain an inverse covariance.
+geometry when used.
 {cmd:r(m)} is the target count; scalar {cmd:r(neff)} refers to the first target. To reconstruct an estimator's weighted signal,
 match its complete-case sample using a copy of {cmd:e(sample)}, as well as
 its target, k, s, method and distance. Covariate-only weights may otherwise

@@ -19,8 +19,8 @@ gen double wphi_r = w_cate_r * phi_r
 quietly summarize wphi_r, meanonly
 local tau_manual = r(sum)
 
-cate_dnn y, treat(D) x(x1 x2) x0(0.2 -0.1) k(3) s(9) ///
-    propensity(e) m0(m0) m1(m1)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0.2 -0.1) k(3) s(9) ///
+    ecol(e) m0col(m0) m1col(m1)
 local tau_cmd = _b[tau]
 local se_cmd = _se[tau]
 test_assert "[identity] tau uses clipped AIPW pseudo-outcome" ///
@@ -43,8 +43,8 @@ gen double wphi_c = w_cate_if * phi_c if keep_cate
 quietly summarize wphi_c if keep_cate, meanonly
 local tau_if_manual = r(sum)
 
-cate_dnn y if keep_cate, treat(D) x(x1 x2) x0(-0.2 0.15) k(2) s(7) ///
-    propensity(e) m0(m0) m1(m1)
+cate_dnn y if keep_cate, tcol(D) xcols(x1 x2) x0(-0.2 0.15) k(2) s(7) ///
+    ecol(e) m0col(m0) m1col(m1)
 local tau_if_cmd = _b[tau]
 local n_if = e(N)
 quietly count if e(sample)
@@ -74,7 +74,7 @@ gen double wphi_t = w_tie_cate * phi_t
 quietly summarize wphi_t, meanonly
 local tau_tie_manual = r(sum)
 
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(2) s(4) propensity(e) m0(m0) m1(m1)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(2) s(4) ecol(e) m0col(m0) m1col(m1)
 local tau_tie_cmd = _b[tau]
 test_assert "[ties] tied-X CATE uses deterministic row-index weights" abs(`tau_tie_cmd' - `tau_tie_manual') < 1e-8
 
@@ -86,10 +86,10 @@ replace D = . in 3
 replace e = . in 4
 replace m0 = . in 5
 replace m1 = . in 6
-capture noisily cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(2) s(6) propensity(e) m0(m0) m1(m1)
+capture noisily cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(2) s(6) ecol(e) m0col(m0) m1col(m1)
 test_assert "[markout] missing raw propensity is rejected" _rc == 198
 replace e = .5 in 4
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(2) s(6) propensity(e) m0(m0) m1(m1)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(2) s(6) ecol(e) m0col(m0) m1col(m1)
 local n_mark = e(N)
 quietly count if e(sample)
 local n_esample_mark = r(N)

@@ -3,7 +3,8 @@ version 17
 // Mata resolves all referenced adapters when compiling the model functions.
 findfile "_rdistnn_tdnn_mata.ado"
 quietly run "`r(fn)'"
-capture mata: mata drop rdistnn_model_diagnostics()
+findfile "_rdistnn_model_decode.ado"
+quietly run "`r(fn)'"
 capture mata: mata drop rdistnn_model_evaluate()
 capture mata: mata drop rdistnn_model_weights()
 capture mata: mata drop rdistnn_model_plot_data()
@@ -11,7 +12,7 @@ mata:
 real matrix rdistnn_model_plot_data(string scalar type, real rowvector targets)
 {
     real matrix data,out,signals,one
-    real colvector w,cum,ord,score,contribution
+    real colvector w,cum,ord,score,contribution,active,right
     real scalar j,t,n,paired
     data=rdistnn_model_weights(targets); n=rows(st_matrix("e(model_X)"))
     signals=st_matrix("e(model_signals)"); paired=st_global("e(cmd)")=="clate_dnn"
@@ -29,7 +30,12 @@ real matrix rdistnn_model_plot_data(string scalar type, real rowvector targets)
             }
             score=signals[,1]
             if(paired) score=score-st_matrix("e(estimates)")[1,t]*signals[,2]
-            contribution=w:*(score:-(paired ? 0 : st_matrix("e(estimates)")[1,t]))
+            right=J(n,1,st_matrix("e(estimates)")[1,t])
+            if(paired) {
+                right=J(n,1,0); active=selectindex(w:>0)
+                if(length(active)) right[active]=st_matrix("e(estimates)")[1,t]*signals[active,2]
+            }
+            rdistnn_score_share(w,signals[,1],right,contribution)
             one=(one[,2],one[,1],one[,3..5],score,contribution)
             if(paired) one=(one,signals)
             out=out\one
@@ -56,93 +62,17 @@ real matrix rdistnn_model_weights(real rowvector targets)
     return(out)
 }
 
-real matrix rdistnn_model_diagnostics(string scalar cmd, real matrix X,
-    real matrix X0, real matrix signals, real matrix W, real matrix DX,
-    real scalar k, real scalar s, real rowvector b, real matrix A, real matrix E)
-{
-    real scalar n,m,j,total,ybar
-    real matrix out,pair
-    real colvector w,d,ord,sorted
-    n=rows(X); m=rows(X0)
-    out=J(m,25,.)
-    if(cmd=="np_dnn") out=J(m,17,.)
-    if(cmd=="plqr_dnn") out=J(m,11,.)
-    for(j=1;j<=m;j++) {
-        w=W[,j]; d=DX[,j]; total=quadsum(w)
-        ord=order((w,(1::n)),(-1,2)); sorted=sort(d,1)
-        out[j,1..11]=(1/quadsum(w:^2),max(w),w[ord[1]],
-            quadsum(w[ord[1..min((5,n))]]),quadsum(w[ord[1..min((10,n))]]),
-            sum(abs(w):>sqrt(epsilon(1))),1,sorted[min((k,n))],
-            sorted[min((s,n))],cross(d,w)/total,rdistnn_weighted_quantile(d,w,.5))
-        if(cmd=="np_dnn") {
-            ybar=rdistnn_weighted_signals(signals,w)/total
-            out[j,12..17]=(1,ybar,rdistnn_weighted_sd(signals,w),
-                rdistnn_weighted_quantile(signals,w,.1),
-                rdistnn_weighted_quantile(signals,w,.5),
-                rdistnn_weighted_quantile(signals,w,.9))
-        }
-        else if(cmd!="plqr_dnn") {
-            out[j,20]=rdistnn_weighted_quantile(rdistnn_physical_distances(X,X0[j,]),w,.9)
-        }
-    }
-    if(cmd=="cate_dnn" | cmd=="clate_dnn") {
-        pair=signals
-        if(cmd=="cate_dnn") pair=(signals,J(n,1,1))
-        out=rdistnn_clate_diagnostics(out,W,pair,b,A,E)
-    }
-    return(out)
-}
-
 // Output names: estimates, covariance, diagnostics, components, component V,
 // status, effective sample sizes, ranks, distances, weights and q-by-m fits.
 void rdistnn_model_evaluate(string scalar target_name, real scalar s,
     real scalar do_se, string rowvector names)
 {
-    string scalar cmd,method,distance,arm,prop
-    string rowvector vars
-    real scalar n,m,q,k,tol,j,clip
-    real rowvector index
-    real matrix X,X0,signals,ranks,DX,W,diag,components,CV,status,V,fit,A,E,data
-    real matrix old_targets,loo,centered,geometry
+    string scalar cmd,method
+    real scalar n,m,q,k,tol
+    real matrix X,X0,signals,ranks,DX,W,diag,components,CV,status,V,fit,A,E,loo
     real rowvector b,neff
-    cmd=st_global("e(cmd)"); method=st_global("e(method)")
-    distance=st_global("e(distance)"); k=st_numscalar("e(k)")
-    X=st_matrix("e(model_X)"); signals=st_matrix("e(model_signals)")
-    X0=st_matrix(target_name); n=rows(X); m=rows(X0); q=cols(signals)
-    if(n<1 | m<1 | cols(X0)!=cols(X) | rows(signals)!=n |
-        hasmissing(X) | hasmissing(X0) | hasmissing(signals) |
-        s<k | s>n | s!=floor(s) | (do_se & s>=n)) {
-        errprintf("Saved model and targets require finite aligned matrices and k <= s <= n (s < n for covariance).\n")
-        exit(error(198))
-    }
-    ranks=DX=J(0,0,.)
-    old_targets=st_matrix("e(model_targets)")
-    if(rows(old_targets)==m & cols(old_targets)==cols(X0)) {
-        if(all(old_targets:==X0)) {
-            ranks=st_matrix("e(model_ranks)")
-            DX=st_matrix("e(model_distances)")
-        }
-    }
-    if(rows(ranks)==0) {
-        geometry=J(0,0,.)
-        if(distance=="mahalanobis" | distance=="l1_scaled" | distance=="l2_scaled") {
-            geometry=st_matrix("e(model_geometry)")
-            // Version-1 fits did not store geometry; only Mahalanobis existed.
-            if(rows(geometry)==0 & distance=="mahalanobis") geometry=rdistnn_mahal_cov_inv(X)
-        }
-        DX=rdistnn_distance_matrix(X,X0,distance,geometry)
-        ranks=rdistnn_ranks_from_dmat(DX)
-    }
-    if(rows(ranks)!=n | cols(ranks)!=m | rows(DX)!=n | cols(DX)!=m | hasmissing(DX)) {
-        errprintf("Saved geometry is incompatible with the fitted observations and targets.\n")
-        exit(error(498))
-    }
-    for(j=1;j<=m;j++) {
-        if(any(sort(ranks[,j],1):!=(1::n))) {
-            errprintf("Saved ranks must be permutations of 1..n.\n")
-            exit(error(498))
-        }
-    }
+    rdistnn_model_decode(target_name,s,do_se,cmd,method,k,X,X0,signals,ranks,DX)
+    n=rows(X); m=rows(X0); q=cols(signals)
     if(cmd=="np_tdnn") {
         W=rdistnn_tdnn_weights(ranks,st_numscalar("e(s1)"),st_numscalar("e(s2)"),
             st_numscalar("e(dim)"),method,st_numscalar("e(normalize)"))
@@ -167,24 +97,9 @@ void rdistnn_model_evaluate(string scalar target_name, real scalar s,
             V=rdistnn_covariance(loo,(n-1)/n,1)
         }
     }
-    A=E=J(0,1,.)
-    arm=st_global("e(t_col)")
-    if(cmd=="clate_dnn") arm=st_global("e(a_col)")
-    prop=st_global("e(e_col)")
-    data=st_matrix("e(model_inputs)"); vars=tokens(st_global("e(model_vars)"))
-    if(arm!="") {
-        index=selectindex(vars:==arm)
-        if(length(index)==1) A=data[,index]
-    }
-    if(prop!="") {
-        index=selectindex(vars:==prop)
-        if(length(index)==1) {
-            E=data[,index]; clip=st_numscalar("e(clip)")
-            if(clip<.) E=rowmax((J(n,1,clip),rowmin((E,J(n,1,1-clip)))))
-        }
-    }
+    rdistnn_model_arms(cmd,A,E)
     if(cmd=="np_tdnn") diag=rdistnn_tdnn_diagnostics(W,DX)
-    else diag=rdistnn_model_diagnostics(cmd,X,X0,signals,W,DX,k,s,b,A,E)
+    else diag=rdistnn_diagnostics(cmd,X,X0,signals,W,DX,k,s,b,A,E)
     st_matrix(names[1],b); st_matrix(names[2],V); st_matrix(names[3],diag)
     st_matrix(names[4],components); st_matrix(names[5],CV); st_matrix(names[6],status)
     st_matrix(names[7],neff); st_matrix(names[8],ranks); st_matrix(names[9],DX)

@@ -7,7 +7,7 @@ program define _rdistnn_estimation_state, eclass
     if "`e(cmd)'" == "clate_dnn" {
         matrix `estimates' = e(estimates)
         matrix `ses' = e(se_targets)
-        // The localization fit is delegated to CATE; never retain its covariance.
+        // Retain the paired estimator covariance in the canonical result.
         matrix `covariance' = e(theta_vcov)
     }
     else {
@@ -27,6 +27,7 @@ program define _rdistnn_estimation_state, eclass
     ereturn matrix estimates = `estimates', copy
     ereturn matrix se_targets = `ses', copy
     ereturn matrix estimate_vcov = `covariance', copy
+    ereturn local tie_rule "distance_then_covariates_then_input_position"
     quietly signestimationsample `varlist'
     quietly _rdistnn_sample_signature `varlist' if e(sample)
     ereturn local ordered_signature "`r(signature)'"

@@ -12,7 +12,6 @@ program define np_dnn, eclass
 
     syntax varname(numeric) [if] [in] , ///
         [                                ///
-        x(varlist numeric)               ///  legacy covariate option
         XCOLS(varlist numeric)           ///  R-aligned x_cols convention
         x0(numlist)                      ///  single evaluation point
         X0MATRIX(name)                   ///  named m x kx target matrix (R X0)
@@ -31,18 +30,9 @@ program define np_dnn, eclass
         ]
 
     local outcome `varlist'
-    if "`x'" != "" & "`xcols'" != "" {
-        di as error "Specify either x() or xcols(), not both."
-        exit 198
-    }
-    local xvars `x'
-    local x_source "x"
-    if "`xcols'" != "" {
-        local xvars `xcols'
-        local x_source "xcols"
-    }
+    local xvars `xcols'
     if "`xvars'" == "" {
-        di as error "xcols() is required (legacy alias: x())."
+        di as error "xcols() is required."
         exit 198
     }
     local kx : word count `xvars'
@@ -134,180 +124,18 @@ program define np_dnn, eclass
         di as error "tuningmode() must be default or grid."
         exit 198
     }
-    if `lambda' <= 0 | missing(`lambda') {
-        di as error "lambda() must be a positive finite number."
-        exit 198
-    }
-    if "`lambdagrid'" != "" & "`sgrid'" != "" {
-        di as error "Specify either lambdagrid() or sgrid(), not both."
-        exit 198
-    }
-    if "`tuning_mode'" == "default" & ///
-       ("`lambdagrid'" != "" | "`sgrid'" != "" | `sdefault' != 0) {
-        di as error "lambdagrid(), sgrid(), and sdefault() require tuningmode(grid)."
-        exit 198
-    }
-    if "`tuning_mode'" == "grid" & `s' != 0 {
-        di as error "s() cannot be combined with tuningmode(grid)."
-        exit 198
-    }
-    if `sdefault' < 0 {
-        di as error "sdefault() must be a positive integer when specified."
-        exit 198
-    }
-    if `sdefault' > 0 & "`sgrid'" == "" {
-        di as error "sdefault() requires sgrid()."
-        exit 198
-    }
-
-    local paper_base = `n'^((`kx' + 1) / (`kx' + 2))
-    local tuning_source "paper"
-    local candidate_s ""
-    local candidate_lambda ""
-    local default_index 1
-
-    if "`tuning_mode'" == "default" {
-        if `s' == 0 local s = floor(`lambda' * `paper_base')
-        else local tuning_source "s"
-        local default_s = `s'
-        local default_lambda = `lambda'
-        local candidate_s "`s'"
-        local candidate_lambda "`lambda'"
-    }
-    else if "`sgrid'" != "" {
-        local tuning_source "sgrid"
-        foreach sg of local sgrid {
-            if `sg' < 1 | `sg' != floor(`sg') | missing(`sg') {
-                di as error "sgrid() must contain positive integers."
-                exit 198
-            }
-            local candidate_s "`candidate_s' `sg'"
-            local candidate_lambda "`candidate_lambda' ."
-        }
-        local candidate_s : list retokenize candidate_s
-        local candidate_lambda : list retokenize candidate_lambda
-        local first_s : word 1 of `candidate_s'
-        if `sdefault' == 0 local default_s = `first_s'
-        else local default_s = `sdefault'
-        local default_lambda = .
-        local default_index 0
-        local g = 0
-        foreach sg of local candidate_s {
-            local ++g
-            if `default_index' == 0 & `sg' == `default_s' local default_index = `g'
-        }
-        if `default_index' == 0 {
-            local candidate_s "`default_s' `candidate_s'"
-            local candidate_lambda ". `candidate_lambda'"
-            local default_index 1
-        }
-    }
-    else {
-        local tuning_source "lambda_grid"
-        if "`lambdagrid'" == "" local lambdagrid ".3 .4 .5 .75"
-        foreach lg of local lambdagrid {
-            if `lg' <= 0 | missing(`lg') {
-                di as error "lambdagrid() must contain positive finite numbers."
-                exit 198
-            }
-            local sg = floor(`lg' * `paper_base')
-            local candidate_s "`candidate_s' `sg'"
-            local candidate_lambda "`candidate_lambda' `lg'"
-        }
-        local candidate_s : list retokenize candidate_s
-        local candidate_lambda : list retokenize candidate_lambda
-        local default_s = floor(`lambda' * `paper_base')
-        local default_lambda = `lambda'
-        local default_index 0
-        local g = 0
-        foreach sg of local candidate_s {
-            local ++g
-            local lg : word `g' of `candidate_lambda'
-            if `default_index' == 0 & `sg' == `default_s' & ///
-               abs(`lg' - `default_lambda') <= sqrt(c(epsdouble)) * max(1, abs(`default_lambda')) {
-                local default_index = `g'
-            }
-        }
-        if `default_index' == 0 {
-            local g = 0
-            foreach sg of local candidate_s {
-                local ++g
-                if `default_index' == 0 & `sg' == `default_s' local default_index = `g'
-            }
-        }
-        if `default_index' == 0 {
-            local candidate_s "`default_s' `candidate_s'"
-            local candidate_lambda ". `candidate_lambda'"
-            local default_index 1
-        }
-    }
-
-    local s = `default_s'
-    local ncandidates : word count `candidate_s'
     tempname candidate_mat grid_est grid_se grid_diag target_diag
-    matrix `candidate_mat' = J(`ncandidates', 8, .)
-    local candidate_names ""
-    local seen_s ""
-    local nfeasible 0
-    local nunique 0
-    local nunique_feasible 0
-    forvalues g = 1/`ncandidates' {
-        local sg : word `g' of `candidate_s'
-        local lg : word `g' of `candidate_lambda'
-        local feasible 1
-        local reason 0
-        if `k' > `sg' {
-            local feasible 0
-            local reason 1
-        }
-        else if "`se'" == "" & `sg' >= `n' {
-            local feasible 0
-            local reason 2
-        }
-        else if "`se'" != "" & `sg' > `n' {
-            local feasible 0
-            local reason 3
-        }
-        local computed_id 0
-        local h = 0
-        foreach old_s of local seen_s {
-            local ++h
-            if `computed_id' == 0 & `old_s' == `sg' local computed_id = `h'
-        }
-        if `computed_id' == 0 {
-            local ++nunique
-            local computed_id = `nunique'
-            local seen_s "`seen_s' `sg'"
-            if `feasible' local ++nunique_feasible
-        }
-        local nfeasible = `nfeasible' + `feasible'
-        matrix `candidate_mat'[`g', 1] = `g'
-        matrix `candidate_mat'[`g', 2] = `computed_id'
-        matrix `candidate_mat'[`g', 3] = (`g' == `default_index')
-        matrix `candidate_mat'[`g', 4] = `feasible'
-        matrix `candidate_mat'[`g', 5] = `reason'
-        matrix `candidate_mat'[`g', 6] = `feasible'
-        matrix `candidate_mat'[`g', 7] = `lg'
-        matrix `candidate_mat'[`g', 8] = `sg'
-        local candidate_names "`candidate_names' candidate`g'"
-    }
-    local candidate_names : list retokenize candidate_names
-    matrix rownames `candidate_mat' = `candidate_names'
-    matrix colnames `candidate_mat' = candidate_id computed_id is_default feasible reason status lambda s
-
-    if el(`candidate_mat', `default_index', 4) == 0 {
-        local default_reason = el(`candidate_mat', `default_index', 5)
-        if `default_reason' == 1 {
-            di as error "Default s(`s') < k(`k'). Increase n or lambda(), or decrease k()."
-        }
-        else if `default_reason' == 2 {
-            di as error "Default s(`s') must be less than n(`n') for jackknife SE; specify nose or reduce lambda()."
-        }
-        else {
-            di as error "Default s(`s') must be no greater than n(`n') when nose is specified."
-        }
-        exit 198
-    }
+    quietly _rdistnn_tuning_plan, n(`n') kx(`kx') k(`k') s(`s') lambda(`lambda') ///
+        mode(`tuning_mode') sdefault(`sdefault') sgrid(`sgrid') lambdagrid(`lambdagrid') `se'
+    matrix `candidate_mat'=r(candidates)
+    local s=r(s)
+    local default_lambda=r(default_lambda)
+    local default_index=r(default_index)
+    local ncandidates=r(ncandidates)
+    local nfeasible=r(nfeasible)
+    local nunique_feasible=r(nunique_feasible)
+    local tuning_source "`r(tuning_source)'"
+    local candidate_names "`r(candidate_names)'"
 
     findfile "_rdistnn_mata.ado"
     quietly run "`r(fn)'"
@@ -316,9 +144,9 @@ program define np_dnn, eclass
     mata {
         _np_X = st_data(., "`xvars'", "`touse'")
         _np_X0 = st_matrix("`targets_mat'")
-        _np_geometry = rdistnn_fit_geometry(_np_X,"`distance'","`scalerule'",strtoreal(tokens("`scalevec'")),`scaleeps')
-        _np_DX = rdistnn_distance_matrix(_np_X, _np_X0, "`distance'", _np_geometry)
-        _np_ranks = rdistnn_ranks_from_dmat(_np_DX)
+        _np_geometry = _np_DX = _np_ranks = J(0,0,.)
+        rdistnn_localization_geometry(_np_X,_np_X0,"`distance'","`scalerule'",
+            strtoreal(tokens("`scalevec'")),`scaleeps',_np_geometry,_np_DX,_np_ranks)
         _np_y = st_data(., "`outcome'", "`touse'")
         _np_candidates = st_matrix("`candidate_mat'")
         _np_grid_est = J(`ncandidates', `ntargets', .)
@@ -370,39 +198,8 @@ program define np_dnn, eclass
 
         _np_mu = _np_grid_est[`default_index',.]
         _np_neff = 1 :/ colsum(_np_W :^ 2)
-        _np_target_diag = J(`ntargets', 17, .)
-        for (_np_j = 1; _np_j <= `ntargets'; _np_j++) {
-            _np_wj = _np_W[,_np_j]
-            _np_dxj = _np_DX[,_np_j]
-            _np_word = order((_np_wj, (1::`n')), (-1, 2))
-            _np_dxsort = sort(_np_dxj, 1)
-            _np_wsum = quadsum(_np_wj)
-            _np_ybar = rdistnn_weighted_signals(_np_y, _np_wj) / _np_wsum
-            _np_target_diag[_np_j, 1] = 1 / quadsum(_np_wj :^ 2)
-            _np_target_diag[_np_j, 2] = max(_np_wj)
-            _np_target_diag[_np_j, 3] = quadsum(_np_wj[_np_word[1]])
-            _np_target_diag[_np_j, 4] = quadsum(
-                _np_wj[_np_word[1..min((5, `n'))]])
-            _np_target_diag[_np_j, 5] = quadsum(
-                _np_wj[_np_word[1..min((10, `n'))]])
-            _np_target_diag[_np_j, 6] = sum(
-                abs(_np_wj) :> sqrt(epsilon(1)))
-            _np_target_diag[_np_j, 7] = 1
-            _np_target_diag[_np_j, 8] = _np_dxsort[min((`k', `n'))]
-            _np_target_diag[_np_j, 9] = _np_dxsort[min((`s', `n'))]
-            _np_target_diag[_np_j, 10] = cross(_np_dxj, _np_wj) / _np_wsum
-            _np_target_diag[_np_j, 11] = rdistnn_weighted_quantile(
-                _np_dxj, _np_wj, .5)
-            _np_target_diag[_np_j, 12] = 1
-            _np_target_diag[_np_j, 13] = _np_ybar
-            _np_target_diag[_np_j, 14] = rdistnn_weighted_sd(_np_y, _np_wj)
-            _np_target_diag[_np_j, 15] = rdistnn_weighted_quantile(
-                _np_y, _np_wj, .1)
-            _np_target_diag[_np_j, 16] = rdistnn_weighted_quantile(
-                _np_y, _np_wj, .5)
-            _np_target_diag[_np_j, 17] = rdistnn_weighted_quantile(
-                _np_y, _np_wj, .9)
-        }
+        _np_target_diag = rdistnn_diagnostics("np_dnn",_np_X,_np_X0,
+            _np_y,_np_W,_np_DX,`k',`s',_np_mu,J(0,1,.),J(0,1,.))
         st_matrix("`b'", _np_mu)
         st_matrix("`neff_mat'", _np_neff)
         st_matrix("`grid_est'", _np_grid_est)
@@ -485,7 +282,6 @@ program define np_dnn, eclass
     ereturn local target_source "`target_source'"
     ereturn local xvars "`xvars'"
     ereturn local x_cols "`xvars'"
-    ereturn local x_source "`x_source'"
     ereturn local distance "`distance'"
     ereturn local method "`method'"
     ereturn local tuning_mode "`tuning_mode'"

@@ -1,4 +1,3 @@
-#include "rdistnn_core.hpp"
 #include "rdistnn_distance.hpp"
 #include <algorithm>
 #include <cmath>
@@ -39,7 +38,7 @@ int main(int argc, char** argv) {
         const double scales[]={0.5,2.0};
         const double want_l1[]={0,7,7, 3,4,10, 0,7,7};
         const double want_l2[]={0,5,5, 3,4,std::sqrt(52.0), 0,5,5};
-        std::vector<double> out(9),single(3),legacy(3);
+        std::vector<double> out(9),single(3);
         for (auto metric:{distance_metric::l1,distance_metric::l2}) {
             rdistnn::distance_batch_core(x,3,2,targets,3,nullptr,out.data(),metric);
             for (int j=0;j<9;++j)
@@ -57,10 +56,7 @@ int main(int argc, char** argv) {
                                 "scaled analytic reference mismatch");
                         require(single[i]==out[i+q*3],"scalar/batch mismatch");
                     }
-                    if (metric==distance_metric::l2) {
-                        rdistnn::dist_l2_core(x,3,2,target,inv,legacy.data());
-                        require(single==legacy,"L2 compatibility adapter mismatch");
-                    }
+
                 }
             }
         }
@@ -77,7 +73,7 @@ int main(int argc, char** argv) {
         require(aliased==std::vector<double>({0,7,7,3,4,10}),"aliased output changed inputs mid-computation");
         // Different matrix strides plus nontrivial scales catch transposition bugs.
         const int n=17,p=4,m=5;
-        std::vector<double> rx(n*p),rt(m*p),rd(n*m),sq(n*m);
+        std::vector<double> rx(n*p),rt(m*p),rd(n*m);
         const double inverse[]={0.125,1.0,2.5,8.0};
         unsigned state=77123;
         for (auto* values:{&rx,&rt}) for (double& v:*values) {
@@ -93,22 +89,16 @@ int main(int argc, char** argv) {
                     require(std::fabs(rd[i+q*n]-expected)<=1e-12L*(1+expected),
                             "independent distance reference mismatch");
                 }
-                if (metric==distance_metric::l2) {
-                    rdistnn::distance_batch_core(rx.data(),n,p,rt.data(),m,inv,sq.data(),metric,true);
-                    for (int i=0;i<n*m;++i)
-                        require(std::fabs(sq[i]-rd[i]*rd[i])<1e-9*(1+sq[i]),
-                                "squared L2 mismatch");
-                }
+
             }
-        // Distinct adjacent doubles must keep their order; exact ties stay stable.
+        // Distinct adjacent doubles remain distinct; exact distance ties stay equal.
         const double near[]={1,std::nextafter(1.0,2.0),-1,0};
         const double zero[]={0};
-        int ranks[4]; double near_out[4];
+        double near_out[4];
         for (auto metric:{distance_metric::l1,distance_metric::l2}) {
             rdistnn::distance_batch_core(near,4,1,zero,1,nullptr,near_out,metric);
-            rdistnn::ranks_from_values(near_out,4,ranks);
-            const int expected[]={2,4,3,1};
-            for (int i=0;i<4;++i) require(ranks[i]==expected[i],"near tie rank mismatch");
+            require(near_out[0]==1 && near_out[2]==1 && near_out[3]==0 &&
+                    near_out[1]==std::nextafter(1.0,2.0),"near tie distances changed");
         }
         out.assign(9,17.0);
         // FMA contraction can distinguish these coordinate-swapped rows even
@@ -121,14 +111,11 @@ int main(int argc, char** argv) {
         const double fma_b=argc==5?std::strtod(argv[4],nullptr):1.4758492921057114;
         require(fma_n>=2 && fma_p>=2,"FMA fixture dimensions must be at least two");
         std::vector<double> fma_x(fma_n*fma_p),fma_zero(fma_p),fma_out(fma_n);
-        std::vector<int> fma_ranks(fma_n);
         fma_x[0]=fma_a; fma_x[1]=fma_b;
         fma_x[fma_n]=fma_b; fma_x[fma_n+1]=fma_a;
         rdistnn::distance_batch_core(fma_x.data(),fma_n,fma_p,fma_zero.data(),1,nullptr,
                                      fma_out.data(),distance_metric::l2);
         require(fma_out[0]==fma_out[1],"FMA changed a coordinate-swap distance tie");
-        rdistnn::ranks_from_values(fma_out.data(),fma_n,fma_ranks.data());
-        require(fma_ranks[0]==1 && fma_ranks[1]==2,"FMA changed stable tie ranks");
         auto call=[&](const double* a,int nr,int nc,const double* b,int mr,
                       const double* inv,double* result,distance_metric metric=distance_metric::l2) {
             rdistnn::distance_batch_core(a,nr,nc,b,mr,inv,result,metric);
@@ -157,8 +144,6 @@ int main(int argc, char** argv) {
                                    std::numeric_limits<int>::max(),targets,3,nullptr,out.data());},out);
         invalid_unchanged([&]{call(x,std::numeric_limits<int>::max(),1,
                                    targets,std::numeric_limits<int>::max(),nullptr,out.data());},out);
-        invalid_unchanged([&]{rdistnn::distance_batch_core(x,3,2,targets,3,nullptr,
-                             out.data(),distance_metric::l1,true);},out);
         const double extreme[]={0,1e308},negative[]={-1e308};
         invalid_unchanged([&]{call(extreme,2,1,negative,1,nullptr,out.data());},out);
         // Intermediate squares may overflow/underflow while the norm is finite.
@@ -173,9 +158,6 @@ int main(int argc, char** argv) {
                 require(std::fabs(distances[i+q*5]/h-expected[i])<2e-14,"extreme analytic norm");
                 require(distances[i+q*5]==scalar[i],"extreme scalar/batch parity");
             }
-            int rank[5]; rdistnn::ranks_from_values(scalar.data(),5,rank);
-            const int expected_rank[]={3,4,2,1,5};
-            for(int i=0;i<5;++i) require(rank[i]==expected_rank[i],"extreme stable ranks");
             double scaled[10];
             for(int i=0;i<10;++i) scaled[i]=huge[i]*(i<5?2:4);
             const double inverse[]={0.5,0.25};
@@ -208,13 +190,11 @@ int main(int argc, char** argv) {
         require(boundary_out[0]==5e307,"L1 scaled finite subtraction recovery");
         const double tiny=std::ldexp(1.0,-538);
         const std::vector<double> tiny_x(8,tiny),tiny_zero(8);
-        rdistnn::distance_batch_core(tiny_x.data(),1,8,tiny_zero.data(),1,nullptr,out.data(),distance_metric::l2,true);
-        require(out[0]==std::ldexp(1.0,-1073),"representable subnormal squared sum lost");
+        rdistnn::distance_batch_core(tiny_x.data(),1,8,tiny_zero.data(),1,nullptr,out.data(),distance_metric::l2);
+        require(out[0]==tiny*std::sqrt(8.0),"norm with subnormal squared sum lost");
         const double large[]={1e308},opposite[]={-1e308},small_inverse[]={0.25};
         call(large,1,1,opposite,1,small_inverse,out.data());
         require(out[0]==5e307,"scaled finite subtraction recovery");
-        const double late_overflow[]={0,1e200};
-        invalid_unchanged([&]{rdistnn::distance_batch_core(late_overflow,2,1,zero,1,nullptr,out.data(),distance_metric::l2,true);},out);
         const double final_overflow[]={0,1.5e308,0,1.5e308},zero2[]={0,0};
         invalid_unchanged([&]{call(final_overflow,2,2,zero2,1,nullptr,out.data());},out);
         std::cout<<"rdistnn distance tests passed\n";

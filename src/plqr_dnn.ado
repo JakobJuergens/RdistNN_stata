@@ -15,11 +15,9 @@ program define plqr_dnn, eclass
         x0(numlist)                      ///  evaluation point
         D(varlist numeric)               ///  partially linear regressors
         MD(varlist numeric)              ///  supplied m_D(X), same order as d()
+        G(varname numeric)               ///  supplied g_tau(X)
+        THETAEVAL(numlist)                ///  supplied theta vector
         [                                ///
-        G(varname numeric)               ///  canonical supplied g_tau(X)
-        Q(varname numeric)               ///  compatibility alias for g()
-        THETAEVAL(numlist)                ///  canonical supplied theta vector
-        beta(numlist)                    ///  compatibility alias for thetaeval()
         tau(real 0.5)                    ///  quantile index
         k(integer 1)                     ///  # selected within each s-subset
         s(integer 0)                     ///  subset/kernel order; larger = tighter
@@ -29,35 +27,8 @@ program define plqr_dnn, eclass
         Level(cilevel)                   ///
         ]
 
-    if "`g'" != "" & "`q'" != "" {
-        di as error "Specify either g() or compatibility alias q(), not both."
-        exit 198
-    }
-    if "`g'`q'" == "" {
-        di as error "g() is required (compatibility alias: q())."
-        exit 198
-    }
-    if "`thetaeval'" != "" & "`beta'" != "" {
-        di as error "Specify either thetaeval() or compatibility alias beta(), not both."
-        exit 198
-    }
-    if "`thetaeval'`beta'" == "" {
-        di as error "thetaeval() is required (compatibility alias: beta())."
-        exit 198
-    }
-
     local gvar `g'
-    local g_option "g"
-    if "`gvar'" == "" {
-        local gvar `q'
-        local g_option "q"
-    }
     local theta `thetaeval'
-    local theta_option "thetaeval"
-    if "`theta'" == "" {
-        local theta `beta'
-        local theta_option "beta"
-    }
 
     marksample touse
     markout `touse' `varlist' `x' `d' `gvar' `md'
@@ -158,12 +129,13 @@ program define plqr_dnn, eclass
         _pl_x0     = (`x0_mata')
         _pl_theta  = (`theta_mata')'
         // Match the R reference and the other estimators: rank the reported
-        // distance matrix, with original observation order resolving ties.
+        // distance matrix, with original covariates resolving exact ties.
         _pl_geometry = rdistnn_fit_geometry(_pl_X,"`distance'","`scalerule'",strtoreal(tokens("`scalevec'")),`scaleeps')
         _pl_DX     = rdistnn_distance_matrix(_pl_X, _pl_x0, "`distance'", _pl_geometry)
-        _pl_ranks  = rdistnn_ranks_from_dmat(_pl_DX)
+        _pl_ranks  = rdistnn_ranks_from_dmat(_pl_DX,_pl_X)
         _pl_w      = rdistnn_weights_from_ranks(_pl_ranks, `k', `s', "`method'")
-        _pl_resid  = `tau' :- (_pl_y :<= (_pl_D * _pl_theta :+ _pl_g0))
+        _pl_below = rdistnn_plqr_indicator(_pl_D,_pl_theta,_pl_g0,_pl_y)
+        _pl_resid  = `tau' :- _pl_below
         _pl_score  = (_pl_D :- _pl_md) :* (_pl_resid * J(1, cols(_pl_D), 1))
         _pl_moment = rdistnn_weighted_signals(_pl_w, _pl_score)
         _pl_V      = rdistnn_jk_cov_from_ranks(_pl_ranks, _pl_score, `k', `s', "`method'")
@@ -186,7 +158,6 @@ program define plqr_dnn, eclass
     ereturn matrix moment = `moment_mat', copy
     ereturn matrix moment_vcov = `moment_vcov_mat', copy
     ereturn matrix theta_eval = `theta_mat', copy
-    ereturn matrix beta = `theta_mat', copy
     ereturn scalar N      = `n'
     ereturn scalar neff   = scalar(r(neff))
     ereturn scalar k      = `k'
@@ -204,9 +175,6 @@ program define plqr_dnn, eclass
     ereturn local  dvars    "`dvars'"
     ereturn local  mdvars   "`mdvars'"
     ereturn local  gvar     "`gvar'"
-    ereturn local  qvar     "`gvar'"
-    ereturn local  g_option "`g_option'"
-    ereturn local  theta_option "`theta_option'"
     ereturn local  theta_source "supplied"
     ereturn local  inference_target "moment"
     ereturn local  root_solver "none"
@@ -215,6 +183,7 @@ program define plqr_dnn, eclass
     ereturn local  method   "`method'"
     ereturn local  se_method "rank_shift"
     ereturn local  jackknife "fast"
+    ereturn local  tie_rule "distance_then_covariates_then_input_position"
     ereturn local  cmd      "plqr_dnn"
     ereturn local  cmdline  "plqr_dnn `0'"
 
@@ -243,7 +212,7 @@ program define plqr_dnn, eclass
         findfile "`file'"
         quietly run "`r(fn)'"
     }
-    mata: st_matrix("`diagnostics'",rdistnn_model_diagnostics("plqr_dnn",_pl_X,_pl_x0,_pl_score,_pl_w,st_matrix("`model_distances'"),`k',`s',_pl_moment,J(0,1,.),J(0,1,.)))
+    mata: st_matrix("`diagnostics'",rdistnn_diagnostics("plqr_dnn",_pl_X,_pl_x0,_pl_score,_pl_w,st_matrix("`model_distances'"),`k',`s',_pl_moment,J(0,1,.),J(0,1,.)))
     matrix colnames `diagnostics'=ess max_weight top1_weight_share top5_weight_share top10_weight_share n_nonzero_weight distance_available radius_rank_k radius_rank_s weighted_mean_distance weighted_median_distance
     ereturn matrix diagnostics=`diagnostics', copy
     ereturn matrix target_diagnostics=`diagnostics', copy

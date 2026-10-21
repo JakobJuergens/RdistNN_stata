@@ -1,7 +1,7 @@
 // test-weights-dnn-plugin.do
-// Tests for the weights_dnn L2 plugin path and plugin parser hardening.
+// Tests for public weights_dnn using the native distance engine.
 //
-// Tags: [plugin] [parity] [parser]
+// Tags: [plugin] [parity]
 
 quietly do "src/_rdistnn_mata.ado"
 do "tests/test_framework.do"
@@ -45,98 +45,8 @@ program define _rdnn_compare_plugin_weights
     cap drop __w_mata __w_plugin __w_diff
 end
 
-// ════════════════════════════════════════════════════════════
-test_section "weights_dnn: [plugin] direct parser checks"
-// ════════════════════════════════════════════════════════════
+test_assert "[plugin] rdistnn.plugin is discoverable" "$rdistnn_plugin_ok"=="1"
 
-rdnn_dgp_np, n(120) seed(701)
-gen double w_direct = .
-
-local plugin_ok "$rdistnn_plugin_ok"
-test_assert "[plugin] rdistnn.plugin is discoverable" "`plugin_ok'" == "1"
-
-cap plugin call rdistnn_plugin x1 x2 w_direct, ///
-    weights_l2 exact 5 15 "0.2" "-0.3"
-test_assert "[plugin] direct call accepts quoted signed x0 args" _rc == 0
-
-quietly summarize w_direct, meanonly
-local w_direct_sum = r(sum)
-test_assert "[plugin] direct call weights sum to one" ///
-    abs(`w_direct_sum' - 1) < 1e-8
-
-replace w_direct = .
-cap plugin call rdistnn_plugin x1 x2 w_direct, ///
-    weights_l2 exact 5 15 "0.2" "-"
-test_assert "[plugin] malformed signed numeric token rejected (rc=198)" ///
-    _rc == 198
-
-replace w_direct = .
-cap plugin call rdistnn_plugin x1 x2 w_direct, ///
-    weights_l2 exact 5 15 "0.2" "-0.3" "0.7"
-test_assert "[plugin] extra x0 argument rejected (rc=198)" _rc == 198
-
-replace w_direct = .
-cap plugin call rdistnn_plugin x1 x2 w_direct, ///
-    weights_l2 exact bad 15 "0.2" "-0.3"
-test_assert "[plugin] malformed k argument rejected (rc=198)" _rc == 198
-
-foreach args in `"exact 0 15"' `"exact 16 15"' `"exact 121 121"' `"exact 1 121"' {
-    replace w_direct = 73
-    cap plugin call rdistnn_plugin x1 x2 w_direct, ///
-        weights_l2 `args' "0.2" "-0.3"
-    local bad_rc = _rc
-    quietly count if w_direct != 73
-    test_assert `"[plugin] invalid (`args') rejected without output writes"' ///
-        `bad_rc' == 198 & r(N) == 0
-}
-
-replace w_direct = 73
-cap plugin call rdistnn_plugin x1 x2 w_direct if 0, ///
-    weights_l2 exact 1 1 "0.2" "-0.3"
-local empty_rc = _rc
-quietly count if w_direct != 73
-test_assert "[plugin] empty marked sample rejected without output writes" ///
-    `empty_rc' == 198 & r(N) == 0
-
-replace w_direct = 73
-cap plugin call rdistnn_plugin x1 x2 w_direct, ///
-    weights_l2 exact 1 15 "NaN" "-0.3"
-local nan_rc = _rc
-quietly count if w_direct != 73
-test_assert "[plugin] malformed nonfinite numeric rejected without output writes" ///
-    `nan_rc' == 198 & r(N) == 0
-
-replace w_direct = .
-cap plugin call rdistnn_plugin x1 x2 w_direct, ///
-    weights_l2 exact 1 120 "0.2" "-0.3"
-test_assert "[plugin] valid s=n endpoint accepted" _rc == 0
-quietly summarize w_direct, meanonly
-test_assert "[plugin] exact k=1 s=n selects one observation" ///
-    abs(r(sum)-1) < 1e-12 & r(max) == 1
-
-replace w_direct = .
-cap plugin call rdistnn_plugin x1 x2 w_direct, ///
-    weights_l2 exact 15 15 "0.2" "-0.3"
-test_assert "[plugin] valid k=s endpoint accepted" _rc == 0
-quietly summarize w_direct, meanonly
-test_assert "[plugin] exact k=s is uniform" ///
-    abs(r(min)-1/120) < 1e-12 & abs(r(max)-1/120) < 1e-12
-
-// Exercise the legacy native Beta path itself. Public weights_dnn uses Mata
-// rank tables even when its distance engine is forced to the plugin.
-preserve
-clear
-set obs 3
-gen double beta_x = _n-1
-gen double beta_w = 73
-cap plugin call rdistnn_plugin beta_x beta_w, weights_l2 asymp 1 2 "0"
-local beta_rc = _rc
-test_assert "[plugin] converged direct native Beta weights succeed" `beta_rc'==0
-test_assert "[plugin] direct native Beta weights match analytic interval masses" ///
-    abs(beta_w[1]-5/9)<1e-14 & abs(beta_w[2]-1/3)<1e-14 & abs(beta_w[3]-1/9)<1e-14
-restore
-
-// ════════════════════════════════════════════════════════════
 test_section "weights_dnn: [plugin] signed x0 parity"
 // ════════════════════════════════════════════════════════════
 

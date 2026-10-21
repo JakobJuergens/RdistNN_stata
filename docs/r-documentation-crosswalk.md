@@ -1,6 +1,6 @@
 # R documentation coverage and Stata equivalents
 
-This map covers version **0.1.0.9005** of both packages. The reference inventory
+This map covers version **0.1.1** of both packages. The reference inventory
 is R's [article source directory](https://github.com/JakobJuergens/RdistNN/tree/master/vignettes)
 and [pkgdown reference index](https://github.com/JakobJuergens/RdistNN/blob/master/_pkgdown.yml).
 The current map follows all 13 articles and 15 reference families, including
@@ -65,8 +65,7 @@ reference is `help rdistnn`; each public command has its own installed help.
 | `plot_data_*()` | `rdistnn_results` exports estimates, covariance, diagnostics, weights and contributions without graphs; `_plot` retains view-specific `r(plot_data)` |
 | `se=FALSE` / `jackknife="none"` | `nose` in CATE/CLATE/NP; standalone weights have no SE, PLQR always computes moment covariance |
 
-Old Stata aliases remain documented for compatibility. Removing underscores
-is a useful naming guide for CATE/NP options, not a universal translator:
+Removing underscores is a useful naming guide for CATE/NP options:
 PLQR uses `x()`, `d()`, `g()`, `md()` and `thetaeval()`, while CLATE has its
 own binary-IV and paired-signal grammar.
 

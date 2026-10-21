@@ -37,9 +37,6 @@ Stata 17 or later is required. See {help rdistnn} for package navigation.
 {synopt:{opth g(varname)}}supplied additive shape nuisance g_0(U){p_end}
 {synopt:{opth md(varlist)}}supplied E[D|U] variables, in d() order{p_end}
 {synopt:{opt thetaeval(numlist)}}supplied coefficient vector, in d() order{p_end}
-{syntab:Compatibility aliases}
-{synopt:{opth q(varname)}}temporary alias for g(); do not combine them{p_end}
-{synopt:{opt beta(numlist)}}temporary alias for thetaeval(); do not combine them{p_end}
 {syntab:Localization}
 {synopt:{opt tau(#)}}quantile index in (0,1); default .5{p_end}
 {synopt:{opt k(#)}}neighbors averaged within each size-s subsample; default 1{p_end}
@@ -112,10 +109,8 @@ order. {cmd:thetaeval()} must have q coefficients in that order.
 Changing the order of one without the others changes the score.
 
 {phang}
-{cmd:g()} supplies the shape variable. {cmd:q()} is a temporary compatibility
-alias, not a request for a complete conditional quantile. {cmd:beta()} is a
-temporary alias for {cmd:thetaeval()}, not a coefficient-estimation request.
-Combining a preferred name with its own alias is an error.
+{cmd:g()} supplies the additive shape variable. {cmd:thetaeval()} supplies
+the coefficient vector at which the moment is evaluated.
 
 {phang}
 The estimation sample consists of complete outcome, x, d, g and md rows in
@@ -199,7 +194,10 @@ are absolute scales, not inverse scales. Each scale is floored at the positive
 finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
 The fitted scales or Mahalanobis whitening factor remain fixed across
-jackknife deletions and saved-model predictions. Ties retain original row order.
+jackknife deletions and saved-model predictions. Exact distance ties use the
+original covariates lexicographically in their supplied column order, then
+observation order for identical covariate rows. Outcomes and nuisances do not
+enter this ordering; rank weights and effective sample size are preserved.
 
 {title:Stored results}
 
@@ -211,9 +209,8 @@ For q variables in {cmd:d()}, {cmd:plqr_dnn} stores:
 {synopt:{cmd:e(moment)}}1-by-q row-vector localized moment; columns in d() order{p_end}
 {synopt:{cmd:e(moment_vcov)}}q-by-q full moment covariance; rows/columns in d() order{p_end}
 {synopt:{cmd:e(theta_eval)}}1-by-q supplied evaluation vector{p_end}
-{synopt:{cmd:e(b)}}compatibility copy of moment, not coefficients{p_end}
-{synopt:{cmd:e(V)}}compatibility copy of moment_vcov, not coefficient covariance{p_end}
-{synopt:{cmd:e(beta)}}temporary compatibility copy of theta_eval{p_end}
+{synopt:{cmd:e(b)}}Stata estimation matrix containing moments{p_end}
+{synopt:{cmd:e(V)}}Stata estimation matrix containing moment covariance{p_end}
 
 {pstd}
 {cmd:e(moment)} has row name {cmd:moment}. All three primary matrices carry
@@ -233,10 +230,8 @@ for this single target, unlike R's component-by-target moment matrix.
 {synopt:{cmd:e(root_solver)}}none{p_end}
 {synopt:{cmd:e(xvars)}, {cmd:e(x0)}}reporting covariates and supplied target coordinates{p_end}
 {synopt:{cmd:e(yvar)}, {cmd:e(dvars)}}outcome and regressor names{p_end}
-{synopt:{cmd:e(gvar)}, {cmd:e(qvar)}}resolved shape-variable name and compatibility copy{p_end}
+{synopt:{cmd:e(gvar)}}shape-variable name{p_end}
 {synopt:{cmd:e(mdvars)}}residualizer variable names{p_end}
-{synopt:{cmd:e(g_option)}}g or compatibility alias q{p_end}
-{synopt:{cmd:e(theta_option)}}thetaeval or compatibility alias beta{p_end}
 {synopt:{cmd:e(distance)}, {cmd:e(method)}}metric and rank-weight configuration{p_end}
 {synopt:{cmd:e(cmd)}, {cmd:e(cmdline)}}command identity and original call{p_end}
 
@@ -270,8 +265,6 @@ These oracle inputs illustrate computation, not a fitted-nuisance guarantee.
 {pstd}
 The source archive's {cmd:examples/plqr-moments.do} also reconstructs the
 scores and checks the reported moments against explicit weighted sums.
-The temporary syntax {cmd:q(g_tau) beta(1 -.5)} can replace
-{cmd:g(g_tau) thetaeval(1 -.5)}, but preferred names make input roles clearer.
 
 {marker scope}{...}
 {title:R companion and scope}

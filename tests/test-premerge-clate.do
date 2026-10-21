@@ -79,12 +79,14 @@ mata {
     ca_expected_distance=abs(ca_u:-.4)/sqrt(ca_uvar)
     ca_expected_rank=(7\5\3\1\2\4\6\8)
     ca_expected_weight=(0\3\10\21\15\6\1\0)/56
-    st_numscalar("ca_equal",ca_matrix_equal(rdistnn_mahal_cov_inv(st_data(.,"x1 x2")),ca_mp,2e-12))
+    ca_geometry=rdistnn_mahal_geometry(st_data(.,"x1 x2"))
+    ca_factor=ca_geometry[|3,1 \ rows(ca_geometry),cols(ca_geometry)|]/ca_geometry[1,1]
+    st_numscalar("ca_equal",ca_matrix_equal(ca_factor*ca_factor',ca_mp,2e-12))
     st_numscalar("ca_distance_ok",ca_matrix_equal(rdistnn_distance_matrix(st_data(.,"x1 x2"),(0,1),"mahalanobis"),ca_expected_distance,2e-12))
     st_numscalar("ca_rank_ok",all(rdistnn_ranks(st_data(.,"x1 x2"),(0,1),"mahalanobis"):==ca_expected_rank))
     st_numscalar("ca_weight_ok",ca_matrix_equal(st_data(.,"ca_singular_w"),ca_expected_weight,2e-12))
 }
-test_assert "singular covariance inverse is Moore-Penrose rank-one formula" scalar(ca_equal)==1
+test_assert "singular whitening factor Gram matches Moore-Penrose rank-one formula" scalar(ca_equal)==1
 test_assert "off-span Mahalanobis distances match projected-coordinate formula" scalar(ca_distance_ok)==1
 test_assert "off-span target rank order matches literal oracle" scalar(ca_rank_ok)==1
 test_assert "standalone Mahalanobis weight command matches literal subset weights" scalar(ca_weight_ok)==1

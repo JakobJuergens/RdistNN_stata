@@ -2,7 +2,6 @@ version 17
 // Paired CLATE evaluator. The caller loads _rdistnn_mata first; reloading
 // this extension drops only its own functions and preserves the base library.
 capture mata: mata drop rdistnn_clate_fit()
-capture mata: mata drop rdistnn_clate_diagnostics()
 
 mata:
 
@@ -115,60 +114,5 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
     }
 }
 
-// Preserve CATE localization columns. Replace overlap by instrument arms
-// and score concentration by |w*(phi_Y-theta*phi_D)|. Empty A/e mark the
-// supplied-signal route, where overlap information is unavailable.
-real matrix rdistnn_clate_diagnostics(real matrix diag, real matrix W,
-    real matrix signals, real rowvector theta, real matrix A, real matrix e)
-{
-    real scalar n,m,j,total,mass1,mass0
-    real matrix out
-    real colvector w,armw,contrib,ord
-    n=rows(W); m=cols(W)
-    if(rows(diag)!=m | cols(diag)!=25 | rows(signals)!=n |
-        cols(signals)!=2 | cols(theta)!=m |
-        (rows(A)!=0 & (rows(A)!=n | cols(A)!=1)) |
-        (rows(e)!=0 & (rows(e)!=n | cols(e)!=1))) {
-        errprintf("rdistnn_clate_diagnostics: incompatible input dimensions.\n")
-        exit(error(198))
-    }
-    out=diag
-    out[,12..19]=J(m,8,.)
-    out[,21..25]=J(m,5,.)
-    out[,(12,16,21,24)]=J(m,4,0)
-    for(j=1;j<=m;j++) {
-        w=W[,j]
-        if(rows(A)>0) {
-            mass1=cross(A,w); mass0=cross(1:-A,w)
-            out[j,12]=out[j,21]=1
-            out[j,13..15]=(mass1,mass0,mass1/(mass1+mass0))
-            armw=select(w,A:==1)
-            if(rows(armw)>0 & quadsum(armw:^2)>0) {
-                out[j,22]=quadsum(armw)^2/quadsum(armw:^2)
-            }
-            armw=select(w,A:==0)
-            if(rows(armw)>0 & quadsum(armw:^2)>0) {
-                out[j,23]=quadsum(armw)^2/quadsum(armw:^2)
-            }
-        }
-        if(rows(e)>0) {
-            out[j,16]=1
-            out[j,17]=cross(e,w)/quadsum(w)
-            out[j,18]=rdistnn_weighted_quantile(e,w,.1)
-            out[j,19]=rdistnn_weighted_quantile(e,w,.9)
-        }
-        if(theta[j]<.) {
-            contrib=abs(w:*(signals[,1]-theta[j]*signals[,2]))
-            if(!hasmissing(contrib)) {
-                out[j,24]=1
-                total=quadsum(contrib)
-                if(total>0 & total<.) {
-                    ord=order((contrib,(1::n)),(-1,2))
-                    out[j,25]=quadsum(contrib[ord[1..min((5,n))]])/total
-                }
-            }
-        }
-    }
-    return(out)
-}
+
 end

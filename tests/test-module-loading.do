@@ -40,6 +40,12 @@ forvalues reload=1/2 {
     st_numscalar("ml_endpoint",rdistnn_weighted_quantile(ML_X,(0\.4\.6\0),0))
     st_numscalar("ml_foreign",maintainability_foreign())
     st_numscalar("ml_power",rdistnn_power2(-20))
+    st_numscalar("ml_plqr",all(rdistnn_plqr_indicator((1\2\3),1,(0\0\0),(0\3\3)):==(1\0\1)) & rdistnn_plqr_indicator(1e100,1e220,0,0)==1)
+    ML_GEOM=ML_DX=ML_RANK=J(0,0,.)
+    rdistnn_localization_geometry(ML_X,ML_X0,"l2","sd",J(1,0,.),1e-8,ML_GEOM,ML_DX,ML_RANK)
+    st_numscalar("ml_localization",all(ML_DX:==ML_D) & all(ML_RANK:==ML_R))
+    ML_DIAG=rdistnn_diagnostics("np_dnn",ML_X,ML_X0,ML_Y,ML_W,ML_D,1,2,(4/3,25/6),J(0,1,.),J(0,1,.))
+    st_numscalar("ml_diag",all(ML_DIAG[,7]:==1) & rows(ML_DIAG)==2 & cols(ML_DIAG)==17)
     }
     test_assert "[modules `reload'] distances match original coordinates" scalar(ml_distance)==0
     test_assert "[modules `reload'] ranks preserve target columns" scalar(ml_ranks)==0
@@ -51,12 +57,15 @@ forvalues reload=1/2 {
     test_assert "[modules `reload'] zero probability keeps the first sorted observation" scalar(ml_endpoint)==0
     test_assert "[modules `reload'] unrelated caller function survives" scalar(ml_foreign)==123
     test_assert "[modules `reload'] shared binary scale remains available" scalar(ml_power)==2^(-20)
+    test_assert "[modules `reload'] shared PLQR comparisons retain ordinary and extreme signs" scalar(ml_plqr)==1
+    test_assert "[modules `reload'] localization geometry adapter preserves ordered distances/ranks" scalar(ml_localization)==1
+    test_assert "[modules `reload'] shared diagnostic builder is available without estimator state" scalar(ml_diag)==1
 }
 
 mata: mata drop maintainability_foreign()
-mata: mata drop ML_X ML_X0 ML_Y ML_G ML_D ML_R ML_W ML_L ML_V
+mata: mata drop ML_X ML_X0 ML_Y ML_G ML_D ML_R ML_W ML_L ML_V ML_GEOM ML_DX ML_RANK ML_DIAG
 scalar drop ml_distance ml_ranks ml_weights ml_estimate ml_deletions ///
-    ml_covariance ml_quantile ml_endpoint ml_foreign ml_power
+    ml_covariance ml_quantile ml_endpoint ml_foreign ml_power ml_plqr ml_localization ml_diag
 global rdistnn_distance_engine "`old_distance'"
 global rdistnn_jackknife_engine "`old_jackknife'"
 global rdistnn_use_plugin "`old_plugin'"

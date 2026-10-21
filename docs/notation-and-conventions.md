@@ -1,7 +1,7 @@
 # Notation and conventions
 
 This is the Stata counterpart of RdistNN's notation guide. It describes the
-interface in package **0.1.0.9005**. Use [getting started](getting-started.md)
+interface in package **0.1.1**. Use [getting started](getting-started.md)
 for a first fit and [the R crosswalk](r-documentation-crosswalk.md) when
 translating an R script.
 
@@ -59,10 +59,12 @@ applicable diagnostics. `clip()` defaults to 1e-8; this numerical operation
 does not establish population overlap. Supplied-score routes use their
 signals directly and do not clip them.
 
-Exact equality in distances is resolved by estimation-observation order.
-Rankings are deterministic for the same data/order. Sorting tied observations
-can change which row receives a particular rank, so use the same observation
-order when comparing with R or reconstructing weights.
+Exact equality in distances is resolved lexicographically by the original
+covariates in their supplied column order. Outcomes, treatment, nuisance
+values and observation identifiers do not enter the ordering. Each target
+retains the same rank-weight vector and ESS. Identical covariate rows still
+use estimation-observation order; sorting those duplicates can change a fit.
+This rule does not average ties or group approximately equal distances.
 
 ## Names that mean different things
 
@@ -84,7 +86,7 @@ A supplied CATE `pseudooutcome` is one score signal. A CLATE paired-signal fit
 also requires `denominator()` and takes a ratio of two local averages.
 Individual signal ratios are a different calculation. PLQR `thetaeval()` is
 a coefficient at which a score is evaluated; it is not an estimated local
-root. Compatibility aliases do not change these meanings.
+root.
 
 ## Shapes and result lifetime
 
@@ -117,7 +119,7 @@ available covariance; use the full canonical matrices for batch alignment.
 The `e(m)` count for CATE/CLATE/NP is unrelated to PLQR's nuisance name m_D.
 PLQR has its own moment/coefficient dimensions and explicit
 `e(moment)`, `e(moment_vcov)` and `e(theta_eval)`; see [PLQR moments](plqr-moments.md).
-Do not apply coefficient-interpretation defaults to its compatibility `e(b)`.
+Its standard Stata `e(b)` matrix contains moments rather than coefficients.
 
 ## Localization and inference
 

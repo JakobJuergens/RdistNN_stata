@@ -31,9 +31,9 @@ findfile rdistnn.plugin
 display "`r(fn)'"
 ```
 
-If this fails, inspect `adopath` and the installation directory. An incompatible
-or older binary normally triggers automatic fallback; an explicitly required
-native engine reports an error instead.
+If this fails, inspect `adopath` and the installation directory. Automatic
+dispatch uses Mata when native acceleration is unavailable; an explicitly
+required native engine reports an error instead.
 
 ## Select or diagnose an engine
 
@@ -62,9 +62,7 @@ macro drop rdistnn_distance_engine rdistnn_jackknife_engine rdistnn_use_plugin
 
 Distances cover L1/L2, fitted scaled variants and projected Mahalanobis norms.
 Mata owns scale fitting, Mahalanobis factorization, ranking and rank weights.
-Legacy inverse snapshots retain their Mata calculation. An older plugin may
-support `rank_loo` without the distance API, so the two dispatchers can choose
-different engines. Capability probing is cached in `rdistnn_distance_plugin_api`;
+Capability probing is cached in `rdistnn_distance_plugin_api`;
 restart Stata when changing binaries. Automatic thresholds account for transfer
 costs and do not guarantee speed; benchmark the workload before forcing an engine.
 
@@ -113,18 +111,13 @@ scales before publishing output. `rank_loo` accepts fixed ranks, signals and
 a deletion weight table. Temporary Mata-created Stata matrices can exceed
 `c(matsize)`; the bridge removes them and leaves the dataset unchanged.
 
-The legacy `weights_l2` operation remains for compatibility. Its incomplete-Beta
-iteration has a 200-step budget and requires finite positive convergence;
-`beta_evaluation_error` becomes error 498 without writing output observations.
-The error directs callers to `weights_dnn`, whose Beta weights use Mata.
-An older binary without `rank_loo` falls back to Mata in automatic mode.
-
 The [numerical reference](../../docs/numerical-stability.md) owns arithmetic,
 range recovery and support-aware covariance centering. Native tests cover the
-core, distances, rounding, weights and actual entry-point failure propagation.
+frozen-rank deletions, distances, rounding and actual entry-point failure propagation.
+Mata constructs ranks and rank-weight tables; the plugin consumes these inputs
+without a separate sorting or weight-construction implementation.
 With a matching plugin and licensed Stata, run
-`do "tests/tests.do" "test-native-distances*"`. Older-binary compatibility needs
-a separate Stata process and `global rdistnn_test_old_distance_plugin 1`.
+`do "tests/tests.do" "test-native-distances*"`.
 See the [test map](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/README.md)
 for fixture generation and the distinction between native, runtime and
 cross-language checks.

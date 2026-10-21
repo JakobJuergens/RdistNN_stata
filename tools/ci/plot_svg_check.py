@@ -2,7 +2,7 @@
 """Inspect actual Stata SVG paths against exported numeric plot-data CSVs.
 
 Standard-library only; does not run Stata or mutate source/exported evidence.
-Run after tests/test-premerge-postestimation.do; writes an ignored JSON receipt
+Run after tests/test-reporting-export-contracts.do; writes an ignored JSON receipt
 in --evidence-root (default: build/premerge).
 """
 

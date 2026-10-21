@@ -9,7 +9,7 @@ program define clate_dnn, eclass
         exit
     }
     syntax varname(numeric) [if] [in], [ ///
-        X(varlist numeric) XCOLS(varlist numeric) ///
+        XCOLS(varlist numeric) ///
         X0(numlist) X0MATRIX(name) ///
         DCOL(varname numeric) ACOL(varname numeric) ECOL(varname numeric) ///
         MY0COL(varname numeric) MY1COL(varname numeric) ///
@@ -23,13 +23,9 @@ program define clate_dnn, eclass
 
     local original_cmdline `"clate_dnn `0'"'
     local input `varlist'
-    if "`x'"!="" & "`xcols'"!="" {
-        di as error "Specify either x() or xcols(), not both."
-        exit 198
-    }
-    local xvars `x' `xcols'
+    local xvars `xcols'
     if "`xvars'"=="" {
-        di as error "xcols() is required (alias: x())."
+        di as error "xcols() is required."
         exit 198
     }
     if missing(`clip') | `clip'<=0 | `clip'>=.5 | 1-`clip'>=1 {
@@ -131,46 +127,121 @@ program define clate_dnn, eclass
         exit 498
     }
 
-    // Use the existing CATE localization/tuning contract, then replace its
-    // scalar-signal calculation with the paired ratio calculation below.
-    local opts "xcols(`xvars') k(`k') s(`s') lambda(`lambda') sdefault(`sdefault') level(`level')"
-    foreach arg in x0 x0matrix tuningmode lambdagrid sgrid distance method scalerule scalevec {
-        if "``arg''"!="" local opts "`opts' `arg'(``arg'')"
+    local kx : word count `xvars'
+    if ("`x0'" == "") == ("`x0matrix'" == "") {
+        di as error "Specify exactly one of x0() or x0matrix()."
+        exit 198
     }
-    local opts "`opts' scaleeps(`scaleeps')"
-    // The shared jackknife short-circuits zero signals, so this geometry/tuning
-    // delegation performs no unused scalar deletion/covariance calculation.
-    // Keep SE feasibility rules active when paired inference is requested.
-    tempvar localization_signal
-    quietly gen byte `localization_signal' = 0 if `touse'
-    quietly cate_dnn `localization_signal' if `touse', pseudooutcome `opts' `se'
-    mata: _cl_geometry=J(0,0,.)
-    if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
-        mata: _cl_geometry=st_matrix("e(model_geometry)")
+
+    tempname targets_mat neff_mat
+    local target_source "x0"
+    if "`x0matrix'" != "" {
+        capture confirm matrix `x0matrix'
+        if _rc {
+            di as error "x0matrix() must name an existing numeric Stata matrix."
+            exit 198
+        }
+        matrix `targets_mat' = `x0matrix'
+        local target_source "X0"
     }
-    local n = e(N)
-    local m = e(m)
-    local resolved_s = e(s)
-    local resolved_method "`e(method)'"
-    local resolved_distance "`e(distance)'"
-    local isgrid = ("`e(tuning_mode)'"=="grid")
-    local active = ("`se'"=="")
+    else {
+        local nx0 : word count `x0'
+        if `nx0' != `kx' {
+            di as error "x0() must have `kx' elements (one per covariate in xcols())."
+            exit 198
+        }
+        local x0_matrix ""
+        foreach v of local x0 {
+            local x0_matrix `x0_matrix' `v',
+        }
+        local x0_matrix = substr("`x0_matrix'", 1, length("`x0_matrix'") - 1)
+        matrix `targets_mat' = (`x0_matrix')
+    }
+
+    local ntargets = rowsof(`targets_mat')
+    local ntarget_cols = colsof(`targets_mat')
+    if `ntargets' < 1 {
+        di as error "x0matrix() must contain at least one target row."
+        exit 198
+    }
+    if `ntarget_cols' != `kx' {
+        di as error "Target matrix must have `kx' columns (one per covariate in xcols()); got `ntarget_cols'."
+        exit 198
+    }
+    mata: st_numscalar("r(target_missing)", hasmissing(st_matrix("`targets_mat'")))
+    if scalar(r(target_missing)) {
+        di as error "Evaluation targets may not contain missing values."
+        exit 198
+    }
+
+    local target_names ""
+    forvalues j = 1/`ntargets' {
+        local target_names `target_names' target`j'
+    }
+    matrix rownames `targets_mat' = `target_names'
+    matrix colnames `targets_mat' = `xvars'
+
+    quietly count if `touse'
+    local n=r(N)
+    if `k'<1 {
+        di as error "k() must be >= 1."
+        exit 198
+    }
+    if "`distance'"=="" local distance "l2"
+    if !inlist("`distance'","l2","mahalanobis","l1","l1_scaled","l2_scaled") {
+        di as error "distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis."
+        exit 198
+    }
+    if "`method'"=="" local method "exact"
+    if !inlist("`method'","exact","asymp") {
+        di as error "method() must be exact or asymp."
+        exit 198
+    }
+    local tuning_mode=lower("`tuningmode'")
+    if "`tuning_mode'"=="" local tuning_mode "default"
+    if !inlist("`tuning_mode'","default","grid") {
+        di as error "tuningmode() must be default or grid."
+        exit 198
+    }
+    if "`distance'"=="mahalanobis" & `n'<2 {
+        di as error "distance(mahalanobis) requires at least two complete estimation observations."
+        exit 2001
+    }
+    tempname candidate_mat grid_est grid_se grid_diag target_diag
+    quietly _rdistnn_tuning_plan, n(`n') kx(`kx') k(`k') s(`s') lambda(`lambda') ///
+        mode(`tuning_mode') sdefault(`sdefault') sgrid(`sgrid') lambdagrid(`lambdagrid') `se'
+    matrix `candidate_mat'=r(candidates)
+    local s=r(s)
+    local default_lambda=r(default_lambda)
+    local default_index=r(default_index)
+    local ncandidates=r(ncandidates)
+    local nfeasible=r(nfeasible)
+    local nunique_feasible=r(nunique_feasible)
+    local tuning_source "`r(tuning_source)'"
+    local candidate_names "`r(candidate_names)'"
+    local m=`ntargets'
+    local resolved_s=`s'
+    local resolved_method "`method'"
+    local resolved_distance "`distance'"
+    local isgrid=("`tuning_mode'"=="grid")
+    local active=("`se'"=="")
+    local ng=`ncandidates'
+    local default=`default_index'
     tempname targets diag components theta vcov componentV status semat ///
-        meta gridtheta gridse gridy gridd gridstatus
-    matrix `targets' = e(targets)
-    matrix `diag' = e(diagnostics)
-    if `isgrid' matrix `meta' = e(tuning_candidates)
-    else matrix `meta' = (1,1,1,1,0,1,.,`resolved_s')
-    local ng = rowsof(`meta')
-    local default = 1
-    if `isgrid' local default = e(tuning_default_candidate)
+        meta gridtheta gridse gridy gridd gridstatus neff
+    matrix `targets'=`targets_mat'
+    matrix `meta'=`candidate_mat'
+    findfile "_rdistnn_mata.ado"
+    quietly run "`r(fn)'"
 
     findfile "_rdistnn_clate_mata.ado"
     quietly run "`r(fn)'"
     mata {
         _cl_X = st_data(., "`xvars'", "`touse'")
         _cl_X0 = st_matrix("`targets'")
-        _cl_ranks = rdistnn_ranks_matrix(_cl_X,_cl_X0,"`resolved_distance'",_cl_geometry)
+        _cl_geometry = _cl_DX = _cl_ranks = J(0,0,.)
+        rdistnn_localization_geometry(_cl_X,_cl_X0,"`resolved_distance'","`scalerule'",
+            strtoreal(tokens("`scalevec'")),`scaleeps',_cl_geometry,_cl_DX,_cl_ranks)
         _cl_signals = st_data(., "`phiy' `phid'", "`touse'")
         _cl_meta = st_matrix("`meta'")
         _cl_grid = _cl_gridse = _cl_gridy = _cl_gridd = J(`ng',`m',.)
@@ -219,8 +290,20 @@ program define clate_dnn, eclass
             _cl_A = st_data(.,"`acol'","`touse'")
             _cl_e = st_data(.,"`eclip'","`touse'")
         }
-        st_matrix("`diag'",rdistnn_clate_diagnostics(st_matrix("`diag'"),
-            _cl_W,_cl_signals,_cl_b,_cl_A,_cl_e))
+        st_matrix("`diag'",rdistnn_diagnostics("clate_dnn",_cl_X,_cl_X0,
+            _cl_signals,_cl_W,_cl_DX,`k',`resolved_s',_cl_b,_cl_A,_cl_e))
+        st_matrix("`neff'",1:/colsum(_cl_W:^2))
+        _cl_grid_diag=J(`ng',5,.)
+        for(_cl_g=1;_cl_g<=`ng';_cl_g++) {
+            _cl_grid_diag[_cl_g,3]=min((5,`n'))
+            if(_cl_meta[_cl_g,4]==0) continue
+            _cl_wr=rdistnn_weights_from_ranks((1::`n'),`k',_cl_meta[_cl_g,8],"`resolved_method'")
+            _cl_topn=min((5,`n'))
+            _cl_ess=1/quadsum(_cl_wr:^2)
+            _cl_grid_diag[_cl_g,.]=(_cl_ess,max(abs(_cl_wr)),_cl_topn,
+                quadsum(abs(_cl_wr[1.._cl_topn]))/quadsum(abs(_cl_wr)),_cl_ess>=.9*`n')
+        }
+        st_matrix("`grid_diag'",_cl_grid_diag)
         st_matrix("`semat'",sqrt(diagonal(st_matrix("`vcov'")))')
         st_matrix("`gridtheta'",_cl_grid)
         st_matrix("`gridse'",_cl_gridse)
@@ -229,23 +312,7 @@ program define clate_dnn, eclass
         st_matrix("`gridstatus'",_cl_gridstatus)
     }
 
-    // Preserve the shared localization results across a fresh, honest post.
-    // Stata forbids missing coefficients: undefined targets are omitted from
-    // e(b), while all target identities remain in the canonical full tables.
-    local saved_scalars : e(scalars)
-    local saved_macros : e(macros)
-    local saved_matrices : e(matrices)
-    foreach name of local saved_scalars {
-        local ss_`name' = e(`name')
-    }
-    foreach name of local saved_macros {
-        local sl_`name' `"`e(`name')'"'
-    }
-    foreach name of local saved_matrices {
-        if inlist("`name'","b","V") continue
-        tempname sm_`name'
-        matrix `sm_`name'' = e(`name')
-    }
+    // Post only the paired estimator's coefficients and uncertainty.
     local cnames ""
     local validnames ""
     local keep ""
@@ -270,17 +337,65 @@ program define clate_dnn, eclass
         else ereturn post `postb', esample(`touse')
     }
     else ereturn post, esample(`touse')
-    foreach name of local saved_scalars {
-        ereturn scalar `name' = `ss_`name''
+    ereturn scalar N=`n'
+    ereturn scalar m=`m'
+    ereturn scalar p=`kx'
+    ereturn scalar kx=`kx'
+    ereturn scalar k=`k'
+    ereturn scalar s=`resolved_s'
+    ereturn scalar lambda=`default_lambda'
+    mata: st_numscalar("r(_cl_min)",min(st_matrix("`neff'"))); st_numscalar("r(_cl_max)",max(st_matrix("`neff'")))
+    // Retain the scalar-copy boundary of the former localization adapter.
+    // The canonical matrix values keep their full numeric precision.
+    local localization_min=r(_cl_min)
+    local localization_max=r(_cl_max)
+    ereturn scalar neff_min=`localization_min'
+    ereturn scalar neff_max=`localization_max'
+    ereturn scalar ess_min=`localization_min'
+    ereturn scalar ess_max=`localization_max'
+    if `m'==1 {
+        local localization_neff=el(`neff',1,1)
+        ereturn scalar neff=`localization_neff'
+        ereturn scalar ess=`localization_neff'
     }
-    foreach name of local saved_macros {
-        if "`name'"=="properties" continue
-        ereturn local `name' `"`sl_`name''"'
+    local neffnames ""
+    forvalues j=1/`m' {
+        local neffname "tau"
+        if `m'>1 local neffname "tau`j'"
+        local neffnames "`neffnames' `neffname'"
     }
-    foreach name of local saved_matrices {
-        if inlist("`name'","b","V") continue
-        ereturn matrix `name' = `sm_`name'', copy
+    matrix colnames `neff'=`neffnames'
+    ereturn matrix targets=`targets', copy
+    ereturn matrix x0_matrix=`targets', copy
+    ereturn matrix neff_targets=`neff', copy
+    ereturn matrix ess_targets=`neff', copy
+    if `isgrid' {
+        matrix rownames `grid_diag'=`candidate_names'
+        matrix colnames `grid_diag'=ess max_weight top_n top5_weight_share degenerate
+        ereturn matrix tuning_candidates=`meta', copy
+        ereturn matrix tuning_diagnostics=`grid_diag', copy
+        ereturn scalar tuning_default_candidate=`default_index'
+        ereturn scalar tuning_n_candidates=`ncandidates'
+        ereturn scalar tuning_n_feasible=`nfeasible'
+        ereturn scalar tuning_n_skipped=`ncandidates'-`nfeasible'
+        ereturn scalar tuning_n_failed=0
+        ereturn scalar tuning_n_unique=`nunique_feasible'
     }
+    if "`scalerule'"=="" local scalerule "sd"
+    ereturn local scalerule "`scalerule'"
+    ereturn scalar scaleeps=`scaleeps'
+    ereturn local x0 "`x0'"
+    ereturn local x0matrix "`x0matrix'"
+    ereturn local target_source "`target_source'"
+    ereturn local xvars "`xvars'"
+    ereturn local x_cols "`xvars'"
+    ereturn local distance "`resolved_distance'"
+    ereturn local method "`resolved_method'"
+    ereturn local tuning_mode "`tuning_mode'"
+    ereturn local tuning_source "`tuning_source'"
+    ereturn local tuning_status_codes "0=infeasible 1=ok"
+    ereturn local tuning_reason_codes "0=ok 1=k_gt_s 2=jackknife_requires_s_lt_n 3=s_gt_n"
+    ereturn local jackknife=cond(`active',"fast","none")
     matrix colnames `theta' = `cnames'
     matrix colnames `semat' = `cnames'
     matrix colnames `vcov' = `cnames'
@@ -293,7 +408,11 @@ program define clate_dnn, eclass
     matrix colnames `status' = ratio_status negative_denominator ///
         near_zero_denominator covariance_status wald_available
     matrix rownames `diag' = `: rownames `targets''
-    matrix colnames `diag' = `: colnames `sm_diagnostics''
+    matrix colnames `diag'=ess max_weight top1_weight_share top5_weight_share top10_weight_share ///
+        n_nonzero_weight distance_available radius_rank_k radius_rank_s weighted_mean_distance ///
+        weighted_median_distance overlap_available treated_mass control_mass treated_share ///
+        propensity_available weighted_mean_propensity weighted_propensity_q10 weighted_propensity_q90 ///
+        physical_radius_90 arm_ess_available treated_ess control_ess score_contribution_available top5_score_share
     ereturn matrix estimates = `theta', copy
     ereturn matrix se_targets = `semat', copy
     ereturn matrix theta_vcov = `vcov', copy
@@ -332,8 +451,6 @@ program define clate_dnn, eclass
     ereturn local d_col "`dcol'"
     ereturn local a_col "`acol'"
     ereturn local e_col "`ecol'"
-    ereturn local treat "`acol'"
-    ereturn local propensity "`ecol'"
     ereturn local propensity_version = cond("`route'"=="augmented_iv","clipped","not_used")
     ereturn local my0_col "`my0col'"
     ereturn local my1_col "`my1col'"
@@ -347,7 +464,7 @@ program define clate_dnn, eclass
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
     tempname model_signals model_ranks model_distances model_geometry
-    mata: st_matrix("`model_signals'",_cl_signals); st_matrix("`model_ranks'",_cl_ranks); st_matrix("`model_distances'",rdistnn_distance_matrix(_cl_X,_cl_X0,"`resolved_distance'",_cl_geometry))
+    mata: st_matrix("`model_signals'",_cl_signals); st_matrix("`model_ranks'",_cl_ranks); st_matrix("`model_distances'",_cl_DX)
     local geometry_option ""
     if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
         mata: st_matrix("`model_geometry'",_cl_geometry)

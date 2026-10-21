@@ -28,10 +28,10 @@ mata {
     _r1 = rdistnn_ranks(_X, (0, 0), "l2")
     _r2 = rdistnn_ranks(_X, (0, 0), "l2")
     st_numscalar("_tie_repeat", max(abs(_r1 - _r2)))
-    st_numscalar("_tie_expected", max(abs(_r1 - (1::4))))
+    st_numscalar("_tie_expected", max(abs(_r1 - (4 \ 1 \ 3 \ 2))))
 }
 test_assert "[ties] repeated tie ranking is deterministic" scalar(_tie_repeat) == 0
-test_assert "[ties] symmetric L2 ties preserve row order" scalar(_tie_expected) == 0
+test_assert "[ties] symmetric L2 ties use raw covariate lexicographic order" scalar(_tie_expected) == 0
 
 test_section "rdistnn_ranks: [perm] row permutation maps ranks consistently"
 
@@ -50,8 +50,8 @@ test_section "rdistnn_mahal_*: [edge] singular covariance and input constraints"
 
 mata {
     _X = (1,3 \ 2,3 \ 3,3 \ 4,3 \ 5,3)
-    _Sinv = rdistnn_mahal_cov_inv(_X)
-    _d = rdistnn_mahal_dist(_X, (3, 3), _Sinv)
+    _geometry = rdistnn_mahal_geometry(_X)
+    _d = rdistnn_distance_matrix(_X, (3, 3), "mahalanobis", _geometry)
     _r = rdistnn_ranks(_X, (3, 3), "mahalanobis")
     st_numscalar("_mh_singular_finite", sum(_d :< .) == rows(_d))
     st_numscalar("_mh_singular_nonneg", min(_d) >= 0)

@@ -1,5 +1,5 @@
 version 17
-// Compatibility gateway for the shared Mata core. Load dependencies in order;
+// Shared gateway for the Mata core. Load dependencies in order;
 // each module owns its functions and reload guards. Estimator commands continue
 // to source this single entry point in fresh and existing sessions.
 //
@@ -21,7 +21,7 @@ if ("$rdistnn_plugin_ok" == "") {
     }
 }
 
-foreach module in accumulation covariance geometry distance_plugin distance_mata rank_weights rank_loo plot_mata {
+foreach module in accumulation covariance geometry distance_plugin distance_mata rank_weights rank_loo localization_mata diagnostic_mata plqr_mata plot_mata {
     findfile "_rdistnn_`module'.ado"
     quietly run "`r(fn)'"
 }

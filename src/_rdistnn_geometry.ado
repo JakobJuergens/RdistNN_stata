@@ -5,9 +5,9 @@ capture mata: mata drop rdistnn_mahal_project()
 
 mata:
 
-// Packed geometry: scale/rank metadata, raw observed origin, then the
-// p x p whitening factor (unused columns zero). Legacy p x p inverses retain
-// their original interpretation in rdistnn_distance_matrix().
+// Packed geometry: scale/rank metadata, raw safe origin, then the
+// p x p whitening factor (unused columns zero). The origin can be zero
+// when an observed origin would lose represented differences.
 real matrix rdistnn_mahal_geometry(real matrix X)
 {
     real scalar n,p,amplitude,scale,tolerance,j,power,spread,global_power
@@ -23,13 +23,20 @@ real matrix rdistnn_mahal_geometry(real matrix X)
         errprintf("Mahalanobis distance requires at least one covariate.\n")
         exit(error(198))
     }
-    origin=X[1,]; Z=J(n,p,0)
+    // Retain an exact-subtraction-safe origin for projection and prediction;
+    // keep the centered SVD arithmetic and numerical rank policy unchanged.
+    origin=rdistnn_signal_level(X); Z=J(n,p,0)
     column_power=J(1,p,0); spread_power=J(1,p,.)
     // Choose a common scale from centered variation, not uncentered levels.
     // A large constant must not erase a small but resolvable varying column.
     for(j=1;j<=p;j++) {
-        amplitude=max(abs(X[,j]))
-        power=amplitude==0 ? 0 : max((-1074,min((1022,floor(ln(amplitude)/ln(2))))))
+        // A computed finite negative magnitude can exceed Stata's positive
+        // finite ceiling: abs() is then missing and must not be skipped.
+        if(hasmissing(abs(X[,j]))) power=1022
+        else {
+            amplitude=max(abs(X[,j]))
+            power=amplitude==0 ? 0 : max((-1074,min((1022,floor(ln(amplitude)/ln(2))))))
+        }
         Z[,j]=X[,j]/rdistnn_power2(power)
         Z[,j]=Z[,j]:-Z[1,j]; Z[,j]=Z[,j]:-mean(Z[,j])
         column_power[j]=power

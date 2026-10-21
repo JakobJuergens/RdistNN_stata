@@ -106,30 +106,3 @@ foreach family in cate np {
     matrix RMZERO = r(table)
     test_assert "`family' zero-variance mean bounds retained" rowsof(RMZERO)==9 & RMZERO[1,1]==2 & RMZERO[2,1]==0 & RMZERO[5,1]==2 & RMZERO[6,1]==2
 }
-
-// Emulate saved CATE/NP results from before the canonical matrices existed.
-cap program drop report_legacy_fit
-program define report_legacy_fit, eclass
-    args family
-    tempname b V
-    matrix `b'=(2,3)
-    matrix `V'=(.04,.01 \ .01,.09)
-    matrix colnames `b'=target1 target2
-    matrix colnames `V'=target1 target2
-    matrix rownames `V'=target1 target2
-    ereturn post `b' `V'
-    ereturn scalar m=2
-    ereturn scalar N=24
-    ereturn scalar p=1
-    ereturn scalar k=1
-    ereturn scalar s=4
-    ereturn local cmd "`family'_dnn"
-    ereturn local se_method "rank_shift"
-end
-foreach family in cate np {
-    report_legacy_fit `family'
-    quietly `family'_dnn, level(90)
-    matrix RL=r(table)
-    test_assert "legacy `family' result remains replayable" rowsof(RL)==9 & colsof(RL)==2 & abs(RL[2,2]-.3)<1e-12
-}
-cap program drop report_legacy_fit

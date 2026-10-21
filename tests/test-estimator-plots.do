@@ -197,51 +197,6 @@ local matrices : r(matrices)
 local hasdata : list posof "plot_data" in matrices
 test_assert "[plots CLATE] empty plot remains usable without fabricated data rows" `rc'==0 & `nr'==0 & `np'==2 & `omitted'==2 & `hasdata'==0
 
-// Old saved CATE/NP results expose b/V but no canonical summary or order signature.
-capture program drop _plot_legacy_result
-program define _plot_legacy_result, eclass
-    tempname b V targets diagnostics
-    tempvar sample
-    matrix `b' = e(b)
-    matrix `V' = e(V)
-    matrix `targets' = e(targets)
-    matrix `diagnostics' = e(diagnostics)
-    gen byte `sample' = e(sample)
-    foreach key in N m p k s {
-        local `key' = e(`key')
-    }
-    foreach key in cmd xvars method distance jackknife tuning_mode se_method {
-        local `key' "`e(`key')'"
-    }
-    ereturn post `b' `V', esample(`sample')
-    foreach key in N m p k s {
-        ereturn scalar `key' = ``key''
-    }
-    foreach key in cmd xvars method distance jackknife tuning_mode se_method {
-        ereturn local `key' "``key''"
-    }
-    ereturn matrix targets = `targets'
-    ereturn matrix diagnostics = `diagnostics'
-end
-foreach family in cate np {
-    rdnn_dgp_basic, n(40) seed(811)
-    if "`family'"=="cate" quietly cate_dnn y, xcols(x1 x2) x0(0 0) pseudooutcome
-    else quietly np_dnn y, xcols(x1 x2) x0(0 0)
-    matrix POLD = e(b)
-    quietly _plot_legacy_result
-    tempfile legacy_plot
-    quietly estimates save "`legacy_plot'", replace
-    discard
-    quietly estimates use "`legacy_plot'"
-    capture noisily `family'_dnn_plot, name(plot_legacy) replace nodraw
-    local rc = _rc
-    matrix PL = r(plot_data)
-    test_assert "[plots `family'] cold restored legacy fit uses b/V fallback" `rc'==0 & abs(PL[1,7]-POLD[1,1])<1e-12
-    capture noisily `family'_dnn_plot, type(weights) view(kernel) replace nodraw
-    test_assert "[plots `family'] legacy observation view requires verifiable refit" _rc==498
-}
-capture program drop _plot_legacy_result
-
 // Instrument overlap uses the same selections with instrument-specific names.
 rdnn_dgp_basic, n(50) seed(191)
 gen byte a = runiform()<.5

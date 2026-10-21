@@ -32,7 +32,7 @@ foreach command in np_dnn cate_dnn {
     quietly replace signal = 3 in 1
     quietly replace signal = 1 in 2
     quietly `command' signal, xcols(x) x0(0) k(1) s(2) `scoreopt'
-    test_assert "[ties] `command' input-order sensitivity" abs(el(e(b),1,1)-el(`original',1,1)-1/3)<1e-12
+    test_assert "[ties] `command' identical-X input-position sensitivity" abs(el(e(b),1,1)-el(`original',1,1)-1/3)<1e-12
     quietly replace signal = 1 in 1
     quietly replace signal = 3 in 2
 }

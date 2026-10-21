@@ -1,6 +1,7 @@
 import hashlib
 import posixpath
 import re
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -13,6 +14,31 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class PackageMaintenanceTests(unittest.TestCase):
+    def test_source_archive_respects_unstaged_deletions(self):
+        with tempfile.TemporaryDirectory(prefix="rdistnn-deleted-source-test-") as directory:
+            checkout = Path(directory)
+            for name in ("src", "docs", "examples", "tools/ci"):
+                shutil.copytree(ROOT / name, checkout / name)
+            for name in (
+                "README.md", "RELEASE_NOTES.md", "LICENSE.md", "LINKING_EXCEPTION.md",
+                "rdistnn.pkg", "stata.toc", ".gitignore",
+            ):
+                shutil.copyfile(ROOT / name, checkout / name)
+            subprocess.run(["git", "init", "--quiet"], cwd=checkout, check=True)
+            retired = checkout / "src/retired_test_helper.ado"
+            retired.write_text("version 17\n")
+            subprocess.run(["git", "add", "--", str(retired)], cwd=checkout, check=True)
+            retired.unlink()
+            archive = checkout / "source.zip"
+            subprocess.run(
+                ["bash", "tools/ci/build_source_archive.sh", str(archive)],
+                cwd=checkout, check=True, capture_output=True, text=True,
+            )
+            with zipfile.ZipFile(archive) as source:
+                self.assertNotIn("src/retired_test_helper.ado", source.namelist())
+                self.assertEqual(source.read("src/cate_dnn.ado"),
+                                 (ROOT / "src/cate_dnn.ado").read_bytes())
+
     def test_release_source_download_has_verifiable_checksum_and_fresh_payload(self):
         with tempfile.TemporaryDirectory(prefix="rdistnn-release-test-") as directory:
             output = Path(directory)

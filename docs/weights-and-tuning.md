@@ -32,7 +32,8 @@ centered-design SVD whitening factor. Retain singular values greater than
 `max(n,p) * 2^-52 * largest_singular_value`; null directions contribute zero.
 This avoids explicitly forming or inverting covariance. The metric is fixed
 through deletion covariance calculations. Both use deterministic distance,
-then observation-order tie breaking. Changing a metric changes the
+then lexicographic original-covariate order for exact ties. Only identical
+covariate rows use observation order. Changing a metric changes the
 neighborhood; it is not a cosmetic plot option.
 
 ## Generate weights at one target

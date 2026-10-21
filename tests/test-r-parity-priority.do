@@ -54,7 +54,7 @@ gen double d2 = md2 - fixture_i/40
 gen double g = 0.15 + 0.1*x1
 gen double y_plqr = 0.6*d1 - 0.4*d2 + g + (mod(fixture_i,5)-2)/10
 
-quietly np_dnn y_np, x(x1 x2) x0(0.2 -0.1)
+quietly np_dnn y_np, xcols(x1 x2) x0(0.2 -0.1)
 local np_default_k = e(k)
 local np_default_s = e(s)
 test_assert "[defaults] np_dnn defaults to paper k=1" `np_default_k' == 1
@@ -91,7 +91,7 @@ test_assert "[weights] asymp k=s weights are uniform" scalar(_uniform_asymp_diff
 
 test_section "R parity priorities: [golden] np_dnn exact and asymp"
 
-quietly np_dnn y_np, x(x1 x2) x0(0.2 -0.1) k(2) s(5) method(exact)
+quietly np_dnn y_np, xcols(x1 x2) x0(0.2 -0.1) k(2) s(5) method(exact)
 local np_exact_mu = _b[mu]
 local np_exact_se = _se[mu]
 local np_exact_ess = e(neff)
@@ -102,7 +102,7 @@ test_assert "[golden] exact NP SE matches RdistNN" ///
 test_assert "[golden] exact NP ESS matches RdistNN" ///
     abs(`np_exact_ess' - R_np_exact[3,1]) < 1e-12
 
-quietly np_dnn y_np, x(x1 x2) x0(0.2 -0.1) k(2) s(5) method(asymp)
+quietly np_dnn y_np, xcols(x1 x2) x0(0.2 -0.1) k(2) s(5) method(asymp)
 local np_asymp_mu = _b[mu]
 local np_asymp_se = _se[mu]
 local np_asymp_ess = e(neff)

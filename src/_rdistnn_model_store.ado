@@ -38,14 +38,9 @@ program define _rdistnn_model_store, eclass
             ereturn matrix model_geometry=`geometry', copy
         }
     }
-    else if inlist("`e(distance)'","l1_scaled","l2_scaled") {
-        di as error "Scaled fitted models require explicit frozen geometry()."
+    else if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
+        di as error "Fitted scaled/Mahalanobis models require explicit frozen geometry()."
         exit 498
-    }
-    else if "`e(distance)'"=="mahalanobis" {
-        tempname fitted_geometry
-        mata: st_matrix("`fitted_geometry'",rdistnn_fit_geometry(st_matrix("`X'"),st_global("e(distance)"),"sd",J(1,0,.),1e-12))
-        ereturn matrix model_geometry=`fitted_geometry', copy
     }
     ereturn scalar model_version=1
     ereturn local model_vars "`inputs'"

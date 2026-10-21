@@ -186,7 +186,7 @@ for phrase in \
 	"not a coefficient estimator" \
 	"No local root solving was performed" \
 	"thetaeval()" \
-	"Compatibility aliases"; do
+	"Required inputs"; do
 	if grep -qFi "$phrase" src/plqr_dnn.sthlp src/plqr_dnn.ado; then
 		echo "  OK       PLQR surface contains: $phrase"
 	else

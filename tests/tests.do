@@ -34,6 +34,7 @@ quietly do "src/_rdistnn_mata.ado"
 local test_files ///
     test-plot-command-order ///
     test-module-loading     ///
+    test-canonical-ties     ///
     test-mata-distances      ///
     test-mata-rank-r-mirror  ///
     test-mata-weights-exact  ///
@@ -49,6 +50,8 @@ local test_files ///
     test-cate-signal-contract ///
     test-localization-reporting    ///
     test-derived-fit-contract ///
+    test-state-helpers ///
+    test-clipping-validation ///
     test-stored-result-metadata ///
     test-weighted-distribution-range ///
     test-accumulation-r-parity ///
@@ -65,7 +68,6 @@ local test_files ///
     test-covariance-geometry-r-parity ///
     test-native-distances    ///
     test-native-distances-estimators ///
-    test-native-distances-compat ///
     test-weight-numerical-stability ///
     test-distance-range-stability ///
     test-stability-r-parity ///
@@ -82,6 +84,8 @@ local test_files ///
     test-cate-dnn-batch      ///
     test-cate-dnn-tuning     ///
     test-cate-dnn-diagnostics ///
+    test-diagnostic-route-contracts ///
+    test-diagnostic-contribution-range ///
     test-cate-dnn-postestimation ///
     test-cate-dnn-naming     ///
     test-cate-dnn-errors     ///
@@ -93,11 +97,14 @@ local test_files ///
     test-clate-r-parity      ///
     test-clate-dnn-postestimation ///
     test-estimator-reporting ///
-    test-fitted-results     ///
+    test-saved-prediction     ///
+    test-candidates          ///
+    test-snapshot-observations ///
     test-estimator-diagnostics ///
     test-estimator-plots      ///
     test-premerge-clate       ///
-    test-premerge-postestimation ///
+    test-reporting-export-contracts ///
+    test-observation-reconstruction ///
     test-plqr-dnn-core       ///
     test-plqr-dnn-methods    ///
     test-plqr-dnn-errors     ///

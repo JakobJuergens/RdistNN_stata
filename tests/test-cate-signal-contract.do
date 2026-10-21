@@ -11,15 +11,6 @@ foreach opt in mcol mhat {
 quietly cate_dnn y, xcols(x1 x2) x0(0 0) tcol(D) ecol(e) m0col(m0) m1col(m1) s(5)
 test_assert "[score] supported nuisance route records AIPW" "`e(score_method)'" == "aipw"
 test_assert "[score] pooled nuisance metadata is absent" "`e(m_col)'" == ""
-capture program drop _cate_test_retired
-program define _cate_test_retired, eclass
-    ereturn scalar model_version = 0
-    ereturn local score_method "retired_score"
-end
-_cate_test_retired
-program drop _cate_test_retired
-capture cate_dnn_plot, type(influence) nodraw
-test_assert "[score] retired saved score cannot reconstruct influence" _rc == 498
 
 preserve
 clear

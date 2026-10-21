@@ -49,7 +49,7 @@ foreach size in huge tiny {
             local id "`size'_`metric'_`method'"
             foreach engine in mata plugin {
                 global rdistnn_distance_engine `engine'
-                quietly np_dnn sty1, x(stx1 stx2) x0matrix(ST_`size'_A) k(2) s(4) method(`method') `geometry'
+                quietly np_dnn sty1, xcols(stx1 stx2) x0matrix(ST_`size'_A) k(2) s(4) method(`method') `geometry'
                 local route "$rdistnn_last_distance_engine"
                 mata {
                     st_numscalar("st_fit",max(abs(st_matrix("e(b)")-st_matrix("ST_`id'_fit"))))

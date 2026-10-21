@@ -1,8 +1,6 @@
 version 17
 // Fitted geometry, distance evaluation and stable rank ordering.
 capture mata: mata drop rdistnn_l2dist()
-capture mata: mata drop rdistnn_mahal_cov_inv()
-capture mata: mata drop rdistnn_mahal_dist()
 capture mata: mata drop rdistnn_order()
 capture mata: mata drop rdistnn_type7()
 capture mata: mata drop rdistnn_sample_sd()
@@ -30,84 +28,27 @@ real colvector rdistnn_l2dist(real matrix X, real rowvector x0)
     return(rowsum(D :* D))
 }
 
-// ── rdistnn_mahal_cov_inv ─────────────────────────────────────────────
-// Compute the (generalized) inverse of the sample covariance matrix of X.
-// Match R's ordinary inverse with an SVD Moore-Penrose fallback. A sweep
-// generalized inverse can change distances for targets outside the data span.
-//
-// Arguments:
-//   X : n x kx matrix (kx >= 2)
-//
-// Returns: kx x kx inverse covariance matrix.
-//
-real matrix rdistnn_mahal_cov_inv(real matrix X)
-{
-    real matrix     Xc, S, Si, U, Vt
-    real colvector  values, inverse_values
-    real scalar     n, condition_product, cutoff, j
-
-    n  = rows(X)
-    if (n < 2) {
-        errprintf("rdistnn_mahal_cov_inv: Mahalanobis distance requires at least two complete observations.\n")
-        exit(error(2001))
-    }
-    Xc = X :- mean(X)                // center each column
-    S  = cross(Xc, Xc) / (n - 1)    // kx x kx sample covariance
-    Si = luinv(S, 0)
-    if (!any(Si :>= .)) {
-        condition_product = norm(S, 1) * norm(Si, 1)
-        // R's solve() rejects reciprocal condition numbers below double eps.
-        if (condition_product < . & condition_product > 0) {
-            if (1/condition_product >= 2.220446049250313e-16) return(Si)
-        }
-    }
-    svd(S, U, values, Vt)
-    cutoff = 1e-10 * max((max(values), 1e-300))
-    inverse_values = J(rows(values), 1, 0)
-    for (j=1; j<=rows(values); j++) {
-        if (values[j] > cutoff) inverse_values[j] = 1/values[j]
-    }
-    return(Vt' * diag(inverse_values) * U')
-}
-
-// ── rdistnn_mahal_dist ────────────────────────────────────────────────
-// Compute Mahalanobis distances from each row of X to the vector x0,
-// given a precomputed inverse covariance matrix Sinv.
-//
-// d_i = sqrt( (x_i - x0)' * Sinv * (x_i - x0) )
-//
-// Arguments:
-//   X    : n x kx matrix
-//   x0   : 1 x kx evaluation point
-//   Sinv : kx x kx inverse covariance (from rdistnn_mahal_cov_inv)
-//
-// Returns: n-vector of Mahalanobis distances (unsorted).
-//
-real colvector rdistnn_mahal_dist(real matrix X, real rowvector x0,
-                                   real matrix Sinv)
-{
-    real matrix     Z
-    real colvector  qform
-    Z = X :- x0                        // broadcast row subtraction
-    qform = rowsum((Z * Sinv) :* Z)
-    // Clamp tiny negative roundoff to zero before sqrt().
-    qform = qform :* (qform :>= 0)
-    return(sqrt(qform))
-}
-
 // ── rdistnn_order ─────────────────────────────────────────────────────
 // Return the integer rank order (1 = nearest) of each observation
-// by distance to x0.  Ties broken by original index.
+// by distance to x0. Raw covariates resolve ties when supplied; identical
+// covariates and distance-only callers retain original-position fallback.
 //
 // Returns: n-vector of integer ranks.
 //
-real colvector rdistnn_order(real colvector dist2)
+real colvector rdistnn_order(real colvector dist2, | real matrix X)
 {
     real colvector  idx, rnk
     real scalar     n, i
 
     n   = rows(dist2)
-    idx = order((dist2, (1::n)), (1, 2))   // ascending distance, then row index
+    if(args()<2) idx = order((dist2, (1::n)), (1, 2))
+    else {
+        if(rows(X)!=n | cols(X)<1 | hasmissing(X)) {
+            errprintf("Covariate tie ordering requires finite aligned raw covariates.\n")
+            exit(error(198))
+        }
+        idx = order((dist2,X,(1::n)),1..(cols(X)+2))
+    }
     rnk = J(n, 1, .)
     for (i = 1; i <= n; i++) {
         rnk[idx[i]] = i
@@ -139,14 +80,17 @@ real scalar rdistnn_sample_sd(real colvector x)
     real scalar amplitude,spread,scale,n
     real colvector z
     n=rows(x); amplitude=max(abs(x))
-    if(amplitude<sqrt(4.4942328371557898e307/n)) {
+    if(!hasmissing(abs(x)) & amplitude<sqrt(4.4942328371557898e307/n)) {
         z=x:-rdistnn_signal_level(x); z=z:-mean(z); spread=max(abs(z))
         if(spread==0) return(0)
         if(spread>=sqrt(2.2250738585072014e-308)*sqrt(n)) {
             return(sqrt(quadcross(z,z)/(n-1)))
         }
     }
-    scale=rdistnn_binary_scale(amplitude)
+    // Computed negative inputs can exceed Stata's positive finite ceiling;
+    // abs() then looks missing, so use a bounded exact binary scale directly.
+    if(hasmissing(abs(x))) scale=rdistnn_power2(1022)
+    else scale=rdistnn_binary_scale(amplitude)
     z=x:/scale; z=z:-z[1]
     z=z:-rdistnn_scale_sum(z)/n
     return(sqrt(rdistnn_scale_sum(z:*z)/(n-1))*scale)
@@ -229,7 +173,7 @@ real colvector rdistnn_ranks(real matrix X, real rowvector x0,
 {
     if(args()<3) distance="l2"
     if(args()<4) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
-    return(rdistnn_order(rdistnn_distance_matrix(X,x0,distance,geometry)))
+    return(rdistnn_order(rdistnn_distance_matrix(X,x0,distance,geometry),X))
 }
 
 // Shared scalar recovery for scaled L1/L2; valid final differences may fit
@@ -305,18 +249,13 @@ real matrix rdistnn_distance_matrix(real matrix X, real matrix X0,
         }
     }
     if(distance=="mahalanobis") {
-        if(rows(geometry)==cols(X)+2 & cols(geometry)==cols(X) & !hasmissing(geometry)) {
-            if(geometry[1,1]<=0) {
-                errprintf("Frozen Mahalanobis geometry requires a positive scale.\n")
-                exit(error(498))
-            }
-            return(rdistnn_distance_matrix(rdistnn_mahal_project(X,geometry),
-                rdistnn_mahal_project(X0,geometry),"l2",J(0,0,.)))
-        }
-        if(rows(geometry)!=cols(X) | cols(geometry)!=cols(X) | hasmissing(geometry)) {
-            errprintf("Frozen Mahalanobis geometry has incompatible dimensions.\n")
+        if(rows(geometry)!=cols(X)+2 | cols(geometry)!=cols(X) |
+            hasmissing(geometry) | geometry[1,1]<=0) {
+            errprintf("Mahalanobis distance requires current fitted whitening geometry; refit the model.\n")
             exit(error(498))
         }
+        return(rdistnn_distance_matrix(rdistnn_mahal_project(X,geometry),
+            rdistnn_mahal_project(X0,geometry),"l2",J(0,0,.)))
     }
     if(any(distance:==("l1","l2","l1_scaled","l2_scaled"))) {
         plugin_mode=st_global("rdistnn_use_plugin")
@@ -382,7 +321,6 @@ real matrix rdistnn_distance_matrix(real matrix X, real matrix X0,
                     geometry,distance=="l2_scaled")
             }
         }
-        else if(distance=="mahalanobis") dmat[,j]=rdistnn_mahal_dist(X,X0[j,],geometry)
         else {
             errprintf("Unknown distance '%s'.\n",distance)
             exit(error(198))
@@ -396,7 +334,7 @@ real matrix rdistnn_distance_matrix(real matrix X, real matrix X0,
 }
 
 // Convert each distance column to a full rank permutation.
-real matrix rdistnn_ranks_from_dmat(real matrix dmat)
+real matrix rdistnn_ranks_from_dmat(real matrix dmat, | real matrix X)
 {
     real scalar j
     real matrix ranks
@@ -407,7 +345,8 @@ real matrix rdistnn_ranks_from_dmat(real matrix dmat)
     }
     ranks = J(rows(dmat), cols(dmat), .)
     for (j = 1; j <= cols(dmat); j++) {
-        ranks[,j] = rdistnn_order(dmat[,j])
+        if(args()<2) ranks[,j] = rdistnn_order(dmat[,j])
+        else ranks[,j] = rdistnn_order(dmat[,j],X)
     }
     return(ranks)
 }
@@ -420,7 +359,7 @@ real matrix rdistnn_ranks_matrix(real matrix X, real matrix X0,
     if (args() < 3) distance = "l2"
     if (args() < 4) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
     return(rdistnn_ranks_from_dmat(
-        rdistnn_distance_matrix(X, X0, distance, geometry)))
+        rdistnn_distance_matrix(X, X0, distance, geometry),X))
 }
 
 // Physical radius always uses ordinary original-coordinate Euclidean distance.

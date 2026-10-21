@@ -24,8 +24,8 @@ matrix N_single = J(1, 3, .)
 forvalues j = 1/3 {
     local tx1 = X0_batch[`j', 1]
     local tx2 = X0_batch[`j', 2]
-    quietly cate_dnn y, treat(D) x(x1 x2) x0(`tx1' `tx2') k(2) s(8) ///
-        propensity(e) m0(m0) m1(m1)
+    quietly cate_dnn y, tcol(D) xcols(x1 x2) x0(`tx1' `tx2') k(2) s(8) ///
+        ecol(e) m0col(m0) m1col(m1)
     matrix B_single[1, `j'] = _b[tau]
     matrix S_single[1, `j'] = _se[tau]
     matrix N_single[1, `j'] = e(neff)
@@ -72,17 +72,19 @@ matrix B_r_golden = e(b)
 matrix V_r_golden = e(V)
 matrix N_r_golden = e(neff_targets)
 mata {
-    _tau_r_ref = (0.77857142857142836, 0.36428571428571455, 2.38214285714285667)
-    _se_r_ref = (0.74964277206832730, 1.06502850397804583, 0.88585108390583511)
+    // Exact subset/deletion arithmetic: target2 ties place X=(-1,-1)
+    // before X=(0,-1); the other targets and ESS retain their values.
+    _tau_r_ref = (0.77857142857142836, 0.3732142857142857, 2.38214285714285667)
+    _se_r_ref = (0.74964277206832730, 1.0724533789400823, 0.88585108390583511)
     _neff_r_ref = J(1, 3, 4.8659384309831193)
     _se_stata = sqrt(diagonal(st_matrix("V_r_golden")))'
     st_numscalar("_batch_r_tau", max(abs(st_matrix("B_r_golden") - _tau_r_ref)))
     st_numscalar("_batch_r_se", max(abs(_se_stata - _se_r_ref)))
     st_numscalar("_batch_r_neff", max(abs(st_matrix("N_r_golden") - _neff_r_ref)))
 }
-test_assert "[R parity] batch estimates match RdistNN 0.1.0" scalar(_batch_r_tau) < 1e-10
-test_assert "[R parity] batch marginal SEs match RdistNN 0.1.0" scalar(_batch_r_se) < 1e-10
-test_assert "[R parity] batch effective sample sizes match RdistNN 0.1.0" scalar(_batch_r_neff) < 1e-10
+test_assert "[R parity] batch estimates match canonical RdistNN tie ordering" scalar(_batch_r_tau) < 1e-10
+test_assert "[R parity] batch marginal SEs match canonical RdistNN tie ordering" scalar(_batch_r_se) < 1e-10
+test_assert "[R parity] batch effective sample sizes match canonical RdistNN tie ordering" scalar(_batch_r_neff) < 1e-10
 
 test_section "cate_dnn: [batch] one-row x0matrix() preserves scalar contract"
 
@@ -95,8 +97,8 @@ local se_x0mat_one = _se[tau]
 local neff_x0mat_one = e(neff)
 local m_x0mat_one = e(m)
 
-quietly cate_dnn y, treat(D) x(x1 x2) x0(0.25 -0.15) k(2) s(8) ///
-    propensity(e) m0(m0) m1(m1)
+quietly cate_dnn y, tcol(D) xcols(x1 x2) x0(0.25 -0.15) k(2) s(8) ///
+    ecol(e) m0col(m0) m1col(m1)
 test_assert "[batch] one-row x0matrix() estimate matches x0()" abs(`tau_x0mat_one' - _b[tau]) < 1e-10
 test_assert "[batch] one-row x0matrix() SE matches x0()" abs(`se_x0mat_one' - _se[tau]) < 1e-10
 test_assert "[batch] one-row x0matrix() neff matches x0()" abs(`neff_x0mat_one' - e(neff)) < 1e-10
@@ -114,8 +116,8 @@ matrix S_mahal_single = J(1, 2, .)
 forvalues j = 1/2 {
     local tx1 = X0_mahal[`j', 1]
     local tx2 = X0_mahal[`j', 2]
-    quietly cate_dnn y, treat(D) x(x1 x2) x0(`tx1' `tx2') k(2) s(8) ///
-        propensity(e) m0(m0) m1(m1) distance(mahalanobis)
+    quietly cate_dnn y, tcol(D) xcols(x1 x2) x0(`tx1' `tx2') k(2) s(8) ///
+        ecol(e) m0col(m0) m1col(m1) distance(mahalanobis)
     matrix B_mahal_single[1, `j'] = _b[tau]
     matrix S_mahal_single[1, `j'] = _se[tau]
 }

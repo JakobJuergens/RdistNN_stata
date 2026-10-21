@@ -1,7 +1,7 @@
 // test-mata-distances.do
 // Tests for Mata distance and ranking functions:
 //   rdistnn_l2dist, rdistnn_order, rdistnn_ranks,
-//   rdistnn_mahal_cov_inv, rdistnn_mahal_dist
+//   rdistnn_mahal_geometry, rdistnn_distance_matrix
 //
 // Tags: [smoke] [edge] [inv] [known] [agree]
 //
@@ -94,7 +94,7 @@ mata {
 test_assert "[inv] rank order invariant to sqrt of squared distances" scalar(_r) == 0
 
 // ════════════════════════════════════════════════════════════
-test_section "rdistnn_mahal_dist: [smoke] and [inv]"
+test_section "Mahalanobis whitening: [smoke] and [inv]"
 // ════════════════════════════════════════════════════════════
 
 // [smoke] Mahalanobis distances are finite and non-negative
@@ -102,8 +102,8 @@ mata {
     rseed(5)
     _X    = rnormal(50, 2, 0, 1)
     _x0   = (0, 0)
-    _Sinv = rdistnn_mahal_cov_inv(_X)
-    _d    = rdistnn_mahal_dist(_X, _x0, _Sinv)
+    _Sinv = rdistnn_mahal_geometry(_X)
+    _d    = rdistnn_distance_matrix(_X, _x0, "mahalanobis", _Sinv)
     st_numscalar("_rmin", min(_d))
     st_numscalar("_rmax", max(_d))
     st_numscalar("_rfin", sum(_d :< .) == rows(_d))
@@ -115,9 +115,9 @@ test_assert "[smoke] Mahal distances all finite"   scalar(_rfin) == 1
 mata {
     rseed(6)
     _X    = rnormal(40, 2, 0, 1)
-    _Sinv = rdistnn_mahal_cov_inv(_X)
+    _Sinv = rdistnn_mahal_geometry(_X)
     // pick row 5 as evaluation point
-    _d    = rdistnn_mahal_dist(_X, _X[5,], _Sinv)
+    _d    = rdistnn_distance_matrix(_X, _X[5,], "mahalanobis", _Sinv)
     st_numscalar("_r", _d[5])
 }
 test_assert "[edge] Mahal self-distance is 0" scalar(_r) < 1e-10
@@ -128,13 +128,13 @@ mata {
     rseed(7)
     _X    = rnormal(50, 2, 0, 1)
     _x0   = (0.4, -0.3)
-    _Sinv1 = rdistnn_mahal_cov_inv(_X)
-    _d1    = rdistnn_mahal_dist(_X, _x0, _Sinv1)
+    _Sinv1 = rdistnn_mahal_geometry(_X)
+    _d1    = rdistnn_distance_matrix(_X, _x0, "mahalanobis", _Sinv1)
     // scale by 3
     _Y     = 3 * _X
     _y0    = 3 * _x0
-    _Sinv2 = rdistnn_mahal_cov_inv(_Y)
-    _d2    = rdistnn_mahal_dist(_Y, _y0, _Sinv2)
+    _Sinv2 = rdistnn_mahal_geometry(_Y)
+    _d2    = rdistnn_distance_matrix(_Y, _y0, "mahalanobis", _Sinv2)
     st_numscalar("_r", mreldif(_d1, _d2))
 }
 test_assert "[inv] Mahal distances scale-invariant" scalar(_r) < 1e-10
@@ -146,8 +146,8 @@ test_assert "[inv] Mahal distances scale-invariant" scalar(_r) < 1e-10
 mata {
     _X  = (2,1 \ 2,-1 \ -2,1 \ -2,-1 \ 0,0)
     _x0 = (0, 0)
-    _Sinv = rdistnn_mahal_cov_inv(_X)
-    _d    = rdistnn_mahal_dist(_X, _x0, _Sinv)
+    _Sinv = rdistnn_mahal_geometry(_X)
+    _d    = rdistnn_distance_matrix(_X, _x0, "mahalanobis", _Sinv)
     // expected: sqrt(x1^2/4 + x2^2/1)
     _exp  = sqrt(_X[,1]:^2 / 4 + _X[,2]:^2 / 1)
     st_numscalar("_r", mreldif(_d, _exp))
@@ -175,17 +175,16 @@ mata {
     _X    = rnormal(40, 2, 0, 1)
     _x0   = (0.2, 0.1)
     _r1   = rdistnn_ranks(_X, _x0, "mahalanobis")
-    _Sinv = rdistnn_mahal_cov_inv(_X)
-    _r2   = rdistnn_order(rdistnn_mahal_dist(_X, _x0, _Sinv))
+    _Sinv = rdistnn_mahal_geometry(_X)
+    _r2   = rdistnn_order(rdistnn_distance_matrix(_X, _x0, "mahalanobis", _Sinv), _X)
     st_numscalar("_r", max(abs(_r1 - _r2)))
 }
-test_assert "[agree] rdistnn_ranks mahal = order(mahal_dist)" scalar(_r) == 0
+test_assert "[agree] rdistnn_ranks mahal = order(whitened distances)" scalar(_r) == 0
 
-// Defensive one-observation covariance guard; generalized inverse remains
-// available for rank-deficient covariance matrices with n >= 2.
-cap mata: rdistnn_mahal_cov_inv((1, 2))
+// A fitted whitening geometry requires n >= 2 and supports deficient rank.
+cap mata: rdistnn_mahal_geometry((1, 2))
 test_assert "[errors] one-observation Mahalanobis covariance rejected" _rc == 2001
-cap mata: rdistnn_mahal_cov_inv((1, 2 \ 1, 2))
+cap mata: rdistnn_mahal_geometry((1, 2 \ 1, 2))
 test_assert "[edge] rank-deficient Mahalanobis covariance accepted for n=2" _rc == 0
 
 test_section "rdistnn_weighted_quantile: [boundary] and validation"

@@ -10,8 +10,8 @@ it into a coefficient estimator or add coefficient inference.
 
 Use a clean repository checkout with the tools in
 [CONTRIBUTING.md](CONTRIBUTING.md). Review the version/tag and release notes.
-Version `0.1.0.9005` packages the documentation and maintenance improvements
-as one flattened production update, aligned with the R companion.
+Version `0.1.1` combines numerical fixes, covariate-based exact-distance tie
+ordering, shared modules and a current-only interface, aligned with the R companion.
 The previous version `0.1.0.9004` entered production `master` through the reviewed squash
 merge of [PR #10](https://github.com/JakobJuergens/RdistNN_stata/pull/10) at
 [`3e02115124e2a8f71e73739aa95fa1e34a754f13`](https://github.com/JakobJuergens/RdistNN_stata/commit/3e02115124e2a8f71e73739aa95fa1e34a754f13),
@@ -20,7 +20,7 @@ production snapshot. Exact
 tables, compensated reductions, whitening rank policy, shared covariance and
 the native Beta nonconvergence guard first shipped in the merged
 0.1.0.9003 snapshot. Earlier TDNN/distance work remains under 0.1.0.9002. Retain the
-development version for candidates; choose future tagged versions only when
+intended release version for candidates; create tagged versions only when
 authorized.
 Updating `master` does not itself publish a tag or replace assets from the
 existing `v0.1.0` release.

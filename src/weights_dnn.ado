@@ -68,7 +68,7 @@ program define weights_dnn, rclass
         _wd_X0=st_matrix("`targets'")
         _wd_G=rdistnn_fit_geometry(_wd_X,"`distance'","`scalerule'",strtoreal(tokens("`scalevec'")),`scaleeps')
         _wd_D=rdistnn_distance_matrix(_wd_X,_wd_X0,"`distance'",_wd_G)
-        _wd_R=rdistnn_ranks_from_dmat(_wd_D)
+        _wd_R=rdistnn_ranks_from_dmat(_wd_D,_wd_X)
         _wd_W=rdistnn_weights_from_rmat(_wd_R,`k',`s',"`method'")
     }
     mata {
@@ -101,5 +101,6 @@ program define weights_dnn, rclass
     return local distance "`distance'"
     return local scalerule "`scalerule'"
     return local method "`method'"
+    return local tie_rule "distance_then_covariates_then_input_position"
     di as text "DNN weights: " as result `n' as text " observations, " as result `m' as text " target(s)."
 end

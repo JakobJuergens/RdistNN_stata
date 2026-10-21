@@ -1,7 +1,7 @@
 *! version 0.1.0  2026-10-18
 version 17
 // Signed two-scale rank tables and generic, frozen-rank deletion inference.
-foreach fn in coefficients table weights loo_tables cov diagnostics {
+foreach fn in coefficients table weights cov diagnostics {
     capture mata: mata drop rdistnn_tdnn_`fn'()
 }
 mata:
@@ -30,14 +30,10 @@ real colvector rdistnn_tdnn_table(real scalar n, real scalar s1,
     }
     a=b=J(n,1,0)
     if(method=="exact") {
-        for(r=1;r<=n-s1+1;r++) a[r]=exp(rdistnn_log_binomial(n-r,s1-1)-rdistnn_log_binomial(n,s1))
-        for(r=1;r<=n-s2+1;r++) b[r]=exp(rdistnn_log_binomial(n-r,s2-1)-rdistnn_log_binomial(n,s2))
-        total=rdistnn_sum(a)
-        if(total<=0 | missing(total)) exit(error(498))
-        if(abs(total-1)>1e-12) a=a/total
-        total=rdistnn_sum(b)
-        if(total<=0 | missing(total)) exit(error(498))
-        if(abs(total-1)>1e-12) b=b/total
+        // The same portable exact components used by DNN and R TDNN retain
+        // signed cancellation consistently before the two-scale combination.
+        a=rdistnn_exact_table(n,1,s1)
+        b=rdistnn_exact_table(n,1,s2)
     }
     else {
         for(r=1;r<=n;r++) {
@@ -79,19 +75,6 @@ real matrix rdistnn_tdnn_weights(real matrix ranks, real scalar s1,
     return(W)
 }
 
-// Compatibility wrapper over the common arbitrary-table dispatcher.
-real matrix rdistnn_tdnn_loo_tables(real matrix ranks, real matrix signal,
-    real colvector wn, real colvector wnm1, real scalar center,
-    | string scalar engine)
-{
-    if(rows(wn)!=rows(ranks) | cols(wn)!=1 | hasmissing(wn)) {
-        errprintf("Full rank table must contain n finite entries.\n")
-        exit(error(198))
-    }
-    if(args()<6) engine=""
-    return(rdistnn_loo_from_table(ranks,signal,wnm1,center,engine))
-}
-
 real matrix rdistnn_tdnn_cov(real matrix ranks, real matrix signal,
     real scalar s1, real scalar s2, real scalar dim, string scalar method,
     real scalar normalize)
@@ -99,8 +82,7 @@ real matrix rdistnn_tdnn_cov(real matrix ranks, real matrix signal,
     real scalar n
     real matrix loo
     n=rows(ranks)
-    loo=rdistnn_tdnn_loo_tables(ranks,signal,
-        rdistnn_tdnn_table(n,s1,s2,dim,method,normalize),
+    loo=rdistnn_loo_from_table(ranks,signal,
         rdistnn_tdnn_table(n-1,s1,s2,dim,method,normalize),1)
     return(rdistnn_covariance(loo,(n-1)/n,1))
 }

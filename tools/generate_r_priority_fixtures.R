@@ -60,6 +60,10 @@ d2 <- md2 - i / 40
 g <- 0.15 + 0.1 * X[, 1L]
 theta <- c(0.6, -0.4)
 y_plqr <- d1 * theta[[1L]] + d2 * theta[[2L]] + g + ((i %% 5L) - 2) / 10
+# Exact binary-rational margins of these represented inputs are negative at
+# rows 7 and 12, despite their zero decimal offsets and rounded dot equality.
+plqr_expected_below <- c(TRUE, TRUE, FALSE, FALSE, TRUE, TRUE,
+  FALSE, FALSE, FALSE, TRUE, TRUE, FALSE)
 
 dat <- data.frame(
   x1 = X[, 1L], x2 = X[, 2L],
@@ -123,6 +127,9 @@ for (method in c("exact", "asymp")) {
     cbind(d1, d2), cbind(md1, md2), g, y_plqr,
     theta_eval = theta, tau = 0.5
   )
+  stopifnot(identical(plqr_fit$.model$below_threshold, as.numeric(plqr_expected_below)))
+  plqr_expected_score <- (0.5 - plqr_expected_below) * (cbind(d1, d2) - cbind(md1, md2))
+  stopifnot(identical(unname(plqr_score), unname(plqr_expected_score)))
   plqr_loo <- .dnn_jackknife_loo_array(
     x_mat = X, x0_mat = matrix(x0, nrow = 1L), signal = plqr_score,
     distance = "l2", method = method, k = 2L, s = 5L,

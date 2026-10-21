@@ -43,16 +43,20 @@ distance_matrix <- function(X, X0, distance) {
 oracle <- function(X, X0, signal, k, s, method, distance, active) {
   n <- nrow(X); m <- nrow(X0)
   dx <- distance_matrix(X, X0, distance)
+  lex_order <- function(ids, j) {
+    do.call(order, c(list(dx[ids,j]),
+      unname(as.list(as.data.frame(X[ids,,drop=FALSE]))), list(ids)))
+  }
   average <- function(ids, j) {
     if (method == "exact") {
       subsets <- combn(ids, s, simplify = FALSE)
       rowMeans(vapply(subsets, function(ii) {
-        win <- ii[order(dx[ii, j], ii)[seq_len(k)]]
+        win <- ii[lex_order(ii,j)[seq_len(k)]]
         colMeans(signal[win, , drop = FALSE])
       }, numeric(2L)))
     } else {
       nn <- length(ids)
-      ord <- order(dx[ids, j], ids)
+      ord <- lex_order(ids,j)
       # Integrate the polynomial beta order-statistic densities, rather than
       # using package rank-weight or deletion helpers or differences of pbeta.
       w <- vapply(seq_len(nn), function(r) {
@@ -94,7 +98,7 @@ for (method in c("exact", "asymp")) for (distance in c("l2", "mahalanobis")) {
   add(paste("seeded boundary s=n-1", method, distance), X, X0, signal, 3L, 7L, method, distance)
 }
 Xt <- cbind(c(0,0,1,-1,2,-2,1,-1), c(0,0,0,0,0,0,1,-1))
-add("distance ties resolve by input position", Xt, rbind(c(0,0),c(1,0),c(0,0)), signal, 2L, 4L)
+add("distance ties resolve by original covariates", Xt, rbind(c(0,0),c(1,0),c(0,0)), signal, 2L, 4L)
 add("k=s gives ordinary sample means", X, X0, signal, 3L, 3L)
 u <- c(-1,-.2,.1,.35,.6,.9,1.4,2)
 Xs <- cbind(u,2*u)

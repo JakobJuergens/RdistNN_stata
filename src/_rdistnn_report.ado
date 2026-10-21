@@ -5,21 +5,14 @@ program define _rdistnn_report, rclass
     syntax [, Level(cilevel)]
     tempname estimates ses covariance table summary status b se crit
     local matrices : e(matrices)
-    if strpos(" `matrices' "," estimates ") {
-        matrix `estimates' = e(estimates)
-        matrix `ses' = e(se_targets)
-    }
-    else {
-        // Older CATE/NP estimates remain replayable without altering stored e().
-        matrix `estimates' = e(b)
-        matrix `ses' = J(1,colsof(`estimates'),.)
-        if "`e(se_method)'" != "none" & strpos(" `matrices' "," V ") {
-            matrix `covariance' = e(V)
-            forvalues j=1/`=colsof(`estimates')' {
-                matrix `ses'[1,`j'] = sqrt(el(`covariance',`j',`j'))
-            }
+    foreach field in estimates se_targets {
+        if !`: list field in matrices' {
+            di as error "Current fitted results require e(`field'); refit `e(cmd)' with the current package."
+            exit 498
         }
     }
+    matrix `estimates' = e(estimates)
+    matrix `ses' = e(se_targets)
     local m = colsof(`estimates')
     scalar `crit' = invnormal(.5+`level'/200)
     matrix `table' = J(9,`m',.)

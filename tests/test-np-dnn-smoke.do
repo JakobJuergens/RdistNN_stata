@@ -12,7 +12,7 @@ rdnn_dgp_np, n(200) seed(7)
 test_section "np_dnn: [smoke] basic run and eclass results"
 // ════════════════════════════════════════════════════════════
 
-np_dnn y, x(x1 x2) x0(0 0) k(5)
+np_dnn y, xcols(x1 x2) x0(0 0) k(5)
 
 local mu   = _b[mu]
 local se   = _se[mu]
@@ -34,7 +34,7 @@ test_assert "[smoke] mu at (0,0) is plausible" abs(`mu') < 1
 test_section "np_dnn: [meta] eclass scalar and string fields"
 // ════════════════════════════════════════════════════════════
 
-np_dnn y, x(x1 x2) x0(0 0) k(3) s(15) distance(l2) method(exact)
+np_dnn y, xcols(x1 x2) x0(0 0) k(3) s(15) distance(l2) method(exact)
 local cmd  "`e(cmd)'"
 local dist "`e(distance)'"
 local meth "`e(method)'"
@@ -64,7 +64,7 @@ test_section "np_dnn: [edge] constant outcome"
 // [edge] When y is constant, _b[mu] = constant and _se[mu] = 0
 rdnn_dgp_const, n(100) seed(1) yval(4.25)
 
-np_dnn y, x(x1 x2) x0(0 0) k(3)
+np_dnn y, xcols(x1 x2) x0(0 0) k(3)
 local mu_const = _b[mu]
 local se_const = _se[mu]
 
@@ -87,7 +87,7 @@ mata {
 }
 local mu_manual = scalar(_mu_manual)
 
-np_dnn y, x(x1 x2) x0(0 0) k(4) s(10)
+np_dnn y, xcols(x1 x2) x0(0 0) k(4) s(10)
 local mu_cmd = _b[mu]
 
 test_assert "[smoke] mu = sum(w*y)" abs(`mu_cmd' - `mu_manual') < 1e-8

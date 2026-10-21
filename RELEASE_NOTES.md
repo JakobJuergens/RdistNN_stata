@@ -1,5 +1,33 @@
 # Release Notes
 
+## 0.1.1 — unreleased
+
+- Resolve exact distance ties lexicographically by the original covariates in
+  Mata, including ranks supplied to native deletions, retaining observation-order ties only for
+  identical covariate rows. Rank weights and effective sample size are preserved.
+- Correct range-sensitive weighted SD and Mahalanobis origin selection, and
+  use the shared exact rank-table recurrence for TDNN component weights.
+- Share adaptive PLQR comparisons with R and C++: use exact accumulation for
+  uncertain ordinary comparisons and intermediate overflow, preserving tiny
+  cancellation residuals and inclusive exact equality.
+- Share finite-operand weighted-contribution recovery across fresh/restored
+  CATE/CLATE diagnostics and influence views. Recover representable dominant
+  contributions and concentration even when residuals or totals exceed range.
+- Remove obsolete development-fit compatibility readers, live-data
+  reconstruction and their dedicated fixtures. Refit older development fits;
+  current snapshots support restoration and reuse without the original data.
+- Remove temporary option aliases, no-op flags and the unused native
+  `weights_l2` protocol, native sorting/weight constructors and squared-distance
+  adapters. Use the documented current input names and native distance/deletion
+  operations; Mata owns canonical ranks and rank-weight tables.
+- Respect tracked working-tree deletions when building a source archive.
+
+- Share private localization/tuning and diagnostic builders across fresh and
+  restored fits, with separate saved-state decoding and derived posting.
+  CLATE uses the private localization plan directly. Organize tests by contract.
+- Credit Zakareya Chehime for quality assurance, testing and validation in
+  the repository, package metadata and installed overview help.
+
 ## 0.1.0.9005 — development snapshot
 
 The maintenance and documentation changes below ship together as one flattened

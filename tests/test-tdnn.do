@@ -1,5 +1,22 @@
 // TDNN exact/asymptotic parity, signed support, centered deletion covariance.
 do "tests/test_framework.do"
+test_section "TDNN exact components retain canonical R signed arithmetic"
+clear
+set obs 7
+gen double td_canonical_x=_n
+gen double td_canonical_y=cond(_n==2,2^54,0)
+foreach engine in mata plugin {
+    global rdistnn_distance_engine `engine'
+    quietly weights_tdnn td_canonical_x, x0(0) s1(3) s2(6) dim(2)
+    matrix TD_canonical=r(rank_weights)
+    // Portable exact component tables and separate double products give
+    // -2^-54 at rank2 in both R engines; no epsilon discards this entry.
+    test_assert "`engine': represented canonical rank2 sign and value" TD_canonical[2,1]==-2^-54
+    quietly np_tdnn td_canonical_y, xcols(td_canonical_x) x0(0) s1(3) s2(6) dim(2) nose
+    matrix TD_canonical_fit=e(estimates)
+    test_assert "`engine': NP consumes canonical signed table" TD_canonical_fit[1,1]==-1
+}
+macro drop rdistnn_distance_engine
 quietly do "tests/fixtures/r_tdnn_fixtures.do"
 clear
 input double x1 double x2
@@ -55,11 +72,11 @@ mata {
     TD_R=((1::8),(8::1)); TD_y=(1e12:+(0::6)/1024)\1e300
     TD_wn=(.7\.4\-.1\0\0\0\0\0)
     TD_wd=(.7\.4\-.1\0\0\0\0)
-    TD_fast=rdistnn_tdnn_loo_tables(TD_R[,1],TD_y,TD_wn,TD_wd,1,"mata")
-    TD_slow=rdistnn_tdnn_loo_tables(TD_R[,1],TD_y,TD_wn,TD_wd,1,"naive")
+    TD_fast=rdistnn_loo_from_table(TD_R[,1],TD_y,TD_wd,1,"mata")
+    TD_slow=rdistnn_loo_from_table(TD_R[,1],TD_y,TD_wd,1,"naive")
     st_numscalar("TD_error",max(abs(TD_fast-TD_slow)))
     st_numscalar("TD_finite",!hasmissing(TD_fast))
-    TD_const=rdistnn_tdnn_loo_tables(TD_R,J(8,1,1e200),TD_wn,TD_wd,1,"mata")
+    TD_const=rdistnn_loo_from_table(TD_R,J(8,1,1e200),TD_wd,1,"mata")
     st_numscalar("TD_constant",max(abs(TD_const)))
 }
 test_assert "arbitrary signed table prefix equals independent deletions" scalar(TD_error)<1e-12

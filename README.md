@@ -20,7 +20,7 @@ net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/Rdist
 help rdistnn
 ```
 
-This installs production `master`, currently **0.1.0.9005**. The portable
+This installs production `master`. The portable
 ado/Mata implementation runs on Windows, macOS and Linux without R, Python or
 a compiler. Native acceleration is optional; see the [plugin guide](src/plugin/README.md)
 for platform-specific binaries.
@@ -80,6 +80,8 @@ Copy `r()` results before another command replaces them; `estimates store`
 keeps the fitted model for later use. The [quick start](docs/getting-started.md)
 explains supplied-score inputs and saved results. Earlier `mcol()`/`mhat()`
 calls should use both arm means for AIPW or a supplied `pseudooutcome`.
+Refit objects from older development versions; see
+[saved-fit migration](docs/reusing-fits.md#migrating-saved-cate-fits-after-robinson-removal).
 
 ## Regression and conditional LATE
 
@@ -128,8 +130,10 @@ uncertainty requires `s < n`; `nose` skips it. See
 ## Interpreting inference
 
 Intervals are **pointwise**. The framework assumes independent observations;
-cluster and survey-design inference are not supplied. Input row order breaks
-equal-distance ties, so reordering tied observations can change a result.
+cluster and survey-design inference are not supplied. Exact distance ties use
+the original covariates lexicographically in their supplied column order.
+Identical covariate rows retain observation-order ties, so reordering those
+duplicates can change a result. Outcomes and nuisances do not enter this ordering.
 
 Nuisance predictions must be aligned with the estimation observations.
 Propensity clipping is numerical protection, not a remedy for poor overlap.
@@ -163,3 +167,8 @@ See [CONTRIBUTING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master
 [R citation file](https://github.com/JakobJuergens/RdistNN/blob/master/inst/CITATION)
 for methodological references. The license is [GPL version 3 or later](LICENSE.md)
 with [additional permission to link the plugin with Stata](LINKING_EXCEPTION.md).
+
+## Contributors
+
+Quality assurance, testing and validation:
+[Zakareya Chehime](https://github.com/Zakareya-Chehime).

@@ -25,7 +25,7 @@ mata {
 }
 local mu_w = scalar(_mu_w)
 
-np_dnn y, x(x1 x2) x0(0.2 -0.3) k(4) s(12)
+np_dnn y, xcols(x1 x2) x0(0.2 -0.3) k(4) s(12)
 local mu_cmd = _b[mu]
 
 test_assert "[e2e] np_dnn mu = sum(w*y) from weights_dnn" abs(`mu_cmd' - `mu_w') < 1e-8
@@ -48,7 +48,7 @@ gen double m0 = x1 - 0.5 * x2    // same for D=0 and D=1 (no effect)
 gen double m1 = m0                // identical outcome models
 gen double y  = m0 + rnormal() * 0.5
 
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(5) propensity(e) m0(m0) m1(m1)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(5) ecol(e) m0col(m0) m1col(m1)
 local tau_null = _b[tau]
 local se_null  = _se[tau]
 
@@ -67,10 +67,10 @@ rdnn_dgp_basic, n(200) seed(42)
 weights_dnn x1 x2, x0(0 0) k(5) s(20)
 local neff_w = r(neff)
 
-np_dnn y, x(x1 x2) x0(0 0) k(5) s(20)
+np_dnn y, xcols(x1 x2) x0(0 0) k(5) s(20)
 local neff_np = e(neff)
 
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(5) s(20) propensity(e) m0(m0) m1(m1)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(5) s(20) ecol(e) m0col(m0) m1col(m1)
 local neff_ct = e(neff)
 
 // All three should return identical neff (same weights, same evaluation point)
@@ -83,7 +83,7 @@ test_section "integration: [consistency] ereturn survives replay"
 
 // [consistency] Calling np_dnn with no arguments replays the last results.
 rdnn_dgp_np, n(150) seed(20)
-np_dnn y, x(x1 x2) x0(1 0) k(4)
+np_dnn y, xcols(x1 x2) x0(1 0) k(4)
 local mu1 = _b[mu]
 local se1 = _se[mu]
 

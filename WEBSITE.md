@@ -1,7 +1,7 @@
 # Website copy for the Stata companion
 
 Ready-to-adapt text for the software section of jakobjuergens.com, describing
-the `0.1.0.9005` documentation and maintenance update for production `master`. Installation
+the `0.1.1` update. Installation
 and user guides are available from the repository. The latest tagged release
 remains `v0.1.0`; a tagged-release announcement should link to its verified
 source ZIP and platform-specific plugin assets.
@@ -23,9 +23,10 @@ PLQR moment evaluation is experimental and does not provide coefficient inferenc
 
 ## Source-update announcement draft
 
-RdistNN for Stata 0.1.0.9005 makes treatment-effect and regression workflows
-easier to learn, with shorter guides, eight standalone examples and updated
-installed help. Stored results identify the outcome and covariance method,
+RdistNN for Stata 0.1.1 improves numerical reliability, uses covariates to
+resolve exact distance ties, and presents a streamlined interface for new
+users. Shorter guides, eight standalone examples and updated help support
+treatment-effect and regression workflows. Stored results identify the outcome and covariance method,
 including candidate and saved-fit prediction results. The accompanying paper
 supplies the theory; the guides explain inputs, outputs and pointwise inference
 limits. Portable ado/Mata calculations and optional native acceleration remain

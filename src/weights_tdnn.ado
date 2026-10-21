@@ -59,7 +59,7 @@ program define weights_tdnn, rclass
         if(hasmissing(_td_X0)) exit(error(198))
         _td_geom=rdistnn_fit_geometry(_td_X,"`distance'","`scalerule'",strtoreal(tokens("`scalevec'")),`scaleeps')
         _td_DX=rdistnn_distance_matrix(_td_X,_td_X0,"`distance'",_td_geom)
-        _td_R=rdistnn_ranks_from_dmat(_td_DX)
+        _td_R=rdistnn_ranks_from_dmat(_td_DX,_td_X)
         _td_table=rdistnn_tdnn_table(`n',`s1',`s2',`dim',"`method'",`normalize')
         _td_W=rdistnn_tdnn_weights(_td_R,`s1',`s2',`dim',"`method'",`normalize')
         st_matrix("`geom'",_td_geom)
@@ -93,4 +93,5 @@ program define weights_tdnn, rclass
     return scalar normalize=`normalize'
     return local method "`method'"
     return local distance "`distance'"
+    return local tie_rule "distance_then_covariates_then_input_position"
 end

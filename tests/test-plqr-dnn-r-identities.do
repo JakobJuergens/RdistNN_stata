@@ -35,7 +35,9 @@ test_section "plqr_dnn: [indicator] threshold equality uses <= branch"
 
 clear
 set obs 30
-gen double x1 = _n / 30
+// Dyadic inputs make every product and sum exact, so y is truly on the
+// binary64 threshold rather than only equal to its rounded evaluation.
+gen double x1 = _n / 32
 gen double x2 = 1 - x1
 gen double d1 = 1 + x1
 gen double d2 = -0.5 + x2

@@ -7,6 +7,7 @@ foreach fn in signal_level sum compensated_sum weighted_cdf_index weighted_sd we
 capture mata: mata drop rdistnn_scale_sum()
 capture mata: mata drop rdistnn_power2()
 capture mata: mata drop rdistnn_binary_scale()
+capture mata: mata drop rdistnn_binary_parts()
 capture mata: mata drop rdistnn_weighted_quantile()
 mata:
 real rowvector rdistnn_signal_level(real matrix signal)
@@ -85,10 +86,20 @@ real scalar rdistnn_weighted_sd(real colvector x, real colvector w)
     z=x[ix]; weights=w[ix]
     mass=rdistnn_compensated_sum(weights)
     if(missing(mass) | mass<=0) return(.)
-    amplitude=max(abs(z))
-    if(amplitude==0) return(0)
-    scale=rdistnn_binary_scale(amplitude)
-    z=z:/scale; z=z:-z[1]
+    // Shift before normalization, with the common exact-subtraction guard.
+    // A tiny-weight extreme cannot erase the other outcomes' local spread.
+    z=z:-rdistnn_signal_level(z)
+    if(hasmissing(abs(z))) {
+        // A finite computed negative value can exceed Stata's positive
+        // missing boundary in magnitude. Match R's capped binary scale.
+        scale=rdistnn_power2(1022)
+    }
+    else {
+        amplitude=max(abs(z))
+        if(amplitude==0) return(0)
+        scale=rdistnn_binary_scale(amplitude)
+    }
+    z=z:/scale
     weights=weights:/mass
     center=rdistnn_compensated_sum(z:*weights)
     d=sqrt(weights):*(z:-center)
@@ -246,6 +257,30 @@ real scalar rdistnn_power2(real scalar exponent)
 real scalar rdistnn_binary_scale(real scalar amplitude)
 {
     return(rdistnn_power2(max((-1074,min((1022,floor(ln(amplitude)/ln(2))))))))
+}
+
+// Exact-power decomposition shared by bounded range recoveries. The positive
+// finite ceiling in Stata is smaller than the permitted negative magnitude.
+real rowvector rdistnn_binary_parts(real scalar value)
+{
+    real scalar amplitude,half,power,normalized
+    if(missing(value)) exit(error(198))
+    if(value==0) return((0,0))
+    amplitude=abs(value); half=0
+    if(amplitude>=.) {
+        amplitude=abs(value/2); half=1
+    }
+    power=max((-1074,min((1022,floor(ln(amplitude)/ln(2))+half))))
+    normalized=value/rdistnn_power2(power)
+    while(abs(normalized)<1 & power>(-1074)) {
+        power=power-1
+        normalized=value/rdistnn_power2(power)
+    }
+    while(abs(normalized)>=2 & power<1022) {
+        power=power+1
+        normalized=value/rdistnn_power2(power)
+    }
+    return((normalized,power))
 }
 
 // Left-continuous weighted empirical quantile used by R diagnostics.

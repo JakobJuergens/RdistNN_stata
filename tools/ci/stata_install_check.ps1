@@ -106,7 +106,6 @@ foreach command in clate_dnn clate_dnn_diagnostics clate_dnn_plot rdistnn_result
     _rdistnn_assert_from_plus `command'.sthlp, plusnorm("`plus_norm'")
 }
 _rdistnn_assert_from_plus _rdistnn_clate_mata.ado, plusnorm("`plus_norm'")
-_rdistnn_assert_from_plus _rdistnn_clate_signature.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_distance_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_plot_helpers.ado, plusnorm("`plus_norm'")
@@ -172,7 +171,7 @@ foreach metric in l1 l2 l1_scaled l2_scaled {
     mata: assert(max(abs(st_matrix("r(distances)")-st_matrix("install_distances"))) < 1e-12)
     mata: assert(max(abs(st_matrix("r(weights)")-st_matrix("install_weights"))) < 1e-12)
 }
-quietly np_dnn y, x(x1 x2) x0(0 0) k(3) s(12) distance(l1_scaled)
+quietly np_dnn y, xcols(x1 x2) x0(0 0) k(3) s(12) distance(l1_scaled)
 tempfile native_install_fit
 quietly estimates save "`native_install_fit'", replace
 preserve
@@ -187,12 +186,12 @@ restore
 capture macro drop rdistnn_distance_engine
 capture macro drop rdistnn_last_distance_engine
 
-np_dnn y, x(x1 x2) x0(0 0) k(3) s(12)
+np_dnn y, xcols(x1 x2) x0(0 0) k(3) s(12)
 if _b[mu] >= . | _se[mu] >= . {
     di as error "np_dnn returned non-finite results."
     exit 459
 }
-np_dnn y, x(x1 x2) x0(0 0)
+np_dnn y, xcols(x1 x2) x0(0 0)
 if e(k) != 1 | e(s) != floor(.4*160^(3/4)) | abs(e(lambda)-.4) > 1e-12 {
     di as error "installed np_dnn does not use the R/paper k and s defaults."
     exit 459
@@ -234,7 +233,7 @@ if _rc == 0 | "`e(se_method)'" != "none" {
     exit 459
 }
 
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) propensity(e) m0(m0) m1(m1) k(3) s(12)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) ecol(e) m0col(m0) m1col(m1) k(3) s(12)
 if _b[tau] >= . | _se[tau] >= . {
     di as error "cate_dnn returned non-finite results."
     exit 459
@@ -244,7 +243,7 @@ local se_aipw = _se[tau]
 
 gen double eclip = min(max(e, 1e-8), 1 - 1e-8)
 gen double rho_aipw = D*(y-m1)/eclip - (1-D)*(y-m0)/(1-eclip) + m1-m0
-cate_dnn rho_aipw, x(x1 x2) x0(0 0) pseudooutcome k(3) s(12)
+cate_dnn rho_aipw, xcols(x1 x2) x0(0 0) pseudooutcome k(3) s(12)
 if abs(_b[tau] - `tau_aipw') > 1e-10 | abs(_se[tau] - `se_aipw') > 1e-10 {
     di as error "installed cate_dnn pseudooutcome path does not match AIPW."
     exit 459
@@ -339,7 +338,7 @@ capture graph drop install_estimates install_diagnostics install_overlap ///
     install_np_estimates install_np_diagnostics install_np_tuning ///
     install_np_weights install_np_outcome install_np_dashboard
 
-cate_dnn rho_aipw, x(x1 x2) x0(0 0) pseudooutcome s(160) nose
+cate_dnn rho_aipw, xcols(x1 x2) x0(0 0) pseudooutcome s(160) nose
 if _b[tau] >= . | e(k) != 1 | "`e(se_method)'" != "none" {
     di as error "installed cate_dnn nose/default-k path returned invalid results."
     exit 459

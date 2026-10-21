@@ -1,7 +1,7 @@
 v 3
 d 'RDISTNN': Conditional effects and regression with DNN weights
-d Version: 0.1.0.9005
-d Distribution-Date: 20261020
+d Version: 0.1.1
+d Distribution-Date: 20261021
 d
 d Conditional average treatment effects and
 d nonparametric regression with distributional nearest-neighbor weights,
@@ -19,6 +19,7 @@ d Supported supplied-prediction binary-IV CLATE with paired
 d frozen-score covariance, CATE-style tuning, diagnostics and native plots.
 d
 d Author: Jakob Juergens
+d Contributor: Zakareya Chehime (quality assurance, testing and validation)
 d License: GNU GPL version 3 or later (GPL-3.0-or-later)
 d Native plugin: additional Stata-linking permission in rdistnn_linking_exception.md
 d
@@ -63,6 +64,7 @@ f src/weights_tdnn.ado
 f src/weights_tdnn.sthlp
 f src/_rdistnn_tdnn_mata.ado
 f src/_rdistnn_mata.ado
+f src/_rdistnn_plqr_mata.ado
 f src/_rdistnn_distance_mata.ado
 f src/_rdistnn_plot_mata.ado
 f src/_rdistnn_covariance.ado
@@ -72,7 +74,6 @@ f src/_rdistnn_geometry.ado
 f src/_rdistnn_rank_loo.ado
 f src/_rdistnn_distance_plugin.ado
 f src/_rdistnn_clate_mata.ado
-f src/_rdistnn_clate_signature.ado
 f src/_rdistnn_plot_helpers.ado
 f src/_rdistnn_sample_signature.ado
 f src/_rdistnn_estimation_state.ado
@@ -92,3 +93,8 @@ f src/rdistnn_predict.ado
 f src/rdistnn_predict.sthlp
 f src/rdistnn_candidate.ado
 f src/rdistnn_candidate.sthlp
+f src/_rdistnn_diagnostic_mata.ado
+f src/_rdistnn_localization_mata.ado
+f src/_rdistnn_tuning_plan.ado
+f src/_rdistnn_model_decode.ado
+f src/_rdistnn_model_post.ado

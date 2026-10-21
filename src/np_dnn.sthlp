@@ -16,7 +16,7 @@
 
 {pstd}
 Stata 17 or later is required. See {help rdistnn} for the package overview.
-This help describes the interface in package {bf:0.1.0.9005}.
+This help describes the interface in package {bf:0.1.1}.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -59,8 +59,9 @@ This help describes the interface in package {bf:0.1.0.9005}.
 
 {pstd}
 The documented sampling framework uses independent observations. Cluster and
-survey-design inference are not supplied. Input row order breaks distance ties;
-reordering tied observations can change estimates. Reported order fractions
+survey-design inference are not supplied. Exact distance ties use original
+covariates lexicographically; identical covariate rows retain observation-order
+ties, so reordering those duplicates can change estimates. Reported order fractions
 are descriptive and do not establish inference conditions.
 
 {pstd}
@@ -72,8 +73,7 @@ the order in {opt xcols()}.
 
 {pstd}
 The canonical covariate option {opt xcols()} corresponds to R's {cmd:x_cols}.
-The earlier Stata option {opt x()} remains a compatibility alias but cannot be
-combined with {opt xcols()}.  R's {cmd:X0}, {cmd:tuning_mode}, and
+R's {cmd:X0}, {cmd:tuning_mode}, and
 {cmd:lambda_grid} correspond to {opt x0matrix()}, {opt tuningmode()}, and
 {opt lambdagrid()}.
 
@@ -145,7 +145,7 @@ and the outcome plot for these distributional summaries.
 {title:Options}
 
 {phang}{opth xcols(varlist)} specifies the covariates defining distance and
-rank localization.  Alias: {opt x()}.
+rank localization.
 
 {phang}{opt x0(numlist)} supplies one target with one value per covariate.
 
@@ -232,7 +232,10 @@ are absolute scales, not inverse scales. Each scale is floored at the positive
 finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
 The fitted scales or Mahalanobis whitening factor remain fixed across
-jackknife deletions and saved-model predictions. Ties retain original row order.
+jackknife deletions and saved-model predictions. Exact distance ties use the
+original covariates lexicographically in their supplied column order, then
+observation order for identical covariate rows. Outcomes and nuisances do not
+enter this ordering; rank weights and effective sample size are preserved.
 
 {title:Stored results}
 
@@ -299,7 +302,6 @@ an infinite z statistic as missing.
 {synopt:{cmd:e(xvars)}, {cmd:e(x_cols)}}covariate variable names{p_end}
 {synopt:{cmd:e(x0)}, {cmd:e(x0matrix)}}supplied single-target values or source target-matrix name{p_end}
 {synopt:{cmd:e(target_source)}}{cmd:x0} or R-aligned {cmd:X0}{p_end}
-{synopt:{cmd:e(x_source)}}{cmd:xcols} or compatibility alias {cmd:x}{p_end}
 {synopt:{cmd:e(distance)}}distance metric{p_end}
 {synopt:{cmd:e(method)}}weight method{p_end}
 {synopt:{cmd:e(tuning_mode)}}{cmd:default} or {cmd:grid}{p_end}
@@ -387,8 +389,7 @@ other r-class commands replace them. {help np_dnn_diagnostics} selects
 target or candidate tables and can save a {cmd:.dta} file. {help np_dnn_plot}
 provides estimates, diagnostics, tuning, weights, outcome and dashboard
 views. Current effective-kernel views use saved numeric observations and
-geometry after active data changes. Legacy fits require original inputs,
-sample and row order for those views.
+geometry after active data changes.
 
 {pstd}
 {help rdistnn_predict} evaluates saved frozen signals at new targets with
@@ -409,4 +410,4 @@ geometry in e(model_*), including in estimates save/use files.
 {help rdistnn_predict} evaluates saved signals at new targets with optional
 frozen-score covariance. Active data and e() are preserved by default.
 post explicitly activates a derived fit; store() retains a named one.
-Legacy fits without a numeric snapshot require a refit for saved-model reuse.
+Fits without the current required numeric snapshot need refitting.

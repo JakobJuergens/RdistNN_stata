@@ -18,7 +18,7 @@ distributional nearest neighbors
 
 {pstd}
 Stata 17 or later is required. See {help rdistnn} for the package overview.
-This help describes the interface in package {bf:0.1.0.9005}.
+This help describes the interface in package {bf:0.1.1}.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -72,8 +72,9 @@ This help describes the interface in package {bf:0.1.0.9005}.
 
 {pstd}
 The documented sampling framework uses independent observations. Cluster and
-survey-design inference are not supplied. Input row order breaks distance ties;
-reordering tied observations can change estimates. Reported order fractions
+survey-design inference are not supplied. Exact distance ties use original
+covariates lexicographically; identical covariate rows retain observation-order
+ties, so reordering those duplicates can change estimates. Reported order fractions
 are descriptive and do not establish inference conditions.
 
 {pstd}
@@ -217,7 +218,7 @@ precomputed pseudo-outcome.
 {opth m1col(varname)} provides E[Y|U, D=1], corresponding to R's
 {cmd:m1_col}.  Use it with {opt m0col()} for full AIPW.
 
-{dlgtab:Compatibility aliases}
+{dlgtab:R option mapping}
 
 {pstd}
 Stata option names cannot contain underscores.  The canonical mapping removes
@@ -227,11 +228,6 @@ and {cmd:pseudo_outcome -> pseudooutcome}.  R's
 {cmd:X0} matrix is {cmd:x0matrix()}, {cmd:tuning_mode} is
 {cmd:tuningmode()}, and {cmd:lambda_grid} is {cmd:lambdagrid()}; {cmd:x0()}
 and {cmd:lambda()} are identical in both APIs.
-The earlier Stata names {cmd:x()}, {cmd:treat()}, {cmd:propensity()},
-{cmd:m0()} and {cmd:m1()} remain accepted but cannot be combined
-with their canonical counterparts.
-The accepted compatibility flag {opt noconstant} has no effect: the command
-does not estimate an intercept.
 
 {dlgtab:Tuning}
 
@@ -331,7 +327,10 @@ are absolute scales, not inverse scales. Each scale is floored at the positive
 finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
 The fitted scales or Mahalanobis whitening factor remain fixed across
-jackknife deletions and saved-model predictions. Ties retain original row order.
+jackknife deletions and saved-model predictions. Exact distance ties use the
+original covariates lexicographically in their supplied column order, then
+observation order for identical covariate rows. Outcomes and nuisances do not
+enter this ordering; rank weights and effective sample size are preserved.
 
 {title:Stored results}
 
@@ -519,8 +518,7 @@ The batch covariance can support a prespecified linear contrast, for example
 {cmd:lincom tau1-tau2} after a batch fit with inference. It does not provide
 simultaneous bands automatically. {help rdistnn_predict} evaluates new profiles
 using saved frozen signals and training geometry. Current kernel/influence
-plots use numeric snapshots after data changes; legacy fits retain the
-original-data/order guards. {help rdistnn_candidate} extracts standalone grid
+plots use numeric snapshots after data changes. {help rdistnn_candidate} extracts standalone grid
 fits and {help rdistnn_results} supplies graph-free tables.
 
 {marker references}{...}
@@ -542,7 +540,9 @@ geometry in e(model_*), including in estimates save/use files.
 {help rdistnn_predict} evaluates saved signals at new targets with optional
 frozen-score covariance. Active data and e() are preserved by default.
 post explicitly activates a derived fit; store() retains a named one.
-Legacy fits without a numeric snapshot require a refit for saved-model reuse.
+Fits without the current required numeric snapshot need refitting.
+Derived fits preserve current descriptive metadata; default reuse preserves
+the original parent's e().
 
 {title:Migration from earlier CATE inputs}
 
@@ -550,5 +550,16 @@ Legacy fits without a numeric snapshot require a refit for saved-model reuse.
 The pooled-mean options {cmd:mcol()} and {cmd:mhat()} have been removed.
 Use propensity and both arm-specific outcome means for AIPW construction, or
 an externally justified signal with {opt pseudooutcome}. A pooled outcome
-mean cannot be substituted for both arm means. Retired saved score routes
-cannot reconstruct influence calculations; refit using a supported route.
+mean cannot be substituted for both arm means. Supplied signals are localized
+unchanged; construction, causal interpretation and inference remain the
+caller's responsibility.
+
+{pstd}
+Refit objects from older development versions. Postestimation requires the
+current numeric snapshot; retired fit schemas are not reconstructed.
+The paper's residualized-slope equation is distinct from the removed normalized
+pseudo-outcome; no residualized-slope estimator is added here. Same-sample
+nuisance accuracy and stability, localization bias and pointwise inference
+retain the qualifications in {it:Inference contract}.
+For the detailed cross-interface migration explanation, see
+{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/reusing-fits.md#migrating-saved-cate-fits-after-robinson-removal":the saved-fit guide}.

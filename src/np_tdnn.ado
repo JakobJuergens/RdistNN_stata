@@ -6,14 +6,13 @@ program define np_tdnn, eclass
         _np_tdnn_Display `0'
         exit
     }
-    syntax varname(numeric) [if] [in], [X(varlist numeric) XCOLS(varlist numeric) ///
+    syntax varname(numeric) [if] [in], [XCOLS(varlist numeric) ///
         X0(numlist) X0MATRIX(name) S1(integer 1) S2(integer 2) DIM(string) ///
         METHOD(string) noNORMALIZE DISTance(string) SCALERule(string) ///
         SCALEVec(numlist) SCALEEPS(real 1e-12) noSE Level(cilevel)]
-    if "`x'"!="" & "`xcols'"!="" error 198
-    local xvars `x' `xcols'
+    local xvars `xcols'
     if "`xvars'"=="" {
-        di as error "xcols() is required (legacy alias: x())."
+        di as error "xcols() is required."
         exit 198
     }
     local outcome `varlist'

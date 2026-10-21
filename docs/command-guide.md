@@ -1,6 +1,6 @@
 # Command guide
 
-This is the compact command map for package **0.1.0.9005**. Start with the
+This is the compact command map for package **0.1.1**. Start with the
 [article index](index.md), [getting started](getting-started.md), or
 `help rdistnn` inside Stata. Each command's installed help supplies its complete
 syntax and result reference. The articles supply interpretation and runnable
@@ -37,7 +37,7 @@ See [reusing fits](reusing-fits.md) for serialization and PLQR moment scope.
 
 | Control | CATE / CLATE / NP | Standalone weights | PLQR |
 |---|---|---|---|
-| Covariates | `xcols()`; legacy `x()` | Positional varlist | `x()` |
+| Covariates | `xcols()` | Positional varlist | `x()` |
 | Targets | Exactly one `x0()` or `x0matrix()` | Exactly one `x0()` or `x0matrix()` | One `x0()` |
 | Method | `method(exact|asymp)` | Same | Same |
 | Distance | `distance(l1|l2|l1_scaled|l2_scaled|mahalanobis)` | Same | Same |
@@ -75,7 +75,7 @@ CATE's AIPW route needs treatment, propensity and both arm means.
 The positional signal with `pseudooutcome` needs no nuisance columns.
 Raw selected propensities must be finite and in [0,1] before clipping;
 `clip(1e-8)` is the default. `nose` skips covariance without removing the
-estimate. The [full guide](cate-and-regression.md) gives inputs, aliases,
+estimate. The [full guide](cate-and-regression.md) gives inputs,
 sample rules and inference requirements for all routes and NP.
 
 ## Conditional LATE
@@ -106,7 +106,7 @@ Run [plqr-moments.do](../examples/plqr-moments.do) for a complete seeded example
 supplied `thetaeval()` vector. It evaluates the localized quantile score and
 posts `e(moment)`, `e(moment_vcov)` and `e(theta_eval)`. Compatibility `e(b)`
 and `e(V)` refer to the moment and its covariance, not estimated coefficients.
-`q()` and `beta()` are temporary aliases. No local root solving, density
+No local root solving, density
 estimation, coefficient standard errors or confidence bounds are provided.
 The [PLQR guide](plqr-moments.md) explains the threshold indicator, nuisance
 roles, component order and differences from R's broader inference facilities.
@@ -151,6 +151,6 @@ Estimate/tuning plots can combine target/candidate selections; diagnostic
 views choose one scope. Rank profiles/cumulative weights are target invariant,
 and dashboards reject selection options. Unsupported options return errors.
 Current fits retain a numeric snapshot, so kernel/influence and stored-table
-views work after active data changes or `estimates use`. Legacy fits can
-require the original sample and order. The [visualization guide](visualising-fits.md)
+views work after active data changes or `estimates use`. Older development
+fits require refitting. The [visualization guide](visualising-fits.md)
 explains view selection, exports and the installed schema references.

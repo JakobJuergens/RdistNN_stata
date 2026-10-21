@@ -1,6 +1,6 @@
 // test-mata-jackknife.do
-// Tests for Mata function rdistnn_jk_se_from_ranks()
-// File under test: src/_rdistnn_mata.ado (rdistnn_jk_se_from_ranks)
+// Tests for Mata function rdistnn_jk_cov_from_ranks()
+// File under test: src/_rdistnn_mata.ado (rdistnn_jk_cov_from_ranks)
 //
 // Tags: [smoke] [edge] [bf]
 
@@ -8,7 +8,7 @@ quietly do "src/_rdistnn_mata.ado"
 do "tests/test_framework.do"
 
 // ════════════════════════════════════════════════════════════
-test_section "rdistnn_jk_se_from_ranks: [smoke] basic properties"
+test_section "rdistnn_jk_cov_from_ranks: [smoke] basic properties"
 // ════════════════════════════════════════════════════════════
 
 // [smoke] SE is finite, non-negative
@@ -19,7 +19,8 @@ mata {
     _x0   = (0, 0)
     _rnk  = rdistnn_ranks(_X, _x0, "l2")
     _sig  = rnormal(n, 1, 0, 1)
-    _se   = rdistnn_jk_se_from_ranks(_rnk, _sig, k, s, "exact")
+    _V = rdistnn_jk_cov_from_ranks(_rnk, _sig, k, s, "exact")
+    _se = sqrt(max((_V[1,1],0)))
     st_numscalar("_rse",  _se)
     st_numscalar("_rfin", (_se < .) & (_se >= 0))
 }
@@ -32,13 +33,14 @@ mata {
     _X    = rnormal(n, 2, 0, 1)
     _rnk  = rdistnn_ranks(_X, (0, 0), "l2")
     _sig  = rnormal(n, 1, 0, 1)
-    _se   = rdistnn_jk_se_from_ranks(_rnk, _sig, k, s, "asymp")
+    _V = rdistnn_jk_cov_from_ranks(_rnk, _sig, k, s, "asymp")
+    _se = sqrt(max((_V[1,1],0)))
     st_numscalar("_rfin", (_se < .) & (_se >= 0))
 }
 test_assert "[smoke] asymp JK SE is finite and non-negative" scalar(_rfin) == 1
 
 // ════════════════════════════════════════════════════════════
-test_section "rdistnn_jk_se_from_ranks: [edge] constant signal"
+test_section "rdistnn_jk_cov_from_ranks: [edge] constant signal"
 // ════════════════════════════════════════════════════════════
 
 // [edge] constant signal => all LOO estimates equal theta => SE = 0
@@ -48,13 +50,14 @@ mata {
     _X    = rnormal(n, 2, 0, 1)
     _rnk  = rdistnn_ranks(_X, (0, 0), "l2")
     _sig  = J(n, 1, 4.25)    // constant
-    _se   = rdistnn_jk_se_from_ranks(_rnk, _sig, k, s, "exact")
+    _V = rdistnn_jk_cov_from_ranks(_rnk, _sig, k, s, "exact")
+    _se = sqrt(max((_V[1,1],0)))
     st_numscalar("_r", _se)
 }
 test_assert "[edge] constant signal gives SE = 0" scalar(_r) < 1e-10
 
 // ════════════════════════════════════════════════════════════
-test_section "rdistnn_jk_se_from_ranks: [bf] brute-force LOO"
+test_section "rdistnn_jk_cov_from_ranks: [bf] brute-force LOO"
 // ════════════════════════════════════════════════════════════
 
 // [bf] Manually compute the delete-1 jackknife and compare.
@@ -68,8 +71,9 @@ mata {
     _rnk = rdistnn_ranks(_X, (0.1, -0.2), "l2")
     _sig = rnormal(n, 1, 0, 1)
 
-    // fast SE via rdistnn_jk_se_from_ranks
-    _se_fast = rdistnn_jk_se_from_ranks(_rnk, _sig, k, s, "exact")
+    // fast SE via rdistnn_jk_cov_from_ranks
+    _V = rdistnn_jk_cov_from_ranks(_rnk, _sig, k, s, "exact")
+    _se_fast = sqrt(max((_V[1,1],0)))
 
     // brute-force LOO
     _idx = (1::n)
@@ -96,7 +100,9 @@ mata {
     _rnk = rdistnn_ranks(_X, (0, 0), "l2")
     _sig = rnormal(n, 1, 0, 1)
 
-    _se_fast = rdistnn_jk_se_from_ranks(_rnk, _sig, k, s, "asymp")
+    _V = rdistnn_jk_cov_from_ranks(_rnk, _sig, k, s, "asymp")
+
+    _se_fast = sqrt(max((_V[1,1],0)))
 
     _idx = (1::n)
     _loo = J(n, 1, .)

@@ -19,7 +19,12 @@ do "tests/tests.do" "test-plqr-dnn-*"
 do "tests/tests.do" "test-weights-dnn-*"
 do "tests/tests.do" "test-mata-*"
 do "tests/tests.do" "test-r-parity-priority"
-do "tests/tests.do" "test-premerge-*"
+do "tests/tests.do" "test-premerge-clate"
+do "tests/tests.do" "test-saved-prediction"
+do "tests/tests.do" "test-candidates"
+do "tests/tests.do" "test-observation-reconstruction"
+do "tests/tests.do" "test-reporting-export-contracts"
+do "tests/tests.do" "test-canonical-covariate-ties"
 ```
 
 The optional argument is a Stata `strmatch()` wildcard matched against the
@@ -33,10 +38,11 @@ assertions as the full suite.
 | Exact represented rank tables, CDF decisions and near-full subsets | `test-exact-rank-portability.do`, `fixtures/exact_rank_tables.csv` |
 | CATE population signal behavior | `test-cate-signal-contract.do` |
 | Derived coefficient stripes and verified estimation samples | `test-derived-fit-contract.do` |
+| Canonical raw-covariate exact-distance ties, identical-X fallback, subset/permutation invariance, unchanged ESS and current saved prediction | `test-canonical-covariate-ties.do` |
 | Weighted CDF boundary indices, physical radius/SD ranges and restored predictions | `test-weighted-distribution-range.do`, `fixtures/weighted_cdf_fixtures.do` |
 | Distances and deterministic ranks | `test-mata-distances.do`, `test-mata-rank-r-mirror.do` |
 | Exact/asymptotic weights | `test-mata-weights-exact.do`, `test-mata-weights-asymp.do`, `test-weights-dnn-*.do` |
-| Native Beta convergence, endpoints/tiny tails, and numerical-error propagation without output writes | `src/plugin/test_rdistnn_weights.cpp`, `src/plugin/test_rdistnn_distance_plugin.cpp` |
+| Native exact-table subset references and active protocol failure propagation without output writes | `src/plugin/test_rdistnn_weights.cpp`, `src/plugin/test_rdistnn_distance_plugin.cpp` |
 | Scalar/vector/multi-target jackknife references | `test-mata-jackknife*.do` |
 | Compiled/fast Mata/retained naive deletion parity, matrix bridge, fallback hierarchy and all-estimator grid/covariance reuse | `test-mata-jackknife-prefix.do`, `test-jackknife-engines.do` |
 | Support-aware centering, inactive extremes, deletion boundary ranks, asymptotic tails and the shared R variance-9 fixture | `test-mata-jackknife-prefix.do`, `src/plugin/test_rdistnn_core.cpp` |
@@ -44,8 +50,15 @@ assertions as the full suite.
 | CATE score paths, batch/grid results, diagnostics, plots, and validation | `test-cate-dnn-*.do` |
 | CLATE paired signals/deletions, binary IV, statuses, batch/grid results, R parity, and all CATE plot families | `test-clate-*.do` |
 | Seeded R CLATE edge fixtures, independent subset/integrated-weight deletions, singular metric and full paired covariance | `test-premerge-clate.do` |
-| Adversarial reporting/diagnostic/plot returns, complete caller state, cold restores, sample guards and exported bands | `test-premerge-postestimation.do` |
-| Saved-model snapshots, graph-free reports, all-engine prediction, reusable candidates, cold .ster restores and independent R joint covariance | `test-fitted-results.do` |
+| Adversarial reporting/diagnostic/plot returns, complete caller state, cold restores and exported bands | `test-reporting-export-contracts.do` |
+| Current frozen sample geometry, signal/nuisance snapshots and independent observation kernels | `test-observation-reconstruction.do` |
+| Complete e() comparison, independent caller-data snapshots and enumeration-order independence | `test-state-helpers.do`, `helpers/e-state.do`, `helpers/caller-data.do` |
+| Saved-model snapshots, all-engine prediction, cold .ster restores, graph-free reports and independent R joint covariance | `test-saved-prediction.do` |
+| Reusable standalone candidates, duplicate orders and parent preservation | `test-candidates.do` |
+| Snapshot kernels and contributions after caller-data changes | `test-snapshot-observations.do` |
+| Fresh/restored/candidate diagnostic equality across supplied/AIPW/IV routes, methods and geometries | `test-diagnostic-route-contracts.do` |
+| Recoverable contribution ranges, zero support, overflowing totals and matching fresh/restored concentration | `test-diagnostic-contribution-range.do` |
+| Current-result descriptive metadata and representable propensity clipping | `test-stored-result-metadata.do`, `test-clipping-validation.do` |
 | Experimental PLQR moment semantics and covariance | `test-plqr-dnn-*.do` |
 | L1/scaled geometry, batch weight exports, frozen new-target prediction | `test-geometry-batch.do` |
 | Rank-sensitive R quantiles, finite extreme fitted SD/MAD, failed-scale validation and scaled L1 recovery | `test-geometry-numerical-stability.do` |
@@ -53,7 +66,6 @@ assertions as the full suite.
 | Shared covariance, recoverable raw-sum overflow and subnormal aggregates, unavailable variance and estimator errors | `test-covariance-range.do` |
 | Actual R native/fallback distance and rank fixtures; forced distance routes, invalid protocol inputs, overflow, matrix dimensions above matsize | `test-native-distances.do` |
 | Native/Mata equivalence for every estimator, metric/scaling rule and weight method, tuning and saved-fit prediction | `test-native-distances-estimators.do` |
-| Actual older-plugin capability probing, automatic fallback and forced-mode errors (separate old-binary process) | `test-native-distances-compat.do` |
 | Two-scale signed regression/weights, full covariance, reporting and saved reuse | `test-tdnn.do`, `test-tdnn-saved.do` |
 | Independent tiny Beta masses, close-order TDNN coefficients and affected estimator/prediction paths | `test-weight-numerical-stability.do`, `src/plugin/test_rdistnn_weights.cpp` |
 | Extreme L2 recovery, shared arithmetic boundaries, exact ranks and genuine output overflow | `test-distance-range-stability.do`, `src/plugin/test_rdistnn_distance.cpp`, `src/plugin/test_rdistnn_distance_plugin.cpp` |
@@ -89,7 +101,7 @@ contract change; each output records its reference identity where applicable:
 | Exact rank tables | `generate_exact_rank_fixtures.R` | `test-exact-rank-portability` |
 | CLATE and audit edge cases | `generate_r_clate_fixtures.R`, `generate_r_clate_audit_fixtures.R` | `test-clate-r-parity`, `test-premerge-clate` |
 | Shared defaults/estimators | `generate_r_priority_fixtures.R` | `test-r-parity-priority` |
-| Reporting and reusable fits | `generate_r_reporting_fixtures.R`, `generate_r_reuse_fixtures.R` | `test-estimator-reporting`, `test-fitted-results` |
+| Reporting and reusable fits | `generate_r_reporting_fixtures.R`, `generate_r_reuse_fixtures.R` | `test-estimator-reporting`, `test-saved-prediction`, `test-candidates` |
 | Weighted CDF boundaries (both packages) | `generate_weighted_cdf_fixtures.py` | `test-weighted-distribution-range` |
 
 Use `Rscript tools/GENERATOR.R` or `python3 tools/GENERATOR.py` as appropriate.
@@ -103,9 +115,7 @@ native sum, cross-product and rank-deletion kernels before export.
 The full suite requires a matching plugin for direct parser and forced native
 checks. Native absence is not a passing native comparison. The bundled binary
 serves Windows x64; other hosts need a matching build. End-to-end native distance
-tests hold the jackknife at Mata to isolate the distance dispatcher. The old
-binary compatibility suite normally skips; run it in a separate Stata process
-with an actual older plugin and `global rdistnn_test_old_distance_plugin 1`.
+tests hold the jackknife at Mata to isolate the distance dispatcher.
 
 Distance selectors are `global rdistnn_distance_engine mata` or `plugin`;
 jackknife selectors are `global rdistnn_jackknife_engine plugin`, `mata` or
@@ -131,3 +141,23 @@ The core loading gateway is `_rdistnn_mata.ado`; source modules own definitions
 and reload guards. The [numerical reference](../docs/numerical-stability.md)
 records helper ownership. Tests protect caller functions: the combinatorial
 reference is `rdistnn_log_binomial()` and must not occupy or drop `lncomb()`.
+
+## Shared test ownership
+
+`helpers/fitted-data.do` creates the deterministic sample used by independently
+selectable saved-prediction, candidate and snapshot-observation suites.
+`helpers/e-state.do` compares all matrix values and stripes without depending on
+field enumeration order. Its full mode also compares macros, scalars and
+`e(sample)`; `numeric` compares the numeric matrices for numerical checks.
+Both modes preserve the active estimation state. Inert complete-e snapshots
+create no estimation stores or dataset sample-marker variables. Caller-data values and variable
+metadata use the separate `helpers/caller-data.do` adapter, composed with the
+estimation comparator by `helpers/postestimation-state.do`.
+
+Current metadata belongs to `test-stored-result-metadata.do`.
+Each behavior suite appears exactly once in
+`tests.do`, checked by `tests/ci/test_package_maintenance.py`. Run any named suite
+through the master wildcard argument, including `test-saved-prediction`,
+`test-candidates`, `test-observation-reconstruction` and
+`test-reporting-export-contracts`. Reporting/export retains the fixed
+`build/premerge/postestimation-*-profile.svg` filenames consumed by the SVG gate.

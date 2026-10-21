@@ -70,12 +70,6 @@ mata {
 test_assert "[determinism] target reordering permutes estimates only" scalar(_np_batch_perm_b) < 1e-12
 test_assert "[determinism] target reordering permutes joint covariance" scalar(_np_batch_perm_v) < 1e-12
 
-quietly np_dnn y_np, x(x1 x2) x0(0.2 -0.1) k(2) s(5)
-local scalar_mu = _b[mu]
-local scalar_se = _se[mu]
-test_assert "[batch] first target estimate equals scalar fit" abs(`scalar_mu' - B_np_batch[1,1]) < 1e-12
-test_assert "[batch] first target SE equals scalar fit" abs(`scalar_se' - sqrt(V_np_batch[1,1])) < 1e-12
-test_assert "[compat] legacy x() remains supported" "`e(x_source)'" == "x"
 
 test_section "np_dnn: [nose] estimate-only batch behavior"
 
@@ -128,11 +122,11 @@ mata {
     _NDg = st_matrix("D_np_grid"); _NDr = st_matrix("R_np_grid_diagnostics")
     st_numscalar("_np_grid_c_r", max(abs(st_matrix("C_np_grid") - st_matrix("R_np_grid_candidates"))))
     st_numscalar("_np_grid_e_r", max(abs(editmissing(_NEg,0) - editmissing(_NEr,0))))
-    st_numscalar("_np_grid_e_missing", sum(vec(missing(_NEg) :!= missing(_NEr))))
+    st_numscalar("_np_grid_e_missing", sum(vec((_NEg:>=.) :!= (_NEr:>=.))))
     st_numscalar("_np_grid_s_r", max(abs(editmissing(_NSg,0) - editmissing(_NSr,0))))
-    st_numscalar("_np_grid_s_missing", sum(vec(missing(_NSg) :!= missing(_NSr))))
+    st_numscalar("_np_grid_s_missing", sum(vec((_NSg:>=.) :!= (_NSr:>=.))))
     st_numscalar("_np_grid_d_r", max(abs(editmissing(_NDg,0) - editmissing(_NDr,0))))
-    st_numscalar("_np_grid_d_missing", sum(vec(missing(_NDg) :!= missing(_NDr))))
+    st_numscalar("_np_grid_d_missing", sum(vec((_NDg:>=.) :!= (_NDr:>=.))))
     st_numscalar("_np_grid_default_b", max(abs(st_matrix("B_np_grid") - st_matrix("R_np_grid_estimates")[2,.])))
     st_numscalar("_np_grid_default_s", max(abs(sqrt(diagonal(st_matrix("V_np_grid")))' - st_matrix("R_np_grid_se")[2,.])))
     st_numscalar("_np_grid_default_ess", max(abs(st_matrix("ESS_np_grid") - st_matrix("R_np_grid_default_ess")')))
@@ -230,8 +224,6 @@ test_assert "[plot] candidate weight profiles are supported" r(n_plotted) == 3
 
 test_section "np_dnn: [errors] expanded interface validation"
 
-capture noisily np_dnn y_np, x(x1 x2) xcols(x1 x2) x0(0 0)
-test_assert "[errors] x() and xcols() are mutually exclusive" _rc == 198
 capture noisily np_dnn y_np, xcols(x1 x2) x0(0 0) x0matrix(X0_np)
 test_assert "[errors] x0() and x0matrix() are mutually exclusive" _rc == 198
 matrix X0_bad_np = (0,0,0)
