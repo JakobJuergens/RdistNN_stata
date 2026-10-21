@@ -51,6 +51,10 @@ distributions, so TDNN does not report weighted outcome quantiles or variances.
 
 {title:Saved results}
 
+{pstd}
+{cmd:e(depvar)} records the outcome. {cmd:e(vce)} is signed_rank_shift or
+none; {cmd:e(vcetype)} is Jackknife, or empty with {cmd:nose}.
+
 {p 4 4 2}
 {cmd:e(estimates)}, {cmd:e(se_targets)}, {cmd:e(estimate_vcov)},
 {cmd:e(targets)}, and {cmd:e(diagnostics)} retain all targets.

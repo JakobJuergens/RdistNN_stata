@@ -1,81 +1,57 @@
 # RdistNN for Stata
 
 **RdistNN for Stata** estimates conditional treatment effects and regression
-functions using distributional nearest-neighbor (DNN) weights. Fit at selected
-covariate profiles, report pointwise estimates and delete-one jackknife
-standard errors, and inspect localization, overlap and sensitivity to tuning
-choices.
-
-CATE, nonparametric regression and conditional LATE (CLATE) are supported
-workflows, with shared reporting and plotting interfaces. You supply nuisance
-predictions for the causal estimators; the package constructs the adjusted
-signals and performs the local estimation and uncertainty calculations.
+functions using distributional nearest-neighbor (DNN) weights. Choose covariate
+profiles, fit local estimates, and inspect jackknife standard errors, local
+support and tuning sensitivity. For causal estimation, you supply nuisance
+predictions; the package constructs the adjusted signals and performs local
+estimation.
 
 [Get started](docs/getting-started.md)
 · [Command guide](docs/command-guide.md)
-· [CLATE guide](docs/conditional-late.md)
-· [Report an issue](https://github.com/JakobJuergens/RdistNN_stata/issues)
-
-Use [saved-fit reporting, candidate extraction and prediction](docs/reusing-fits.md)
-to report estimates, inspect stored tuning candidates and predict from saved
-fits. The [R companion](https://github.com/JakobJuergens/RdistNN) provides the
-same core estimation workflows; the [crosswalk](docs/r-documentation-crosswalk.md)
-records shared capabilities and R-only interfaces.
+· [R companion](https://github.com/JakobJuergens/RdistNN)
 
 ## Installation
 
-Install the published GitHub snapshot:
+Stata **17 or later** is required:
 
 ```stata
 net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/master/") replace
 help rdistnn
 ```
 
-These guides describe the **0.1.0.9004 development snapshot**. The GitHub
-command installs the production source on `master`.
-Retain the source commit or archive identity: different source snapshots can
-share the same development version.
+This installs production `master`, currently **0.1.0.9005**. The portable
+ado/Mata implementation runs on Windows, macOS and Linux without R, Python or
+a compiler. Native acceleration is optional; see the [plugin guide](src/plugin/README.md)
+for platform-specific binaries.
 
-Stata **17 or later** is required. Ordinary use needs no R installation,
-Python or compiler. The ado/Mata implementation supports Windows, macOS and
-Linux; the optional native plugin is described below.
-
-For a version-pinned installation, use a tag in place of `master`, for example
-`v0.1.0`. [Release 0.1.0](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.0)
-contains the original CATE and regression workflows and predates the recent
-CLATE and shared reporting additions; open `help cate_dnn` or `help np_dnn`
-with that release. Release assets also provide a source ZIP, checksums and
-platform-specific plugins. See the
-[installation guide](docs/getting-started.md#install-and-open-help) for alternatives.
-For installation from a downloaded source ZIP, verify its checksum, extract
-it, and run `net install rdistnn, from("path/to/extracted/rdistnn-source") replace`,
-using the directory containing `rdistnn.pkg`.
+For reproducible installation, retain the full source commit or checked archive
+identity; [RELEASING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/RELEASING.md)
+explains candidate installation and historical pins. The historical `v0.1.0` tag predates CLATE and
+the current shared reporting interface. Retain the source commit or archive
+identity alongside your results.
 
 ## Choose a workflow
 
-| Goal | Entry point | Inputs and scope |
-| --- | --- | --- |
-| Conditional average treatment effects | `cate_dnn` | Outcome, binary treatment and supplied outcome/propensity predictions, or a supplied pseudo-outcome |
-| Conditional mean regression | `np_dnn` | Outcome and covariates; no nuisance predictions needed |
-| Conditional effects among compliers | `clate_dnn` | Binary instrument and treatment, outcome and supplied instrument-arm nuisance predictions |
-| A ratio of two local conditional means | `clate_dnn, pseudooutcome denominator()` | Two aligned signals with paired covariance |
-| Two-scale regression | `np_tdnn`, `weights_tdnn` | Signed combination of two DNN scales; additional smoothness conditions |
-| Inspect or reuse DNN weights | `weights_dnn` | Covariates and single/batch targets; exports weights, ranks and distances |
+| Goal | Command | Main inputs |
+|---|---|---|
+| Conditional average treatment effects | `cate_dnn` | Outcome, treatment and supplied outcome/propensity predictions, or a supplied pseudo-outcome |
+| Conditional mean regression | `np_dnn` | Outcome and covariates |
+| Conditional effects among compliers | `clate_dnn` | Outcome, binary treatment/instrument and instrument-arm nuisance predictions |
+| Ratio of two local means | `clate_dnn, pseudooutcome denominator()` | Two aligned signals |
+| Two-scale regression | `np_tdnn`, `weights_tdnn` | Outcome and two localization orders |
+| Reusable DNN weights | `weights_dnn` | Covariates and target profiles |
 
-Use `xcols()` to select localization covariates, `x0()` for one target, or
-`x0matrix()` for a matrix with one target per row. CATE, CLATE and single-scale regression
-support exact weights (the default), `method(asymp)`, L1/L2, scaled L1/L2 and Mahalanobis distance,
-and candidate tuning grids. For supplied-coefficient quantile-score moments,
-see the [experimental PLQR guide](docs/plqr-moments.md); `plqr_dnn` does not
-solve for coefficients or provide coefficient inference.
+Use `xcols()` for localization covariates, `x0()` for one profile or
+`x0matrix()` for a matrix whose rows are profiles. Target columns follow the
+order in `xcols()`.
 
-## Conditional average treatment effects
+## A first CATE fit
 
-This self-contained example replaces the active dataset with simulated
-observations. It uses **oracle nuisance values** to illustrate the interface.
-In an application, replace these columns with aligned predictions of the
-two conditional outcome means and treatment propensity. The estimator does
-not fit those nuisance models.
+This self-contained simulation clears the active dataset and uses **oracle
+nuisances**. In an application, replace them with aligned predictions of the
+control outcome mean, treated outcome mean and treatment propensity. The
+package does not fit those models.
 
 ```stata
 clear
@@ -93,277 +69,97 @@ matrix X0 = (-1,0 \ -0.5,0 \ 0,0 \ 0.5,0 \ 1,0)
 cate_dnn Y, tcol(D) xcols(x1 x2) x0matrix(X0) ///
     ecol(e_oracle) m0col(m0_oracle) m1col(m1_oracle) tuningmode(grid)
 matrix cate_summary = r(summary)
+estimates store cate_fit
 matrix list cate_summary
 cate_dnn_diagnostics
 cate_dnn_plot, type(estimates) style(profile) replace
 ```
 
-This estimates AIPW CATE at five profiles, holding `x2` at zero. For an externally constructed score, use
-`cate_dnn score, xcols(x1 x2) x0(0 0) pseudooutcome`.
-The [CATE and regression guide](docs/cate-and-regression.md) explains the
-input routes and returned results; the
-[complete quick start](examples/getting-started.do) runs each route.
+Each row reports an effect, standard error and pointwise confidence bounds.
+Copy `r()` results before another command replaces them; `estimates store`
+keeps the fitted model for later use. The [quick start](docs/getting-started.md)
+explains supplied-score inputs and saved results. Earlier `mcol()`/`mhat()`
+calls should use both arm means for AIPW or a supplied `pseudooutcome`.
 
-The candidate supports AIPW nuisance construction and supplied signals. Earlier
-`mcol()` and `mhat()` options have been removed. Supply both arm-specific
-outcome means and propensity for AIPW, or an externally justified signal with
-`pseudooutcome`; a pooled mean is not a substitute for both arm means.
+## Regression and conditional LATE
 
-The header reports `s/n` descriptively. Use `cate_dnn_diagnostics` to inspect
-arm effective sample sizes, weight and score concentration, and propensity
-summaries; `detail` exposes the full target table. Numerical clipping does
-not establish overlap and no new heuristic warning thresholds are applied.
-
-The documented sampling framework uses independent observations. Cluster and
-survey-design inference are not supplied. Equal distances are ordered by input
-row, so permuting tied observations can change an estimate.
-
-## Nonparametric regression
-
-Using the same simulated outcome and targets:
+For a conditional mean, reuse the same outcome, covariates and targets without
+nuisance inputs:
 
 ```stata
-np_dnn Y, xcols(x1 x2) x0matrix(X0) tuningmode(grid)
+np_dnn Y, xcols(x1 x2) x0matrix(X0)
 matrix regression_summary = r(summary)
 matrix list regression_summary
-np_dnn_diagnostics
-np_dnn_plot, type(estimates) replace
-np_dnn_plot, type(outcome) replace
 ```
 
-The estimate is the local conditional mean of `Y`. Outcome panels additionally
-show weighted outcome quantiles: their 10th–90th percentile range describes
-local outcome dispersion, rather than uncertainty about the mean.
-Each estimator replaces Stata's active estimation results; use its matching
-diagnostics and plot commands after fitting it.
-Regression shares numeric reporting, candidate extraction and saved-fit
-prediction with CATE and CLATE. Joint covariance uses common deletions across
-targets; saved prediction retains training outcomes and geometry. For signed
-two-scale regression, see the [TDNN guide](docs/two-scale-regression.md).
+Each fit replaces the active `e()` results. Use `estimates restore cate_fit`
+before CATE postestimation. The [saved-fit guide](docs/reusing-fits.md) explains
+reporting, candidate extraction and prediction at new profiles.
 
-## Conditional LATE
+Use `clate_dnn` for conditional LATE with a binary instrument and treatment.
+Supply the instrument propensity and outcome/treatment means in each
+instrument arm. The [CLATE guide](docs/conditional-late.md) and
+[runnable IV example](examples/clate.do) explain the inputs, paired covariance
+and status outputs. Inspect the first stage alongside the ratio; weak local
+first stages can make Wald intervals unreliable.
 
-With a binary instrument and binary treatment, `clate_dnn` estimates the
-conditional effect among compliers under the IV assumptions. Supply the
-instrument propensity and the conditional means of the outcome and treatment
-in each **instrument arm**. The reporting coordinates in `xcols()` can be a
-subset of the covariates used to construct those predictions.
+## Reporting, plots and tuning
 
-The following example is self-contained and replaces the active dataset.
-It uses a simulated one-sided encouragement design with labelled oracle
-predictions. `A` is the instrument and `D` is the treatment.
+Replay the fitted command to change `level()` without refitting. Its matching
+`_diagnostics` command reports local support, and `_plot` draws estimates,
+weights, overlap and tuning comparisons. See [reporting](docs/diagnostics-and-reporting.md)
+and [plotting](docs/visualising-fits.md) for selection, saving and export.
+Saved estimates retain observation-level numeric data and inherit the data's
+sharing restrictions.
 
-```stata
-clear
-set obs 160
-set seed 4711
-gen double x1 = rnormal()
-gen double x2 = rnormal()
-gen double e_oracle = invlogit(.3*x1-.2*x2)
-gen byte A = runiform() < e_oracle
-gen double my0_oracle = .5*x1-.2*x2
-gen double md1_oracle = invlogit(.4+.2*x1)
-gen double md0_oracle = 0
-gen double tau_oracle = 1+.3*sin(x1)
-gen byte D = A*(runiform() < md1_oracle)
-gen double Y = my0_oracle + tau_oracle*D + rnormal()*.3
-gen double my1_oracle = my0_oracle + md1_oracle*tau_oracle
+![CATE profile from the simulated diagnostics tutorial](docs/figures/cate-profile.png)
 
-matrix X0 = (-.5,0 \ 0,0 \ .5,0)
-clate_dnn Y, xcols(x1 x2) x0matrix(X0) dcol(D) acol(A) ///
-    ecol(e_oracle) my0col(my0_oracle) my1col(my1_oracle) ///
-    md0col(md0_oracle) md1col(md1_oracle) onesided ///
-    training(oracle) tuningmode(grid)
-matrix clate_summary = r(summary)
-matrix list clate_summary
-matrix list e(components)
-matrix list e(status)
-```
+The [diagnostics tutorial](examples/diagnostics-and-plots.do) produces this
+example with oracle nuisances; its ribbon shows pointwise confidence bounds.
 
-Both component means use the same DNN weights. Ratio uncertainty retains
-their paired covariance, holding the supplied signals fixed. To supply the
-signals directly, use the positional numerator with `pseudooutcome` and
-`denominator(variable)`. The [CLATE guide](docs/conditional-late.md) and
-[runnable IV example](examples/clate.do) explain both routes and numerical
-statuses. Inspect the first stage alongside the ratio: ordinary Wald
-intervals can be misleading when the first stage is weak. Undefined ratios
-retain their components and original target positions in the full tables.
-
-## Shared reporting and plots
-
-CATE, CLATE and regression follow the same reporting pattern. After the
-CLATE fit above, replay at a different confidence level without refitting:
-
-```stata
-clate_dnn, level(90)
-matrix coefficient_table = r(table)
-matrix summary_table = r(summary)
-clate_dnn_diagnostics, targets(1 3) detail
-matrix diagnostic_table = r(diagnostics)
-clate_dnn_plot, type(estimates) style(forest) level(90) replace
-matrix figure_data = r(plot_data)
-```
-
-Use `cate_dnn` or `np_dnn` and its matching postestimation commands for the
-other workflows. `r(summary)` has columns `estimate`, `std_error`, `z`,
-`pvalue`, `ci_lower` and `ci_upper`. Copy `r()` results before another
-r-class command replaces them. `e(estimates)`, `e(se_targets)` and
-`e(estimate_vcov)` retain all targets and cross-target covariance; CLATE's
-`e(b)` may contain only the subset with defined ratios.
-
-| Plot type | What it shows |
-| --- | --- |
-| `type(estimates)` | Estimates and pointwise confidence bounds; profile, forest or pointrange styles |
-| `type(weights)` | Rank weights, cumulative mass or observation-level kernel weights |
-| `type(overlap)` | Treatment overlap for CATE; **instrument** overlap for CLATE |
-| `type(influence)` | CATE score contributions or CLATE paired-score residual contributions |
-| `type(tuning)` | Sensitivity across stored tuning candidates |
-| `type(diagnostics)` | Localization and weight concentration |
-| `type(outcome)` | Conditional means and weighted outcome quantiles; regression only |
-| `type(dashboard)` | A combined view of the available panels |
-
-Overlap and influence panels apply to CATE and CLATE; outcome panels apply
-to regression.
-
-Add `saving("figure.png")` or `saving("figure.pdf")` to export a graph;
-diagnostic commands accept `saving("diagnostics.dta")`. Use `targets()` and
-`candidates()` to inspect selected profiles and tuning choices. Observation-
-level plots use the fitted numeric snapshot, including after data edits or
-`clear`. Legacy fits without that snapshot require the original estimation
-data and order. See [diagnostics and reporting](docs/diagnostics-and-reporting.md)
-and [visualising fits](docs/visualising-fits.md) for options and returned data.
-
-![CATE estimates with pointwise confidence bounds from the simulated diagnostics tutorial](docs/figures/cate-profile.png)
-
-This profile comes from the [diagnostics and plots tutorial](examples/diagnostics-and-plots.do),
-which uses simulated observations and oracle nuisances. The ribbon shows
-pointwise confidence intervals. The [plot gallery](docs/visualising-fits.md#gallery-from-the-runnable-example)
-also illustrates dashboards, CLATE forest plots and local outcome distributions.
-
-## Localization and tuning
-
-With default `k(1)` and no explicit order, the paper rule uses
-`s = floor(.4*n^((kx+1)/(kx+2)))`, where `n` is the complete estimation-sample
-size and `kx` is the number of localization covariates. `s` is the subsample
-order: larger `s` tightens localization; this is
-opposite to the usual bandwidth convention.
-Exact top-`k` weights have positive support of size `n - s + k`; with
-`k(1)`, this is `n - s + 1`.
-
-Supply `s()` directly or use `tuningmode(grid)` to compare multipliers
-`.3 .4 .5 .75`, retaining `.4` as the fitted default. `sgrid()` supplies
-orders directly. Grids are sensitivity analyses; they do not automatically
-select a tuning value. Plot stored candidates after a grid fit with
-`clate_dnn_plot, type(tuning) allcandidates replace`, or the corresponding
-CATE/regression command. See [weights and tuning](docs/weights-and-tuning.md).
-
-Jackknife uncertainty requires `s < n`. `nose` skips uncertainty calculations.
-The manuscript's DNN derivations use exact weights and `k=1`; larger fixed
-`k` and asymptotic weights need their corresponding statistical conditions.
+The default is exact DNN with `k(1)`. Larger `s()` tightens localization;
+`tuningmode(grid)` compares candidate orders while retaining the default fit.
+Grids are sensitivity comparisons, not automatic selection. Jackknife
+uncertainty requires `s < n`; `nose` skips it. See
+[weights and tuning](docs/weights-and-tuning.md) for the default rule and options.
 
 <a id="inference-and-localization"></a>
 
 ## Interpreting inference
 
-Reported confidence intervals are **pointwise**, rather than simultaneous
-bands across a covariate profile. Valid inference requires the relevant
-design, overlap, nuisance accuracy, deletion stability and localization-bias
-conditions. Orthogonality alone does not justify arbitrary same-sample
-nuisance reuse; the paper's nuisance-rate and full-state stability conditions
-also matter. Oracle, out-of-fold and full-sample predictions each require
-the assumptions appropriate to their training procedure.
+Intervals are **pointwise**. The framework assumes independent observations;
+cluster and survey-design inference are not supplied. Input row order breaks
+equal-distance ties, so reordering tied observations can change a result.
 
-Supplied propensity predictions must be finite and lie in `[0,1]`; nuisance-
-based CATE/CLATE scores clip them to `[clip,1-clip]`, with default `clip=1e-8`.
-Supplied pseudo-outcomes are used unchanged. Clipping and favorable effective
-sample size or overlap diagnostics do not establish valid inference, and
-jackknife uncertainty does not remove localization bias.
-
-CLATE additionally needs consistency, exclusion, conditional instrument
-independence, monotonicity and positive local compliance. Its target generally
-differs from population CATE. The Stata interface provides pointwise Wald
-reporting, without a weak-instrument-uniform guarantee. See the
-estimator-specific inference sections in the [CATE/regression](docs/cate-and-regression.md)
-and [CLATE](docs/conditional-late.md) guides before using these intervals.
+Nuisance predictions must be aligned with the estimation observations.
+Propensity clipping is numerical protection, not a remedy for poor overlap.
+Diagnostics describe local support; they do not establish validity. For the
+identification, nuisance-learning and localization conditions and theoretical
+results, see the accompanying
+[paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z).
+The guides explain the corresponding inputs and outputs.
 
 <a id="optional-native-acceleration"></a>
 
 ## Numerical behavior and engines
 
-The R and Stata implementations share stable close-order TDNN coefficients,
-Beta interval masses that preserve represented tail weights, and recovery of
-finite L2 norms when intermediate squares overflow or underflow. Ordinary
-distance arithmetic retains deterministic ranks and original-row tie breaking.
-Mahalanobis geometry uses a cached centered-design SVD and the same native/Mata
-L2 norms after projection. Shared covariance helpers recover representable
-extreme variances; unrepresentable nonzero variance gives a rescaling error,
-or the existing per-target CLATE numerical-failure status.
-Compensated sums protect weighted means and rank-weight normalization.
-Deletion calculations retain corrections through the final prefix/suffix
-combination, using shared arithmetic across estimator and prediction paths.
-See the [numerical stability guide](docs/numerical-stability.md) for the shared
-arithmetic contract and numeric limits.
+Ordinary use works with the portable Mata implementation. The optional plugin
+accelerates distance and jackknife calculations; install the binary matching
+your platform using the [plugin guide](src/plugin/README.md). Its engine
+controls and the [numerical implementation reference](docs/numerical-stability.md)
+are intended for performance work and troubleshooting.
 
-The optional plugin computes scalar and batched L1, L2, scaled L1 and scaled
-L2 distances through the shared geometry layer for weights, NP, TDNN, CATE,
-PLQR, CLATE and saved-fit prediction. Scale fitting, stable ranks and weight
-tables and Mahalanobis factorization use Mata; projected Mahalanobis norms
-use the selected L2 engine. The plugin also
-accelerates frozen-score jackknife deletions for all five estimators.
-Both compiled and Mata jackknife engines use prefix/suffix sums with one
-rank-weight table per order, avoiding repeated delete-one weight calculations.
-The bundled plugin is a Windows x86-64 PE binary. Substantial batches attempt the plugin on every platform;
-execution falls back to Mata if it is missing, incompatible or lacks the new
-distance API. An older binary can still provide its existing jackknife API.
+## Further reading and help
 
-Set `global rdistnn_distance_engine plugin` to require compiled distances or
-`mata` to select their portable reference; drop the global for automatic
-dispatch. This selector takes precedence over `rdistnn_use_plugin`, whose
-values `0` and `1` disable or require eligible native calls in auto mode.
-`rdistnn_last_distance_engine` records the route of the last distance calculation.
-Automatic distance dispatch keeps scalar and small batches in Mata because
-matrix transfer can outweigh the C++ savings; explicit requirements bypass
-this size policy. See the [plugin guide](src/plugin/README.md) for the bounds.
+The [article index](docs/index.md) routes all workflows and runnable examples;
+`help rdistnn` opens installed command references. The
+[R crosswalk](docs/r-documentation-crosswalk.md) identifies shared and R-only
+features. Experimental `plqr_dnn` evaluates moments at supplied coefficients;
+it does not estimate coefficients or provide coefficient inference.
 
-Jackknife dispatch tries compiled prefix/suffix sums, then the fast Mata
-implementation, then retained naive deletions if the fast Mata engine is
-unavailable or its sums are nonfinite. Set `global rdistnn_jackknife_engine`
-to `plugin`, `mata` or `naive` for explicit route/parity checks; drop the global
-to restore automatic dispatch. Native distance and jackknife matrices are created
-through Mata and can exceed `c(matsize)` without changing that setting.
-See the plugin guide for controls.
-
-Release assets include plugins for Windows x86-64, Linux x86-64, macOS arm64
-and macOS x86-64, with checksums. To use native acceleration, install the asset
-matching your platform as `rdistnn.plugin` on Stata's adopath. See the
-[plugin guide](src/plugin/README.md) for installation, build and fallback controls.
-
-## Further documentation
-
-- [Getting started](docs/getting-started.md) covers installation and a first result.
-- [Notation and conventions](docs/notation-and-conventions.md) explains arguments and returned quantities.
-- [Diagnostics and reporting](docs/diagnostics-and-reporting.md) covers local support, summaries and saved tables.
-- [The article collection](docs/index.md) links all guides and eight standalone examples; `help rdistnn` opens the installed command references.
-- [The R documentation crosswalk](docs/r-documentation-crosswalk.md) maps shared workflows and R-only features. [RdistNN](https://github.com/JakobJuergens/RdistNN) is the numerical reference for shared implementations.
-
-The package accompanies
-[Orthogonal Inference for Conditional Z-Estimation without Cross-Fitting](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z).
-See the [R companion's citation information](https://github.com/JakobJuergens/RdistNN/blob/master/inst/CITATION)
-for the methodological references. When reporting results, identify the Stata
-package version or commit you used. [Release notes](RELEASE_NOTES.md) record
-changes and experimental features.
-
-## Help and contributions
-
-Report problems or ask usage questions through the
-[issue tracker](https://github.com/JakobJuergens/RdistNN_stata/issues), including
-a minimal reproducible example, your Stata version, operating system and the
-installed release or commit. Contributions are welcome;
-[CONTRIBUTING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/CONTRIBUTING.md)
-links development and verification procedures.
-
-The original code is licensed under
-[GNU GPL version 3 or later](LICENSE.md), with
-[additional permission to link the native plugin with Stata](LINKING_EXCEPTION.md).
-Original third-party notices are preserved. Installation also places the
-license notices in Stata's PLUS directory.
+Report problems through the [issue tracker](https://github.com/JakobJuergens/RdistNN_stata/issues)
+with a minimal example, Stata version, operating system and package commit.
+See [CONTRIBUTING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/CONTRIBUTING.md) for development and the
+[R citation file](https://github.com/JakobJuergens/RdistNN/blob/master/inst/CITATION)
+for methodological references. The license is [GPL version 3 or later](LICENSE.md)
+with [additional permission to link the plugin with Stata](LINKING_EXCEPTION.md).

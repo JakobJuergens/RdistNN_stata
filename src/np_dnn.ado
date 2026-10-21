@@ -494,6 +494,9 @@ program define np_dnn, eclass
     ereturn local tuning_reason_codes "0=ok 1=k_gt_s 2=jackknife_requires_s_lt_n 3=s_gt_n"
     ereturn local se_method = cond("`se'" == "", "rank_shift", "none")
     ereturn local jackknife = cond("`se'" == "", "fast", "none")
+    ereturn local vce = cond("`se'" == "", "rank_shift", "none")
+    ereturn local vcetype = cond("`se'" == "", "Jackknife", "")
+    ereturn local depvar "`outcome'"
     ereturn local outcome "`outcome'"
     ereturn local signal "`outcome'"
     ereturn local cmd "np_dnn"

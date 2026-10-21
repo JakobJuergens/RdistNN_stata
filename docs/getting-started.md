@@ -1,51 +1,27 @@
 # Getting started
 
-RdistNN for Stata estimates conditional average treatment effects (CATE) and
-conditional means with distributional nearest-neighbor (DNN) weights. You
-supply the observations, localization covariates and target profiles. For
-CATE, you also supply nuisance predictions or a previously constructed
-pseudo-outcome. The package computes local estimates, delete-1 jackknife
-uncertainty, diagnostics and Stata graphs.
-
-These articles document package **0.1.0.9004** in the development snapshot, including supported supplied-prediction
-conditional LATE and two-scale regression and shared reporting. Start with the
-[article index](index.md) to find a particular workflow.
+This walkthrough fits conditional average treatment effects (CATE) and
+conditional means at selected covariate profiles. It uses simulated data with
+**oracle nuisance values**. In an application, supply aligned predictions
+from your own outcome and treatment models; the package does not fit them.
+The [paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
+gives the statistical assumptions and results.
 
 ## Install and open help
 
-Stata 17 or later is required. Install from GitHub:
+Stata 17 or later is required:
 
 ```stata
 net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/master/") replace
 help rdistnn
-help cate_dnn
-help np_dnn
 ```
 
-For a version-pinned installation, replace `master` in the address with a
-published tag. The historical `v0.1.0` release includes CATE, regression,
-weights and experimental PLQR moments; it predates CLATE and the shared
-reporting updates. The [README](../README.md#installation)
-also describes installation from a downloaded source archive. Installation
-does not require R or a compiler. Estimation uses the portable ado/Mata
-implementation; the optional native plugin accelerates eligible standalone
-`weights_dnn` calls and frozen-score jackknife deletions for all estimators.
-Fast Mata prefix/suffix calculations remain available without the plugin.
-See [weights and tuning](weights-and-tuning.md) for the
-plugin and fallback controls.
-
-The examples below assume the commands are installed. From a source checkout,
-`do dev-setup.do` at the repository root adds `src/` to the session's adopath.
-The complete onboarding script is
-[examples/getting-started.do](../examples/getting-started.do); a second
-[CATE and regression script](../examples/cate-and-regression.do) covers all
-both CATE score routes and result extraction. Both clear the active dataset.
+See [installation alternatives](../README.md#installation) for source pins and
+the optional native plugin. The [complete quick start](../examples/getting-started.do)
+is a standalone do-file; the commands below are also runnable in sequence.
+They clear the active dataset.
 
 ## Generate a small example
-
-This simulation supplies **oracle nuisances**: the propensity and conditional
-outcome means used to generate the observations. It demonstrates the command
-interface without making claims about a fitted nuisance learner.
 
 ```stata
 clear
@@ -60,153 +36,98 @@ gen double m1_oracle = m0_oracle + 0.5 + 0.5*sin(x1)
 gen double Y = m0_oracle + D*(m1_oracle-m0_oracle) + rnormal()*0.5
 ```
 
-In an application, replace the oracle columns with nuisance predictions from
-your own estimation procedure. Keep each prediction on the row of the
-observation it describes. The localization variables in `xcols()` may be a
-subset of the adjustment variables used to fit those predictions.
+Keep each nuisance prediction on the row of the observation it describes.
+The reporting covariates in `xcols()` can be a subset of those used to fit
+the nuisance models.
 
 ## Estimate CATE at selected profiles
 
-Use `x0()` for one profile, or `x0matrix()` for a matrix whose rows are
-profiles. Target columns always follow the order in `xcols()`; matrix column
-names do not rearrange the supplied values.
+Use `x0()` for one profile or `x0matrix()` for several. Matrix rows are
+profiles; columns follow the order in `xcols()`.
 
 ```stata
 matrix X0 = (0,0 \ 0.5,0 \ -0.5,0)
 cate_dnn Y, tcol(D) xcols(x1 x2) x0matrix(X0) ///
     ecol(e_oracle) m0col(m0_oracle) m1col(m1_oracle) tuningmode(grid)
 matrix CATE_summary = r(summary)
-matrix CATE_b = e(b)
 matrix CATE_V = e(V)
 estimates store cate_fit
 matrix list CATE_summary
 ```
 
-This call constructs the augmented inverse-probability weighted (AIPW)
-pseudo-outcome, then averages it with DNN weights around each profile.
-`e(b)` is a 1-by-3 estimate vector. `e(V)` is the 3-by-3 joint jackknife
-covariance, retaining dependence across targets. The displayed normal
-intervals have **pointwise** coverage; a profile graph does not turn them into
-a simultaneous confidence band.
-
-`r(summary)` contains one row per target and columns `estimate std_error z
-pvalue ci_lower ci_upper`. It is temporary: copy it before another command
-overwrites `r()`. Replay can change the confidence level without fitting
-again:
+`r(summary)` has one row per profile, with estimates, standard errors and
+pointwise confidence bounds. Copy `r()` results before another command
+replaces them. `e(V)` retains covariance between profiles; it is not a
+simultaneous confidence band. Replay can change the confidence level without
+refitting:
 
 ```stata
 cate_dnn, level(90)
-matrix CATE_summary90 = r(summary)
 cate_dnn_diagnostics, detail
 cate_dnn_plot, type(estimates) name(cate_profile) replace
 cate_dnn_plot, type(overlap) view(mass) name(cate_overlap) replace
-cate_dnn_plot, type(tuning) allcandidates name(cate_tuning) replace
 ```
 
-Diagnostics report concentration, distance and local treatment support.
-Clipping an extreme propensity does not create treated or control
-observations near a target. Diagnostic tables describe the realized sample;
-they do not establish the assumptions required for causal interpretation or
-inference. Details on retaining, selecting and saving results are in
-[diagnostics and reporting](diagnostics-and-reporting.md), and graph options
-are in [visualising fits](visualising-fits.md).
+Inspect treated/control support and weight concentration. Clipping a
+propensity cannot create observations in a missing treatment arm.
+[Reporting](diagnostics-and-reporting.md) explains the diagnostic columns;
+[visualisation](visualising-fits.md) covers graph options and export.
 
-## Choose the CATE score input
-
-With a precomputed CATE pseudo-outcome, supply the signal
-as the positional variable and add `pseudooutcome`:
-
-```stata
-gen double eclip = min(max(e_oracle,1e-8),1-1e-8)
-gen double rho = m1_oracle-m0_oracle + D*(Y-m1_oracle)/eclip ///
-    - (1-D)*(Y-m0_oracle)/(1-eclip)
-cate_dnn rho, xcols(x1 x2) x0(0 0) pseudooutcome nose
-```
-
-`nose` requests an estimate without jackknife uncertainty. A supplied score
-is used unchanged; the package cannot recover its nuisance inputs or show
-treatment-overlap diagnostics from it. The full input and missingness
-contracts are in [CATE and regression](cate-and-regression.md).
+If your pipeline already constructs a CATE pseudo-outcome, use the
+[supplied-signal route](cate-and-regression.md#precomputed-pseudo-outcome).
+A supplied signal is used unchanged and cannot supply treatment-overlap
+information by itself.
 
 ## Fit a conditional mean
 
-`np_dnn` applies the same localization to the observed outcome. It estimates
-`E[Y|X=x0]`, which differs from CATE.
+`np_dnn` estimates the conditional mean of `Y`, which differs from CATE:
 
 ```stata
-np_dnn Y, xcols(x1 x2) x0matrix(X0) tuningmode(grid)
+np_dnn Y, xcols(x1 x2) x0matrix(X0)
 matrix NP_summary = r(summary)
 estimates store np_fit
-np_dnn_diagnostics, detail
+matrix list NP_summary
+np_dnn_diagnostics
 np_dnn_plot, type(estimates) name(np_profile) replace
-np_dnn_plot, type(outcome) name(np_outcomes) replace
 ```
 
-The outcome view describes weighted outcome spread and quantiles. Those
-quantiles are not confidence bounds for the conditional mean. The estimate
-view uses jackknife uncertainty for the mean and still needs the regression
-assumptions and adequate localization-bias control.
-
-Every fit replaces the active `e()` results. Restore the appropriate fit
-before using estimator-specific postestimation:
+The optional `type(outcome)` plot shows weighted outcome quantiles, not
+confidence bounds for the mean. Each fit replaces the active `e()` results;
+restore the appropriate model before postestimation:
 
 ```stata
 estimates restore cate_fit
 cate_dnn
 matrix list e(targets)
-matrix list e(se_targets)
 ```
 
-Use `rdistnn_predict, x0matrix(NEW) sefit` to evaluate a saved fit at new
-targets with frozen-score covariance. `rdistnn_candidate, candidate(3)
-store(order3)` retains a standalone candidate fit, and `rdistnn_results`
-extracts numeric tables without graphs. These commands preserve active data
-and estimates by default; `post` explicitly activates a derived fit.
-Current kernel/influence plots use the numeric snapshot after data changes
-or `estimates save`/`estimates use`. Legacy fits retain original-data guards.
-See [reusing fits](reusing-fits.md) for the complete workflow.
+See [reusing fits](reusing-fits.md) for saved-model prediction, candidate
+extraction and numeric reports. Saved fits retain observation-level data and
+inherit the data's sharing restrictions.
 
 ## Read the localization and inference settings
 
-Defaults are `k(1)`, `method(exact)` and `distance(l2)`. The paper rule sets
-`s = floor(.4*n^((kx+1)/(kx+2)))`, using the complete estimation-sample size
-`n` and number of localization covariates `kx`. `k` counts nearest
-observations inside each size-`s` subsample. Exact weights can extend through
-full-sample rank `n-s+k`; `s` is not a request to keep the nearest `s` rows.
-Larger `s` tightens localization. The paper's stated theory uses `k=1`.
+Defaults use exact DNN, `k(1)` and L2 distance. The order `s` controls
+localization: larger values put more weight close to the target. It does not
+mean keeping the nearest `s` observations. `tuningmode(grid)` compares orders
+while retaining the ordinary default result; it does not select a preferred
+candidate. See [weights and tuning](weights-and-tuning.md) for the default
+rule, explicit `s()` and candidate options. Jackknife uncertainty needs `s < n`;
+`nose` skips it.
 
-`tuningmode(grid)` evaluates the default `.3 .4 .5 .75` multiplier grid
-while preserving the ordinary `.4` fit as the main result. It is a
-sensitivity calculation, not automatic selection of a preferred candidate.
-Use `lambda()`, explicit `s()`, or a custom grid as explained in
-[weights and tuning](weights-and-tuning.md).
+Intervals are pointwise and the sampling framework assumes independent
+observations. Cluster and survey-design inference are not supplied. Row order
+resolves equal-distance ties. Diagnostics describe support and concentration;
+they cannot verify the paper's assumptions or remove localization bias.
 
-For CATE, causal interpretation requires the identifying assumptions,
-including appropriate treatment adjustment and overlap. Neyman
-orthogonality controls first-order population nuisance drift; valid
-same-sample nuisance reuse additionally requires the paper's nuisance-rate
-and full-state stability conditions. Oracle, out-of-fold and full-sample
-predictions are all accepted inputs. Their acceptance does not certify the
-conditions for local inference. The jackknife holds the supplied scores
-fixed and does not fit or refit nuisance learners, remove localization bias,
-or check those assumptions.
-
-Continue with [CATE and regression](cate-and-regression.md) for full score,
-sample and covariance conventions. The [notation guide](notation-and-conventions.md)
-connects the commands to the paper, while [conditional LATE](conditional-late.md)
-describes supported CLATE; [PLQR moments](plqr-moments.md) describes the
-experimental quantile-score workflow.
-The [R documentation crosswalk](r-documentation-crosswalk.md) identifies
-features available only in the R package.
+For conditional LATE, continue with the [binary-IV guide](conditional-late.md).
+[Notation](notation-and-conventions.md) explains shapes and result names;
+the [article index](index.md) routes the remaining workflows.
 
 ## Migrating earlier CATE inputs
 
-CATE now constructs AIPW signals from propensity and both arm-specific outcome
-means, or accepts a caller-supplied signal with `pseudooutcome`. The former
-`mcol()`/`mhat()` construction is removed; replacing a pooled outcome mean with
-two copies is not an equivalent migration. R demo examples use `aipw_oracle`
-and include `m1_oracle`; the retired `rho_oracle` was a different signal.
-
-The inference framework uses independent observations, without cluster or
-survey-design inference. Row order resolves distance ties. The printed `s/n`
-is descriptive; diagnostics report support without calibrated warning cutoffs.
+The former `mcol()`/`mhat()` construction is removed. Supply both arm-specific
+outcome means and a propensity for AIPW, or a justified supplied signal.
+Duplicating a pooled mean is not an equivalent migration. R demo columns
+`m1_oracle` and `aipw_oracle` replace a different signal formerly called
+`rho_oracle`.

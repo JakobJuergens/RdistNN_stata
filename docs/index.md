@@ -1,19 +1,14 @@
 # RdistNN for Stata documentation
 
-These guides describe the **0.1.0.9004** development snapshot, including
-supported supplied-prediction CLATE, two-scale regression, and shared reporting
-and postestimation interfaces.
-The [development notes](../RELEASE_NOTES.md) describe the latest maintenance
-and regression-coverage changes; estimator interfaces and inference limits are
-unchanged.
-See [installation](../README.md#installation). In Stata, `help rdistnn` opens
-the package overview and links to every installed command reference.
+Start with [Getting started](getting-started.md) for a first fit. These guides
+cover package **0.1.0.9005**. In Stata, `help rdistnn` opens the command
+references; [release notes](../RELEASE_NOTES.md) record changes.
 
 ## Start with a task
 
 | Task | Guide | Runnable example |
 |---|---|---|
-| Install, fit and extract a first result | [Getting started](getting-started.md) | [Original quick start](../examples/getting-started.do) |
+| Install, fit and extract a first result | [Getting started](getting-started.md) | [First fit](../examples/getting-started.do) |
 | Choose variables and understand shapes/names | [Notation and conventions](notation-and-conventions.md) | [CATE and regression](../examples/cate-and-regression.do) |
 | Supply CATE scores or nuisances; estimate conditional means | [CATE and regression](cate-and-regression.md) | [CATE and regression](../examples/cate-and-regression.do) |
 | Inspect/reuse weights; choose kernel orders and candidate grids | [Weights and tuning](weights-and-tuning.md) | [Weights and tuning](../examples/weights-and-tuning.do) |
@@ -53,26 +48,13 @@ how to make choices and interpret the outputs. RdistNN is the numerical
 reference for shared implementations, rather than a promise that every R
 object method or experimental workflow is available in Stata.
 
-## Inference and implementation details
+## Theory and development
 
-Start with the estimator-specific inference sections in
-[CATE and regression](cate-and-regression.md), [CLATE](conditional-late.md),
-and [PLQR](plqr-moments.md). The [weight guide](weights-and-tuning.md#jackknife-and-the-localized-target)
-connects rank weights, deletion covariance and localization bias. Valid
-pointwise inference requires the relevant design, nuisance, stability,
-variance and bias conditions; a successful command is not a check of those
-conditions. Weighted outcome quantiles are distribution summaries, and
-neither ESS nor a candidate grid supplies an inference guarantee.
+The [paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
+gives the statistical assumptions and results. The estimator guides explain
+how to supply inputs, inspect local support and interpret uncertainty outputs.
 
-For contributing, use [CONTRIBUTING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/CONTRIBUTING.md), the
-[test-suite map](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/README.md), and the
-[native plugin guide](../src/plugin/README.md). [RELEASING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/RELEASING.md)
-describes release validation. Dated [CLATE verification](clate-verification.md)
-and [estimator-coherence verification](estimator-coherence-verification.md)
-record the earlier implementation checks; they are separate from current
-user instructions. The [documentation verification receipt](documentation-verification.md)
-records the earlier article/help/example update. [Release notes](../RELEASE_NOTES.md)
-record package changes and experimental features.
-
-[Numerical stability](numerical-stability.md) explains shared arithmetic and
-documents implemented compensated weighted/prefix sums and stable diagnostics.
+For development and verification, see
+[CONTRIBUTING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/CONTRIBUTING.md).
+The [plugin guide](../src/plugin/README.md) covers optional acceleration;
+[numerical implementation](numerical-stability.md) is a specialist reference.

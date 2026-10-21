@@ -3,7 +3,7 @@
 `cate_dnn` and `np_dnn` share localization, tuning, batch-target and reporting
 conventions. Their inputs determine what the local average means: CATE
 averages an observation-level treatment-effect signal, while NP regression
-averages an outcome. This article documents package **0.1.0.9004** in the development snapshot.
+averages an outcome. This article documents package **0.1.0.9005**.
 See [getting started](getting-started.md) for installation and a compact tour.
 
 ## Targets and samples
@@ -68,19 +68,10 @@ cate_dnn Y, xcols(x1 x2) x0matrix(X0) tcol(D) ///
     ecol(ehat) m0col(m0hat) m1col(m1hat)
 ```
 
-The constructed pseudo-outcome is
-
-```text
-rho_i = m1_i - m0_i
-        + D_i*(Y_i-m1_i)/eclip_i
-        - (1-D_i)*(Y_i-m0_i)/(1-eclip_i).
-```
-
-The returned estimate at each target is `sum_i w_i(x)*rho_i`. This route
-retains treatment-mass, propensity and within-arm effective-sample-size
-diagnostics in addition to the common weight and distance summaries.
-
-The normalized Robinson pseudo-outcome is not implemented because it falls outside the accompanying paper's theoretical results.
+This constructs the AIPW signal described in the
+[paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
+and averages it locally. The fit also retains treatment support, propensity
+and within-arm effective-sample-size diagnostics.
 
 ### Precomputed pseudo-outcome
 
@@ -167,13 +158,10 @@ supported by the implementation. `method(asymp)` uses beta-order-statistic
 increments, rather than the finite-population exact weights. The exact
 support formula does not apply to that approximation.
 
-L2 distances depend on covariate scales. Mahalanobis distance uses the
-estimation sample's centered-design SVD whitening factor, retaining singular
-values greater than `max(n,p) * 2^-52 * largest_singular_value`. It requires at least two complete
-observations and permits one localization
-covariate. A rank-deficient covariance is accepted; the generalized inverse
-can leave directions without distance contribution. The metric is held
-fixed through jackknife deletions.
+L2 distances depend on covariate scales. Scaled and Mahalanobis metrics use
+training-sample geometry, held fixed during deletions and saved prediction.
+See [distance geometry](weights-and-tuning.md#distance-geometry) for controls
+and the numerical reference for singular cases.
 
 For sensitivity analysis:
 
@@ -202,14 +190,9 @@ For Mahalanobis, uncertainty is conditional on the full-sample covariance
 metric; it does not re-estimate that metric on each deletion. No nuisance
 learner is refit.
 
-For CATE, causal identification, overlap, nuisance accuracy and localization
-conditions are required. AIPW orthogonality controls first-order population
-nuisance drift. Valid full-sample reuse additionally requires the paper's
-nuisance-rate and full-state stability conditions. Oracle, out-of-fold and
-full-sample predictions are accepted, but input
-acceptance is not a diagnostic of their theoretical validity. NP inference
-similarly needs regression and localization-bias conditions. The jackknife
-does not remove target bias for either estimator.
+The [paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
+gives the identification, nuisance-learning and localization conditions for
+inference. The jackknife does not check them or remove localization bias.
 
 `level(95)` controls normal pointwise intervals; replay accepts another
 level. Batch `e(V)` contains the joint cross-target covariance, so it can
@@ -283,6 +266,6 @@ see [diagnostics and reporting](diagnostics-and-reporting.md). For plot
 selection, graph export and which views require observations, continue with
 [visualising fits](visualising-fits.md). [Notation and conventions](notation-and-conventions.md)
 connects these quantities to the paper. The R reference descriptions are
-[CATE](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/man/cate_dnn.Rd)
-and [NP regression](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/man/np_dnn.Rd);
+[CATE](https://JakobJuergens.github.io/RdistNN/reference/cate_dnn.html)
+and [NP regression](https://JakobJuergens.github.io/RdistNN/reference/np_dnn.html);
 the installed Stata helps specify the Stata syntax.

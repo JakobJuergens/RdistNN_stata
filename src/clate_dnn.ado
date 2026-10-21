@@ -322,6 +322,9 @@ program define clate_dnn, eclass
     ereturn local cmdline `"`original_cmdline'"'
     ereturn local score_method "`route'"
     ereturn local se_method = cond(`active',"paired_rank_shift","none")
+    ereturn local vce = cond(`active',"paired_rank_shift","none")
+    ereturn local vcetype = cond(`active',"Paired frozen-score jackknife","")
+    ereturn local depvar "`input'"
     ereturn local covariance = cond(`active',"paired_frozen_score","none")
     ereturn local outcome "`input'"
     ereturn local signal "`input'"

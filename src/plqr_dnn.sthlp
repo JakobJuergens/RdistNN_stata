@@ -61,7 +61,9 @@ moment at the coefficients supplied in {cmd:thetaeval()}. It is not a coefficien
 It does not solve
 for a coefficient, estimate a conditional density, or report coefficient
 standard errors, confidence intervals, p-values or significance tests.
-Its API may change. The initial release focuses on CATE and regression.
+Its API may change. The
+{browse "https://jakobjuergens.com/research/#orthogonal-inference-conditional-z":paper}
+gives statistical background.
 
 {pstd}
 For observation i and score component j, the score is

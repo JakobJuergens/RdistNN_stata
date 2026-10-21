@@ -16,11 +16,16 @@ cate_dnn y, treat(D) x(x1 x2) x0(0.2 -0.1) k(2) s(8) ///
 local tau_aipw = _b[tau]
 local se_aipw = _se[tau]
 local score_aipw "`e(score_method)'"
+test_assert "[meta] AIPW depvar identifies the outcome" "`e(depvar)'" == "y"
+test_assert "[meta] AIPW VCE identifies rank-shift deletions" "`e(vce)'" == "rank_shift"
+test_assert "[meta] AIPW VCE labels frozen scores" "`e(vcetype)'" == "Frozen-score jackknife"
 
 cate_dnn rho_aipw, x(x1 x2) x0(0.2 -0.1) k(2) s(8) pseudooutcome
 local tau_pseudo = _b[tau]
 local se_pseudo = _se[tau]
 local score_pseudo "`e(score_method)'"
+test_assert "[meta] pseudo-outcome depvar identifies the supplied signal" "`e(depvar)'" == "rho_aipw"
+test_assert "[meta] pseudo-outcome VCE labels frozen scores" "`e(vcetype)'" == "Frozen-score jackknife"
 
 test_assert "[score] AIPW and pseudo-outcome estimates agree" abs(`tau_aipw' - `tau_pseudo') < 1e-10
 test_assert "[score] AIPW and pseudo-outcome SEs agree" abs(`se_aipw' - `se_pseudo') < 1e-10
@@ -48,6 +53,9 @@ test_assert "[nose] default k matches R paper default" `k_default' == 1
 test_assert "[nose] s=n is retained" `s_nose' == 50
 test_assert "[nose] e(se_method) records none" "`se_method'" == "none"
 test_assert "[nose] e(V) is not posted" `rc_v' != 0
+test_assert "[meta] nose retains the supplied signal name" "`e(depvar)'" == "rho_nose"
+test_assert "[meta] nose records no VCE" "`e(vce)'" == "none"
+test_assert "[meta] nose has no uncertainty label" "`e(vcetype)'" == ""
 
 test_section "cate_dnn: [markout] pseudo-outcome sample"
 

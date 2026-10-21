@@ -1,8 +1,10 @@
 # Website copy for the Stata companion
 
 Ready-to-adapt text for the software section of jakobjuergens.com, describing
-the unpublished `0.1.0.9004` development candidate. Publish an announcement only after
-reviewed source, checked release assets and documentation links are live.
+the `0.1.0.9005` documentation and maintenance update for production `master`. Installation
+and user guides are available from the repository. The latest tagged release
+remains `v0.1.0`; a tagged-release announcement should link to its verified
+source ZIP and platform-specific plugin assets.
 
 ## Software entry
 
@@ -19,25 +21,22 @@ PLQR moment evaluation is experimental and does not provide coefficient inferenc
 - [R companion](https://github.com/JakobJuergens/RdistNN)
 - [Accompanying research](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
 
-## Announcement draft
+## Source-update announcement draft
 
-RdistNN for Stata 0.1.0.9004 combines conditional LATE and shared reporting,
-diagnostics, and plotting interfaces for treatment effects and nonparametric
-regression. The update reports localization fractions and clarifies support diagnostics,
-sampling assumptions and input-order ties. Built-in CATE signals use AIPW;
-externally justified supplied signals remain available. Migration from removed
-nuisance inputs and pointwise inference limits are documented. The examples label oracle
-nuisances explicitly and explain the conditions needed for inference with
-estimated nuisances. Experimental PLQR evaluates localized score moments at
-supplied coefficients. The ado/Mata path is portable; optional native assets
-provide shared scalar/batch L1/L2 and scaled-distance kernels, plus frozen-score
-jackknife kernels, on supported platforms. Automatic distance dispatch keeps
-small jobs in Mata to avoid transfer overhead; see the native guide.
+RdistNN for Stata 0.1.0.9005 makes treatment-effect and regression workflows
+easier to learn, with shorter guides, eight standalone examples and updated
+installed help. Stored results identify the outcome and covariance method,
+including candidate and saved-fit prediction results. The accompanying paper
+supplies the theory; the guides explain inputs, outputs and pointwise inference
+limits. Portable ado/Mata calculations and optional native acceleration remain
+available on their supported platforms.
 
-Add the published release URL here once its source ZIP and plugin assets have
-been verified. Use the repository README as the primary Stata documentation
-entry point; the Stata companion has no separate hosted documentation site.
+[Source updates](https://github.com/JakobJuergens/RdistNN_stata/blob/master/RELEASE_NOTES.md) ·
+[Tagged releases](https://github.com/JakobJuergens/RdistNN_stata/releases)
 
+For a future tagged-release announcement, add the verified release URL. Use
+the repository README as the primary Stata documentation entry point; the
+Stata companion has no separate hosted documentation site.
 
 ## User documentation
 

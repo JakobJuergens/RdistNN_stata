@@ -107,6 +107,9 @@ program define np_tdnn, eclass
     ereturn matrix diagnostics=`diag', copy
     ereturn matrix target_diagnostics=`diag', copy
     ereturn local se_method=cond("`se'"=="","signed_rank_shift","none")
+    ereturn local vce=cond("`se'"=="","signed_rank_shift","none")
+    ereturn local vcetype=cond("`se'"=="","Jackknife","")
+    ereturn local depvar "`outcome'"
     ereturn local jackknife=cond("`se'"=="","fast","none")
     ereturn local tuning_mode "default"
     ereturn local cmd "np_tdnn"

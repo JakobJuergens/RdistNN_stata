@@ -1,4 +1,4 @@
-# Numerical stability and implementation plan
+# Numerical implementation reference
 
 RdistNN and its Stata companion share numerical contracts for distance-localized
 estimation. C++, R and Mata implementations of a selected method must agree on

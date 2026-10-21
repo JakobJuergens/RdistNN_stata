@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0.9004  2026-10-20}{...}
+{* *! version 0.1.0.9005  2026-10-20}{...}
 {viewerjumpto "Commands" "rdistnn##commands"}{...}
 {viewerjumpto "Conventions" "rdistnn##conventions"}{...}
 {viewerjumpto "Workflow" "rdistnn##workflow"}{...}
@@ -13,11 +13,10 @@
 weights, diagnostics and native plots
 
 {pstd}
-Stata 17 or later. This overview describes package {bf:0.1.0.9004} in the development snapshot,
-including supported supplied-prediction conditional LATE, two-scale regression
-and shared reporting. These are development-branch additions.
-RdistNN is the numerical reference for shared
-functionality; the Stata companion has its own documented public surface.
+Stata 17 or later. Package {bf:0.1.0.9005} provides conditional treatment
+estimation, nonparametric and two-scale regression, and shared reporting.
+RdistNN is the numerical reference for shared functionality; the Stata
+companion has its own documented public surface.
 
 {marker commands}{...}
 {title:Commands}
@@ -109,40 +108,14 @@ PLQR returns moments with supplied coefficients reported separately.
 {title:Inference and experimental scope}
 
 {pstd}
-For numerical stability, all estimator jackknife engines, including naive
-deletions, subtract a common reference per target and signal before summing.
-Only observations with nonzero weight in at least one deletion determine the
-reference. A rank-r weight in the n-1 table can use original ranks r and r+1;
-the latter can gain weight when an earlier observation is deleted. Exact DNN
-deletion support therefore ends at n-s+k (n-s+1 for k=1). Unused observations
-are excluded before subtraction, preventing zero-weight extremes from
-affecting the reference or causing overflow. All n deletions and their
-original covariance scaling remain in the calculation.
-
-{pstd}
-Weighted signal means and rank-weight normalization use compensated sums.
-Native and Mata deletion engines retain correction terms until the final
-prefix/suffix combination. The fallback uses bounded merge buffers, and
-candidate fits and saved prediction reuse the same arithmetic helpers.
-These double-precision safeguards preserve the estimator's statistical definition.
-
-{pstd}
-The reference is the smallest active value if all are positive, the largest
-if all are negative, and zero otherwise. This common numerical shift cancels
-in jackknife covariance; point estimates use the original signals. It is
-separate from the usual centering of deletion estimates around their mean.
-Asymptotic weights retain every represented nonzero entry, without the exact
-support cutoff or additional renormalization. See the
-{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/weights-and-tuning.md#numerical-centering":numerical centering guide}
-for the shared R/Stata variance-9 example.
-
-{pstd}
 Reported normal intervals are pointwise. Joint target covariance does not
 supply simultaneous coverage. Frozen-score jackknife calculations do not
 refit nuisances, remove localization bias or verify the design, nuisance-rate,
 delete-one stability, variance or undersmoothing conditions. Supplied predictions
 may use a fuller adjustment state than the variables defining localization.
-Consult the estimator-specific inference contract before interpreting results.
+For identification, nuisance-learning and localization conditions, see the
+{browse "https://jakobjuergens.com/research/#orthogonal-inference-conditional-z":paper}
+and the estimator-specific help.
 
 {pstd}
 CLATE additionally needs the documented binary-IV causal assumptions for a
@@ -165,30 +138,22 @@ custom registries, confidence-set inversion and replication workflows.
 
 {pstd}
 {browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/README.md":README}
-provides installation from {cmd:master} and version-pinned alternatives. The portable
-ado/Mata baseline needs no compiler. Optional native plugins accelerate
-L1/L2 distances, including fitted scales and batches, through the common
-weight, estimation and saved-prediction path. Scale fitting, stable ranks and
-weight tables and Mahalanobis factorization remain in Mata. Projected
-Mahalanobis norms use the selected L2 engine. Legacy saved inverses retain
-their original Mata calculation.
-Use {cmd:global rdistnn_distance_engine plugin} or {cmd:mata} for explicit
-distance routes; drop the global to restore automatic dispatch, which keeps
-small jobs in Mata and attempts native distances for substantial batches. Plugins also
-accelerate frozen-score jackknife deletions for all estimators.
-Both C++ and Mata use prefix/suffix sums; naive deletions remain a final
-fallback and can be selected with {cmd:global rdistnn_jackknife_engine naive}
-for parity checks. This overview and command help install with the package;
-the article/example collection is available from the repository or source ZIP.
+provides installation from {cmd:master};
+{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/RELEASING.md":RELEASING.md}
+provides an immutable installation pin. The portable ado/Mata baseline needs
+no compiler. Optional native plugins accelerate distance and frozen-score
+jackknife calculations. See the
+{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/src/plugin/README.md":plugin guide}
+for platform binaries and engine controls. This overview and command help
+install with the package; articles and examples are available from the
+repository or source ZIP.
 
-{title:Numeric covariance range}
+{title:Numerical implementation}
 
 {pstd}
-Shared covariance helpers normalize exceptional columns by binary powers
-before centering or squaring and preserve full paired/target dependence.
-Representable extreme variances are recovered after intermediate range
-failures. A nonzero variance outside the finite numeric range gives an error
-requesting rescaling or point-only estimation; CLATE retains its per-target
-numerical-failure status. Exact constants still have zero variance. Stata's
-finite nonmissing range is smaller than R's IEEE range. These guards do not
-change the documented inference conditions.
+Compensated sums, numerical centering and scaled covariance calculations
+protect represented results from rounding and intermediate range failures.
+The {browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/numerical-stability.md":numerical implementation reference}
+describes their behavior and limits. Exact constants retain zero variance;
+unavailable ratio uncertainty retains its numerical status. These safeguards
+do not verify the statistical assumptions for inference.

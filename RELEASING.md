@@ -10,9 +10,12 @@ it into a coefficient estimator or add coefficient inference.
 
 Use a clean repository checkout with the tools in
 [CONTRIBUTING.md](CONTRIBUTING.md). Review the version/tag and release notes.
-Version `0.1.0.9004` identifies the current development snapshot, aligned
-with the R companion. Publish its changes together in a reviewed squash merge
-carrying version `0.1.0.9004`. Version `0.1.0.9003` identifies the previous
+Version `0.1.0.9005` packages the documentation and maintenance improvements
+as one flattened production update, aligned with the R companion.
+The previous version `0.1.0.9004` entered production `master` through the reviewed squash
+merge of [PR #10](https://github.com/JakobJuergens/RdistNN_stata/pull/10) at
+[`3e02115124e2a8f71e73739aa95fa1e34a754f13`](https://github.com/JakobJuergens/RdistNN_stata/commit/3e02115124e2a8f71e73739aa95fa1e34a754f13),
+aligned with the R companion. Version `0.1.0.9003` identifies the previous
 production snapshot. Exact
 tables, compensated reductions, whitening rank policy, shared covariance and
 the native Beta nonconvergence guard first shipped in the merged
@@ -36,19 +39,22 @@ does not promise identical feature coverage. Review the
 version and retain its explicit R-only and experimental boundaries.
 
 Commit candidates locally. Publishing review branches/PRs, tags, assets or
-websites requires separate authorization; do not push to `master`. An immutable
-merged-source installation is:
+websites requires separate authorization; do not push to `master`. Install the
+previous immutable `0.1.0.9004` source as a historical reference with:
 
 ```stata
-net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/877c560373db915a5f5d23157e2b09cbbdf045f1/") replace
+net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/3e02115124e2a8f71e73739aa95fa1e34a754f13/") replace
 ```
 
-This pins merged source, separately from checked release artifacts. Unpinned
-`master` follows development; `v0.1.0` selects the existing older public tag.
-Unpublished candidates require a local checkout at their full commit or the
-checked curated ZIP; their GitHub URLs do not exist yet. After both commits
-are final, bind them in one external release-set manifest under ignored
-outputs. Include tested trees, artifact filenames/sizes/SHA-256, runtime and
+This pins the reviewed source snapshot. Unpinned `master` follows production
+source; `v0.1.0` selects the existing older public tag and release assets.
+Different source snapshots can share a development version, so retain the
+full commit or checked archive identity. Unpublished future candidates require
+a local checkout at their full commit or the checked curated ZIP; their GitHub
+URLs do not exist yet.
+
+After both candidate commits are final, bind them in one external release-set
+manifest under ignored outputs. Include tested trees, artifact filenames/sizes/SHA-256, runtime and
 compiler information, commands, hosted run IDs/tested SHAs and explicit
 PASS/FAIL/BLOCKED/NOT_RUN gates. Keep historical scientific dependency identity
 separate, and avoid circular committed HEAD references.

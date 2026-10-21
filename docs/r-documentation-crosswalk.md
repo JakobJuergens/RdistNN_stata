@@ -1,9 +1,8 @@
 # R documentation coverage and Stata equivalents
 
-This map compares Stata package **0.1.0.9004** in the development snapshot with the RdistNN
-source at `f2c7bc36e8da040831b668281e50e18b2f1a4b3c`. The reference inventory is
-R's [article source directory](https://github.com/JakobJuergens/RdistNN/tree/f2c7bc36e8da040831b668281e50e18b2f1a4b3c/vignettes)
-and [pkgdown reference index](https://github.com/JakobJuergens/RdistNN/blob/f2c7bc36e8da040831b668281e50e18b2f1a4b3c/_pkgdown.yml).
+This map covers version **0.1.0.9005** of both packages. The reference inventory
+is R's [article source directory](https://github.com/JakobJuergens/RdistNN/tree/master/vignettes)
+and [pkgdown reference index](https://github.com/JakobJuergens/RdistNN/blob/master/_pkgdown.yml).
 The current map follows all 13 articles and 15 reference families, including
 the supported CLATE group and separate experimental confidence sets. R remains
 the numerical reference for shared functionality. Documentation parity here
@@ -20,7 +19,7 @@ R-only functionality; it does not add R APIs to Stata.
 | `visualising-fits.Rmd` | [Visualising fits](visualising-fits.md) | Applicable Stata-native views and returned plot data; ggplot composition remains R-only |
 | `kernel-order-tuning.Rmd` | [Weights and tuning](weights-and-tuning.md#integrated-candidate-grids) | Paper/default/direct-order grids; arbitrary tuning specifications/registries remain R-only |
 | `dnn-weights.Rmd` | [Weights and tuning](weights-and-tuning.md) | Exact/asymptotic rules and single/batch weight/rank/distance matrices; R specification objects and standalone order objects remain R-only |
-| `conditional-z-estimation.Rmd` | [CATE and regression](cate-and-regression.md), [PLQR moments](plqr-moments.md), [jackknife discussion](weights-and-tuning.md#jackknife-and-the-localized-target) | Implemented moments and inference conditions, not a generic Z/GMM root solver |
+| `conditional-z-estimation.Rmd` | [PLQR moments](plqr-moments.md) | Experimental moments at supplied coefficients; R additionally provides density-backed coefficient uncertainty, with no local root solver |
 | `jackknife-gen-ustats.Rmd` | [Jackknife and localized targets](weights-and-tuning.md#jackknife-and-the-localized-target), [numerical tests](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/R_TEST_CROSSWALK.md) | Stata uses fast rank-shift covariance internally; the generic compact-support L-statistic utilities and selectable fast/slow/LOO APIs remain R-only |
 | `extending.Rmd` | [Contribution workflow](https://github.com/JakobJuergens/RdistNN_stata/blob/master/CONTRIBUTING.md), [native plugin](../src/plugin/README.md) | No public Stata score, distance, rank-weight or tuning registry; private Mata helpers are not a supported extension API |
 | `conditional-late.Rmd` | [Conditional LATE](conditional-late.md) | Binary-IV/supplied-signal routes, reporting, grids and applicable plots; R demo/learner helpers remain R-only |
@@ -71,8 +70,11 @@ is a useful naming guide for CATE/NP options, not a universal translator:
 PLQR uses `x()`, `d()`, `g()`, `md()` and `thetaeval()`, while CLATE has its
 own binary-IV and paired-signal grammar.
 
-R CATE now exposes joint target covariance through `vcov()`, alongside Stata's `e(V)`. This covariance is useful for contrasts. It still does not
-make default pointwise intervals simultaneous, and a joint CLATE covariance
+R CATE exposes joint target covariance through
+[`vcov()`](https://JakobJuergens.github.io/RdistNN/reference/vcov.cate_result.html),
+alongside Stata's `e(V)`. This covariance supplies the arithmetic for prespecified
+contrasts; valid contrast inference requires the corresponding joint assumptions.
+It does not make default pointwise intervals simultaneous. A joint CLATE covariance
 matrix is different from R's marginal covariance-list presentation. Use
 full canonical target matrices for CLATE because undefined coefficients are
 omitted from the ordinary Stata coefficient post.

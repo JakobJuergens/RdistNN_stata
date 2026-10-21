@@ -1,6 +1,6 @@
 # Save, report and reuse fitted results
 
-Version 0.1.0.9004 provides three common commands for DNN/TDNN regression, CATE, CLATE and
+Version 0.1.0.9005 provides three common commands for DNN/TDNN regression, CATE, CLATE and
 PLQR. They use the R result methods as the reference for shared behavior.
 PLQR retains its supplied-coefficient **moment-only** scope.
 

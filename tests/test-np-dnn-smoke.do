@@ -48,6 +48,14 @@ test_assert "[meta] e(method) = exact"       "`meth'" == "exact"
 test_assert "[meta] e(k) = 3"               `k_r'  == 3
 test_assert "[meta] e(s) = 15"              `s_r'  == 15
 test_assert "[meta] e(kx) = 2"              `kx_r' == 2
+test_assert "[meta] e(depvar) identifies the outcome" "`e(depvar)'" == "y"
+test_assert "[meta] e(vce) identifies rank-shift deletions" "`e(vce)'" == "rank_shift"
+test_assert "[meta] e(vcetype) labels jackknife uncertainty" "`e(vcetype)'" == "Jackknife"
+
+np_dnn y, xcols(x1 x2) x0(0 0) s(15) nose
+test_assert "[meta] nose retains the outcome name" "`e(depvar)'" == "y"
+test_assert "[meta] nose records no VCE" "`e(vce)'" == "none"
+test_assert "[meta] nose has no uncertainty label" "`e(vcetype)'" == ""
 
 // ════════════════════════════════════════════════════════════
 test_section "np_dnn: [edge] constant outcome"

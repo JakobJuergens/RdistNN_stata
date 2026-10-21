@@ -169,7 +169,7 @@ class StataVersionFloorTests(unittest.TestCase):
         inputs.update({
             ".gitignore", "README.md", "src/plugin/Makefile", "src/plugin/README.md",
             "tools/ci/pkg_check.sh", "tools/ci/plugin_build_check.ps1",
-            "tools/ci/package_hygiene.py",
+            "tools/ci/package_hygiene.py", "docs/weights-and-tuning.md",
         })
         inputs.update(str(p.relative_to(ROOT)) for p in (ROOT / ".github/workflows").glob("*.yml"))
         with tempfile.TemporaryDirectory(prefix="rdistnn-version-gate-") as directory:

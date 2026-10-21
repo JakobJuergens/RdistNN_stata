@@ -16,7 +16,7 @@
 
 {pstd}
 Stata 17 or later is required. See {help rdistnn} for the package overview.
-This help describes the interface in package {bf:0.1.0.9004} in the development snapshot.
+This help describes the interface in package {bf:0.1.0.9005}.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -293,6 +293,9 @@ an infinite z statistic as missing.
 
 {p2col 5 25 29 2:Macros}{p_end}
 {synopt:{cmd:e(cmd)}}{cmd:np_dnn}{p_end}
+{synopt:{cmd:e(depvar)}}positional outcome variable{p_end}
+{synopt:{cmd:e(vce)}}{cmd:rank_shift} or {cmd:none} with {cmd:nose}{p_end}
+{synopt:{cmd:e(vcetype)}}{cmd:Jackknife}; empty when uncertainty is unavailable{p_end}
 {synopt:{cmd:e(xvars)}, {cmd:e(x_cols)}}covariate variable names{p_end}
 {synopt:{cmd:e(x0)}, {cmd:e(x0matrix)}}supplied single-target values or source target-matrix name{p_end}
 {synopt:{cmd:e(target_source)}}{cmd:x0} or R-aligned {cmd:X0}{p_end}
