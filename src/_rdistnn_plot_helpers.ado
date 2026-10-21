@@ -41,18 +41,14 @@ program define _cate_dnn_plot_estimates, rclass
 
     if !`use_candidates' {
         local emats : e(matrices)
-        local canonical : list posof "estimates" in emats
-        if `canonical' {
-            matrix `bmat' = e(estimates)'
-            matrix `semat' = e(se_targets)'
+        foreach field in estimates se_targets {
+            if !`: list field in emats' {
+                di as error "Current fitted results require e(`field'); refit `e(cmd)' with the current package."
+                exit 498
+            }
         }
-        else {
-            // Legacy CATE/NP saved estimates retain coefficient and covariance aliases.
-            matrix `bmat' = e(b)'
-            matrix `vmat' = e(V)
-            if rowsof(`vmat')!=`m' | colsof(`vmat')!=`m' matrix `semat' = J(`m',1,.)
-            else mata: st_matrix("`semat'", sqrt(diagonal(st_matrix("`vmat'"))))
-        }
+        matrix `bmat' = e(estimates)'
+        matrix `semat' = e(se_targets)'
         if "`e(jackknife)'"=="none" | "`e(se_method)'"=="none" matrix `semat' = J(`m',1,.)
         if "`e(cmd)'"=="clate_dnn" {
             matrix `statusmask' = e(status)
@@ -719,206 +715,18 @@ program define _cate_dnn_plot_weights, rclass
         exit
     }
 
-    if e(model_version)==1 {
-        _rdistnn_model_plot, type(kernel) name(`name') `replace' `nodraw' targets(`targets')
-        return add
-        exit
-    }
-    local xvars "`e(xvars)'"
-    foreach v of local xvars {
-        capture confirm numeric variable `v'
-        if _rc {
-            di as error "Current data do not contain numeric covariate `v'; refit `e(cmd)' before plotting kernels."
-            exit 498
-        }
-    }
-    tempvar esample
-    quietly gen byte `esample' = e(sample)
-    quietly count if `esample'
-    if r(N) != e(N) {
-        di as error "The current estimation sample no longer matches the active `e(cmd)' fit."
-        exit 498
-    }
-    matrix `targets_mat' = e(targets)
-    local target_list "`targets'"
-    if "`target_list'" == "" {
-        if e(m) <= 8 {
-            forvalues j = 1/`=e(m)' {
-                local target_list "`target_list' `j'"
-            }
-        }
-        else local target_list "1 `=ceil(e(m)/2)' `=e(m)'"
-    }
-    local ntargets : word count `target_list'
-    mata: st_matrix("`plot'", rdistnn_plot_kernel(st_data(., "`xvars'", "`esample'"), st_matrix("`targets_mat'"), strtoreal(tokens("`target_list'"))', `k', `s', "`method'", "`e(distance)'"))
-    matrix colnames `plot' = target_id rank distance weight cum_share
-    preserve
-    clear
-    quietly svmat double `plot', names(col)
-    twoway (connected weight distance, sort msize(vsmall)), ///
-        by(target_id, note("") title("DNN effective kernel")) ///
-        xtitle("Distance") ytitle("DNN weight") `nameopt' `drawopt'
-    restore
-    return matrix plot_data = `plot'
-    return scalar n_plotted = `ntargets'
-    return local view "kernel"
+    _rdistnn_plot_sample_guard
+    _rdistnn_model_plot, type(kernel) name(`name') `replace' `nodraw' targets(`targets')
+    return add
 end
 
 program define _cate_dnn_plot_influence, rclass
     version 17
     syntax , NAME(name) NLABEL(integer) [TARGETS(numlist integer >=1) ///
         REPLACE NODRAW]
-
-    if e(model_version)==1 {
-        _rdistnn_model_plot, type(influence) name(`name') nlabel(`nlabel') `replace' `nodraw' targets(`targets')
-        return add
-        exit
-    }
-
-    local nameopt "name(`name')"
-    if "`replace'" != "" local nameopt "name(`name', replace)"
-    local drawopt ""
-    if "`nodraw'" != "" local drawopt "nodraw"
-    local xvars "`e(xvars)'"
-    foreach v of local xvars {
-        capture confirm numeric variable `v'
-        if _rc {
-            di as error "Current data do not contain numeric covariate `v'; refit `e(cmd)' before plotting influence."
-            exit 498
-        }
-    }
-    local isclate = ("`e(cmd)'" == "clate_dnn")
-    local score_method "`e(score_method)'"
-    if !`isclate' & !inlist("`score_method'", "aipw", "pseudo_outcome") {
-        di as error "This saved CATE score construction is no longer supported; refit using AIPW."
-        exit 498
-    }
-    local signal_var "`e(signal)'"
-    local outcome_var "`e(outcome)'"
-    local treat_var "`e(t_col)'"
-    local propensity_var "`e(e_col)'"
-    local m0_var "`e(m0_col)'"
-    local m1_var "`e(m1_col)'"
-    local needed "`signal_var'"
-    if "`score_method'" != "pseudo_outcome" {
-        local needed "`outcome_var' `treat_var' `propensity_var'"
-        local needed "`needed' `m0_var' `m1_var'"
-    }
-    if `isclate' {
-        local needed "`e(signal)' `e(denominator)'"
-        if "`score_method'" == "augmented_iv" local needed ///
-            "`e(outcome)' `e(d_col)' `e(a_col)' `e(e_col)' `e(my0_col)' `e(my1_col)' `e(md0_col)' `e(md1_col)'"
-    }
-    foreach v of local needed {
-        capture confirm numeric variable `v'
-        if _rc {
-            di as error "Current data do not contain numeric score variable `v'; refit `e(cmd)' before plotting influence."
-            exit 498
-        }
-    }
-    tempvar esample rho eclip obsid phid paired
-    quietly gen byte `esample' = e(sample)
-    quietly count if `esample'
-    if r(N) != e(N) {
-        di as error "The current estimation sample no longer matches the active `e(cmd)' fit."
-        exit 498
-    }
-    quietly gen long `obsid' = _n
-    if `isclate' {
-        if "`score_method'" == "paired_signals" {
-            quietly gen double `rho' = `e(signal)' if `esample'
-            quietly gen double `phid' = `e(denominator)' if `esample'
-        }
-        else {
-            local md0 "`e(md0_col)'"
-            if "`md0'" == "" & e(one_sided)==1 local md0 "0"
-            quietly gen double `eclip' = min(max(`e(e_col)',e(clip)),1-e(clip)) if `esample'
-            quietly gen double `rho' = `e(my1_col)'-`e(my0_col)' + ///
-                `e(a_col)'*(`e(outcome)'-`e(my1_col)')/`eclip' - ///
-                (1-`e(a_col)')*(`e(outcome)'-`e(my0_col)')/(1-`eclip') if `esample'
-            quietly gen double `phid' = `e(md1_col)'-`md0' + ///
-                `e(a_col)'*(`e(d_col)'-`e(md1_col)')/`eclip' - ///
-                (1-`e(a_col)')*(`e(d_col)'-`md0')/(1-`eclip') if `esample'
-        }
-        quietly count if `esample' & (missing(`rho') | missing(`phid'))
-        if r(N)>0 {
-            di as error "Current data produce nonfinite paired signals; refit clate_dnn."
-            exit 498
-        }
-    }
-    else if "`score_method'" == "pseudo_outcome" {
-        quietly gen double `rho' = `signal_var' if `esample'
-    }
-    else {
-        quietly gen double `eclip' = min(max(`propensity_var', e(clip)), 1-e(clip)) if `esample'
-        quietly gen double `rho' = `treat_var' * (`outcome_var' - `m1_var') / `eclip' ///
-            - (1 - `treat_var') * (`outcome_var' - `m0_var') / (1 - `eclip') ///
-            + `m1_var' - `m0_var' if `esample'
-    }
-
-    findfile "_rdistnn_mata.ado"
-    quietly run "`r(fn)'"
-    tempname targets_mat plot bmat zero oneplot
-    matrix `targets_mat' = e(targets)
-    if `isclate' matrix `bmat' = e(estimates)
-    else matrix `bmat' = e(b)
-    local target_list "`targets'"
-    if "`target_list'" == "" {
-        if e(m) <= 8 {
-            forvalues j = 1/`=e(m)' {
-                local target_list "`target_list' `j'"
-            }
-        }
-        else local target_list "1 `=ceil(e(m)/2)' `=e(m)'"
-    }
-    local ntargets : word count `target_list'
-    if `isclate' {
-        matrix `zero' = J(1,e(m),0)
-        quietly gen double `paired' = .
-        local first 1
-        foreach t of local target_list {
-            if missing(el(`bmat',1,`t')) {
-                di as error "Influence is unavailable for undefined target `t'; select defined targets()."
-                exit 498
-            }
-            quietly replace `paired' = `rho' - el(`bmat',1,`t')*`phid' if `esample'
-            mata: st_matrix("`oneplot'", rdistnn_plot_influence(st_data(., "`xvars'", "`esample'"), st_matrix("`targets_mat'"), st_data(., "`paired'", "`esample'"), st_data(., "`obsid'", "`esample'"), st_matrix("`zero'"), `t', `=e(k)', `=e(s)', "`e(method)'", "`e(distance)'"))
-            mata: st_matrix("`oneplot'", (st_matrix("`oneplot'"), st_data(., "`rho' `phid'", "`esample'")))
-            if `first' matrix `plot' = `oneplot'
-            else matrix `plot' = `plot' \ `oneplot'
-            local first 0
-        }
-    }
-    else {
-    mata: st_matrix("`plot'", rdistnn_plot_influence(st_data(., "`xvars'", "`esample'"), st_matrix("`targets_mat'"), st_data(., "`rho'", "`esample'"), st_data(., "`obsid'", "`esample'"), st_matrix("`bmat'"), strtoreal(tokens("`target_list'"))', `=e(k)', `=e(s)', "`e(method)'", "`e(distance)'"))
-    }
-    if `isclate' matrix colnames `plot' = target_id obs_id rank distance weight score contribution phi_y phi_d
-    else matrix colnames `plot' = target_id obs_id rank distance weight score contribution
-    preserve
-    clear
-    quietly svmat double `plot', names(col)
-    quietly gen double abs_contribution = abs(contribution)
-    quietly gsort target_id -abs_contribution
-    quietly by target_id: gen str12 obs_label = ///
-        string(obs_id, "%9.0g") if _n <= `nlabel' & `nlabel' > 0
-    quietly by target_id: gen byte obs_labpos = ///
-        cond(_n==1, 12, cond(_n==2, 3, cond(_n==3, 9, 6)))
-    quietly sort target_id distance
-    local plot_title "CATE influence contributions"
-    local contribution_label "w(i,j) * (score(i) - tau(j))"
-    if `isclate' {
-        local plot_title "CLATE paired influence contributions"
-        local contribution_label "w(i,j) * (phi_Y(i) - theta(j)*phi_D(i))"
-    }
-    twoway (scatter contribution distance, mcolor(black%65) msize(small) ///
-        mlabel(obs_label) mlabsize(vsmall) mlabvposition(obs_labpos)), ///
-        by(target_id, note("") title("`plot_title'")) ///
-        yline(0, lpattern(dash) lcolor(gs8)) xtitle("Distance") ///
-        ytitle("`contribution_label'") `nameopt' `drawopt'
-    restore
-    return matrix plot_data = `plot'
-    return scalar n_plotted = `ntargets'
-    return local view "influence"
+    _rdistnn_plot_sample_guard
+    _rdistnn_model_plot, type(influence) name(`name') nlabel(`nlabel') `replace' `nodraw' targets(`targets')
+    return add
 end
 
 program define _cate_dnn_plot_dashboard, rclass

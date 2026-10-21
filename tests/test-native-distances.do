@@ -27,7 +27,7 @@ program define _nd_case
     mata {
         nd_c=st_matrix("ND_`id'_C"); nd_r=st_matrix("ND_`id'_R")
         st_numscalar("nd_err",max(abs(st_matrix("ND_OUT")-nd_c):/(1:+abs(nd_c))))
-        st_numscalar("nd_rank",max(abs(rdistnn_ranks_from_dmat(st_matrix("ND_OUT"))-st_matrix("ND_`id'_rankC"))))
+        st_numscalar("nd_rank",max(abs(rdistnn_ranks_from_dmat(st_matrix("ND_OUT"),st_matrix("`xx'"))-st_matrix("ND_`id'_rankC"))))
         st_numscalar("nd_rdiff",sum(st_matrix("ND_`id'_rankC"):!=st_matrix("ND_`id'_rankR")))
     }
     test_assert "`id': native distances match actual Rcpp" scalar(nd_err)<1e-14
@@ -46,7 +46,7 @@ program define _nd_case
         local observed "$rdistnn_last_distance_engine"
         mata {
             st_numscalar("nd_err",max(abs(nd_D-nd_c):/(1:+abs(nd_c))))
-            st_numscalar("nd_rank",max(abs(rdistnn_ranks_from_dmat(nd_D)-st_matrix("ND_`id'_rankC"))))
+            st_numscalar("nd_rank",max(abs(rdistnn_ranks_from_dmat(nd_D,st_matrix("`xx'"))-st_matrix("ND_`id'_rankC"))))
             nd_perm=(rows(st_matrix("`target'"))..1)
             nd_P=rdistnn_distance_matrix(st_matrix("`xx'"),st_matrix("`target'")[nd_perm,],"`distance'",nd_G)
             st_numscalar("nd_perm",max(abs(nd_P-nd_D[,nd_perm])))
@@ -203,8 +203,9 @@ global rdistnn_plugin_ok `original_ok'
 global rdistnn_distance_engine plugin
 mata: nd_D=rdistnn_distance_matrix(st_matrix("ND_X"),st_matrix("ND_X0"),"mahalanobis")
 test_assert "factored Mahalanobis uses forced native L2 selector" "$rdistnn_last_distance_engine"=="plugin"
-mata: nd_D=rdistnn_distance_matrix(st_matrix("ND_X"),st_matrix("ND_X0"),"mahalanobis",rdistnn_mahal_cov_inv(st_matrix("ND_X")))
-test_assert "legacy inverse Mahalanobis retains Mata route" "$rdistnn_last_distance_engine"=="mata"
+mata: nd_G=rdistnn_mahal_geometry(st_matrix("ND_X"))
+mata: nd_D=rdistnn_distance_matrix(st_matrix("ND_X"),st_matrix("ND_X0"),"mahalanobis",nd_G)
+test_assert "supplied current whitening geometry uses forced native L2 selector" "$rdistnn_last_distance_engine"=="plugin"
 clear
 svmat double ND_X, names(ndx)
 gen double nd_y=ndx1+2*ndx2

@@ -24,7 +24,10 @@ public = subprocess.check_output([
     "git", "ls-files", "--cached", "--others", "--exclude-standard", "-z",
     "--", "src/", "docs/", "examples/",
 ]).decode().split("\0")
-files = sorted(set(roots + [name for name in public if name]))
+deleted = set(subprocess.check_output([
+    "git", "ls-files", "--deleted", "-z", "--", "src/", "docs/", "examples/",
+]).decode().split("\0"))
+files = sorted(set(roots + [name for name in public if name and name not in deleted]))
 for name in files:
     if not Path(name).is_file():
         raise SystemExit("Source input is missing: " + name)

@@ -3,7 +3,7 @@
 `cate_dnn` and `np_dnn` share localization, tuning, batch-target and reporting
 conventions. Their inputs determine what the local average means: CATE
 averages an observation-level treatment-effect signal, while NP regression
-averages an outcome. This article documents package **0.1.0.9005**.
+averages an outcome. This article documents package **0.1.1**.
 See [getting started](getting-started.md) for installation and a compact tour.
 
 ## Targets and samples
@@ -91,7 +91,7 @@ available. The runnable
 [CATE and regression example](../examples/cate-and-regression.do) shows
 both routes on the same observations.
 
-### Clipping and aliases
+### Clipping and input names
 
 For AIPW nuisance construction,
 `eclip = min(max(e,clip),1-clip)`, with default `clip(1e-8)` and
@@ -101,20 +101,18 @@ postestimation scores. `clip()` does not modify a precomputed signal.
 Clipping controls numerical denominators; it does not establish treatment
 overlap or repair insufficient local support.
 
-Preferred names mirror the R arguments with underscores removed:
+Option names mirror the R arguments with underscores removed:
 
-| Preferred Stata option | Accepted legacy alias | Quantity |
-| --- | --- | --- |
-| `xcols()` | `x()` | Localization variables |
-| `tcol()` | `treat()` | Binary treatment |
-| `ecol()` | `propensity()` | Treatment propensity |
-| `m0col()` | `m0()` | Control mean |
-| `m1col()` | `m1()` | Treated mean |
+| Stata option | Quantity |
+| --- | --- |
+| `xcols()` | Localization variables |
+| `tcol()` | Binary treatment |
+| `ecol()` | Treatment propensity |
+| `m0col()` | Control mean |
+| `m1col()` | Treated mean |
 
-Do not supply both spellings of one quantity. `pseudooutcome`, `x0matrix()`
+`pseudooutcome`, `x0matrix()`
 and `tuningmode()` correspond to R's `pseudo_outcome`, `X0` and `tuning_mode`.
-The accepted CATE compatibility flag `noconstant` has no effect; there is no
-intercept to remove from a weighted mean.
 
 ## Nonparametric regression
 
@@ -126,7 +124,7 @@ The estimate is `mu(x)=sum_i w_i(x)*Y_i`, a localized conditional mean.
 No nuisance columns are needed. `Y` may also be a caller-defined scalar
 signal, provided the interpretation is appropriate. This command uses the
 same target, `if`/`in`, tuning, method, distance, `level()` and `nose` controls
-as CATE. Its only legacy input alias is `x()` for `xcols()`.
+as CATE.
 
 NP diagnostics include the weighted outcome mean, standard deviation and
 10th, 50th and 90th percentiles. The standard deviation describes outcome
@@ -257,8 +255,7 @@ for every candidate.
 again; use the corresponding NP commands after restoring an NP fit. Current
 fits retain numeric observations/signals and geometry, so summaries, kernels,
 influence views and `rdistnn_predict` work independently of the active data.
-Legacy kernel/influence views retain original-input and observation-order
-guards. `rdistnn_candidate` extracts a standalone candidate using saved ranks.
+`rdistnn_candidate` extracts a standalone candidate using saved ranks.
 `rdistnn_results` exports tables without graphs. See [reusing fits](reusing-fits.md).
 
 For saved diagnostic tables, use `saving()` on the diagnostics command;

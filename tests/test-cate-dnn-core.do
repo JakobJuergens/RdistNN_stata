@@ -12,7 +12,7 @@ rdnn_dgp_basic, n(200) seed(42)
 test_section "cate_dnn: [smoke] basic run and eclass results"
 // ════════════════════════════════════════════════════════════
 
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(5) propensity(e) m0(m0) m1(m1)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(5) ecol(e) m0col(m0) m1col(m1)
 
 local tau  = _b[tau]
 local se   = _se[tau]
@@ -30,8 +30,8 @@ test_assert "[smoke] e(N) = 200"             `N'   == 200
 test_section "cate_dnn: [meta] eclass fields"
 // ════════════════════════════════════════════════════════════
 
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) s(15) ///
-    propensity(e) m0(m0) m1(m1) distance(l2) method(exact)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(3) s(15) ///
+    ecol(e) m0col(m0) m1col(m1) distance(l2) method(exact)
 
 local cmd  "`e(cmd)'"
 local dist "`e(distance)'"
@@ -73,8 +73,8 @@ mata {
 local tau_manual = scalar(_tau_manual)
 
 // Command tau
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(5) ///
-    propensity(e) m0(m0) m1(m1)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(5) ///
+    ecol(e) m0col(m0) m1col(m1)
 local tau_cmd = _b[tau]
 
 test_assert "[pseudo] tau = weighted mean of AIPW phi" abs(`tau_cmd' - `tau_manual') < 1e-8
@@ -88,7 +88,7 @@ rdnn_dgp_basic, n(100) seed(11)
 replace m0 = y - 2.0 * D
 replace m1 = y + 2.0 * (1 - D)
 
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) ///
-    propensity(e) m0(m0) m1(m1)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(3) ///
+    ecol(e) m0col(m0) m1col(m1)
 local se_const = _se[tau]
 test_assert "[edge] constant phi => se = 0" `se_const' < 1e-8

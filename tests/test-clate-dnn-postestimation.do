@@ -1,10 +1,5 @@
 // CLATE adapters: canonical target tables, paired influence, and shared plots.
 version 17
-// Emulate a legacy .ster that predates numeric model snapshots.
-capture program drop _fr_legacy
-program define _fr_legacy, eclass
-    ereturn scalar model_version=.
-end
 capture mkdir "build"
 capture mkdir "build/clate"
 do "tests/test_framework.do"
@@ -24,7 +19,7 @@ gen double y = x+1.5*d+rnormal()
 gen double sy = my1-my0+a*(y-my1)/ep-(1-a)*(y-my0)/(1-ep)
 gen double sd = md1+a*(d-md1)/ep
 matrix CLX = (-1 \ -.5 \ 0 \ .5 \ 1)
-quietly clate_dnn y, x(x) x0matrix(CLX) dcol(d) acol(a) ecol(ep) ///
+quietly clate_dnn y, xcols(x) x0matrix(CLX) dcol(d) acol(a) ecol(ep) ///
     my0col(my0) my1col(my1) md1col(md1) onesided k(2) tuningmode(grid)
 estimates store clpost
 matrix CLB = e(estimates)
@@ -132,10 +127,10 @@ if `infrc'==0 {
 }
 // A unit denominator cannot detect accidentally discarding the second signal.
 // Verify reconstructed contribution data using target-specific centering.
-quietly clate_dnn sy, denominator(sd) pseudooutcome x(x) x0matrix(CLX) s(12)
+quietly clate_dnn sy, denominator(sd) pseudooutcome xcols(x) x0matrix(CLX) s(12)
 capture noisily clate_dnn_plot, type(influence) name(clpaired) replace nodraw
 test_assert "[clate influence] precomputed paired signals work" _rc==0
-quietly clate_dnn y, x(x) x0matrix(CLX) dcol(d) acol(a) ecol(ep) ///
+quietly clate_dnn y, xcols(x) x0matrix(CLX) dcol(d) acol(a) ecol(ep) ///
     my0col(my0) my1col(my1) md1col(md1) onesided k(2) tuningmode(grid)
 foreach ext in png svg gph {
     capture noisily clate_dnn_plot, name(clexport) replace nodraw saving("build/clate/post-estimates.`ext'")
@@ -161,32 +156,45 @@ mata: st_numscalar("cldiff", max(abs(st_matrix("CLAFTER")-st_matrix("CLB"))))
 test_assert "[clate restore] estimation matrices and original data retained" scalar(cldiff)<1e-12 & _N==90
 capture noisily clate_dnn
  test_assert "[clate replay] stored result replays after plots" _rc==0
-_fr_legacy
+// Observation-level data come from the retained numeric snapshot.
+quietly clate_dnn_plot, type(influence) targets(2) name(clsnapshot) replace nodraw
+matrix CLSNAPSHOT=r(plot_data)
 preserve
 replace y = y + 100 in 1
-capture noisily clate_dnn_plot, type(influence) name(clmutated) replace nodraw
-test_assert "[clate signature] outcome mutation rejects influence" _rc==498
+capture noisily clate_dnn_plot, type(influence) targets(2) name(clmutated) replace nodraw
+local snapshot_rc=_rc
+matrix CLCHANGED=r(plot_data)
+mata: st_numscalar("cl_snapshot_same",all(st_matrix("CLCHANGED"):==st_matrix("CLSNAPSHOT")))
+test_assert "[clate snapshot] outcome mutation preserves frozen influence" `snapshot_rc'==0 & cl_snapshot_same
 capture noisily clate_dnn_plot, type(weights) view(kernel) name(clmutated) replace nodraw
-test_assert "[clate signature] outcome mutation rejects kernel" _rc==498
+test_assert "[clate snapshot] outcome mutation preserves frozen kernel" _rc==0
 capture noisily clate_dnn_plot, type(estimates) name(clstored) replace nodraw
-test_assert "[clate signature] stored estimate plots remain usable after data change" _rc==0
+test_assert "[clate snapshot] stored estimate plots remain usable after data change" _rc==0
 restore
 capture noisily clate_dnn_plot, type(influence) targets(2) name(clrestored) replace nodraw
-test_assert "[clate signature] restoring original data restores influence" _rc==0
+local snapshot_rc=_rc
+matrix CLCHANGED=r(plot_data)
+mata: st_numscalar("cl_snapshot_same",all(st_matrix("CLCHANGED"):==st_matrix("CLSNAPSHOT")))
+test_assert "[clate snapshot] restoring original data preserves frozen influence" `snapshot_rc'==0 & cl_snapshot_same
 preserve
 gsort -x
-capture noisily clate_dnn_plot, type(influence) name(clsorted) replace nodraw
-test_assert "[clate signature] changed data order rejects influence" _rc==498
+capture noisily clate_dnn_plot, type(influence) targets(2) name(clsorted) replace nodraw
+local snapshot_rc=_rc
+matrix CLCHANGED=r(plot_data)
+mata: st_numscalar("cl_snapshot_same",all(st_matrix("CLCHANGED"):==st_matrix("CLSNAPSHOT")))
+test_assert "[clate snapshot] changed data order preserves frozen influence" `snapshot_rc'==0 & cl_snapshot_same
 restore
 preserve
 drop md1
-capture noisily clate_dnn_plot, type(influence)
-local stale = _rc
+capture noisily clate_dnn_plot, type(influence) targets(2) name(clmissing) replace nodraw
+local snapshot_rc=_rc
+matrix CLCHANGED=r(plot_data)
+mata: st_numscalar("cl_snapshot_same",all(st_matrix("CLCHANGED"):==st_matrix("CLSNAPSHOT")))
 restore
-test_assert "[clate influence] missing original nuisance rejected" `stale'==498
+test_assert "[clate snapshot] missing original nuisance preserves frozen influence" `snapshot_rc'==0 & cl_snapshot_same
 // An all-undefined fit has no e(b); plotting must use full canonical tables.
 gen double zero = 0
-quietly clate_dnn sy, denominator(zero) pseudooutcome x(x) x0matrix(CLX) s(12)
+quietly clate_dnn sy, denominator(zero) pseudooutcome xcols(x) x0matrix(CLX) s(12)
 capture noisily clate_dnn_plot, name(clundefined) replace nodraw
 test_assert "[clate undefined] estimates work without e(b)" _rc==0
 capture noisily clate_dnn_diagnostics, targets(2 4)
@@ -202,7 +210,7 @@ gen double x = _n
 gen double sy = 1
 gen double sd = cond(_n<=2,0,1)
 matrix CLPART = (0 \ 5)
-quietly clate_dnn sy, denominator(sd) pseudooutcome x(x) x0matrix(CLPART) s(4) nose
+quietly clate_dnn sy, denominator(sd) pseudooutcome xcols(x) x0matrix(CLPART) s(4) nose
 capture noisily clate_dnn_plot, style(forest) name(clpartial) replace nodraw
 local partialrc = _rc
 local partialn = r(n_plotted)
@@ -217,7 +225,7 @@ set obs 20
 gen double x = _n
 gen double sy = 2
 gen double sd = 1
-quietly clate_dnn sy, denominator(sd) pseudooutcome x(x) x0(10) tuningmode(grid)
+quietly clate_dnn sy, denominator(sd) pseudooutcome xcols(x) x0(10) tuningmode(grid)
 capture noisily clate_dnn_plot, name(clwald) replace nodraw
 local waldrc = _rc
 capture matrix CWALD = r(plot_data)

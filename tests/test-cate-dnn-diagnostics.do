@@ -62,9 +62,11 @@ gen double m1 = m0 + 1
 quietly cate_dnn y, xcols(x1 x2) x0matrix(X0_diag) tcol(D) ecol(e) ///
     m0col(m0) m1col(m1) k(2) s(4) method(exact)
 matrix D_overlap = e(diagnostics)
+// The target2 tied mass 1/28 belongs to X=(-1,-1), whose propensity
+// is .30; this gives weighted mean 183/400=.4575. Both tied rows are treated.
 matrix O_r = ( ///
     1,.5,.5,.5,1,.450357142857143,.35,.6 \ ///
-    1,.285714285714286,.714285714285714,.285714285714286,1,.459285714285714,.2,.7 \ ///
+    1,.285714285714286,.714285714285714,.285714285714286,1,.4575,.2,.7 \ ///
     1,.535714285714286,.464285714285714,.535714285714286,1,.615,.4,.8)
 mata: st_numscalar("_diag_r_overlap", max(abs(st_matrix("D_overlap")[,12..19] - st_matrix("O_r"))))
 test_assert "[R parity] overlap diagnostics match RdistNN" scalar(_diag_r_overlap) < 1e-10

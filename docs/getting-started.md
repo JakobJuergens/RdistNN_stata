@@ -130,4 +130,7 @@ The former `mcol()`/`mhat()` construction is removed. Supply both arm-specific
 outcome means and a propensity for AIPW, or a justified supplied signal.
 Duplicating a pooled mean is not an equivalent migration. R demo columns
 `m1_oracle` and `aipw_oracle` replace a different signal formerly called
-`rho_oracle`.
+`rho_oracle`. Supported saved numeric snapshots continue to reuse their
+retained signals without converting them to AIPW; see the
+[saved-fit migration guide](reusing-fits.md#migrating-saved-cate-fits-after-robinson-removal)
+for snapshot and live-data postestimation boundaries.

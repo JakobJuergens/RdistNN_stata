@@ -7,7 +7,6 @@ foreach fn in naive naive_table prefix plugin from_ranks from_table {
 capture mata: mata drop rdistnn_center_signal()
 capture mata: mata drop rdistnn_jk_cov_from_ranks()
 capture mata: mata drop rdistnn_jk_cov_multi_from_ranks()
-capture mata: mata drop rdistnn_jk_se_from_ranks()
 mata:
 // Explicit table-index deletions are the reference and final fallback.
 real matrix rdistnn_loo_naive_table(real matrix ranks, real matrix signal,
@@ -276,20 +275,4 @@ real matrix rdistnn_jk_cov_multi_from_ranks(real matrix ranks,
     return(rdistnn_covariance(loo,(n-1)/n,1))
 }
 
-// ── rdistnn_jk_se_from_ranks ──────────────────────────────────────────
-// Scalar compatibility wrapper for callers that only need the marginal
-// jackknife SE of one signal column.
-//
-real scalar rdistnn_jk_se_from_ranks(real colvector ranks,
-                                      real colvector signal,
-                                      real scalar k,
-                                      real scalar s,
-                                      | string scalar method)
-{
-    real matrix V
-
-    if (args() < 5 | method == "") method = "exact"
-    V = rdistnn_jk_cov_from_ranks(ranks, signal, k, s, method)
-    return(sqrt(max((V[1,1], 0))))
-}
 end

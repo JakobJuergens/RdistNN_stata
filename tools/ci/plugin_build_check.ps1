@@ -52,12 +52,10 @@ try {
         "rdistnn_core.hpp",
         "rdistnn_distance.hpp",
         "compensated_arithmetic.hpp",
-        "rank_weight_tables.hpp",
         "rdistnn_plugin.cpp",
         "stplugin.c",
         "stplugin.h",
         "test_rdistnn_core.cpp",
-        "test_rdistnn_weights.cpp",
         "test_rdistnn_distance.cpp",
         "test_rdistnn_distance_plugin.cpp",
         "test_rdistnn_distance_rounding.cpp"

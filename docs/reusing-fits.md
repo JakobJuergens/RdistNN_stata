@@ -1,6 +1,6 @@
 # Save, report and reuse fitted results
 
-Version 0.1.0.9005 provides three common commands for DNN/TDNN regression, CATE, CLATE and
+Version 0.1.1 provides three common commands for DNN/TDNN regression, CATE, CLATE and
 PLQR. They use the R result methods as the reference for shared behavior.
 PLQR retains its supplied-coefficient **moment-only** scope.
 
@@ -73,12 +73,45 @@ and frozen signals. Mahalanobis geometry always uses that training sample.
 New-target distances are computed once. A candidate at existing targets
 uses the saved geometry. No nuisance predictions are refitted.
 
+Fits use exact distance followed by lexicographic original covariates, then
+observation order for identical covariate rows. Cached ranks remain
+authoritative. Refit objects created by older development versions before
+reusing them with the current package.
+
 `rdistnn_predict` preserves active data and estimates by default. `post`
 explicitly activates the derived fit; `store(name)` saves it independently.
 A posted fit can be replayed, diagnosed, plotted and predicted again.
 `e(sample)` is retained only when the original rows and their values/order
 can still be verified; otherwise its sample is empty. Saved observation IDs
 refer to the original fitted dataset, not row numbers of unrelated active data.
+
+For NP, TDNN, CATE and CLATE, derived fits preserve `e(depvar)` from the
+current fitted state. Default reuse leaves the parent's complete `e()` state
+unchanged. `e(vce)` and `e(vcetype)` describe the requested
+covariance calculation, with `none` and an empty label for point-only results.
+For CLATE, `e(status)` still determines whether ratio inference is available.
+
+## Migrating saved CATE fits after Robinson removal
+
+Fresh nuisance-based CATE uses AIPW and requires a propensity and both
+arm-specific outcome means. A pooled outcome mean is not a substitute.
+Alternatively, `pseudooutcome` localizes a supplied signal unchanged; its
+construction, causal interpretation and inferential justification remain
+the caller's responsibility. The former `mcol()` and `mhat()` options remain
+rejected. The paper's residualized-slope estimating equation is distinct from
+the removed normalized Robinson pseudo-outcome; this migration adds no
+residualized-slope estimator.
+
+Refit objects created by older development versions. Postestimation uses the
+current numeric snapshot and does not reconstruct retired score methods from
+live inputs. Current supplied signals are reused unchanged and keep their
+recorded provenance.
+
+The R companion additionally reports descriptive signal provenance and the
+original fit's creation version. In either interface, provenance does not certify same-sample
+nuisance accuracy or stability, identification, or localization conditions.
+Localization bias and the pointwise scope of inference remain relevant; see
+the [CATE uncertainty guide](cate-and-regression.md#what-the-uncertainty-measures).
 
 ## Storage and experimental boundaries
 
@@ -89,9 +122,8 @@ No live Mata globals, original dataset, sidecar files or R installation are
 needed after restoration. Storage grows with sample size and target count;
 `.ster` files now contain the fitted numeric observations and signals.
 
-Kernel and influence plots use the snapshot after data edits, reordering or
-`clear`. Legacy fits without a snapshot retain their original-data/order
-guards and require a refit for prediction or candidate extraction.
+Kernel and influence plots use the current snapshot after data edits,
+reordering or `clear`. Fits without the current required snapshot need refitting.
 
 PLQR reporting and prediction concern localized score moments at the supplied
 `theta_eval`. `r(quantity)` is `moment`, and `r(theta_eval)` reports the supplied

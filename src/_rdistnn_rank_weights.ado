@@ -224,8 +224,7 @@ real matrix rdistnn_weights_from_rmat(real matrix ranks,
 //   s        : kernel order
 //   method   : "exact" (default) or "asymp"
 //   distance : "l2" (default) or "mahalanobis"
-//   Sinv     : precomputed inverse covariance (optional; computed if not supplied
-//              and distance == "mahalanobis")
+//   geometry : optional current fitted scale or packed whitening geometry
 //
 // Returns: n-vector of DNN weights.
 //
@@ -233,16 +232,16 @@ real colvector rdistnn_weights(real matrix X, real rowvector x0,
                                 real scalar k, real scalar s,
                                 | string scalar method,
                                   string scalar distance,
-                                  real matrix Sinv)
+                                  real matrix geometry)
 {
     real colvector dist, ranks
 
     if (args() < 5 | method == "")   method   = "exact"
     if (args() < 6 | distance == "") distance = "l2"
 
-    if (args() < 7 | rows(Sinv) == 0) Sinv=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
-    dist=rdistnn_distance_matrix(X,x0,distance,Sinv)
-    ranks = rdistnn_order(dist)
+    if (args() < 7 | rows(geometry) == 0) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
+    dist=rdistnn_distance_matrix(X,x0,distance,geometry)
+    ranks = rdistnn_order(dist,X)
     return(rdistnn_weights_from_ranks(ranks, k, s, method))
 }
 end

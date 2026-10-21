@@ -15,7 +15,7 @@
 
 {pstd}
 Stata 17 or later is required. Supplied-prediction CLATE and ordinary paired-signal
-ratios are supported workflows in the development version {bf:0.1.0.9005} under the documented
+ratios are supported workflows in the development version {bf:0.1.1} under the documented
 pointwise inference conditions. See {help rdistnn} for package navigation.
 
 {marker syntax}{...}
@@ -42,8 +42,7 @@ pointwise inference conditions. See {help rdistnn} for package navigation.
 {it:target_specification} is exactly one of {cmd:x0(}{it:numlist}{cmd:)} and
 {cmd:x0matrix(}{it:matrix_name}{cmd:)}. Targets occupy matrix rows;
 columns follow {cmd:xcols()} order. {cmd:md0col()} is required unless
-{cmd:onesided} is specified. {cmd:x()} is a compatibility alias for
-{cmd:xcols()}; do not combine them.
+{cmd:onesided} is specified.
 
 {pstd}Replay, with a confidence level expressed as a percentage:
 
@@ -244,7 +243,10 @@ are absolute scales, not inverse scales. Each scale is floored at the positive
 finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
 The fitted scales or Mahalanobis whitening factor remain fixed across
-jackknife deletions and saved-model predictions. Ties retain original row order.
+jackknife deletions and saved-model predictions. Exact distance ties use the
+original covariates lexicographically in their supplied column order, then
+observation order for identical covariate rows. Outcomes and nuisances do not
+enter this ordering; rank weights and effective sample size are preserved.
 
 {title:Stored results}
 
@@ -309,10 +311,9 @@ Candidate status is 0=infeasible or 1=ok; reasons are 0=ok, 1=k_gt_s,
 Input names are recorded in {cmd:e(xvars)}, {cmd:e(x_cols)},
 {cmd:e(outcome)}, {cmd:e(signal)}, {cmd:e(denominator)}, {cmd:e(d_col)},
 {cmd:e(a_col)}, {cmd:e(e_col)}, {cmd:e(my0_col)}, {cmd:e(my1_col)},
-{cmd:e(md0_col)} and {cmd:e(md1_col)}. {cmd:e(treat)} refers to the
-instrument in shared postestimation. {cmd:e(propensity_version)} records
+{cmd:e(md0_col)} and {cmd:e(md1_col)}. {cmd:e(propensity_version)} records
 clipped or not_used. {cmd:e(signature_vars)} and {cmd:e(ordered_signature)}
-protect observation-level plots against changed values or row order.
+verify when derived estimation samples refer to the current data.
 The VCE labels describe the requested calculation; {cmd:e(status)} identifies
 targets with available ratio inference.
 
@@ -331,8 +332,7 @@ slots mean instrument 1/0. Influence concentration uses
 abs(w*(phi_Y-theta*phi_D)), not individual effects or deletion pseudo-values.
 {help clate_dnn_plot} covers estimates, overlap, weights, influence and grids.
 Current kernel/influence views use saved numeric observations and signals.
-Legacy fits without snapshots require unchanged original sample, values and
-row order. {help rdistnn_predict} relocalizes the saved frozen signals at new
+{help rdistnn_predict} relocalizes the saved frozen signals at new
 targets; {help rdistnn_candidate} extracts reusable grid fits. Both preserve
 active estimates by default. {help rdistnn_results} supplies graph-free tables.
 

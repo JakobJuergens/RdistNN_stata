@@ -14,18 +14,18 @@ test_section "cate_dnn: [nuisance] required full AIPW inputs"
 // ════════════════════════════════════════════════════════════
 
 // [nuisance] Full AIPW (both m0 and m1 provided)
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(5) propensity(e) m0(m0) m1(m1)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(5) ecol(e) m0col(m0) m1col(m1)
 local tau_full = _b[tau]
 local se_full  = _se[tau]
 test_assert "[nuisance] full AIPW: finite tau"   (`tau_full' < .)
 test_assert "[nuisance] full AIPW: se >= 0"       `se_full'  >= 0
 
 // [nuisance] Partial outcome nuisances are not supported.
-cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(5) propensity(e) m0(m0)
-test_assert "[nuisance] missing m1() rejected (rc=198)" _rc == 198
+cap cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(5) ecol(e) m0col(m0)
+test_assert "[nuisance] missing m1col() rejected (rc=198)" _rc == 198
 
-cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(5) propensity(e) m1(m1)
-test_assert "[nuisance] missing m0() rejected (rc=198)" _rc == 198
+cap cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(5) ecol(e) m1col(m1)
+test_assert "[nuisance] missing m0col() rejected (rc=198)" _rc == 198
 
 // ════════════════════════════════════════════════════════════
 test_section "cate_dnn: [double-robust] oracle nuisances"
@@ -36,7 +36,7 @@ test_section "cate_dnn: [double-robust] oracle nuisances"
 //   DGP: m0 = 0.5*x2, m1 = sin(x1)+0.5*x2, CATE = sin(x1).
 //   At x0=(0,0), true CATE = sin(0) = 0.
 rdnn_dgp_basic, n(500) seed(123)
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(5) propensity(e) m0(m0) m1(m1)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(5) ecol(e) m0col(m0) m1col(m1)
 local tau_oracle = _b[tau]
 local se_oracle  = _se[tau]
 
@@ -54,7 +54,7 @@ rdnn_dgp_basic, n(100) seed(7)
 replace e = 1e-9 in 1      // force a near-zero propensity
 replace e = 1 - 1e-9 in 2  // force a near-one propensity
 
-cap cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(3) propensity(e) m0(m0) m1(m1)
+cap cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(3) ecol(e) m0col(m0) m1col(m1)
 test_assert "[nuisance] propensity clipping: command runs without error" _rc == 0
 
 test_section "cate_dnn: [nuisance] endpoint parity and configurable clipping"
@@ -88,14 +88,14 @@ test_section "cate_dnn: [opts] method and distance options"
 rdnn_dgp_basic, n(200) seed(42)
 
 // [opts] method=asymp runs
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(4) s(15) method(asymp) ///
-    propensity(e) m0(m0) m1(m1)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(4) s(15) method(asymp) ///
+    ecol(e) m0col(m0) m1col(m1)
 local tau_ap = _b[tau]
 test_assert "[opts] method=asymp: tau finite" (`tau_ap' < .)
 
 // [opts] distance=mahalanobis runs
-cate_dnn y, treat(D) x(x1 x2) x0(0 0) k(4) s(15) distance(mahalanobis) ///
-    propensity(e) m0(m0) m1(m1)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(4) s(15) distance(mahalanobis) ///
+    ecol(e) m0col(m0) m1col(m1)
 local tau_mh = _b[tau]
 local se_mh  = _se[tau]
 test_assert "[opts] distance=mahal: tau finite"  (`tau_mh' < .)

@@ -8,6 +8,15 @@ accuracy in addition to agreement between engines. See the
 [contributor contract](https://github.com/JakobJuergens/RdistNN_stata/blob/master/CONTRIBUTING.md#numerical-parity-contract)
 and [native guide](../src/plugin/README.md) for verification and engine controls.
 
+Covariate-aware ranks resolve exact represented distance ties by the original
+raw covariate columns lexicographically, then by observation order only for
+identical covariate rows. R, its C++ ranking kernels and Mata use this rule,
+including subset localization and new-target predictions. The Stata plugin
+consumes the ranks constructed by Mata. No outcomes,
+treatments or nuisance values enter it. The rank-weight vector and ESS remain
+unchanged. Distance-only sort helpers retain index ties. Current snapshots reuse
+their retained ranks; older development fit schemas are not a compatibility target.
+
 ## Stable elementary calculations
 
 TDNN coefficients use equivalent logarithm/exponential formulas that avoid
@@ -17,14 +26,6 @@ subtraction of two CDF values that have both rounded to one. These choices
 preserve the selected mathematical weighting rule and its normalization.
 Very small weights may still underflow the supported numeric representation;
 the code does not impose an additional tail cutoff.
-
-The legacy C++ `weights_l2` API requires its incomplete-Beta continued
-fraction to converge to a finite positive value within 200 iterations.
-Failure raises Stata numerical error 498 before any output-variable writes,
-with guidance to use `weights_dnn`. Standard estimation and weight commands
-already evaluate Beta weights in Mata. This safeguard detects failed
-iteration; it does not certify an error bound for every converged probability.
-Exact endpoints and legitimate tail underflow retain their existing behavior.
 
 Fitted IQR/MAD scales use R's guarded type-7 interpolation, including its
 weighted-endpoint arithmetic. SD fitting uses common conservative range gates
@@ -57,6 +58,33 @@ these operations retain numerator/denominator dependence. Numerical stability
 does not change inference assumptions or the interpretation of a near-zero
 first stage.
 
+## PLQR threshold comparisons
+
+`_rdistnn_plqr_mata.ado` owns the supplied-coefficient indicator
+`Y <= D*theta + g`; R and its native score kernels implement the same policy.
+Even finite ordinary thresholds can lose a decisive residual through
+cancellation. With `L = cols(D)+2`, `eps = 2^-52`, `eta = 2^-1074`, accumulate
+`A = abs(g)+abs(Y)+sum(abs(rounded D_j*theta_j))` in column order. Keep the
+ordinary comparison only when its threshold and margin are finite,
+`A < 2^1022`, and the absolute rounded margin strictly exceeds
+`8*(L+1)*eps*A + 32*L*eta`. This conservative envelope covers ordinary
+product/sum rounding and gradual underflow, with headroom below Mata's
+positive missing-value boundary. Ordinary dot-product error analysis requires
+that overflow be excluded; see [Ogita, Rump and Oishi (2005)](https://ogilab.w.waseda.jp/ogita/math/doc/2005_OgRuOi.pdf).
+
+All remaining comparisons use exact accumulation of the finite input products,
+including products outside the floating-point range. Positive and negative
+fixed-point vectors each contain 170 base-`2^26` limbs with bit origin `-2252`.
+Significand splitting and immediate carries keep every integer operation exact
+in binary64; capacity covers all terms allowed by matrix dimensions. The
+highest differing limb determines the sign, and exact equality satisfies the
+inclusive indicator. This applies the
+[adaptive-predicate approach](https://people.eecs.berkeley.edu/~jrs/papers/robustr.pdf)
+with an [exact sum-of-products accumulator](https://publikationen.bibliothek.kit.edu/1000018822/1375602),
+without a new runtime dependency. It assumes round-to-nearest binary64,
+gradual underflow and no unsafe reassociation. BLAS evaluation may choose a
+different fast route, but every resulting discrete comparison must agree.
+
 ## Fitted Mahalanobis factorization
 
 `_rdistnn_geometry.ado` centers each column safely on its own binary scale,
@@ -85,9 +113,8 @@ old arithmetic lost a resolvable direction. SVD libraries can still differ at
 the rank boundary; universal bitwise factorization equivalence is not promised.
 Saved geometry stores a header with scale and rank (rank when `p>=2`), a
 raw observed origin and the zero-padded square factor: `(p+2) x p`.
-Legacy `p x p` inverse snapshots and old fits without stored geometry retain
-their original metric. The outer model version remains compatible. Target
-reordering, subsetting and serialized prediction always reuse fitted geometry.
+Target reordering, subsetting and serialized prediction reuse this fitted
+geometry. Earlier inverse-metric snapshots require refitting.
 
 ## Shared covariance arithmetic
 
@@ -190,10 +217,23 @@ Fresh fits and saved-fit prediction use the same helpers. Diagnostic distance
 work preserves the recorded localization engine. All calculations use ordinary
 double precision and linear workspace, without a new runtime dependency.
 
+Fresh and restored CATE/CLATE concentration and influence views share
+`rdistnn_score_share` in `_rdistnn_diagnostic_mata.ado`. Zero-weight rows are
+inactive before risky arithmetic. Ordinary finite weighted contributions keep
+their represented values. If finite residual operands overflow during
+subtraction or weighting, binary mantissa/exponent descriptors preserve the
+weighted result and permit a dimensionless concentration even when its
+unscaled total is out of range. The same descriptors recover dimensional
+influence contributions when representable. A genuinely nonfinite already
+rounded `theta*phi_D` remains unavailable; this helper does not recover arbitrary
+products of three inputs. R's paired jackknife-concentration diagnostics retain
+their separate squared-pseudo-value definition.
+
 ## Portable exact rank tables
 
-`_rdistnn_rank_weights.ado` and the mirrored native `rank_weight_tables.hpp`
-share R's exact order-statistic PMF recurrence. Anchor each PMF at its mode,
+`_rdistnn_rank_weights.ado` shares R's exact order-statistic PMF recurrence.
+The Stata plugin consumes the resulting tables; it has no separate weight
+constructor. Anchor each PMF at its mode,
 recurse in both directions with adjacent combinatorial ratios, normalize in
 rank order with serial Neumaier addition, and average with retained correction
 state. A separate mantissa and binary exponent prevents a subnormal recurrence
@@ -224,3 +264,32 @@ adapters. Those responsibilities live in `_rdistnn_accumulation.ado`,
 `_rdistnn_rank_weights.ado` and `_rdistnn_rank_loo.ado`. The native distance bridge
 and plot-data adapters remain separate. Moving an implementation does not
 change its numerical law or engine-selection contract.
+
+## Localization, diagnostics and saved-state ownership
+
+The private `_rdistnn_tuning_plan.ado` resolves scalar/grid orders, default
+insertion, duplicate computed IDs and feasibility. NP, CATE and CLATE use the
+same plan. `_rdistnn_localization_mata.ado` fits geometry and constructs ordered
+distances and ranks once; estimator commands retain signal construction,
+covariance/status policy, parsing and labels. CLATE performs its paired
+calculation directly from that plan.
+
+`_rdistnn_diagnostic_mata.ado` owns matrix-input localization, NP outcome and
+CATE/CLATE arm/contribution diagnostics for both fresh and restored routes.
+The fresh CATE contribution-availability/reduction convention and restored-model guard
+remain explicit at the shared boundary. Physical-distance diagnostics preserve
+the engine recorded by localization.
+
+`_rdistnn_model_fit.ado` coordinates supported saved-model checks, numeric
+evaluation and derived-result posting. `_rdistnn_model_decode.ado` validates and
+decodes version-1 numeric inputs, retained ranks/frozen geometry and stored arm
+inputs; `_rdistnn_model_mata.ado` evaluates the estimator. Posting, coefficient
+stripes, descriptive metadata and uncertainty labels belong to
+`_rdistnn_model_post.ado`. `_rdistnn_reuse.ado` owns the caller's estimation-state
+transaction, including failures. The snapshot version remains 1 and saved
+score provenance is retained.
+
+Plot builders own rendering and delegate numeric reconstruction to the current
+snapshot model. Older no-snapshot development fits require refitting.
+Private modules stay flat under `src/`, are installed through
+`rdistnn.pkg`, and own uniquely prefixed typed Mata functions and reload guards.

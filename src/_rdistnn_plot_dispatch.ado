@@ -224,19 +224,8 @@ end
 
 program define _rdistnn_plot_sample_guard
     version 17
-    if e(model_version)==1 exit
-    capture quietly checkestimationsample
-    if _rc | "`e(datasignature)'"=="" {
-        di as error "The estimation data have changed or cannot be verified; refit `e(cmd)' before plotting observation-level results."
-        exit 498
-    }
-    if "`e(ordered_signature)'"=="" | "`e(signature_vars)'"=="" {
-        di as error "This saved fit cannot verify observation order; refit `e(cmd)' before plotting observation-level results."
-        exit 498
-    }
-    capture quietly _rdistnn_sample_signature `e(signature_vars)' if e(sample)
-    if _rc | "`r(signature)'"!="`e(ordered_signature)'" {
-        di as error "The estimation data or their order have changed; refit `e(cmd)' before plotting observation-level results."
+    if e(model_version)!=1 {
+        di as error "Observation-level plots require current fitted model state; refit `e(cmd)' with the current package."
         exit 498
     }
 end

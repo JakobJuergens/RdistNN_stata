@@ -12,7 +12,7 @@
 
 {p 4 4 2}
 Use {cmd:x0matrix(}{it:M}{cmd:)} instead of {cmd:x0()} for multiple target
-rows. {cmd:x()} is an alias for {cmd:xcols()}. Defaults are {cmd:s1(1)},
+rows. Defaults are {cmd:s1(1)},
 {cmd:s2(2)}, and {cmd:dim()} equal to the number of covariates.
 Require 1 <= s1 < s2 <= n; jackknife inference requires s2 < n.
 

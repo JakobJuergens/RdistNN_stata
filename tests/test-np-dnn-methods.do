@@ -13,11 +13,11 @@ test_section "np_dnn: [agree] exact vs asymp for large n"
 // ════════════════════════════════════════════════════════════
 
 // [agree] With n=300 the exact and asymp point estimates should agree closely.
-np_dnn y, x(x1 x2) x0(0 0) k(4) s(15) method(exact)
+np_dnn y, xcols(x1 x2) x0(0 0) k(4) s(15) method(exact)
 local mu_ex = _b[mu]
 local se_ex = _se[mu]
 
-np_dnn y, x(x1 x2) x0(0 0) k(4) s(15) method(asymp)
+np_dnn y, xcols(x1 x2) x0(0 0) k(4) s(15) method(asymp)
 local mu_ap = _b[mu]
 local se_ap = _se[mu]
 
@@ -34,7 +34,7 @@ test_section "np_dnn: [distance] mahalanobis"
 // ════════════════════════════════════════════════════════════
 
 // [distance] mahalanobis runs without error and returns finite results
-np_dnn y, x(x1 x2) x0(0 0) k(4) s(15) distance(mahalanobis)
+np_dnn y, xcols(x1 x2) x0(0 0) k(4) s(15) distance(mahalanobis)
 local mu_mh = _b[mu]
 local se_mh = _se[mu]
 local ne_mh = e(neff)
@@ -52,7 +52,7 @@ test_section "np_dnn: [opts] method=asymp with mahalanobis distance"
 // ════════════════════════════════════════════════════════════
 
 // [opts] combined method=asymp and distance=mahalanobis
-np_dnn y, x(x1 x2) x0(0 0) k(3) s(10) method(asymp) distance(mahalanobis)
+np_dnn y, xcols(x1 x2) x0(0 0) k(3) s(10) method(asymp) distance(mahalanobis)
 local mu_am = _b[mu]
 local se_am = _se[mu]
 
@@ -65,11 +65,11 @@ test_section "np_dnn: [agree] reproducibility (two identical calls)"
 
 // [agree] Calling np_dnn twice on the same data with the same arguments
 //   must produce identical results (no hidden randomness).
-np_dnn y, x(x1 x2) x0(0.5 -0.5) k(5) s(20)
+np_dnn y, xcols(x1 x2) x0(0.5 -0.5) k(5) s(20)
 local mu1 = _b[mu]
 local se1 = _se[mu]
 
-np_dnn y, x(x1 x2) x0(0.5 -0.5) k(5) s(20)
+np_dnn y, xcols(x1 x2) x0(0.5 -0.5) k(5) s(20)
 local mu2 = _b[mu]
 local se2 = _se[mu]
 

@@ -34,8 +34,8 @@ not coefficients. Other fits return quantity=estimate. r(level) is a percentage.
 Undefined CLATE targets remain in canonical tables; unavailable uncertainty
 remains missing. Confidence limits are pointwise, not simultaneous.
 {pstd}
-Weights and influence require a current numeric model snapshot. Legacy fits
-can report stored results but must be refitted for missing model state.
+Reporting requires current fitted state. Weights and influence use its numeric
+model snapshot. Refit objects from older development versions.
 For grid extraction, first use {help rdistnn_candidate}; the existing
 estimator-specific diagnostics commands retain all-candidate table exports.
 {title:See also}

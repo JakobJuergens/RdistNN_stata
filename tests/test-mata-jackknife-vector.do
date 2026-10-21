@@ -8,28 +8,6 @@ quietly do "src/_rdistnn_mata.ado"
 do "tests/test_framework.do"
 
 // ════════════════════════════════════════════════════════════
-test_section "rdistnn_jk_cov_from_ranks: [compat] scalar signal"
-// ════════════════════════════════════════════════════════════
-
-mata {
-    rseed(301)
-    n = 30; k = 2; s = 5
-    _X   = rnormal(n, 2, 0, 1)
-    _rnk = rdistnn_ranks(_X, (0.1, -0.2), "l2")
-    _sig = rnormal(n, 1, 0, 1)
-
-    _V_exact  = rdistnn_jk_cov_from_ranks(_rnk, _sig, k, s, "exact")
-    _se_exact = rdistnn_jk_se_from_ranks(_rnk, _sig, k, s, "exact")
-    _V_asymp  = rdistnn_jk_cov_from_ranks(_rnk, _sig, k, s, "asymp")
-    _se_asymp = rdistnn_jk_se_from_ranks(_rnk, _sig, k, s, "asymp")
-
-    st_numscalar("_r_exact", abs(_V_exact[1,1] - _se_exact^2))
-    st_numscalar("_r_asymp", abs(_V_asymp[1,1] - _se_asymp^2))
-}
-test_assert "[compat] exact covariance equals scalar SE squared" scalar(_r_exact) < 1e-10
-test_assert "[compat] asymp covariance equals scalar SE squared" scalar(_r_asymp) < 1e-10
-
-// ════════════════════════════════════════════════════════════
 test_section "rdistnn_jk_cov_from_ranks: [edge] constant matrix signal"
 // ════════════════════════════════════════════════════════════
 

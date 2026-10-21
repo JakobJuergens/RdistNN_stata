@@ -26,8 +26,7 @@ CORE_TEST := rdistnn_core_test
 DISTANCE_TEST := rdistnn_distance_test
 PROTOCOL_TEST := rdistnn_distance_plugin_test
 ROUNDING_TEST := rdistnn_distance_rounding_test
-WEIGHTS_TEST := rdistnn_weights_test
-HEADERS := rdistnn_core.hpp rdistnn_distance.hpp compensated_arithmetic.hpp rank_weight_tables.hpp
+HEADERS := rdistnn_core.hpp rdistnn_distance.hpp compensated_arithmetic.hpp
 SRCS   := stplugin.c rdistnn_plugin.cpp
 
 $(TARGET): $(SRCS) $(HEADERS) stplugin.h
@@ -45,17 +44,14 @@ $(PROTOCOL_TEST): test_rdistnn_distance_plugin.cpp rdistnn_plugin.cpp $(HEADERS)
 $(ROUNDING_TEST): test_rdistnn_distance_rounding.cpp $(HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ test_rdistnn_distance_rounding.cpp
 
-$(WEIGHTS_TEST): test_rdistnn_weights.cpp $(HEADERS)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ test_rdistnn_weights.cpp
 
-check: $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST) $(WEIGHTS_TEST)
+check: $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST)
 	./$(CORE_TEST)
 	./$(DISTANCE_TEST) 2 2 0.5790338377234229 1.4758492921057114
 	./$(PROTOCOL_TEST)
 	./$(ROUNDING_TEST) 2 2 0.5790338377234229 1.4758492921057114
-	./$(WEIGHTS_TEST)
 
 clean:
-	rm -f $(TARGET) $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST) $(WEIGHTS_TEST)
+	rm -f $(TARGET) $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST)
 
 .PHONY: check clean

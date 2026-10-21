@@ -11,8 +11,8 @@ gen double eclip_score = min(max(e, 1e-8), 1 - 1e-8)
 gen double rho_aipw = D * (y - m1) / eclip_score ///
     - (1-D) * (y - m0) / (1 - eclip_score) + (m1 - m0)
 
-cate_dnn y, treat(D) x(x1 x2) x0(0.2 -0.1) k(2) s(8) ///
-    propensity(e) m0(m0) m1(m1)
+cate_dnn y, tcol(D) xcols(x1 x2) x0(0.2 -0.1) k(2) s(8) ///
+    ecol(e) m0col(m0) m1col(m1)
 local tau_aipw = _b[tau]
 local se_aipw = _se[tau]
 local score_aipw "`e(score_method)'"
@@ -20,7 +20,7 @@ test_assert "[meta] AIPW depvar identifies the outcome" "`e(depvar)'" == "y"
 test_assert "[meta] AIPW VCE identifies rank-shift deletions" "`e(vce)'" == "rank_shift"
 test_assert "[meta] AIPW VCE labels frozen scores" "`e(vcetype)'" == "Frozen-score jackknife"
 
-cate_dnn rho_aipw, x(x1 x2) x0(0.2 -0.1) k(2) s(8) pseudooutcome
+cate_dnn rho_aipw, xcols(x1 x2) x0(0.2 -0.1) k(2) s(8) pseudooutcome
 local tau_pseudo = _b[tau]
 local se_pseudo = _se[tau]
 local score_pseudo "`e(score_method)'"
@@ -40,7 +40,7 @@ gen double d2_nose = x1^2 + x2^2
 sort d2_nose
 local rho_nearest = rho_nose[1]
 
-cate_dnn rho_nose, x(x1 x2) x0(0 0) s(50) pseudooutcome nose
+cate_dnn rho_nose, xcols(x1 x2) x0(0 0) s(50) pseudooutcome nose
 local tau_nose = _b[tau]
 local k_default = e(k)
 local s_nose = e(s)
@@ -63,7 +63,7 @@ rdnn_dgp_basic, n(40) seed(2104)
 gen double rho_mark = y
 replace rho_mark = . in 2/4
 replace x1 = . in 5
-cate_dnn rho_mark, x(x1 x2) x0(0 0) k(1) s(5) pseudooutcome nose
+cate_dnn rho_mark, xcols(x1 x2) x0(0 0) k(1) s(5) pseudooutcome nose
 local n_mark = e(N)
 quietly count if e(sample)
 local n_esample = r(N)

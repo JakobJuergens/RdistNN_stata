@@ -1,6 +1,62 @@
 // The true nearest neighbor is known in latent orthogonal coordinates.
 do "tests/test_framework.do"
 test_section "Factored Mahalanobis geometry"
+test_section "Computed negative extreme retains finite fitted geometry"
+clear
+set obs 3
+gen double mneg_x=_n*1e-300
+replace mneg_x=(-5e307)*2 in 1
+gen double mneg_zero=0
+gen double mneg_y=_n
+mata {
+    MNEG=st_data(.,"mneg_x mneg_zero")
+    MNEG_T=(0,0 \ MNEG[1,])
+    st_matrix("MNEG_T",MNEG_T)
+    st_numscalar("mneg_sd",rdistnn_sample_sd(MNEG[,1])/(-(MNEG[1,1]/sqrt(3))))
+}
+test_assert "computed negative sample SD matches independent rank-one reference" abs(scalar(mneg_sd)-1)<2e-14
+foreach engine in mata plugin {
+    global rdistnn_distance_engine `engine'
+    foreach metric in l2_scaled mahalanobis {
+        mata {
+            MNEG_G=rdistnn_fit_geometry(MNEG,"`metric'","sd",J(1,0,.),1e-12)
+            MNEG_D=rdistnn_distance_matrix(MNEG,MNEG_T,"`metric'",MNEG_G)
+            MNEG_E=(sqrt(3),0 \ 0,sqrt(3) \ 0,sqrt(3))
+            st_numscalar("mneg_distance",mreldif(MNEG_D,MNEG_E))
+        }
+        test_assert "`engine' `metric': negative finite extreme has analytic distances" scalar(mneg_distance)<2e-14
+        if "`metric'"=="mahalanobis" {
+            mata: st_numscalar("mneg_rank",MNEG_G[1,2])
+            test_assert "`engine': negative extreme retains rank one" scalar(mneg_rank)==1
+        }
+        quietly weights_dnn mneg_x mneg_zero, x0matrix(MNEG_T) k(1) s(3) distance(`metric')
+        matrix MNEG_W=r(weights)
+        matrix MNEG_R=r(ranks)
+        test_assert "`engine' `metric': exact independent nearest ranks" MNEG_R[1,1]==3 & MNEG_R[2,1]==1 & MNEG_R[3,1]==2 & MNEG_R[1,2]==1 & MNEG_R[2,2]==2 & MNEG_R[3,2]==3
+        test_assert "`engine' `metric': requested engine executed" "$rdistnn_last_distance_engine"=="`engine'"
+        quietly np_dnn mneg_y, xcols(mneg_x mneg_zero) x0matrix(MNEG_T) k(1) s(3) distance(`metric') nose
+        matrix MNEG_F=e(estimates)
+        test_assert "`engine' `metric': supported public NP selects known neighbors" MNEG_F[1,1]==2 & MNEG_F[1,2]==1
+        tempfile mnegsaved
+        estimates save `mnegsaved', replace
+        preserve
+        clear
+        estimates use `mnegsaved'
+        quietly rdistnn_predict, x0matrix(MNEG_T)
+        matrix MNEG_P=r(fit)
+        test_assert "`engine' `metric': current saved prediction retains finite geometry" MNEG_P[1,1]==2 & MNEG_P[1,2]==1
+        restore
+        mata {
+            mneg_at=(3\1\2)
+            MNEG_PG=rdistnn_fit_geometry(MNEG[mneg_at,],"`metric'","sd",J(1,0,.),1e-12)
+            MNEG_PD=rdistnn_distance_matrix(MNEG[mneg_at,],MNEG_T,"`metric'",MNEG_PG)
+            st_numscalar("mneg_permutation",mreldif(MNEG_PD,MNEG_E[mneg_at,]))
+        }
+        test_assert "`engine' `metric': negative geometry survives row permutation" scalar(mneg_permutation)<2e-14
+    }
+}
+capture macro drop rdistnn_distance_engine
+clear
 mata {
     mpower=-600
     mvalue=rdistnn_power2(mpower)
@@ -15,6 +71,50 @@ mata {
     st_numscalar("mahal_product",all(rdistnn_mahal_project(MPX,MPG):==MPE))
 }
 test_assert "whitening projection retains unit cancellation residual" scalar(mahal_product)==1
+mata {
+    MOX=(rdistnn_power2(100)\1\2\3)
+    MOT=(2.1\1.1\2.1)
+    MOE=J(4,3,.)
+    for(mj=1;mj<=3;mj++) MOE[,mj]=abs(MOX:-MOT[mj])/rdistnn_power2(99)
+    MOR=(4,4,4 \ 3,1,3 \ 1,2,1 \ 2,3,2)
+    MOG=rdistnn_fit_geometry(MOX,"mahalanobis","sd",J(1,0,.),1e-12)
+    st_matrix("MOX",MOX); st_matrix("MOT",MOT)
+}
+foreach engine in mata plugin {
+    global rdistnn_distance_engine `engine'
+    mata {
+        MOD=rdistnn_distance_matrix(MOX,MOT,"mahalanobis",MOG)
+        st_numscalar("mahal_origin_distances",max(abs(MOD:/MOE:-1)))
+        st_numscalar("mahal_origin_ranks",all(rdistnn_ranks_from_dmat(MOD):==MOR))
+        mshape=1
+        for(mj=1;mj<=3;mj++) mshape=mshape & all(rdistnn_distance_matrix(MOX,MOT[mj],"mahalanobis",MOG):==MOD[,mj])
+        st_numscalar("mahal_origin_shape",mshape)
+        moi=(2\3\4\1)
+        MOP=rdistnn_fit_geometry(MOX[moi],"mahalanobis","sd",J(1,0,.),1e-12)
+        MOPD=rdistnn_distance_matrix(MOX[moi],MOT,"mahalanobis",MOP)
+        st_numscalar("mahal_origin_permute",max(abs(MOPD:/MOE[moi,]:-1)))
+    }
+    test_assert "`engine': small nonzero Mahalanobis distances" scalar(mahal_origin_distances)<1e-14
+    test_assert "`engine': independent exact small-neighbor ranks" scalar(mahal_origin_ranks)==1
+    test_assert "`engine': small distances retain scalar/batch identity" scalar(mahal_origin_shape)==1
+    test_assert "`engine': small distances survive training-row permutation" scalar(mahal_origin_permute)<1e-14
+    test_assert "`engine': small-neighbor distance engine ran" "$rdistnn_last_distance_engine"=="`engine'"
+    clear
+    svmat double MOX, names(mox)
+    gen double moy=cond(_n==1,100,(_n-1)*10)
+    quietly np_dnn moy, xcols(mox1) x0matrix(MOT) k(1) s(4) distance(mahalanobis) nose
+    matrix MOFIT=e(estimates)
+    test_assert "`engine': exact nearest-neighbor NP estimates" MOFIT[1,1]==20 & MOFIT[1,2]==10 & MOFIT[1,3]==20
+    tempfile mosaved
+    estimates save `mosaved', replace
+    clear
+    estimates use `mosaved'
+    matrix MONEW=MOT[2,1...] \ MOT[1,1...] \ MOT[2,1...]
+    quietly rdistnn_predict, x0matrix(MONEW)
+    matrix MOFIT=r(fit)
+    test_assert "`engine': frozen small-neighbor saved prediction" MOFIT[1,1]==10 & MOFIT[1,2]==20 & MOFIT[1,3]==10
+}
+macro drop rdistnn_distance_engine
 mata {
     mx=(-2\-1\0\1\2); mz=(1\-1\0\-1\1)
     MX=(mx,mx:+2^-22*mz)
@@ -79,13 +179,13 @@ mata {
     st_numscalar("mahal_singular",MG[1,2]==1 & mreldif(rdistnn_distance_matrix(MX,(1,-1),"mahalanobis",MG),abs(mx)/sqrt(2.5))<2e-14)
     MG=rdistnn_fit_geometry(J(3,2,7),"mahalanobis","sd",J(1,0,.),1e-12)
     st_numscalar("mahal_zero",all(rdistnn_distance_matrix(J(3,2,7),(8,-1),"mahalanobis",MG):==0))
-    st_numscalar("mahal_legacy",mreldif(rdistnn_distance_matrix(MB,(0,0),"mahalanobis",diag((.25,1))),ME))
 }
 test_assert "tiny covariance range" scalar(mahal_extreme_0)<2e-14
 test_assert "huge covariance range" scalar(mahal_extreme_1)<2e-14
 test_assert "rank-deficient Moore-Penrose geometry" scalar(mahal_singular)==1
 test_assert "zero rank projects to zero distance" scalar(mahal_zero)==1
-test_assert "legacy inverse geometry remains readable" scalar(mahal_legacy)<2e-15
+capture mata: rdistnn_distance_matrix(MB,(0,0),"mahalanobis",diag((.25,1)))
+test_assert "historical inverse geometry requires a fresh fit" _rc==498
 mata {
     MX=(J(3,1,2^600),(-1\0\1)*2^-600)
     MG=rdistnn_fit_geometry(MX,"mahalanobis","sd",J(1,0,.),1e-12)

@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0.9005  2026-10-20}{...}
+{* *! version 0.1.1  2026-10-21}{...}
 {viewerjumpto "Commands" "rdistnn##commands"}{...}
 {viewerjumpto "Conventions" "rdistnn##conventions"}{...}
 {viewerjumpto "Workflow" "rdistnn##workflow"}{...}
@@ -13,7 +13,7 @@
 weights, diagnostics and native plots
 
 {pstd}
-Stata 17 or later. Package {bf:0.1.0.9005} provides conditional treatment
+Stata 17 or later. Package {bf:0.1.1} provides conditional treatment
 estimation, nonparametric and two-scale regression, and shared reporting.
 RdistNN is the numerical reference for shared functionality; the Stata
 companion has its own documented public surface.
@@ -95,8 +95,7 @@ CLATE ratios. Copy r() results before another command overwrites them; use
 Diagnostic selectors preserve original target/candidate IDs and can save .dta
 reports. Single-view plot commands return selected {cmd:r(plot_data)} and
 {cmd:r(n_rows)}; dashboards return panel metadata. Effective-kernel and influence
-views use the numeric snapshot in current fits. Legacy fits require the original
-fitted values, sample and observation order.
+views use the current numeric snapshot. Older development fits require refitting.
 Stored-result views can be used after data changes. See each command's help
 for allowed selectors, view-specific options and result schemas.
 Use {help rdistnn_results} for numeric extraction without graphs,
@@ -157,3 +156,9 @@ The {browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/num
 describes their behavior and limits. Exact constants retain zero variance;
 unavailable ratio uncertainty retains its numerical status. These safeguards
 do not verify the statistical assumptions for inference.
+
+{title:Contributors}
+
+{pstd}
+Quality assurance, testing and validation:
+{browse "https://github.com/Zakareya-Chehime":Zakareya Chehime}.

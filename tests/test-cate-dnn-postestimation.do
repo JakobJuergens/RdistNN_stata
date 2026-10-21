@@ -125,19 +125,6 @@ test_assert "[plot errors] invalid estimate style is rejected" _rc == 198
 capture noisily cate_dnn_plot, type(weights) view(kernel) allcandidates
 test_assert "[plot errors] candidate kernel comparison is rejected" _rc == 198
 
-// Legacy fits without snapshots retain the original-data guard.
-capture program drop _fr_legacy
-program define _fr_legacy, eclass
-    ereturn scalar model_version=.
-end
-_fr_legacy
-preserve
-drop x1
-capture noisily cate_dnn_plot, type(weights) view(kernel)
-local stale_rc = _rc
-restore
-test_assert "[plot errors] stale observation-level data are rejected" `stale_rc' == 498
-
 quietly cate_dnn y, xcols(x1 x2) x0matrix(X0_post) ///
     pseudooutcome k(2) s(10)
 capture noisily cate_dnn_plot, type(overlap) view(mass)

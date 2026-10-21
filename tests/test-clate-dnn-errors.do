@@ -49,8 +49,6 @@ replace d0 = .1 in 1
 capture clate_dnn Y, `base' onesided md0col(d0)
 test_assert "one-sided supplied zero-arm must be zero" _rc==198
 replace d0 = 0 in 1
-capture clate_dnn Y, `base' onesided x(x)
-test_assert "covariate aliases cannot conflict" _rc==198
 capture clate_dnn Y, `base' onesided x0matrix(MISSING)
 test_assert "target specifications cannot conflict" _rc==198
 capture clate_dnn Y, xcols(x) x0(0) pseudooutcome denominator(d1) s(12)

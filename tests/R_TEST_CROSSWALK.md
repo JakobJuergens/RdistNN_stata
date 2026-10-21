@@ -17,7 +17,7 @@ a Stata equivalent.
 | R quantile near-tie ranks/estimates, analytic extreme fitted scales, failed-scale guards and scaled L1 recovery | `test-geometry-numerical-stability.do`, `fixtures/r_geometry_fixtures.do` |
 | Actual R C++ and forced fallback L1/L2/scaled distances/ranks, large offsets, double-accumulation ties, scalar/batch and duplicate targets | `test-native-distances.do`, `fixtures/r_native_distance_fixtures.do` |
 | Forced native/Mata geometry across all five estimators and both weight methods, fitted scales, grids/covariance, candidates and cold saved prediction | `test-native-distances-estimators.do` |
-| Capability negotiation with an actual older plugin, default fallback and required-native failures | `test-native-distances-compat.do` (separate old-plugin process) |
+| Canonical raw-covariate exact-distance ties across current estimators/engines, unchanged ESS, subsets and restored predictions | `test-canonical-covariate-ties.do` |
 | TDNN exact/asymptotic signed rank tables, support-aware covariance, scalar/batch equivalence and saved-state reuse | `test-tdnn.do`, `test-tdnn-saved.do` |
 | Mata/plugin equivalence and signed-target parsing | `test-weights-dnn-plugin.do` |
 | Scalar, vector, and multi-target rank-shift jackknife covariance against explicit deletion loops | `test-mata-jackknife.do`, `test-mata-jackknife-vector.do`, `test-mata-jackknife-golden.do` |
@@ -29,7 +29,7 @@ a Stata equivalent.
 | CLATE augmented binary-IV/paired-signal routes, common clipping, one-sided restrictions, perfect-compliance CATE reduction, signed/zero denominators, paired frozen covariance and cross-target linearization | `test-clate-mata.do`, `test-clate-dnn-core.do`, `test-clate-dnn-errors.do`, `test-clate-r-parity.do` |
 | CLATE exact/asymptotic/general-k and fixed Mahalanobis weights, single/batch targets, scalar/grid equality, paired components and instrument diagnostics against fixed R values | `test-clate-dnn-tuning.do`, `test-clate-r-parity.do`, `fixtures/r_clate_fixtures.do` |
 | CLATE CATE-style plot families, instrument overlap and paired influence, unavailable ratios, estimates restore, graph export and first-stage diagnostic tables | `test-clate-dnn-postestimation.do`, `tools/ci/stata_install_check.ps1` |
-| Experimental PLQR supplied-theta score formula, canonical/legacy option handling, explicit moment covariance, method/distance behavior, markout, and fixed R moment/covariance/SE/ESS values | `test-plqr-dnn-*.do`, `test-r-parity-priority.do` |
+| Experimental PLQR supplied-theta score formula, current inputs, explicit moment covariance, method/distance behavior, markout, and fixed R moment/covariance/SE/ESS values | `test-plqr-dnn-*.do`, `test-r-parity-priority.do` |
 | CATE physical 90-percent-mass radius, normalized treated/control arm ESS, and top-five absolute score-contribution share | `test-cate-dnn-diagnostics.do`, `test-r-parity-priority.do` |
 | Determinism under distance ties and target reordering | `test-mata-rank-r-mirror.do`, `test-weights-dnn-r-invariants.do`, `test-r-parity-priority.do` |
 | Validation, naming aliases, missing-data handling, replay, graph construction, and isolated installation | command-specific error/naming tests, `test-np-dnn-parity.do`, `test-cate-dnn-postestimation.do`, `tools/ci/stata_install_check.ps1` |
@@ -52,18 +52,20 @@ instrument arms for CLATE, and the public CLATE tables relabel them.
 
 | Contract | Evidence |
 | --- | --- |
-| Fit/replay tables, levels, missing targets, `nose`, zero variance and legacy results | `test-estimator-reporting.do`; `generate_r_reporting_fixtures.R` compares actual R summary methods at 90/95 percent, mapping infinities to Stata missing values. |
+| Fit/replay tables, levels, missing targets, `nose` and zero variance | `test-estimator-reporting.do`; `generate_r_reporting_fixtures.R` compares actual R summary methods at 90/95 percent, mapping infinities to Stata missing values. |
 | Target/candidate diagnostics, retained data/state and contributions | `test-estimator-diagnostics.do` |
 | Plot options/data, dashboards, sample guards and exported graphics | `test-estimator-plots.do`; inspect rendered SVG/PNG as well as returned data. |
-| Numeric serialization, candidates, cold restores and all-engine prediction | `test-fitted-results.do`; `generate_r_reuse_fixtures.R` supplies independent frozen-deletion joint covariance. PLQR keeps moments separate from supplied theta. |
+| Numeric serialization, candidates, cold restores and all-engine prediction | `test-saved-prediction.do`, `test-candidates.do`, `test-snapshot-observations.do`; `generate_r_reuse_fixtures.R` supplies independent frozen-deletion joint covariance. PLQR keeps moments separate from supplied theta. |
 | CLATE edge cases and complete interleaved component covariance | `test-premerge-clate.do`; 35 seeded cases from `generate_r_clate_audit_fixtures.R` check subset-enumeration/integrated-Beta deletion oracles. |
-| Caller state, genuine returns, cold restores and confidence bands | `test-premerge-postestimation.do` |
+| Fresh/restored diagnostic equality across all five geometries, methods and score routes | `test-diagnostic-route-contracts.do` |
+| Shared fresh/restored contribution recovery and concentration | `test-diagnostic-contribution-range.do`; independent rational references cover finite-operand subtraction overflow, tiny weights, zero support and overflowing totals. |
+| Caller state, genuine returns, cold restores and confidence bands | `test-reporting-export-contracts.do`, `test-observation-reconstruction.do`, `test-state-helpers.do` |
 | Fresh logs/markers and process exit status | `tests/ci/test_premerge_audit.py` uses mocked processes to reject stale or merely echoed markers. |
 
 The [historical index](../markdown_notes/history.md) preserves dated audit
 receipts separately from this current coverage map. The [test map](README.md)
 owns execution commands and fixture regeneration. Current snapshot plots
-survive data changes; legacy fits retain their value/order guards. R ggplot
+survive data changes. R ggplot
 internals are outside functional-interface parity.
 
 ## R-only contracts

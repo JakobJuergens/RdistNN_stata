@@ -1,17 +1,12 @@
 // test-cate-dnn-naming.do
-// R-aligned option/result names and legacy Stata alias equivalence.
+// Canonical option and result metadata.
 
 quietly do "src/_rdistnn_mata.ado"
 do "tests/test_framework.do"
 
-test_section "cate_dnn: [naming] R-aligned AIPW aliases"
+test_section "cate_dnn: [naming] canonical AIPW metadata"
 
 rdnn_dgp_basic, n(100) seed(2301)
-quietly cate_dnn y, treat(D) x(x1 x2) x0(0.1 -0.2) k(2) s(7) ///
-    propensity(e) m0(m0) m1(m1)
-matrix B_legacy_names = e(b)
-matrix V_legacy_names = e(V)
-
 quietly cate_dnn y, tcol(D) xcols(x1 x2) x0(0.1 -0.2) k(2) s(7) ///
     ecol(e) m0col(m0) m1col(m1)
 matrix B_r_names = e(b)
@@ -33,12 +28,8 @@ local ess_max_name = e(ess_max)
 local neff_max_name = e(neff_max)
 
 mata {
-    st_numscalar("_names_aipw_b", max(abs(st_matrix("B_legacy_names") - st_matrix("B_r_names"))))
-    st_numscalar("_names_aipw_v", max(abs(st_matrix("V_legacy_names") - st_matrix("V_r_names"))))
     st_numscalar("_names_ess", max(abs(st_matrix("ESS_r_names") - st_matrix("NEFF_r_names"))))
 }
-test_assert "[naming] canonical and legacy AIPW estimates agree" scalar(_names_aipw_b) < 1e-12
-test_assert "[naming] canonical and legacy AIPW covariance agree" scalar(_names_aipw_v) < 1e-12
 test_assert "[naming] e(ess_targets) aliases e(neff_targets)" scalar(_names_ess) < 1e-12
 test_assert "[naming] e(ess) aliases e(neff)" abs(`ess_name' - `neff_name') < 1e-12
 test_assert "[naming] e(ess_min) aliases e(neff_min)" abs(`ess_min_name' - `neff_min_name') < 1e-12
@@ -50,33 +41,3 @@ test_assert "[naming] e(m0_col) records control nuisance" "`m0_col_name'" == "m0
 test_assert "[naming] e(m1_col) records treated nuisance" "`m1_col_name'" == "m1"
 test_assert "[naming] e(jackknife) matches R fast route" "`jackknife_name'" == "fast"
 test_assert "[naming] e(p) records covariate dimension" `p_name' == 2
-
-gen double rho_names = y
-quietly cate_dnn rho_names, x(x1 x2) x0(0 0) k(2) s(7) pseudooutcome
-local tau_p_legacy = _b[tau]
-local se_p_legacy = _se[tau]
-quietly cate_dnn rho_names, xcols(x1 x2) x0(0 0) k(2) s(7) pseudooutcome
-test_assert "[naming] canonical and legacy pseudo estimates agree" abs(`tau_p_legacy' - _b[tau]) < 1e-12
-test_assert "[naming] canonical and legacy pseudo SEs agree" abs(`se_p_legacy' - _se[tau]) < 1e-12
-
-test_section "cate_dnn: [naming] duplicate aliases are rejected"
-
-cap cate_dnn y, x(x1 x2) xcols(x1 x2) x0(0 0) ///
-    tcol(D) ecol(e) m0col(m0) m1col(m1)
-test_assert "[naming] x()/xcols() duplication rejected" _rc == 198
-
-cap cate_dnn y, xcols(x1 x2) x0(0 0) treat(D) tcol(D) ///
-    ecol(e) m0col(m0) m1col(m1)
-test_assert "[naming] treat()/tcol() duplication rejected" _rc == 198
-
-cap cate_dnn y, xcols(x1 x2) x0(0 0) tcol(D) propensity(e) ecol(e) ///
-    m0col(m0) m1col(m1)
-test_assert "[naming] propensity()/ecol() duplication rejected" _rc == 198
-
-cap cate_dnn y, xcols(x1 x2) x0(0 0) tcol(D) ecol(e) ///
-    m0(m0) m0col(m0) m1col(m1)
-test_assert "[naming] m0()/m0col() duplication rejected" _rc == 198
-
-cap cate_dnn y, xcols(x1 x2) x0(0 0) tcol(D) ecol(e) ///
-    m0col(m0) m1(m1) m1col(m1)
-test_assert "[naming] m1()/m1col() duplication rejected" _rc == 198

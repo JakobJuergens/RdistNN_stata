@@ -19,8 +19,7 @@ CORE_TEST = rdistnn_core_test.exe
 DISTANCE_TEST = rdistnn_distance_test.exe
 PROTOCOL_TEST = rdistnn_distance_plugin_test.exe
 ROUNDING_TEST = rdistnn_distance_rounding_test.exe
-WEIGHTS_TEST = rdistnn_weights_test.exe
-HEADERS  = rdistnn_core.hpp rdistnn_distance.hpp compensated_arithmetic.hpp rank_weight_tables.hpp
+HEADERS  = rdistnn_core.hpp rdistnn_distance.hpp compensated_arithmetic.hpp
 SRCS     = stplugin.c rdistnn_plugin.cpp
 
 $(TARGET): $(SRCS) $(HEADERS) stplugin.h
@@ -43,19 +42,15 @@ $(ROUNDING_TEST): test_rdistnn_distance_rounding.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) /Fe$(ROUNDING_TEST) test_rdistnn_distance_rounding.cpp
 	-del /f test_rdistnn_distance_rounding.obj 2>nul
 
-$(WEIGHTS_TEST): test_rdistnn_weights.cpp $(HEADERS)
-	$(CXX) $(CXXFLAGS) /Fe$(WEIGHTS_TEST) test_rdistnn_weights.cpp
-	-del /f test_rdistnn_weights.obj 2>nul
 
-check: $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST) $(WEIGHTS_TEST)
+check: $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST)
 	$(CORE_TEST)
 	$(DISTANCE_TEST) 2 2 0.5790338377234229 1.4758492921057114
 	$(PROTOCOL_TEST)
 	$(ROUNDING_TEST) 2 2 0.5790338377234229 1.4758492921057114
-	$(WEIGHTS_TEST)
 
 clean:
-	-del /f $(TARGET) $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST) $(WEIGHTS_TEST) *.obj *.exp *.lib
+	-del /f $(TARGET) $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST) *.obj *.exp *.lib
 
 # Alternative: build with MinGW/GCC (e.g. via Rtools)
 #

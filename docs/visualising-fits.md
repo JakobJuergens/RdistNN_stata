@@ -257,8 +257,7 @@ original observation IDs. Kernel and influence views use this snapshot, so
 `estimates save`/`estimates use` works with changed, reordered or empty active
 data. The caller's dataset and fit are preserved. See [reusing fits](reusing-fits.md).
 
-Legacy fits without that snapshot can require the original data and order;
-refit when those guards fail. See the
+Fits without the current numeric snapshot require refitting. See the
 [R visualisation guide](https://JakobJuergens.github.io/RdistNN/articles/visualising-fits.html)
 for the related R workflow. R-only conditioning/calibration and generic
 GMM plotting are not Stata commands. Two-scale regression has its own

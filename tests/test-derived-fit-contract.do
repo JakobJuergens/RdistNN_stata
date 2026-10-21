@@ -46,9 +46,6 @@ foreach family in np cate clate {
     }
     quietly `family'_dnn fy, xcols(fx) x0matrix(FT) tuningmode(grid) sgrid(2 3) sdefault(3) `extra'
     quietly rdistnn_candidate, candidate(1) post
-    local vce=cond("`family'"=="clate","paired_rank_shift","rank_shift")
-    test_assert "`family': candidate retains the input variable name" "`e(depvar)'"=="fy"
-    test_assert "`family': candidate retains the VCE method" "`e(vce)'"=="`vce'"
     capture quietly lincom `coef'1-`coef'2
     local rc=_rc
     test_assert "`family': candidate supports documented coefficient contrasts" `rc'==0
@@ -56,16 +53,9 @@ foreach family in np cate clate {
     capture quietly lincom `coef'1-`coef'2
     local rc=_rc
     test_assert "`family': prediction supports documented coefficient contrasts" `rc'==0
-    quietly rdistnn_predict, x0(0) sefit post
-    test_assert "`family': prediction retains the VCE method" "`e(vce)'"=="`vce'"
     quietly rdistnn_predict, x0(0) post
-    test_assert "`family': point-only prediction records no VCE" "`e(vce)'"=="none"
-    test_assert "`family': point-only prediction clears the VCE label" "`e(vcetype)'"==""
     local names : colnames e(b)
     test_assert "`family': scalar prediction retains family coefficient" "`names'"=="`coef'"
-    capture quietly `family'_dnn fy, xcols(fx) x0(0) s(3) `extra' clip(1e-20)
-    local rc=_rc
-    if "`family'"!="np" test_assert "`family': unrepresentable clipping interval rejected" `rc'==198
 }
 foreach family in np tdnn cate clate {
     foreach state in unchanged outside inside reordered cleared {

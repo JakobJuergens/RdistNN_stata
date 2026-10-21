@@ -1,5 +1,5 @@
 // Pure C++17 L1/L2 distances, derived from RdistNN/src/dist_l1.cpp and
-// dist_l2.cpp with Rcpp removed. Shared by scalar, batch and legacy L2 callers.
+// dist_l2.cpp with Rcpp removed. Shared by scalar and batch callers.
 #pragma once
 
 #include <algorithm>
@@ -41,7 +41,7 @@ inline double rounded_distance_square(double value)
 // the largest coordinate; ordinary rows keep their original rounded arithmetic.
 inline double distance_l2_range_row(const double* X, int n, int p, int i,
                                    const double* target, int stride_target,
-                                   const double* inv_s, bool squared)
+                                   const double* inv_s)
 {
     double scale=0,ssq=1;
     for(int j=0;j<p;++j) {
@@ -59,7 +59,7 @@ inline double distance_l2_range_row(const double* X, int n, int p, int i,
             } else ssq+=rounded_distance_square(a/scale);
         }
     }
-    return squared?(scale*ssq)*scale:scale*std::sqrt(ssq);
+    return scale*std::sqrt(ssq);
 }
 
 // Validate dimensions/products before reading arrays or allocating a buffer.
@@ -87,19 +87,15 @@ inline void validate_distance_values(const double* values, std::size_t size)
 // X: n x p, X0: m x p, output: n x m, all column-major. Optional inv_s
 // contains p strictly positive inverse scales. m=1 supplies scalar distances.
 // The coordinate accumulation order follows the R native implementations.
-// Squared distances are supported only for the legacy L2 compatibility API.
 // Invalid arguments and arithmetic overflow leave the output untouched.
 inline void distance_batch_core(const double* X, int n, int p,
                                 const double* X0, int m, const double* inv_s,
-                                double* out, distance_metric metric,
-                                bool squared=false)
+                                double* out, distance_metric metric)
 {
     const auto nx=checked_distance_size(n,p), nt=checked_distance_size(m,p);
     const auto nd=checked_distance_size(n,m);
     if (metric!=distance_metric::l1 && metric!=distance_metric::l2)
         throw std::invalid_argument("distance metric must be L1 or L2");
-    if (squared && metric!=distance_metric::l2)
-        throw std::invalid_argument("squared distances require L2");
     if (!out) throw std::invalid_argument("distance output must not be null");
     validate_distance_values(X,nx);
     validate_distance_values(X0,nt);
@@ -133,8 +129,8 @@ inline void distance_batch_core(const double* X, int n, int p,
         }
         const double value=metric==distance_metric::l2 ?
             ((exceptional || !std::isfinite(acc) || acc>=distance_l2_range_limit) ?
-                distance_l2_range_row(X,n,p,i,X0+q,m,inv_s,squared) :
-                (squared?acc:std::sqrt(acc))) : acc;
+                distance_l2_range_row(X,n,p,i,X0+q,m,inv_s) :
+                std::sqrt(acc)) : acc;
         if (!std::isfinite(value))
             throw std::invalid_argument("distance arithmetic overflowed");
         result[i+static_cast<std::size_t>(q)*stride_n]=value;

@@ -58,7 +58,7 @@ matrix supplied_theta = e(theta_eval)
 Here `theta_eval=(1,-.5)` and `md1,md2` correspond respectively to `d1,d2`.
 `x0()` supplies one coordinate per `x()` variable, in the same order.
 Only one target is supported in each call: this command has neither
-`x0matrix()` nor the `xcols()` alias used by the CATE/CLATE/NP front ends.
+`x0matrix()` nor the `xcols()` option used by the CATE/CLATE/NP front ends.
 For several targets from one saved fit, use `rdistnn_predict, x0matrix(NEW)
 sefit`; it can return joint moment covariance. Separate initial fits do not
 supply cross-target covariance. See [saved moment reporting and prediction](#saved-moment-reporting-and-prediction).
@@ -68,11 +68,8 @@ variables, `g()` and all `md()` variables within the requested `if`/`in`
 range. Check `e(sample)` and `e(N)` after fitting. External predictions must
 be correctly aligned with observations before the call.
 
-Preferred input names are `g()` and `thetaeval()`. `q()` is a temporary
-compatibility alias for `g()`; it does not change the shape nuisance into a
-complete quantile. `beta()` is a temporary compatibility alias for
-`thetaeval()`; it does not request coefficient estimation. Each preferred
-name conflicts with its own alias.
+Use `g()` for the additive shape nuisance and `thetaeval()` for the supplied
+coefficient vector at which the moment is evaluated.
 
 ## Localization and frozen moment covariance
 
@@ -119,18 +116,15 @@ moment-component-by-target matrix convention.
 | `e(moment)` | 1 by `q`, columns in `d()` order, row named `moment` |
 | `e(moment_vcov)` | `q` by `q`, rows and columns named by `d()` |
 | `e(theta_eval)` | 1 by `q`, supplied coefficients in `d()` order |
-| `e(b)` | Compatibility copy of the moment, **not** the coefficient |
-| `e(V)` | Compatibility copy of moment covariance |
-| `e(beta)` | Temporary compatibility copy of the supplied evaluation vector |
+| `e(b)` | Stata estimation matrix containing the moment |
+| `e(V)` | Stata estimation matrix containing moment covariance |
 | `e(N)`, `e(neff)` | Complete-case sample size and DNN effective sample size |
 | `e(k)`, `e(s)`, `e(kx)`, `e(kd)`, `e(tau)` | Localization, reporting dimension, score dimension and quantile index |
 
 The macros `e(theta_source)="supplied"`, `e(inference_target)="moment"`,
 and `e(root_solver)="none"` make the scale explicit. `e(gvar)`, `e(mdvars)`,
 `e(dvars)`, `e(xvars)`, `e(yvar)` and `e(x0)` record inputs;
-`e(distance)` and `e(method)` record geometry/weights. `e(g_option)` and
-`e(theta_option)` record preferred names or aliases, and `e(qvar)` retains
-the resolved shape-variable compatibility name.
+`e(distance)` and `e(method)` record geometry/weights.
 
 ```stata
 matrix m = e(moment)

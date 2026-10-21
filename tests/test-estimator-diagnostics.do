@@ -14,9 +14,9 @@ matrix DIAG_X0 = (0,.3 \ .5,-.5 \ -1,1)
 local common_names "target_id x0_1 x0_2 ess max_weight top1_weight_share top5_weight_share top10_weight_share n_nonzero_weight distance_available radius_rank_k radius_rank_s weighted_mean_distance weighted_median_distance"
 
 foreach family in cate clate np {
-    if "`family'"=="cate" quietly cate_dnn signal, pseudooutcome x(x1 x2) x0matrix(DIAG_X0) tuningmode(grid)
-    if "`family'"=="clate" quietly clate_dnn signal, denominator(denominator) pseudooutcome x(x1 x2) x0matrix(DIAG_X0) tuningmode(grid)
-    if "`family'"=="np" quietly np_dnn signal, x(x1 x2) x0matrix(DIAG_X0) tuningmode(grid)
+    if "`family'"=="cate" quietly cate_dnn signal, pseudooutcome xcols(x1 x2) x0matrix(DIAG_X0) tuningmode(grid)
+    if "`family'"=="clate" quietly clate_dnn signal, denominator(denominator) pseudooutcome xcols(x1 x2) x0matrix(DIAG_X0) tuningmode(grid)
+    if "`family'"=="np" quietly np_dnn signal, xcols(x1 x2) x0matrix(DIAG_X0) tuningmode(grid)
     matrix DIAG_RAW = e(diagnostics)
     matrix DIAG_TARGETS = e(targets)
     matrix DIAG_B = e(b)
@@ -156,7 +156,7 @@ test_assert "[diagnostics] stored results restore target localization" `restore_
 
 // Undefined CLATE ratios still retain their localization and status rows.
 gen double zero_denominator = 0
-quietly clate_dnn signal, denominator(zero_denominator) pseudooutcome x(x1 x2) x0matrix(DIAG_X0) s(8) nose
+quietly clate_dnn signal, denominator(zero_denominator) pseudooutcome xcols(x1 x2) x0matrix(DIAG_X0) s(8) nose
 capture noisily clate_dnn_diagnostics, targets(3 1)
 local undefined_rc = _rc
 matrix DIAG_UNDEFINED = r(localization)

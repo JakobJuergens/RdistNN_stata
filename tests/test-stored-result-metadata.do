@@ -56,3 +56,35 @@ quietly clate_dnn my, xcols(mx) x0(0) dcol(ma) acol(ma) ecol(me) ///
     my0col(my0) my1col(my1) md0col(md0) md1col(md1) s(4)
 test_assert "augmented IV depvar identifies the outcome" "`e(depvar)'"=="my"
 test_assert "augmented IV identifies paired frozen scores" "`e(vce)'"=="paired_rank_shift" & "`e(vcetype)'"=="Paired frozen-score jackknife"
+
+do "tests/helpers/fitted-data.do"
+test_section "CLATE prediction covariance metadata follows requested policy"
+quietly clate_dnn fr_y, denominator(fr_den) pseudooutcome xcols(fr_x) x0(0) s(4)
+quietly rdistnn_predict, x0(1) post
+test_assert "CLATE no-SE prediction clears all covariance metadata" "`e(se_method)'"=="none" & "`e(covariance)'"=="none" & "`e(jackknife)'"=="none"
+quietly rdistnn_predict, x0(1) sefit post
+test_assert "CLATE sefit enables covariance metadata on a no-SE parent" "`e(se_method)'"=="paired_rank_shift" & "`e(covariance)'"=="paired_frozen_score" & "`e(jackknife)'"=="fast"
+
+
+test_section "candidate metadata uses current result ownership"
+clear
+set obs 12
+gen double fx=(_n-6)/5
+gen double fy=1+fx^2+.2*sin(_n)
+gen double fd=.8+.05*fx
+matrix FT=(-.4\ .4)
+foreach family in np cate clate {
+    local extra ""
+    if "`family'"=="cate" local extra "pseudooutcome"
+    if "`family'"=="clate" local extra "pseudooutcome denominator(fd)"
+    local vce=cond("`family'"=="clate","paired_rank_shift","rank_shift")
+    quietly `family'_dnn fy, xcols(fx) x0matrix(FT) tuningmode(grid) sgrid(2 3) sdefault(3) `extra'
+    quietly rdistnn_candidate, candidate(1) post
+    test_assert "`family': candidate retains the input variable name" "`e(depvar)'"=="fy"
+    test_assert "`family': candidate retains the VCE method" "`e(vce)'"=="`vce'"
+    quietly rdistnn_predict, x0(0) sefit post
+    test_assert "`family': prediction retains the VCE method" "`e(vce)'"=="`vce'"
+    quietly rdistnn_predict, x0(0) post
+    test_assert "`family': point-only prediction records no VCE" "`e(vce)'"=="none"
+    test_assert "`family': point-only prediction clears the VCE label" "`e(vcetype)'"==""
+}

@@ -7,8 +7,6 @@ capture mata: mata drop rdistnn_plot_est_grid()
 capture mata: mata drop rdistnn_plot_tuning()
 capture mata: mata drop rdistnn_plot_overlap()
 capture mata: mata drop rdistnn_plot_rank_weights()
-capture mata: mata drop rdistnn_plot_kernel()
-capture mata: mata drop rdistnn_plot_influence()
 mata:
 real matrix rdistnn_plot_target_diag(real matrix diagnostics,
                                               real matrix targets)
@@ -130,59 +128,6 @@ real matrix rdistnn_plot_rank_weights(real matrix meta,
         w = rdistnn_weights_from_ranks((1::n), k, s, method)
         out = out \ ((1::n), w, runningsum(w), J(n,1,g),
             J(n,1,s), J(n,1,is_default))
-    }
-    return(out)
-}
-
-real matrix rdistnn_plot_kernel(real matrix X,
-                                      real matrix targets,
-                                      real colvector target_idx,
-                                      real scalar k,
-                                      real scalar s,
-                                      string scalar method,
-                                      string scalar distance)
-{
-    real scalar j, t, n
-    real colvector ord, cum
-    real matrix DX, ranks, W, out
-    n = rows(X)
-    DX = rdistnn_distance_matrix(X, targets, distance)
-    ranks = rdistnn_ranks_from_dmat(DX)
-    W = rdistnn_weights_from_rmat(ranks, k, s, method)
-    out = J(0, 5, .)
-    for (j = 1; j <= rows(target_idx); j++) {
-        t = target_idx[j]
-        ord = order((ranks[,t], (1::n)), (1,2))
-        cum = J(n,1,.)
-        cum[ord] = runningsum(W[ord,t])
-        out = out \ (J(n,1,t), ranks[,t], DX[,t], W[,t], cum)
-    }
-    return(out)
-}
-
-real matrix rdistnn_plot_influence(real matrix X,
-                                         real matrix targets,
-                                         real colvector rho,
-                                         real colvector obs_id,
-                                         real rowvector estimates,
-                                         real colvector target_idx,
-                                         real scalar k,
-                                         real scalar s,
-                                         string scalar method,
-                                         string scalar distance)
-{
-    real scalar j, t
-    real colvector contribution
-    real matrix DX, ranks, W, out
-    DX = rdistnn_distance_matrix(X, targets, distance)
-    ranks = rdistnn_ranks_from_dmat(DX)
-    W = rdistnn_weights_from_rmat(ranks, k, s, method)
-    out = J(0, 7, .)
-    for (j = 1; j <= rows(target_idx); j++) {
-        t = target_idx[j]
-        contribution = W[,t] :* (rho :- estimates[1,t])
-        out = out \ (J(rows(X),1,t), obs_id, ranks[,t], DX[,t],
-            W[,t], rho, contribution)
     }
     return(out)
 }

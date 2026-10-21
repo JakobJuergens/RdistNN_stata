@@ -13,17 +13,12 @@ program define cate_dnn, eclass
 
     syntax varname(numeric) [if] [in] , ///
         [                                ///
-        x(varlist numeric)               ///  legacy covariate option
         XCOLS(varlist numeric)           ///  R-aligned x_cols convention
         x0(numlist)                      ///  single evaluation point
         X0MATRIX(name)                   ///  named m x kx target matrix (R X0)
-        TReat(varname numeric)           ///  binary treatment D
         TCOL(varname numeric)            ///  R-aligned t_col convention
-        Propensity(varname numeric)      ///  estimated/oracle e(X)
         ECOL(varname numeric)            ///  R-aligned e_col convention
-        M0(varname numeric)              ///  estimated/oracle E[Y|X,D=0]
         M0COL(varname numeric)           ///  R-aligned m0_col convention
-        M1(varname numeric)              ///  estimated/oracle E[Y|X,D=1]
         M1COL(varname numeric)           ///  R-aligned m1_col convention
         PSEUDOOutcome                    ///  positional variable is CATE signal
         CLIP(real 1e-8)                  ///  propensity clipping constant
@@ -39,54 +34,20 @@ program define cate_dnn, eclass
         METHod(string)                   ///  exact (default) | asymp
         Level(cilevel)                   ///  CI level (default 95)
         noSE                             ///  skip jackknife standard error
-        noCONStant                       ///  (reserved; absorbed silently)
     ]
 
     local input_var `varlist'
     local outcome `input_var'
-    if "`x'" != "" & "`xcols'" != "" {
-        di as error "Specify either x() or xcols(), not both."
-        exit 198
-    }
-    local xvars `x'
-    local x_source "x"
-    if "`xcols'" != "" {
-        local xvars `xcols'
-        local x_source "xcols"
-    }
+    local xvars `xcols'
     if "`xvars'" == "" {
-        di as error "xcols() is required (legacy alias: x())."
+        di as error "xcols() is required."
         exit 198
     }
     local kx : word count `xvars'
-
-    if "`treat'" != "" & "`tcol'" != "" {
-        di as error "Specify either treat() or tcol(), not both."
-        exit 198
-    }
-    local treat_var `treat'
-    if "`tcol'" != "" local treat_var `tcol'
-
-    if "`propensity'" != "" & "`ecol'" != "" {
-        di as error "Specify either propensity() or ecol(), not both."
-        exit 198
-    }
-    local propensity_var `propensity'
-    if "`ecol'" != "" local propensity_var `ecol'
-
-    if "`m0'" != "" & "`m0col'" != "" {
-        di as error "Specify either m0() or m0col(), not both."
-        exit 198
-    }
-    local m0_var `m0'
-    if "`m0col'" != "" local m0_var `m0col'
-
-    if "`m1'" != "" & "`m1col'" != "" {
-        di as error "Specify either m1() or m1col(), not both."
-        exit 198
-    }
-    local m1_var `m1'
-    if "`m1col'" != "" local m1_var `m1col'
+    local treat_var `tcol'
+    local propensity_var `ecol'
+    local m0_var `m0col'
+    local m1_var `m1col'
 
     local pseudo_flag "`pseudooutcome'"
 
@@ -229,180 +190,18 @@ program define cate_dnn, eclass
         di as error "distance(mahalanobis) requires at least two complete estimation observations."
         exit 2001
     }
-    if `lambda' <= 0 | missing(`lambda') {
-        di as error "lambda() must be a positive finite number."
-        exit 198
-    }
-    if "`lambdagrid'" != "" & "`sgrid'" != "" {
-        di as error "Specify either lambdagrid() or sgrid(), not both."
-        exit 198
-    }
-    if "`tuning_mode'" == "default" & ///
-       ("`lambdagrid'" != "" | "`sgrid'" != "" | `sdefault' != 0) {
-        di as error "lambdagrid(), sgrid(), and sdefault() require tuningmode(grid)."
-        exit 198
-    }
-    if "`tuning_mode'" == "grid" & `s' != 0 {
-        di as error "s() cannot be combined with tuningmode(grid)."
-        exit 198
-    }
-    if `sdefault' < 0 {
-        di as error "sdefault() must be a positive integer when specified."
-        exit 198
-    }
-    if `sdefault' > 0 & "`sgrid'" == "" {
-        di as error "sdefault() requires sgrid()."
-        exit 198
-    }
-
-    local paper_base = `n'^((`kx' + 1) / (`kx' + 2))
-    local tuning_source "paper"
-    local candidate_s ""
-    local candidate_lambda ""
-    local default_index 1
-
-    if "`tuning_mode'" == "default" {
-        if `s' == 0 local s = floor(`lambda' * `paper_base')
-        else local tuning_source "s"
-        local default_s = `s'
-        local default_lambda = `lambda'
-        local candidate_s "`s'"
-        local candidate_lambda "`lambda'"
-    }
-    else if "`sgrid'" != "" {
-        local tuning_source "sgrid"
-        foreach sg of local sgrid {
-            if `sg' < 1 | `sg' != floor(`sg') | missing(`sg') {
-                di as error "sgrid() must contain positive integers."
-                exit 198
-            }
-            local candidate_s "`candidate_s' `sg'"
-            local candidate_lambda "`candidate_lambda' ."
-        }
-        local candidate_s : list retokenize candidate_s
-        local candidate_lambda : list retokenize candidate_lambda
-        local first_s : word 1 of `candidate_s'
-        if `sdefault' == 0 local default_s = `first_s'
-        else local default_s = `sdefault'
-        local default_lambda = .
-        local default_index 0
-        local g = 0
-        foreach sg of local candidate_s {
-            local ++g
-            if `default_index' == 0 & `sg' == `default_s' local default_index = `g'
-        }
-        if `default_index' == 0 {
-            local candidate_s "`default_s' `candidate_s'"
-            local candidate_lambda ". `candidate_lambda'"
-            local default_index 1
-        }
-    }
-    else {
-        local tuning_source "lambda_grid"
-        if "`lambdagrid'" == "" local lambdagrid ".3 .4 .5 .75"
-        foreach lg of local lambdagrid {
-            if `lg' <= 0 | missing(`lg') {
-                di as error "lambdagrid() must contain positive finite numbers."
-                exit 198
-            }
-            local sg = floor(`lg' * `paper_base')
-            local candidate_s "`candidate_s' `sg'"
-            local candidate_lambda "`candidate_lambda' `lg'"
-        }
-        local candidate_s : list retokenize candidate_s
-        local candidate_lambda : list retokenize candidate_lambda
-        local default_s = floor(`lambda' * `paper_base')
-        local default_lambda = `lambda'
-        local default_index 0
-        local g = 0
-        foreach sg of local candidate_s {
-            local ++g
-            local lg : word `g' of `candidate_lambda'
-            if `default_index' == 0 & `sg' == `default_s' & ///
-               abs(`lg' - `default_lambda') <= sqrt(c(epsdouble)) * max(1, abs(`default_lambda')) {
-                local default_index = `g'
-            }
-        }
-        if `default_index' == 0 {
-            local g = 0
-            foreach sg of local candidate_s {
-                local ++g
-                if `default_index' == 0 & `sg' == `default_s' local default_index = `g'
-            }
-        }
-        if `default_index' == 0 {
-            local candidate_s "`default_s' `candidate_s'"
-            local candidate_lambda ". `candidate_lambda'"
-            local default_index 1
-        }
-    }
-
-    local s = `default_s'
-    local ncandidates : word count `candidate_s'
     tempname candidate_mat grid_est grid_se grid_diag target_diag
-    matrix `candidate_mat' = J(`ncandidates', 8, .)
-    local candidate_names ""
-    local seen_s ""
-    local nfeasible 0
-    local nunique 0
-    local nunique_feasible 0
-    forvalues g = 1/`ncandidates' {
-        local sg : word `g' of `candidate_s'
-        local lg : word `g' of `candidate_lambda'
-        local feasible 1
-        local reason 0
-        if `k' > `sg' {
-            local feasible 0
-            local reason 1
-        }
-        else if "`se'" == "" & `sg' >= `n' {
-            local feasible 0
-            local reason 2
-        }
-        else if "`se'" != "" & `sg' > `n' {
-            local feasible 0
-            local reason 3
-        }
-        local computed_id 0
-        local h = 0
-        foreach old_s of local seen_s {
-            local ++h
-            if `computed_id' == 0 & `old_s' == `sg' local computed_id = `h'
-        }
-        if `computed_id' == 0 {
-            local ++nunique
-            local computed_id = `nunique'
-            local seen_s "`seen_s' `sg'"
-            if `feasible' local ++nunique_feasible
-        }
-        local nfeasible = `nfeasible' + `feasible'
-        matrix `candidate_mat'[`g', 1] = `g'
-        matrix `candidate_mat'[`g', 2] = `computed_id'
-        matrix `candidate_mat'[`g', 3] = (`g' == `default_index')
-        matrix `candidate_mat'[`g', 4] = `feasible'
-        matrix `candidate_mat'[`g', 5] = `reason'
-        matrix `candidate_mat'[`g', 6] = `feasible'
-        matrix `candidate_mat'[`g', 7] = `lg'
-        matrix `candidate_mat'[`g', 8] = `sg'
-        local candidate_names "`candidate_names' candidate`g'"
-    }
-    local candidate_names : list retokenize candidate_names
-    matrix rownames `candidate_mat' = `candidate_names'
-    matrix colnames `candidate_mat' = candidate_id computed_id is_default feasible reason status lambda s
-
-    if el(`candidate_mat', `default_index', 4) == 0 {
-        local default_reason = el(`candidate_mat', `default_index', 5)
-        if `default_reason' == 1 {
-            di as error "Default s(`s') < k(`k'). Increase n or lambda(), or decrease k()."
-        }
-        else if `default_reason' == 2 {
-            di as error "Default s(`s') must be less than n(`n') for jackknife SE; specify nose or reduce lambda()."
-        }
-        else {
-            di as error "Default s(`s') must be no greater than n(`n') when nose is specified."
-        }
-        exit 198
-    }
+    quietly _rdistnn_tuning_plan, n(`n') kx(`kx') k(`k') s(`s') lambda(`lambda') ///
+        mode(`tuning_mode') sdefault(`sdefault') sgrid(`sgrid') lambdagrid(`lambdagrid') `se'
+    matrix `candidate_mat'=r(candidates)
+    local s=r(s)
+    local default_lambda=r(default_lambda)
+    local default_index=r(default_index)
+    local ncandidates=r(ncandidates)
+    local nfeasible=r(nfeasible)
+    local nunique_feasible=r(nunique_feasible)
+    local tuning_source "`r(tuning_source)'"
+    local candidate_names "`r(candidate_names)'"
 
     // ── pseudo-outcome ────────────────────────────────────────────────
     local rho_use `input_var'
@@ -432,9 +231,9 @@ program define cate_dnn, eclass
     mata {
         _ct_X     = st_data(., "`xvars'", "`touse'")
         _ct_X0    = st_matrix("`targets_mat'")
-        _ct_geometry = rdistnn_fit_geometry(_ct_X,"`distance'","`scalerule'",strtoreal(tokens("`scalevec'")),`scaleeps')
-        _ct_DX    = rdistnn_distance_matrix(_ct_X, _ct_X0, "`distance'", _ct_geometry)
-        _ct_ranks = rdistnn_ranks_from_dmat(_ct_DX)
+        _ct_geometry = _ct_DX = _ct_ranks = J(0,0,.)
+        rdistnn_localization_geometry(_ct_X,_ct_X0,"`distance'","`scalerule'",
+            strtoreal(tokens("`scalevec'")),`scaleeps',_ct_geometry,_ct_DX,_ct_ranks)
         _ct_rho   = st_data(., "`rho_use'", "`touse'")
         _ct_candidates = st_matrix("`candidate_mat'")
         _ct_grid_est = J(`ncandidates', `ntargets', .)
@@ -486,79 +285,13 @@ program define cate_dnn, eclass
 
         _ct_tau = _ct_grid_est[`default_index',.]
         _ct_neff = 1 :/ colsum(_ct_W :^ 2)
-        _ct_target_diag = J(`ntargets', 25, .)
+        _ct_T = _ct_E = J(0,1,.)
         if ("`score_method'" != "pseudo_outcome") {
             _ct_T = st_data(., "`treat_var'", "`touse'")
             _ct_E = st_data(., "`eclip'", "`touse'")
         }
-        for (_ct_j = 1; _ct_j <= `ntargets'; _ct_j++) {
-            _ct_wj = _ct_W[,_ct_j]
-            _ct_dxj = _ct_DX[,_ct_j]
-            _ct_word = order((_ct_wj, (1::`n')), (-1, 2))
-            _ct_dxsort = sort(_ct_dxj, 1)
-            _ct_target_diag[_ct_j, 1] = 1 / quadsum(_ct_wj :^ 2)
-            _ct_target_diag[_ct_j, 2] = max(_ct_wj)
-            _ct_target_diag[_ct_j, 3] = quadsum(_ct_wj[_ct_word[1]])
-            _ct_target_diag[_ct_j, 4] = quadsum(
-                _ct_wj[_ct_word[1..min((5, `n'))]])
-            _ct_target_diag[_ct_j, 5] = quadsum(
-                _ct_wj[_ct_word[1..min((10, `n'))]])
-            _ct_target_diag[_ct_j, 6] = sum(
-                abs(_ct_wj) :> sqrt(epsilon(1)))
-            _ct_target_diag[_ct_j, 7] = 1
-            _ct_target_diag[_ct_j, 8] = _ct_dxsort[min((`k', `n'))]
-            _ct_target_diag[_ct_j, 9] = _ct_dxsort[min((`s', `n'))]
-            _ct_target_diag[_ct_j, 10] = cross(_ct_dxj, _ct_wj) /
-                quadsum(_ct_wj)
-            _ct_target_diag[_ct_j, 11] = rdistnn_weighted_quantile(
-                _ct_dxj, _ct_wj, .5)
-            // Paper diagnostic: ordinary Euclidean radius in original X
-            // coordinates, regardless of the metric used to form ranks.
-            _ct_physical_dx = rdistnn_physical_distances(_ct_X,_ct_X0[_ct_j,.])
-            _ct_target_diag[_ct_j, 20] = rdistnn_weighted_quantile(
-                _ct_physical_dx, _ct_wj, .9)
-            if ("`score_method'" == "pseudo_outcome") {
-                _ct_target_diag[_ct_j, 12] = 0
-                _ct_target_diag[_ct_j, 16] = 0
-                _ct_target_diag[_ct_j, 21] = 0
-            }
-            else {
-                _ct_tmass = cross(_ct_T, _ct_wj)
-                _ct_cmass = cross(1 :- _ct_T, _ct_wj)
-                _ct_target_diag[_ct_j, 12] = 1
-                _ct_target_diag[_ct_j, 13] = _ct_tmass
-                _ct_target_diag[_ct_j, 14] = _ct_cmass
-                _ct_target_diag[_ct_j, 15] = _ct_tmass /
-                    (_ct_tmass + _ct_cmass)
-                _ct_target_diag[_ct_j, 16] = 1
-                _ct_target_diag[_ct_j, 17] = cross(_ct_E, _ct_wj) /
-                    quadsum(_ct_wj)
-                _ct_target_diag[_ct_j, 18] = rdistnn_weighted_quantile(
-                    _ct_E, _ct_wj, .1)
-                _ct_target_diag[_ct_j, 19] = rdistnn_weighted_quantile(
-                    _ct_E, _ct_wj, .9)
-                _ct_target_diag[_ct_j, 21] = 1
-                _ct_tw = select(_ct_wj, _ct_T :== 1)
-                _ct_cw = select(_ct_wj, _ct_T :== 0)
-                if (rows(_ct_tw) > 0 & quadsum(_ct_tw :^ 2) > 0) {
-                    _ct_target_diag[_ct_j, 22] =
-                        quadsum(_ct_tw)^2 / quadsum(_ct_tw :^ 2)
-                }
-                if (rows(_ct_cw) > 0 & quadsum(_ct_cw :^ 2) > 0) {
-                    _ct_target_diag[_ct_j, 23] =
-                        quadsum(_ct_cw)^2 / quadsum(_ct_cw :^ 2)
-                }
-            }
-            _ct_target_diag[_ct_j, 24] = 1
-            _ct_abs_contrib = abs(_ct_wj :* (_ct_rho :- _ct_tau[_ct_j]))
-            _ct_contrib_total = quadsum(_ct_abs_contrib)
-            if (_ct_contrib_total > 0 & _ct_contrib_total < .) {
-                _ct_contrib_order = order((_ct_abs_contrib, (1::`n')), (-1, 2))
-                _ct_target_diag[_ct_j, 25] = quadsum(
-                    _ct_abs_contrib[_ct_contrib_order[1..min((5, `n'))]]) /
-                    _ct_contrib_total
-            }
-        }
+        _ct_target_diag = rdistnn_diagnostics("cate_dnn",_ct_X,_ct_X0,
+            _ct_rho,_ct_W,_ct_DX,`k',`s',_ct_tau,_ct_T,_ct_E)
         st_matrix("`b'", _ct_tau)
         st_matrix("`neff_mat'", _ct_neff)
         st_matrix("`grid_est'", _ct_grid_est)
@@ -647,7 +380,6 @@ program define cate_dnn, eclass
     ereturn local  target_source "`target_source'"
     ereturn local  xvars    "`xvars'"
     ereturn local  x_cols   "`xvars'"
-    ereturn local  x_source "`x_source'"
     ereturn local  distance "`distance'"
     ereturn local  method   "`method'"
     ereturn local  tuning_mode "`tuning_mode'"
@@ -663,16 +395,14 @@ program define cate_dnn, eclass
     ereturn local  depvar "`input_var'"
     ereturn local  outcome  "`outcome'"
     ereturn local  signal   "`input_var'"
-    ereturn local  treat    "`treat_var'"
     ereturn local  t_col    "`treat_var'"
-    ereturn local  propensity "`propensity_var'"
     ereturn local  e_col    "`propensity_var'"
     ereturn local  m0_col   "`m0_var'"
     ereturn local  m1_col   "`m1_var'"
     ereturn local  cmd      "cate_dnn"
     ereturn local  cmdline  "cate_dnn `0'"
 
-    local signature_vars `xvars' `input_var' `treat_var' `propensity_var' `m0_var' `m1_var' `m_var'
+    local signature_vars `xvars' `input_var' `treat_var' `propensity_var' `m0_var' `m1_var'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
     tempname model_signals model_ranks model_distances model_geometry

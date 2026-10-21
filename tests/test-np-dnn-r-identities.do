@@ -14,7 +14,7 @@ mata {
     _y = st_data(., "y")
     st_numscalar("_np_manual_ap", sum(_w :* _y))
 }
-np_dnn y, x(x1 x2) x0(0.25 -0.4) k(3) s(9) method(asymp)
+np_dnn y, xcols(x1 x2) x0(0.25 -0.4) k(3) s(9) method(asymp)
 local mu_ap = _b[mu]
 test_assert "[identity] asymp mu equals sum(w*y)" abs(`mu_ap' - scalar(_np_manual_ap)) < 1e-8
 
@@ -24,7 +24,7 @@ mata {
     _y = st_data(., "y")
     st_numscalar("_np_manual_mh", sum(_w :* _y))
 }
-np_dnn y, x(x1 x2) x0(0.25 -0.4) k(3) s(9) distance(mahalanobis)
+np_dnn y, xcols(x1 x2) x0(0.25 -0.4) k(3) s(9) distance(mahalanobis)
 local mu_mh = _b[mu]
 test_assert "[identity] mahalanobis mu equals sum(w*y)" abs(`mu_mh' - scalar(_np_manual_mh)) < 1e-8
 
@@ -41,7 +41,7 @@ mata {
     _y = st_data(., "y", "keep_np")
     st_numscalar("_np_manual_if", sum(_w :* _y))
 }
-np_dnn y if keep_np, x(x1 x2) x0(-0.1 0.2) k(2) s(7)
+np_dnn y if keep_np, xcols(x1 x2) x0(-0.1 0.2) k(2) s(7)
 local mu_if = _b[mu]
 local n_if = e(N)
 quietly count if e(sample)
@@ -56,7 +56,7 @@ rdnn_dgp_np, n(80) seed(903)
 replace y = . in 3
 replace x1 = . in 4
 replace x2 = . in 5
-np_dnn y, x(x1 x2) x0(0 0) k(2) s(6)
+np_dnn y, xcols(x1 x2) x0(0 0) k(2) s(6)
 local n_mark = e(N)
 quietly count if e(sample)
 local n_sample_mark = r(N)
@@ -69,7 +69,7 @@ clear
 set obs 6
 gen double x1 = _n
 gen double y = 10 + _n
-np_dnn y, x(x1) x0(3.2) k(1) s(1)
+np_dnn y, xcols(x1) x0(3.2) k(1) s(1)
 local nn_mu = _b[mu]
 local nn_se = _se[mu]
 test_assert "[edge] k=s=1 returns the sample mean" abs(`nn_mu' - 13.5) < 1e-12
