@@ -1,6 +1,6 @@
 # Release Notes
 
-## 0.1.1 — unreleased
+## 0.1.1 — 2026-10-21
 
 - Resolve exact distance ties lexicographically by the original covariates in
   Mata, including ranks supplied to native deletions, retaining observation-order ties only for
