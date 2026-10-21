@@ -1,10 +1,36 @@
 # Release Notes
 
-## 0.1.0.9004 — development snapshot
+## 0.1.0.9005 — development snapshot
 
-The changes below are grouped in one reviewed, flattened (squash-merged)
-production update carrying version 0.1.0.9004. Publishing this source update
-does not create a tag or replace assets from the existing v0.1.0 release.
+The maintenance and documentation changes below ship together as one flattened
+(squash-merged) production commit. Version 0.1.0.9004 records the previous
+estimator update; tags and assets of the existing v0.1.0 release are unchanged.
+
+### Maintenance
+
+- Store the positional outcome/signal in `e(depvar)` for NP, TDNN, CATE and CLATE, with
+  `e(vce)` and `e(vcetype)` identifying rank-shift jackknife uncertainty.
+  Candidate and prediction results update these labels with their uncertainty
+  state; CATE/CLATE labels explicitly describe frozen-score covariance.
+
+### Documentation
+
+- Shorten READMEs and introductory guides around runnable user workflows.
+  Point to the paper for theory and keep detailed syntax and engine contracts
+  in their reference documents.
+- Refresh merged-source installation pins, website copy and the R/Stata
+  documentation crosswalk.
+- Refresh installed help and command guides for saved-data plotting and PLQR
+  batch prediction, and replace obsolete development-only and R-reference wording.
+- Refocus all eight do-file examples on self-contained user workflows, with
+  readable reports, explicit candidate activation and saved PLQR moment prediction.
+- Reorganize plugin installation and maintainer/test guidance; replace superseded
+  plans and verification reports with an index to their immutable Git snapshots.
+
+## 0.1.0.9004 — merged development snapshot
+
+The estimator update was published as one reviewed, flattened (squash-merged)
+production commit in [PR #10](https://github.com/JakobJuergens/RdistNN_stata/pull/10).
 
 - Show single- and two-scale order fractions in reporting and replay without
   changing stored results. Clarify support diagnostics, sampling and tie
@@ -47,7 +73,6 @@ downloadable assets are separate; the existing v0.1.0 release is unchanged.
   R, Mata and native code. Preserve stable signed-zero ties in native sorting.
 - Preserve mu/tau/theta coefficient names after candidate/prediction posting;
   reject clipping bounds whose upper endpoint rounds to one. Update metric/batch-weight documentation.
-
 
 - Align weighted-quantile boundary decisions with R/native compensated total
   and prefix arithmetic. Use exact binary selected-index fixtures.

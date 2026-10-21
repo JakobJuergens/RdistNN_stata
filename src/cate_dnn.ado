@@ -658,6 +658,9 @@ program define cate_dnn, eclass
     ereturn local  propensity_version = cond("`score_method'" == "pseudo_outcome", "not_used", "clipped")
     ereturn local  se_method = cond("`se'" == "", "rank_shift", "none")
     ereturn local  jackknife = cond("`se'" == "", "fast", "none")
+    ereturn local  vce = cond("`se'" == "", "rank_shift", "none")
+    ereturn local  vcetype = cond("`se'" == "", "Frozen-score jackknife", "")
+    ereturn local  depvar "`input_var'"
     ereturn local  outcome  "`outcome'"
     ereturn local  signal   "`input_var'"
     ereturn local  treat    "`treat_var'"

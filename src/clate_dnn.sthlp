@@ -15,7 +15,7 @@
 
 {pstd}
 Stata 17 or later is required. Supplied-prediction CLATE and ordinary paired-signal
-ratios are supported workflows in the development version {bf:0.1.0.9004} under the documented
+ratios are supported workflows in the development version {bf:0.1.0.9005} under the documented
 pointwise inference conditions. See {help rdistnn} for package navigation.
 
 {marker syntax}{...}
@@ -174,38 +174,24 @@ ties, so permuting tied observations can change estimates.
 
 
 {pstd}
-Covariance uses paired frozen-score rank-shift deletions with the same s,
-k, predictions, target points and metric. It retains both components and
-all cross-covariances. Each ratio is linearized at its full-sample value.
-Neither deleted ratios nor refitted nuisance learners are used. For one
-target, V_theta=(V_YY+theta^2*V_DD-2*theta*V_YD)/Delta_D^2.
-Dividing the numerator SE by the first stage omits denominator uncertainty.
+Covariance uses paired frozen-score rank-shift deletions with fixed predictions,
+targets, s, k and metric. It retains both components and cross-target covariance;
+it does not use deleted ratios or refit nuisance learners.
 {cmd:e(theta_vcov)} and {cmd:e(component_vcov)} are already on the estimator
-scale: do not divide them by ESS. ESS is inverse weight concentration, not a
+scale: do not divide them by ESS. ESS measures weight concentration, not the
 number of compliers. Cross-target covariance does not imply simultaneous coverage.
 
 {pstd}
-Causal interpretation requires consistency, exclusion, conditional instrument
-independence given V, monotonicity, instrument overlap and positive local
-compliance. Without those assumptions the calculation is a standardized
-observed-data Wald ratio. Predictions alone cannot establish causal validity.
-
-{pstd}
-Orthogonality controls first-order population nuisance drift. Full-sample
-inference additionally requires the affine theorem's design, oracle,
-nuisance-accuracy, quantitative deletion-stability, envelope and exceptional-event
-controls, positive score variance, fixed relevance and undersmoothing conditions.
-The theorem's deleted nuisance states differ from the software's frozen-array
-variance deletions. A training declaration alone does not establish these
-conditions. The exact k=1 theorem does not automatically extend to every
-supported k or weight method. Jackknife uncertainty does not remove target bias.
+The {browse "https://jakobjuergens.com/research/#orthogonal-inference-conditional-z":paper}
+gives the IV identifying assumptions and deletion-stability conditions for
+inference. A training label, supported k or weight method does not establish
+them. Jackknife uncertainty does not remove target bias.
 
 {pstd}
 Intervals are pointwise Wald intervals, without weak-instrument-uniform
-guarantees. There is no weak-stage trimming, first-stage cutoff or denominator
-regularization. The R companion's separate {cmd:ratio_confidence_set()}
-inversion is not implemented in Stata and its algebra alone does not
-establish uniform weak-IV coverage.
+guarantees. Inspect the local first stage alongside the ratio. No weak-stage
+trimming or denominator regularization is applied. R's separate experimental
+{cmd:ratio_confidence_set()} inversion is not implemented in Stata.
 
 {marker status}{...}
 {title:Numerical status}
@@ -312,6 +298,8 @@ Candidate status is 0=infeasible or 1=ok; reasons are 0=ok, 1=k_gt_s,
 {synopt:{cmd:e(clip)}, {cmd:e(denominator_tol)}, {cmd:e(one_sided)}}signal/status settings{p_end}
 {synopt:{cmd:e(score_method)}}augmented_iv or paired_signals{p_end}
 {synopt:{cmd:e(se_method)}}paired_rank_shift or none{p_end}
+{synopt:{cmd:e(vce)}, {cmd:e(vcetype)}}paired_rank_shift and Paired frozen-score jackknife; none and empty with nose{p_end}
+{synopt:{cmd:e(depvar)}}positional outcome or numerator signal{p_end}
 {synopt:{cmd:e(covariance)}}paired_frozen_score or none{p_end}
 {synopt:{cmd:e(training)}, {cmd:e(overlap_role)}}declared provenance; instrument{p_end}
 {synopt:{cmd:e(distance)}, {cmd:e(method)}}metric and rank-weight method{p_end}
@@ -325,6 +313,8 @@ Input names are recorded in {cmd:e(xvars)}, {cmd:e(x_cols)},
 instrument in shared postestimation. {cmd:e(propensity_version)} records
 clipped or not_used. {cmd:e(signature_vars)} and {cmd:e(ordered_signature)}
 protect observation-level plots against changed values or row order.
+The VCE labels describe the requested calculation; {cmd:e(status)} identifies
+targets with available ratio inference.
 
 {pstd}
 Fit/replay return a 9-by-m {cmd:r(table)} with rows

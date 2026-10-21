@@ -8,42 +8,22 @@ is a standalone runnable example.
 
 ## What k and s control
 
-Imagine averaging a nearest-neighbor estimator over every size-s subset of
-n observations. Within a subset, average its k nearest observations to x0.
-The resulting complete average is a weighted average of the full sample.
-`k(1)` is the default and the setting written out in the companion theory;
-fixed larger k is implemented, but that implementation support alone is not
-a new theorem guarantee for every configuration.
-
-The order s has the opposite direction to a usual bandwidth. For fixed n
-and k, increasing s concentrates weight nearer x0; decreasing s spreads it
-out. Exact positive support reaches global rank n-s+k. In particular,
-`k(1)` gives n-s+1 positive ranks, not s positive ranks. At k=s the exact
-rule is uniform over n observations. The constraint k<=s<=n applies to
-weight construction; delete-one uncertainty additionally needs s<n.
+`s` is the subsample order and `k` is the neighbor count within a subsample.
+The default is `k(1)`. Increasing `s` tightens localization,
+opposite to the usual bandwidth convention.
+Exact positive support reaches global rank `n - s + k`, or `n - s + 1` with
+`k(1)`; neither `k` nor `s` counts all full-sample observations with weight.
+At `k=s`, exact weights are uniform. Orders must satisfy `k <= s <= n`;
+jackknife uncertainty additionally needs `s < n`.
 
 ## Exact and asymptotic rules
 
-For global rank r (nearest is 1), the exact finite-population coefficient is
-
-\[
-w_r=\frac{1}{k\binom ns}\sum_{\ell=1}^{k}
-\binom{r-1}{\ell-1}\binom{n-r}{s-\ell},
-\]
-
-where impossible binomial choices contribute zero. The code evaluates the
-combination terms on a log scale and normalizes for floating-point safety.
-This is the default `method(exact)`; it does not enumerate all subsets.
-
-`method(asymp)` replaces the without-replacement order probabilities by
-Beta order-statistic increments. With F_l the Beta(l,s-l+1) CDF, it uses
-`sum_l [F_l(r/n)-F_l((r-1)/n)]/k`, then normalizes. This is generally a
-full-rank approximation; floating-point arithmetic may turn very small tail
-weights into zero. Interval masses select lower or direct upper tails to avoid
-subtracting CDF values rounded to one; no additional tail cutoff is imposed.
-Do not apply the exact finite-population support cutoff
-to the asymptotic rule. Changing methods changes weights and estimates;
-compare the methods explicitly when the approximation matters.
+`method(exact)` is the default finite-population DNN rule. It computes
+weights without enumerating subsets. `method(asymp)` uses a different,
+generally full-support approximation. Changing the method changes weights
+and can change estimates; the exact support cutoff does not apply to the
+approximation. The [paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
+gives the construction and theoretical results.
 
 Euclidean `distance(l2)` is the default. Its ranking is sensitive to the
 units of the coordinates; standardization can be a substantive choice.
@@ -174,95 +154,38 @@ guides show how to preserve original IDs and combine target/candidate selections
 
 ## Jackknife and the localized target
 
-For a scalar local average, the rank-shift implementation computes the
-n delete-one estimates efficiently and uses the delete-one covariance scale
-`(n-1)/n * sum_i (L_i-mean(L))*(L_i-mean(L))'`. Batch CATE/NP covariance uses
-all targets together. CLATE uses paired numerator/denominator deletions and
-the ratio linearization, rather than independent component variances.
-The full-sample Mahalanobis metric and supplied scores/nuisances remain fixed.
+Jackknife calculations hold supplied outcomes, scores and fitted geometry
+fixed. Batch CATE/NP covariance uses common deletions across targets; CLATE
+also retains dependence between numerator and denominator. An order `s=n`
+is available for weights or estimate-only fits but cannot be retained after
+a deletion, so uncertainty requires `s<n`.
 
-The delete-one calculation cannot retain an order s=n after removing one
-observation; this explains the s<n inference constraint. It does not imply
-that s=n is invalid for standalone weight construction or estimate-only fits.
-The posted SE measures variance around a localized target. It does not remove
-localization bias, refit supplied nuisances, or turn a pointwise interval into
-a simultaneous band. Orthogonality also does not establish inference with
-arbitrary same-sample nuisance fits. See the estimator-specific conditions in
-[CATE and regression](cate-and-regression.md) and [CLATE](conditional-late.md).
+Reported uncertainty does not remove localization bias or refit nuisance
+learners. Intervals remain pointwise. The paper gives the inference conditions;
+[CATE and regression](cate-and-regression.md) and [CLATE](conditional-late.md)
+explain the returned covariance and status fields.
 
-ESS is `1/sum(w_i^2)`, not positive support and not a coverage diagnostic.
-A rank-s radius, weighted distance, 90-percent-mass physical radius and
-within-arm ESS likewise describe different features. Inspect them alongside
-candidate sensitivity rather than treating one threshold as a theorem check.
+ESS, support size and physical radii describe different aspects of localization.
+Use [diagnostics](diagnostics-and-reporting.md) to inspect them alongside tuning
+sensitivity, rather than treating any one threshold as a validity test.
 
 ### Numerical centering
 
-All jackknife engines, including explicit deletions, use a numerical reference
-chosen separately for each target and signal from observations with nonzero
-weight in at least one deletion. This numerical shift precedes the usual
-centering of deletion estimates around their mean. Prefer the first active
-observation in localization-rank order when subtraction is in range and exact.
-A range safeguard retains the same-sign endpoint/zero policy; use zero if a
-subtraction would lose a separately represented signal component. The same
-reference is used in every deletion; raw restored doubles can still round
-away sub-ULP variation, so covariance uses the shifted deletions.
-
-A nonzero entry at rank r in the n-1 weight table can use original ranks r
-and r+1: deleting an earlier observation shifts the latter into position r.
-For exact DNN, this union ends at n-s+k (n-s+1 for k=1). Unused observations
-are excluded before subtraction, so a zero-weight outlier cannot affect the
-reference or cause overflow. All n deletion identities and the original
-`(n-1)/n` covariance scale are retained.
-
-Covariance uses shifted deletions; raw deletion calculations restore the common
-weighted offset. Point estimates use the original signals. This preserves the
-estimator and its jackknife covariance in exact arithmetic without refitting
-or statistically recentering the scores. Asymptotic weights retain every
-represented nonzero entry, with no additional cutoff or renormalization.
-
-As a shared R/Stata check, take four observations in increasing distance order,
-signal `(1e16+4, 1e16+8, 1e16+12, -1)`, k=1 and s=3. The last observation
-always has zero weight. Subtracting the active reference gives deletion means
-`(4,0,0,0)`, hence variance `(3/4)*(9+1+1+1)=9` and SE 3. The R and Stata
-unit suites check this analytical result across their fast and naive paths.
+The engines center signals numerically before accumulation to protect small
+variation around large levels. This does not redefine the score or refit
+nuisances. The [numerical implementation reference](numerical-stability.md)
+describes the shared arithmetic and its limits.
 
 ## Native acceleration and R boundaries
 
-The optional platform-specific plugin computes scalar/batched L1, L2, scaled
-L1 and scaled L2 distances for weight commands, all five estimators and
-saved-fit prediction. Scale fitting, stable ranks and rank-weight tables use
-Mata. The plugin also accelerates frozen-score jackknife deletions. Deletion calculations
-reuse one n-1 weight table with prefix/suffix sums in both C++ and Mata.
+The portable Mata path is available without a plugin. Optional native
+acceleration and engine controls are documented in the
+[plugin guide](../src/plugin/README.md). Ordinary users can retain automatic
+dispatch; performance and parity investigations can select engines explicitly.
 
-Automatic distance dispatch keeps small jobs in Mata and attempts a usable
-plugin for substantial batches, with Mata fallback if the API is absent or
-execution fails. The capability probe is cached after its first use. Set
-`global rdistnn_distance_engine plugin` to require this API, or `mata` to
-force the portable distance path. Dropping that global restores `auto`, which
-obeys `rdistnn_use_plugin`: `0` skips native calls and `1` requires them.
-The distance selector takes precedence over that shared control;
-explicit requirements bypass the size policy described in the native guide.
-`rdistnn_last_distance_engine` records the last actual distance route.
-Mahalanobis factorization remains in Mata; its projected norms use the
-selected L2 engine, and its frozen-rank jackknife can use the compiled engine. Restore default dispatch with
-`macro drop rdistnn_use_plugin`. For jackknife parity checks, set
-`global rdistnn_jackknife_engine` to `plugin`, `mata` or `naive`; drop it to
-restore automatic compiled -> fast Mata -> naive dispatch. The explicit fast
-selectors report failures. Default auto mode uses fast Mata when a plugin is old,
-missing, incompatible or fails during execution, and retains naive deletions
-as the final fallback. Native bridge matrices created through Mata can exceed
-`c(matsize)`; dispatch preserves that setting. See the [native guide](../src/plugin/README.md)
-for platform assets, source builds and parity checks.
-
-The [numerical stability guide](numerical-stability.md) describes stable TDNN
-coefficients, Beta interval masses and exceptional-range L2 recovery, together
-with compensated weighted/deletion sums and stable diagnostic calculations.
-
-R additionally has custom distance/rank-weight/tuning registries, generic
-weight specification objects and exposed jackknife primitives.
-These have no Stata public command equivalents. The
-[R documentation crosswalk](r-documentation-crosswalk.md) routes advanced
-readers to the R sources without implying those APIs exist in Stata.
+R's custom distance, rank-weight and tuning registries and generic jackknife
+primitives have no Stata public-command equivalents. The
+[R crosswalk](r-documentation-crosswalk.md) records those boundaries.
 
 ## Distance geometry
 

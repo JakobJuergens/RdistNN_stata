@@ -49,6 +49,7 @@ local test_files ///
     test-cate-signal-contract ///
     test-localization-reporting    ///
     test-derived-fit-contract ///
+    test-stored-result-metadata ///
     test-weighted-distribution-range ///
     test-accumulation-r-parity ///
     test-r-parity-priority   ///

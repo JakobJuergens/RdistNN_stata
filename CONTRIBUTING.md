@@ -8,11 +8,9 @@ before proposing a new estimator or a public-interface change.
 
 ## Development and production workflow
 
-Use the local `development` branch, renamed from `feature/clate`, for ongoing
-work. It has no upstream until publication is authorized. GitHub cannot make
-an individual branch private in a public repository, so unpublished work stays
-local. The already published historical `feature/clate` branch is separate
-from this local branch and is not automatically renamed or deleted remotely.
+Use local `development` for ongoing work and keep it unpublished until
+publication is authorized. GitHub branches in a public repository are public
+when pushed. Historical branch names remain part of the Git record.
 
 For an authorized production update, publish a review branch and open a pull
 request targeting `master`. Describe the final behavior and verification,
@@ -85,96 +83,63 @@ The [test-suite map](tests/README.md) and
 
 ## Verification
 
-Static checks from the repository root:
+Choose checks for the changed surface; use the full suite for shared Mata or
+command infrastructure. Reuse successful results while source is unchanged.
 
-```bash
+| Surface | Check from the repository root |
+| --- | --- |
+| Package structure, public documentation and policy | Commands below |
+| Estimator or numerical behavior | Focused suites from the [test map](tests/README.md), then full runtime for shared changes |
+| Native code | [Plugin build/tests](src/plugin/README.md#build-from-source) and relevant licensed native/Mata regressions |
+| Examples/help | Execute changed examples; the documentation helper runs all eight and renders the overview |
+| Installation/release | Isolated-install check and [release gates](RELEASING.md) |
+
+```sh
 bash tools/ci/pkg_check.sh
 python3 -m unittest discover -s tests/ci -v
 python3 tools/ci/documentation_check.py
-git diff --check
 ```
 
-`pkg_check.sh` checks internal helpers as well as public commands against the
-installation manifest. Keep private Mata functions prefixed `rdistnn_`, declare
-version 17 or later, and let each source module own its reload guards. The
-package gate rejects duplicate typed Mata function definitions across modules.
-With the sibling R checkout present, additionally run
-`python3 tools/ci/package_hygiene.py --r-root ../RdistNN` to verify shared headers.
+`pkg_check.sh` includes manifest/source hygiene: public and private ado/help
+inputs, version declarations, the `rdistnn_` Mata prefix and unique typed
+function ownership. With sibling R available, also run
+`python3 tools/ci/package_hygiene.py --r-root ../RdistNN` for byte-identical
+shared headers. Optional `--r-root ../RdistNN` on the documentation checker
+compares the [documentation crosswalk](docs/r-documentation-crosswalk.md)
+with R's live article/reference inventory.
 
-`_rdistnn_mata.ado` is the shared loading gateway. Arithmetic and weighted
-distribution helpers belong to `_rdistnn_accumulation.ado`; covariance and
-whitening factors have their existing dedicated modules. Fitted geometry,
-distances and stable ranks belong to `_rdistnn_distance_mata.ado`, weight laws
-and rank mapping to `_rdistnn_rank_weights.ado`, and deletions/covariance
-adapters to `_rdistnn_rank_loo.ado`. Keep estimator-specific policy in its
-adapter. The gateway preserves the same entry point for all consumers and
-loads common arithmetic before geometry, weights and inference.
-
-The [test-suite map](tests/README.md) explains focused runs and fixture
-ownership. On Windows with licensed Stata installed, run the full suite and
-a clean installation:
+With licensed Windows Stata:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_runtime_check.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_install_check.ps1
-```
-
-The isolated-install helper also executes all eight public examples using only
-the temporary PLUS command payload and verifies the installed overview.
-Both helpers accept `-StataExe` and `-RepoRoot`. The expected local Windows
-installation is `C:\Program Files\StataNow19\StataSE-64.exe`; discovery also
-supports other Stata editions and `STATA_EXE`. Resolve the executable on the
-machine actually running the check. PowerShell uses native filesystem paths
-and quotes do-file names, including paths containing spaces.
-The Stata setup and test runner normalize Windows backslashes for ado discovery
-from UNC shares, including a WSL checkout.
-All three Stata verification helpers require a zero process exit code and a
-fresh completion marker. Runtime `-KeepLog` copies the previous run to
-`tests.previous.log`; the current run must create its own `tests.log`.
-After the full licensed suite, verify the actual exported confidence-band
-and `nose` geometry against its numerical CSV data with
-`python3 tools/ci/plot_svg_check.py`. It checks four filled bands and three
-profiles without uncertainty, and writes an ignored JSON receipt under
-`build/premerge/`.
-
-Use `global rdistnn_distance_engine mata` or `plugin` for explicit distance
-parity checks. Drop it for auto dispatch, where `rdistnn_use_plugin 0` skips
-native calls and `1` requires them. Reset test globals after use. The native
-build helper executes core, distance and real-entry-point protocol tests and
-inspects the host binary:
-
-```powershell
-pwsh -NoProfile -File tools/ci/plugin_build_check.ps1
-```
-
-Run numerical or validation tests affected by a behavior change, then the full
-suite for changes to shared Mata or command infrastructure. Documentation-only
-changes should execute changed examples and verify help and links. The
-article and installed-help checks require no R installation; for the optional
-live R article/reference inventory, pass `--r-root` to
-`tools/ci/documentation_check.py`. Keep [the documentation crosswalk](docs/r-documentation-crosswalk.md)
-in sync when either package's public topics change. From a licensed Windows
-checkout, execute all eight seeded examples and render the package overview with:
-
-```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/ci/stata_documentation_check.ps1
 ```
 
-Add `-UpdateFigures` to regenerate the four committed gallery PNGs in
-`docs/figures/` from those seeded examples; inspect them before committing.
-The default check leaves the published figures untouched.
+The helpers accept `-StataExe` and `-RepoRoot`; resolve native paths on the
+machine running them. Discovery supports `STATA_EXE` and Stata editions,
+including the local `C:\Program Files\StataNow19\StataSE-64.exe`. Paths with
+spaces and Windows/UNC checkout paths are supported. Each helper requires
+both exit code zero and a fresh completion marker. Runtime `-KeepLog` archives
+only the preceding log as `tests.previous.log`; current execution must create
+its own `tests.log`.
 
-The helper accepts `-StataExe`/`-RepoRoot`, stops on any failed example and
-checks a dedicated success marker. It writes ignored output under
-`build/documentation/` and `documentation_examples.log`. The ordinary Stata
-process exit code alone is not proof that a do-file completed. The examples
-can also be run individually from the repository root after `dev-setup.do`.
-Documentation articles and examples are public source-archive inputs; developer
-tests/tools remain checkout-only, so article links to those use matching
-production-branch URLs rather than nonexistent archive paths. Preserve
-fixed R golden values; regenerate them only when their source contract changes,
-using `Rscript tools/generate_r_priority_fixtures.R` with the sibling R checkout.
-Reuse successful verification while the content snapshot is unchanged.
+The isolated-install helper uses temporary PLUS/PERSONAL directories and runs
+all eight examples using only the installed commands. The documentation helper
+writes ignored `build/documentation/` output and `documentation_examples.log`.
+Add `-UpdateFigures` to regenerate the four gallery PNGs in `docs/figures/`,
+then inspect them. The default leaves committed figures unchanged.
+After the full runtime suite, `python3 tools/ci/plot_svg_check.py` verifies four
+exported filled bands and three profiles without uncertainty against numeric
+CSV data; receipts stay under ignored `build/premerge/`.
+
+The [test map](tests/README.md) owns suite selection, fixture generation and
+engine controls; the [numerical reference](docs/numerical-stability.md) owns
+module responsibilities and arithmetic. Keep fixed R values unless their
+source contract changes. User guides should teach tasks, installed help owns
+syntax/results, and the paper owns theory. Retain practical interpretation
+limits beside the outputs. Articles/examples are source-archive inputs;
+checkout-only tests/tools need production-branch URLs from those articles.
 
 ## Reporting and review
 
@@ -186,3 +151,4 @@ Describe changes and verification in pull requests. Update
 archives, compiled development binaries, and workflow debug artifacts stay
 untracked. Release preparation and publication follow
 [RELEASING.md](RELEASING.md).
+Earlier plans and audits are indexed in [historical records](markdown_notes/history.md).

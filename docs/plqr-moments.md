@@ -5,7 +5,8 @@ at a **supplied coefficient vector**. It returns the moment and its full
 rank-shift jackknife covariance. It does not find a coefficient, estimate a
 threshold density, or report coefficient standard errors, confidence
 intervals, p-values or significance tests. The PLQR interface is experimental
-and can change. The initial release focuses on CATE and regression.
+and can change. For statistical background, see the
+[paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z).
 
 Use [examples/plqr-moments.do](../examples/plqr-moments.do) for complete seeded
 data generation and extraction, or `help plqr_dnn` in an installed package.
@@ -58,9 +59,9 @@ Here `theta_eval=(1,-.5)` and `md1,md2` correspond respectively to `d1,d2`.
 `x0()` supplies one coordinate per `x()` variable, in the same order.
 Only one target is supported in each call: this command has neither
 `x0matrix()` nor the `xcols()` alias used by the CATE/CLATE/NP front ends.
-For several targets, make separate calls and store each moment/covariance
-before the next call replaces active results. These calls do not provide a
-joint covariance across targets.
+For several targets from one saved fit, use `rdistnn_predict, x0matrix(NEW)
+sefit`; it can return joint moment covariance. Separate initial fits do not
+supply cross-target covariance. See [saved moment reporting and prediction](#saved-moment-reporting-and-prediction).
 
 The complete-case sample includes the outcome, all `x()` and `d()`
 variables, `g()` and all `md()` variables within the requested `if`/`in`
@@ -159,13 +160,12 @@ addition to moment covariance. Stata `plqr_dnn` has no `density()` input,
 Jacobian, sandwich route or coefficient-inference fields. Taking the square
 root of a moment-variance diagonal cannot substitute for that missing bread.
 
-R's multiple-target support, tuning grids, retained score/weight extras and
-PLQR-specific reporting/prediction/plot methods likewise do not establish
-those interfaces in Stata. Neither front end solves a local PLQR root.
-For implemented Stata scope, use this article and installed help; for
-comparison, see the source-pinned R [PLQR reference](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/man/plqr_dnn.Rd),
-[conditional Z-estimation article](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/vignettes/conditional-z-estimation.Rmd),
-and [notation article](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/vignettes/notation-and-conventions.Rmd).
+R additionally supports multiple targets in its initial PLQR fit, integrated
+tuning grids and PLQR-specific conditioning/calibration plots. Stata's saved
+reporting and batch prediction are described below. Neither front end solves
+a local PLQR root. See R's [PLQR reference](https://JakobJuergens.github.io/RdistNN/reference/plqr_dnn.html)
+and [notation guide](https://JakobJuergens.github.io/RdistNN/articles/notation-and-conventions.html)
+for its interfaces.
 The [documentation crosswalk](r-documentation-crosswalk.md) records the full
 package boundary.
 

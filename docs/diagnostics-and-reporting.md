@@ -126,66 +126,11 @@ moments](plqr-moments.md).
 
 ## Full diagnostic and saved-table schemas
 
-For target scope, `r(localization)` has these columns, in order:
-
-```text
-target_id x0_1 ... x0_p
-ess max_weight top1_weight_share top5_weight_share top10_weight_share
-n_nonzero_weight distance_available radius_rank_k radius_rank_s
-weighted_mean_distance weighted_median_distance
-```
-
-`r(diagnostics)` starts with that common block, followed by the estimator's
-scientific columns in the following order.
-
-CATE:
-
-```text
-overlap_available treated_mass control_mass treated_share
-propensity_available weighted_mean_propensity weighted_propensity_q10
-weighted_propensity_q90 physical_radius_90 arm_ess_available
-treated_ess control_ess score_contribution_available top5_score_share
-```
-
-CLATE has the same order, replacing `treated_mass`, `control_mass`,
-`treated_share`, `treated_ess`, and `control_ess` by `instrument_1_mass`,
-`instrument_0_mass`, `instrument_1_share`, `instrument_1_ess`, and
-`instrument_0_ess`. Its underlying `e(diagnostics)` retains CATE's internal
-arm column names; the public diagnostics and plot commands apply the
-scientific instrument names.
-
-NP:
-
-```text
-outcome_available weighted_mean_y weighted_sd_y
-weighted_y_q10 weighted_y_q50 weighted_y_q90
-```
-
-NP's weighted standard deviation is the square root of the weighted second
-central moment with divisor `sum(w)`, without a sample correction. Quantiles
-are the first observed value whose cumulative normalized weight reaches the
-requested probability; they are not interpolated. With normalized weights,
-`weighted_mean_y` equals the NP estimate.
-
-The compact CATE/CLATE table contains `target_id ess top5_weight_share
-physical_radius_90`, the two arm ESS fields, and `top5_score_share`. NP's
-compact table contains `target_id ess max_weight top5_weight_share
-weighted_mean_y weighted_sd_y`.
-
-To save full selected diagnostics:
-
-```stata
-cate_dnn_diagnostics, targets(3 1) saving("cate-report.dta") replace
-```
-
-The dataset contains numeric variables named after the full table columns;
-target IDs and coordinates are explicit variables. Matrix row labels do not
-become variables. CATE/NP save `r(diagnostics)`. For CLATE target scope,
-the file appends the eight component columns after `target_id` and all
-five status columns described next; `r(diagnostics)` itself remains the
-scientific diagnostic matrix. All saved variables are double precision.
-`replace` permits overwriting; the caller's data are restored even if saving
-fails. A saved `.dta` is a report, not a complete fit for `estimates restore`.
+Use `detail` to inspect all diagnostic columns. The installed
+`help cate_dnn_diagnostics`, `help clate_dnn_diagnostics` and
+`help np_dnn_diagnostics` give complete matrix and saved-table schemas.
+Use original target/candidate IDs to join exported diagnostics to estimates;
+column positions differ between estimators.
 
 ## Report CLATE components and statuses together
 
@@ -268,7 +213,7 @@ and, for CLATE, components and statuses. Plot each source of concern with
 kernels/radii for locality, overlap for arm support, and influence for score
 concentration. The [R documentation crosswalk](r-documentation-crosswalk.md)
 records R features without a Stata implementation; the corresponding
-[R diagnostics article](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/vignettes/diagnostics-reporting.Rmd)
+[R diagnostics article](https://JakobJuergens.github.io/RdistNN/articles/diagnostics-reporting.html)
 is a conceptual reference, while Stata syntax and availability above describe
 this implementation.
 
@@ -280,5 +225,4 @@ CATE target diagnostics include treated/control effective sample sizes and
 absolute score-contribution concentration. CLATE uses instrument arms and
 retains its paired first-stage diagnostics. Distinguish these from weight
 concentration and from R's squared jackknife-contribution shares.
-Numerical clipping does not establish overlap. No new warning thresholds or
-stored-result layouts are introduced.
+Numerical clipping does not establish overlap.

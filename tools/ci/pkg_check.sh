@@ -139,7 +139,7 @@ echo ""
 echo "=== Checking DNN kernel-order documentation ==="
 DNN_DOC_ERRORS=0
 DNN_DOCS=(
-	README.md
+	docs/weights-and-tuning.md
 	src/cate_dnn.sthlp
 	src/np_dnn.sthlp
 	src/plqr_dnn.sthlp
@@ -258,16 +258,23 @@ fi
 echo ""
 echo "=== Checking platform/plugin compatibility contract ==="
 PLATFORM_ERRORS=0
-for phrase in \
-	"Windows x86-64 PE binary" \
-	"attempt the plugin on every platform" \
-	"falls back to Mata" \
-	"macOS arm64" \
-	"macOS x86-64"; do
-	if grep -qF "$phrase" README.md; then
-		echo "  OK       README.md contains: $phrase"
+PLATFORM_DOC="src/plugin/README.md"
+# Check the discoverable assets and controls, allowing prose to evolve.
+for capability in \
+	"rdistnn-plugin-Windows-x64.plugin" \
+	"rdistnn-plugin-Linux-x64.plugin" \
+	"rdistnn-plugin-macOS-arm64.plugin" \
+	"rdistnn-plugin-macOS-x64.plugin" \
+	"SHA256SUMS.txt" \
+	"rdistnn_distance_engine" \
+	"rdistnn_jackknife_engine" \
+	"rdistnn_use_plugin" \
+	"distance_api" \
+	"rank_loo"; do
+	if grep -qF "$capability" "$PLATFORM_DOC"; then
+		echo "  OK       $PLATFORM_DOC contains: $capability"
 	else
-		echo "  MISSING  README.md must contain: $phrase"
+		echo "  MISSING  $PLATFORM_DOC must document: $capability"
 		PLATFORM_ERRORS=$((PLATFORM_ERRORS + 1))
 	fi
 done

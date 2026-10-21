@@ -206,4 +206,11 @@ program define _rdistnn_model_fit, eclass
     }
     ereturn local se_method "`se_method'"
     ereturn local jackknife=cond(`active',"fast","none")
+    if inlist("`cmd'","np_dnn","np_tdnn","cate_dnn","clate_dnn") {
+        ereturn local vce "`se_method'"
+        local vcetype "Jackknife"
+        if "`cmd'"=="cate_dnn" local vcetype "Frozen-score jackknife"
+        if "`cmd'"=="clate_dnn" local vcetype "Paired frozen-score jackknife"
+        ereturn local vcetype=cond(`active',"`vcetype'","")
+    }
 end

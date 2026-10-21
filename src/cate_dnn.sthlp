@@ -18,7 +18,7 @@ distributional nearest neighbors
 
 {pstd}
 Stata 17 or later is required. See {help rdistnn} for the package overview.
-This help describes the interface in package {bf:0.1.0.9004} in the development snapshot.
+This help describes the interface in package {bf:0.1.0.9005}.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -153,29 +153,17 @@ sample for comparisons when required columns have different missingness.
 {title:Inference contract}
 
 {pstd}
-AIPW orthogonality controls first-order population nuisance drift. It does not, by
-itself, justify treating arbitrary nuisance predictions estimated on the same
-observations as valid inputs for the reported inference.
+AIPW orthogonality controls first-order population nuisance drift; it does not
+validate arbitrary same-sample nuisance estimates. Valid full-sample reuse additionally requires
+the nuisance-rate and full-state stability conditions in the
+{browse "https://jakobjuergens.com/research/#orthogonal-inference-conditional-z":accompanying paper}.
+The command cannot diagnose whether a learner meets those conditions.
 
 {pstd}
-Valid full-sample reuse additionally requires the nuisance-rate and
-full-state stability conditions in the accompanying paper.  {cmd:cate_dnn}
-computes the localized estimator and rank-shift variance procedure, but it
-cannot diagnose whether an arbitrary learner satisfies those theoretical
-conditions.
-
-{pstd}
-Users may supply oracle quantities, cross-fitted or out-of-fold predictions,
-or full-sample predictions from learners for which the paper's rate and
-stability conditions are credible.  The design is deliberately modular:
-Stata does not automatically fit or select the nuisance models.
-
-{pstd}
-Causal interpretation additionally requires the identifying assumptions,
-including appropriate treatment adjustment and overlap. Out-of-fold inputs
-do not establish every condition for local inference. Localization and
-target-bias control remain necessary. Neither clipping nor jackknife
-uncertainty removes localization bias or certifies these assumptions.
+Nuisance fitting is external. Oracle, out-of-fold and full-sample predictions
+are accepted inputs, rather than certificates of validity. The paper gives
+the causal and localization assumptions; clipping and jackknife uncertainty
+do not remove localization bias.
 
 {marker options}{...}
 {title:Options}
@@ -415,6 +403,9 @@ estimate-only fit. Rounded duplicates share a {cmd:computed_id}.
 
 {p2col 5 15 19 2: Macros}{p_end}
 {synopt:{cmd:e(cmd)}}{cmd:cate_dnn}{p_end}
+{synopt:{cmd:e(depvar)}}positional outcome or supplied pseudo-outcome variable{p_end}
+{synopt:{cmd:e(vce)}}{cmd:rank_shift} or {cmd:none} with {cmd:nose}{p_end}
+{synopt:{cmd:e(vcetype)}}{cmd:Frozen-score jackknife}; empty when uncertainty is unavailable{p_end}
 {synopt:{cmd:e(x0)}}single evaluation point supplied through {cmd:x0()}{p_end}
 {synopt:{cmd:e(x0matrix)}}source matrix name supplied through {cmd:x0matrix()}{p_end}
 {synopt:{cmd:e(target_source)}}{cmd:x0} or {cmd:X0}{p_end}
@@ -438,10 +429,8 @@ estimate-only fit. Rounded duplicates share a {cmd:computed_id}.
 {title:Examples}
 
 {pstd}
-{bf:Inference note:} The examples below use oracle quantities.  Orthogonality
-alone is not sufficient for arbitrary same-sample nuisance estimates; such
-reuse also requires the paper's nuisance-rate and full-state stability
-conditions.{p_end}
+The examples use oracle quantities to demonstrate the interface. For fitted
+nuisances, see {it:Inference contract} above.{p_end}
 
 {pstd}Setup: simulate data with oracle nuisances.{p_end}
 {phang2}{cmd:. clear}{p_end}

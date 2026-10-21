@@ -3,26 +3,17 @@
 `clate_dnn` estimates a conditional local average treatment effect using a
 binary instrument `A`, binary treatment `D`, and externally supplied nuisance
 predictions. Supplied-prediction CLATE and ordinary paired-signal ratios are
-supported workflows in development version **0.1.0.9004** under the documented pointwise
+supported workflows in development version **0.1.0.9005** under the documented pointwise
 inference conditions.
 Start with the [documentation index](index.md) for installation
 and the [runnable oracle example](../examples/clate.do) for a complete script.
 Installed users can run `help clate_dnn` without this article.
 
-The reporting covariates `X` can be a subset of the pre-instrument adjustment
-state `V=(X,Z)`. Nuisance predictions must adjust for all variables needed for
-instrument exogeneity; DNN weights use only `xcols()`. At a reporting profile
-`X=x`, the numerator and denominator average their respective adjusted
-instrument-arm contrasts over the same conditional distribution of `Z`.
-Their ratio is a compliance-weighted conditional effect. It generally differs
-from population CATE, an unweighted average of stratum-specific LATEs, or a
-residualized-IV estimand with instrument-variance weights.
-
-Causal interpretation requires consistency, exclusion, conditional instrument
-independence given `V`, monotonicity, instrument overlap, and positive local
-compliance. Without these assumptions, the calculation is a standardized
-observed-data Wald functional wherever its denominator is nonzero. Supplying
-predictions does not verify identification.
+The reporting covariates in `xcols()` can be a subset of the adjustment
+variables used by the nuisance models. The causal target and identifying
+assumptions are given in the
+[paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z).
+Conditional LATE generally differs from population CATE and residualized IV.
 
 ## Inputs and the augmented signals
 
@@ -39,22 +30,10 @@ before estimation.
 | `md0col(md0)` | `E[D | A=0,V]` |
 | `md1col(md1)` | `E[D | A=1,V]` |
 
-The arm indices refer to the **instrument**. The outcome predictions do not
-add realized treatment as a conditioning variable. For each response `R=Y,D`,
-the command constructs
-
-```text
-e_used = min(max(e,clip),1-clip)
-phi_R  = m_R1 - m_R0 + A*(R-m_R1)/e_used
-         - (1-A)*(R-m_R0)/(1-e_used)
-Delta_Y(x) = sum_i w_i(x)*phi_Yi
-Delta_D(x) = sum_i w_i(x)*phi_Di
-theta(x)   = Delta_Y(x)/Delta_D(x)
-```
-
-Both signals use the same propensity and localization weights. This solves
-the affine score equation `sum_i w_i(x)*(theta*phi_Di-phi_Yi)=0`; averaging
-individual `phi_Y/phi_D` ratios gives a different statistic.
+The arm indices refer to the **instrument**, not treatment. Both adjusted
+signals use the same propensity and DNN weights; the fit divides their local
+averages. Averaging individual signal ratios would give a different statistic.
+See `help clate_dnn` for the signal definition.
 
 `D` and `A` must be coded 0/1 on the complete estimation sample. Raw `e`,
 `md0`, and `md1` predictions must be finite and within `[0,1]` throughout the
@@ -126,59 +105,23 @@ there is no separate Stata `affine_ratio_dnn` command.
 
 ## Localization and tuning
 
-Defaults are `k(1)`, `method(exact)`, `distance(l2)`, and
-`s=floor(.4*n^((p+1)/(p+2)))`, where `n=e(N)` and `p` is the number of
-reporting covariates. `s()` is the subsample order; `k()` counts observations
-averaged within each subsample. Exact weights can be positive through rank
-`n-s+k`, rather than only through rank `s`. Larger `s` tightens localization.
-`k=s` gives uniform exact weights, providing no target-specific localization.
+CLATE shares CATE/NP controls for exact/asymptotic weights, distances and
+orders. Larger `s()` tightens localization. Use `tuningmode(grid)` for
+sensitivity comparisons or specify `s()` directly. The grid retains a default
+fit rather than selecting a preferred candidate. See
+[weights and tuning](weights-and-tuning.md) for the default rule, custom grids
+and feasibility constraints.
 
-Use `s()` for a deterministic order or `lambda()` to change the multiplier
-in the paper rule. `method(asymp)` uses the normalized Beta-rank
-approximation. `distance(mahalanobis)` uses the full estimation sample's
-covariance geometry and keeps it fixed during deletions. Distances and ties
-follow the [shared conventions](notation-and-conventions.md).
-
-`tuningmode(grid)` evaluates multipliers `.3 .4 .5 .75`, retaining the
-ordinary `.4` fit by default. `lambdagrid()` replaces the multiplier list;
-`lambda()` still identifies the default order, inserted if absent. Direct
-`sgrid()` instead specifies integer orders, with its first order as the
-default unless `sdefault()` supplies another. `sdefault()` is an order, not a
-candidate row number; an absent default order is inserted. Grid options
-require grid mode, `lambdagrid()` and `sgrid()` cannot be combined, and
-explicit `s()` cannot be combined with grid mode. Infeasible nondefault
-candidates remain in the metadata; an infeasible default stops the fit.
-Rounding can give several candidate rows the same resolved order.
-
-These comparisons reuse the supplied signals and frozen geometry. They
-describe sensitivity and do not automatically select an order or justify
-inference after data-dependent selection. See
-[weights and tuning](weights-and-tuning.md) for candidate metadata and
-feasibility codes. Covariance requires `1<=k<=s<n`; `nose` permits `s=n` and
-leaves uncertainty missing. Supported weighting options do not automatically
-extend the exact `k=1` inference theory.
+Uncertainty requires `1 <= k <= s < n`; `nose` permits `s=n` and leaves
+uncertainty missing. All comparisons reuse the supplied signals and fitted
+geometry. Supporting a weight option does not extend the paper's theory to it.
 
 ## Paired covariance, including covariance across targets
 
-For every deletion, CLATE removes the same observation from both signal
-arrays, shifts the remaining ranks, and recomputes weights with the same
-`s`, `k`, method, targets and metric. Supplied predictions remain frozen.
-The joint delete-one component averages give an estimator-scale covariance
-for all reduced forms and first stages. Ratio covariance linearizes each
-target at its full-sample ratio, retaining both component variances and their
-cross-covariance. It does not jackknife deleted ratios or refit nuisances.
-
-For one target with components `(Delta_Y,Delta_D)` and paired covariance `C`,
-
-```text
-V_theta = (C_YY + theta^2*C_DD - 2*theta*C_YD)/Delta_D^2
-```
-
-Omitting `C_YD` or dividing the numerator SE by the first stage discards
-essential paired uncertainty. A four-observation calculation in the runnable
-example has weights `(1/2,1/3,1/6,0)`, components `(2,1/2)`, ratio `4`, and
-ratio variance `34`; dropping cross-covariance gives `50`. One deleted first
-stage equals zero, while the paired component calculation remains finite.
+Covariance retains the dependence between numerator and denominator and
+across reporting profiles, with supplied signals and geometry held fixed.
+It does not jackknife deleted ratios or refit nuisance learners. Dividing
+the numerator SE by the first stage discards denominator uncertainty.
 
 | Stored matrix | Dimensions for `m` targets | Meaning/order |
 | --- | --- | --- |
@@ -225,11 +168,9 @@ together: a component covariance can be computed even when no ratio exists.
 Finite component covariance can also remain available when ratio inference
 is numerically unavailable.
 
-For nonzero first stages, the near-zero flag checks
-`abs(Delta_D)/max_i abs(phi_Di) <= denominatortol()`. The default is
-`sqrt(machine epsilon)`, approximately `1.49e-8`; zero tolerance disables
-this flag. It does not change estimates, covariance, or the Wald mask. This
-is a numerical diagnostic, not a statistical weak-instrument threshold.
+`near_zero_denominator` flags numerical cancellation. `denominatortol()`
+controls it; the flag does not change the estimate or Wald mask and is not a
+statistical weak-instrument threshold.
 
 Exact zero paired-score variance is a computed zero SE with
 `covariance_status=2` and no Wald statistic, p-value, or confidence bounds.
@@ -285,23 +226,14 @@ preserve active estimates by default. See [reusing fits](reusing-fits.md),
 
 ## Inference conditions and limits
 
-Orthogonality controls first-order population nuisance drift. Valid full-sample
-inference also requires the affine theorem's design, oracle, nuisance accuracy,
-quantitative deletion stability, envelope and exceptional-event controls,
-fixed relevance, positive score variance, and point-target undersmoothing.
-A `training(full_sample)` declaration does not establish these conditions.
-The proof's deleted nuisance states and the software's frozen-array variance
-deletions serve different purposes. Oracle examples illustrate the computation,
-rather than repeated-sampling coverage for arbitrary learned predictions.
+For the causal target, IV assumptions and conditions on nuisance learning and
+localization, see the [paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z).
+`clate_dnn` accepts supplied predictions and holds their signals fixed for
+uncertainty calculations; it does not fit or refit nuisance learners.
 
-Pointwise normal Wald intervals do not have weak-instrument-uniform validity,
-and the jackknife does not remove localization bias. The R companion has a
-separate `ratio_confidence_set()` helper that can produce bounded intervals,
-rays, all-real or empty sets; Stata does not implement this inversion. Its
-algebra alone also does not establish uniform weak-IV coverage. Do not
-interpret a finite Wald interval or a numerical status as such a guarantee.
-
-The source-pinned R counterparts are [Conditional LATE](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/vignettes/conditional-late.Rmd),
-[paired inference](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/vignettes/conditional-late-inference.Rmd),
-and [ratio reporting](https://github.com/JakobJuergens/RdistNN/blob/6fe48273aaa8853c5736841c5a228f8c1592ded9/man/affine_ratio_result.Rd).
-The [crosswalk](r-documentation-crosswalk.md) identifies other R-only APIs.
+Reporting is pointwise Wald inference. Inspect the local first stage alongside
+the ratio: a finite interval or numerical status is not a weak-instrument
+coverage guarantee. R additionally offers experimental
+[ratio confidence sets](https://JakobJuergens.github.io/RdistNN/articles/conditional-late-inference.html);
+Stata does not implement that inversion. The
+[crosswalk](r-documentation-crosswalk.md) records the remaining R-only features.

@@ -1,6 +1,6 @@
 # Command guide
 
-This is the compact command map for package **0.1.0.9004** in the development snapshot. Start with the
+This is the compact command map for package **0.1.0.9005**. Start with the
 [article index](index.md), [getting started](getting-started.md), or
 `help rdistnn` inside Stata. Each command's installed help supplies its complete
 syntax and result reference. The articles supply interpretation and runnable
@@ -75,7 +75,7 @@ CATE's AIPW route needs treatment, propensity and both arm means.
 The positional signal with `pseudooutcome` needs no nuisance columns.
 Raw selected propensities must be finite and in [0,1] before clipping;
 `clip(1e-8)` is the default. `nose` skips covariance without removing the
-estimate. The [full guide](cate-and-regression.md) gives formulas, aliases,
+estimate. The [full guide](cate-and-regression.md) gives inputs, aliases,
 sample rules and inference requirements for all routes and NP.
 
 ## Conditional LATE
@@ -95,8 +95,8 @@ provide `clate_dnn phi_y, denominator(phi_d) pseudooutcome ...`. The command
 divides two common-weight local averages, retains paired frozen-score
 covariance, and reports components/status with signed or undefined ratios.
 `training()` is descriptive. See [conditional LATE](conditional-late.md) for
-input formulas, all covariance/status schemas, diagnostic availability, causal
-assumptions and pointwise-inference limits. Wald bounds are not weak-IV-uniform
+input roles, covariance/status schemas, diagnostic availability and
+pointwise-inference limits; the paper supplies the causal assumptions. Wald bounds are not weak-IV-uniform
 and denominator tolerance does not regularize a ratio.
 
 ## Experimental PLQR moment evaluation
@@ -150,6 +150,7 @@ NP outcome bands describe weighted outcome quantiles, not mean uncertainty.
 Estimate/tuning plots can combine target/candidate selections; diagnostic
 views choose one scope. Rank profiles/cumulative weights are target invariant,
 and dashboards reject selection options. Unsupported options return errors.
-Kernel/influence plots require unchanged fitted values/sample/order; stored
-views remain available after data changes. The [visualization guide](visualising-fits.md)
-has the option matrix, returned schemas, export formats and examples.
+Current fits retain a numeric snapshot, so kernel/influence and stored-table
+views work after active data changes or `estimates use`. Legacy fits can
+require the original sample and order. The [visualization guide](visualising-fits.md)
+explains view selection, exports and the installed schema references.
