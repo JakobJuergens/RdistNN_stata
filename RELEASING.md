@@ -52,18 +52,18 @@ does not promise identical feature coverage. Review the
 [R-to-Stata crosswalk](docs/r-documentation-crosswalk.md) when assigning a
 version and retain its explicit R-only and experimental boundaries.
 
-The next planned version-pinned tag is `v0.1.2` in both packages. The production
-PRs are merged; create the tags and publish their verified assets only after
-the final production commits pass the required checks and tag publication is
-authorized. The dated changelog records production source publication.
-After the tagged release is published, install with:
+The current version-pinned Stata release is
+[`v0.1.2`](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.2),
+published from the verified production commit
+`8ff1d5137e4f909a402ac5b08c4af30008dcfe67`. Its source ZIP, four platform
+plugins and checksum files are attached to the release. Install with:
 
 ```stata
 net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/v0.1.2/") replace
 ```
 
-This planned tag is not an installation source yet. Keep the ordinary README
-installation on production `master` and retain historical tags, assets and
+The tag fixes the installation source at the released commit. Keep the ordinary
+README installation on production `master` and retain historical tags, assets and
 scientific dependency pins. Record the paired final commits and asset
 checksums in the release-set manifest below.
 
