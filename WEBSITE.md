@@ -1,7 +1,7 @@
 # Website copy for the Stata companion
 
 Ready-to-adapt text for the software section of jakobjuergens.com, describing
-planned release version `0.1.2`. This revision is unpublished. Installation
+production source version `0.1.2`, published on 2026-10-22. Installation
 and user guides are available from the repository. The latest tagged release
 remains `v0.1.0`; a tagged-release announcement should link to its verified
 source ZIP and platform-specific plugin assets.
@@ -21,7 +21,7 @@ PLQR moment evaluation is experimental and does not provide coefficient inferenc
 - [R companion](https://github.com/JakobJuergens/RdistNN)
 - [Accompanying research](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
 
-## 0.1.2 release announcement draft
+## 0.1.2 production-update announcement draft
 
 RdistNN for Stata 0.1.2 averages weights across exactly
 identical reporting-covariate rows and redistributes their block mass after
@@ -40,7 +40,8 @@ Task-oriented guides, eight standalone examples and installed help support
 treatment-effect and regression workflows. The paper supplies the underlying
 inference conditions; numerical invariance does not establish those conditions.
 Portable ado/Mata calculations and optional native acceleration remain available
-on their supported platforms. This release candidate has not been published.
+on their supported platforms. Version 0.1.2 is available from production
+`master`; tagged release assets will be announced separately.
 
 [Source updates](https://github.com/JakobJuergens/RdistNN_stata/blob/master/RELEASE_NOTES.md) ·
 [Tagged releases](https://github.com/JakobJuergens/RdistNN_stata/releases)

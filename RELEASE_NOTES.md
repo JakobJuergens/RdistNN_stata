@@ -1,6 +1,6 @@
 # Release Notes
 
-## 0.1.2 — unreleased
+## 0.1.2 — 2026-10-22
 
 - Preserve the documented first/middle/last target default for kernel plots
   above eight targets while retaining target-specific rank profiles.
