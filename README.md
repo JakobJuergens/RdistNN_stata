@@ -1,6 +1,6 @@
 # RdistNN for Stata
 
-Release candidate **0.1.2** (unreleased). See [release notes](RELEASE_NOTES.md) for changes.
+Version **0.1.2**. See [release notes](RELEASE_NOTES.md) for changes.
 
 **RdistNN for Stata** estimates conditional treatment effects and regression
 functions using distributional nearest-neighbor (DNN) weights. Choose covariate

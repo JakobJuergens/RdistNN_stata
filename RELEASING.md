@@ -10,12 +10,14 @@ it into a coefficient estimator or add coefficient inference.
 
 Use a clean repository checkout with the tools in
 [CONTRIBUTING.md](CONTRIBUTING.md). Review the version/tag and release notes.
-The next planned release is `0.1.2`, currently an unpublished candidate on
-`development`. It adds duplicate-covariate
+Version `0.1.2` entered production `master` through the reviewed squash merge
+of [PR #14](https://github.com/JakobJuergens/RdistNN_stata/pull/14) on 2026-10-22
+at [`7fbaa9dcf225b79742fb4d43215652b615bab449`](https://github.com/JakobJuergens/RdistNN_stata/commit/7fbaa9dcf225b79742fb4d43215652b615bab449).
+It adds duplicate-covariate
 block averaging, deletion-aware survivor weights and saved-model schema 2,
-with a theory warning; see [RELEASE_NOTES.md](RELEASE_NOTES.md). The next
-production PR will carry these changes under `0.1.2`; assigning that version
-locally does not publish a release.
+with a theory warning; see [RELEASE_NOTES.md](RELEASE_NOTES.md). Production
+source publication does not itself create a version tag or replace GitHub
+release assets.
 
 Review the known [asymptotic-tail limitation](docs/numerical-stability.md#asymptotic-tail-limits)
 when assessing readiness. Matching native/Mata deletions for fixed tables does
@@ -50,12 +52,11 @@ does not promise identical feature coverage. Review the
 [R-to-Stata crosswalk](docs/r-documentation-crosswalk.md) when assigning a
 version and retain its explicit R-only and experimental boundaries.
 
-The next planned version-pinned baseline is `v0.1.2` in both packages. After
-the production PRs are merged and the required checks pass on their final
-commits, create each repository's `v0.1.2` tag and publish its verified assets.
-Keep the `0.1.2` changelog entry marked unreleased until publication, then add
-the publication date and update `Distribution-Date`. For installation after
-that release is published:
+The next planned version-pinned tag is `v0.1.2` in both packages. The production
+PRs are merged; create the tags and publish their verified assets only after
+the final production commits pass the required checks and tag publication is
+authorized. The dated changelog records production source publication.
+After the tagged release is published, install with:
 
 ```stata
 net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/v0.1.2/") replace
