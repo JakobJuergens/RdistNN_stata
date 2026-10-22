@@ -2,9 +2,9 @@
 
 Ready-to-adapt text for the software section of jakobjuergens.com, describing
 production source version `0.1.2`, published on 2026-10-22. Installation
-and user guides are available from the repository. The latest tagged release
-remains `v0.1.0`; a tagged-release announcement should link to its verified
-source ZIP and platform-specific plugin assets.
+and user guides are available from the repository. The current version-pinned
+release is [`v0.1.2`](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.2),
+with a verified source ZIP, platform-specific plugins and checksum files.
 
 ## Software entry
 
@@ -41,14 +41,15 @@ treatment-effect and regression workflows. The paper supplies the underlying
 inference conditions; numerical invariance does not establish those conditions.
 Portable ado/Mata calculations and optional native acceleration remain available
 on their supported platforms. Version 0.1.2 is available from production
-`master`; tagged release assets will be announced separately.
+`master` and the version-pinned `v0.1.2` release.
 
 [Source updates](https://github.com/JakobJuergens/RdistNN_stata/blob/master/RELEASE_NOTES.md) ·
 [Tagged releases](https://github.com/JakobJuergens/RdistNN_stata/releases)
 
-For a future tagged-release announcement, add the verified release URL. Use
-the repository README as the primary Stata documentation entry point; the
-Stata companion has no separate hosted documentation site.
+Use the [verified release URL](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.2)
+for version-pinned downloads and the repository README as the primary Stata
+documentation entry point; the Stata companion has no separate hosted
+documentation site.
 
 ## User documentation
 
