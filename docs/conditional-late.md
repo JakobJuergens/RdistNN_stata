@@ -3,7 +3,7 @@
 `clate_dnn` estimates a conditional local average treatment effect using a
 binary instrument `A`, binary treatment `D`, and externally supplied nuisance
 predictions. Supplied-prediction CLATE and ordinary paired-signal ratios are
-supported workflows in development version **0.1.1** under the documented pointwise
+supported workflows in package version **0.1.2** under the documented pointwise
 inference conditions.
 Start with the [documentation index](index.md) for installation
 and the [runnable oracle example](../examples/clate.do) for a complete script.
@@ -14,6 +14,13 @@ variables used by the nuisance models. The causal target and identifying
 assumptions are given in the
 [paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z).
 Conditional LATE generally differs from population CATE and residualized IV.
+
+Exactly identical reporting-covariate rows receive their block's average
+localization weight, shared by the numerator and denominator. Each deletion
+removes the actual observation before averaging the remaining block's `n-1`
+weights. Grouping uses `xcols()`, not treatment, instrument or nuisance values.
+The command warns that this permutation-invariant modification is outside the
+paper's theory; it does not establish inference for discrete covariate designs.
 
 ## Inputs and the augmented signals
 

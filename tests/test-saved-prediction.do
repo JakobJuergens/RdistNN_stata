@@ -15,7 +15,7 @@ foreach family in np cate clate plqr {
     if "`family'"=="cate" quietly cate_dnn fr_y, pseudooutcome xcols(fr_x) x0(0) s(3)
     if "`family'"=="clate" quietly clate_dnn fr_y, pseudooutcome denominator(fr_den) xcols(fr_x) x0(0) s(3)
     if "`family'"=="plqr" quietly plqr_dnn fr_positive, x(fr_x) x0(0) d(fr_d) md(fr_zero) g(fr_zero) thetaeval(0) s(3)
-    test_assert "`family': snapshot format is versioned" e(model_version)==1
+    test_assert "`family': snapshot format is versioned" e(model_version)==2
     foreach field in inputs X signals ranks distances row_ids {
         local model_matrices : e(matrices)
         local required "model_`field'"
@@ -26,7 +26,7 @@ foreach family in np cate clate plqr {
             test_assert "`family': e(model_`field') retains the full fitted sample" rowsof(FR_SNAPSHOT)==e(N)
         }
     }
-    if e(model_version)==1 {
+    if e(model_version)==2 {
         matrix FR_X=e(model_X)
         matrix FR_SIGNALS=e(model_signals)
         tempfile serialized
@@ -114,7 +114,7 @@ foreach method in exact asymp {
         mata: st_numscalar("_fr_error",max(abs(st_matrix("FR_AFTER")-st_matrix("FR_REF"))))
         test_assert "`family' `method': prediction error preserves caller and active fit" `badrc'==198 & _N==0 & scalar(_fr_error)==0
         quietly estimates restore fr_derived
-        test_assert "`family' `method': stored derived fit retains its numeric model" e(model_version)==1
+        test_assert "`family' `method': stored derived fit retains its numeric model" e(model_version)==2
         estimates drop fr_derived
         restore
         quietly estimates restore `saved'

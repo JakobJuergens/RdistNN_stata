@@ -1,7 +1,7 @@
 // rdistnn_plugin.cpp
 // Stata plugin entry point for RdistNN.
 //
-// Matrix operations: distance_api, distance_batch, and rank_loo.
+// Matrix operations: distance_api, distance_batch, rank_loo and block_rank_loo.
 // Current ado/Mata callers provide matrices and retain host-side rank tables.
 //
 // Compiling:
@@ -71,6 +71,182 @@ static ST_retcode do_rank_loo(int argc, char *argv[])
         return 198;
     }
     return 0;
+}
+
+// Original-signal duplicate-block deletions. Groups are n x 1 integer IDs;
+// all matrices are read and validated before publishing any output cell.
+static ST_retcode do_block_rank_loo(int argc, char *argv[])
+{
+    if (argc!=6)
+        throw std::invalid_argument("block_rank_loo requires ranks signals table groups output");
+    const int n=SF_row(argv[1]), m=SF_col(argv[1]), q=SF_col(argv[2]);
+    if (n<2 || m<1 || q<1 || m>INT_MAX/q || SF_row(argv[2])!=n ||
+        SF_row(argv[3])!=n-1 || SF_col(argv[3])!=1 ||
+        SF_row(argv[4])!=n || SF_col(argv[4])!=1 ||
+        SF_row(argv[5])!=n || SF_col(argv[5])!=m*q)
+        throw std::invalid_argument("block_rank_loo has incompatible matrix dimensions");
+    std::vector<int> ranks(static_cast<std::size_t>(n)*m), groups(n);
+    std::vector<double> signal(static_cast<std::size_t>(n)*q), table(n-1);
+    ST_double value;
+    ST_retcode rc;
+    for (int j=0;j<m;++j) for (int i=0;i<n;++i) {
+        if ((rc=SF_mat_el(argv[1],i+1,j+1,&value))) return rc;
+        if (SF_is_missing(value) || !std::isfinite(value) || value<1 || value>n || value!=std::floor(value))
+            throw std::invalid_argument("ranks must be integer permutations of 1..n");
+        ranks[i+static_cast<std::size_t>(j)*n]=static_cast<int>(value);
+    }
+    for (int i=0;i<n;++i) {
+        if ((rc=SF_mat_el(argv[4],i+1,1,&value))) return rc;
+        if (SF_is_missing(value) || !std::isfinite(value) || value<1 || value>n || value!=std::floor(value))
+            throw std::invalid_argument("groups must be integer identifiers in 1..n");
+        groups[i]=static_cast<int>(value);
+    }
+    for (int j=0;j<q;++j) for (int i=0;i<n;++i) {
+        if ((rc=SF_mat_el(argv[2],i+1,j+1,&value))) return rc;
+        if (SF_is_missing(value) || !std::isfinite(value))
+            throw std::invalid_argument("signals must be finite and nonmissing");
+        signal[i+static_cast<std::size_t>(j)*n]=value;
+    }
+    for (int i=0;i<n-1;++i) {
+        if ((rc=SF_mat_el(argv[3],i+1,1,&value))) return rc;
+        if (SF_is_missing(value) || !std::isfinite(value))
+            throw std::invalid_argument("table must be finite and nonmissing");
+        table[i]=value;
+    }
+    std::vector<double> out(static_cast<std::size_t>(n)*m*q);
+    rdistnn::block_rank_loo(ranks.data(),signal.data(),table.data(),groups.data(),n,m,q,out.data());
+    for (double v:out)
+        if (!std::isfinite(v) || SF_is_missing(v))
+            throw std::invalid_argument("nonfinite original-signal block deletion");
+    for (int j=0;j<m*q;++j) for (int i=0;i<n;++i)
+        if ((rc=SF_mat_store(argv[5],i+1,j+1,out[i+static_cast<std::size_t>(j)*n]))) return rc;
+    return 0;
+}
+
+// Near-square staging prevents default Stata row/column stripe construction
+// from dominating long, thin matrices. Physical cells are row-major; payload
+// arrays retain the existing logical column-major kernel layout.
+struct packed_shape {
+    int rows,cols;
+    std::size_t capacity;
+};
+
+static std::size_t packed_count(std::size_t a,std::size_t b)
+{
+    const std::size_t exact_limit=static_cast<std::size_t>(9007199254740991ULL);
+    if (b && a>std::numeric_limits<std::size_t>::max()/b)
+        throw std::invalid_argument("packed matrix size overflows native dimensions");
+    const std::size_t count=a*b;
+    if (count>exact_limit)
+        throw std::invalid_argument("packed matrix size exceeds exact host dimensions");
+    return count;
+}
+
+static std::size_t packed_add(std::size_t a,std::size_t b)
+{
+    const std::size_t exact_limit=static_cast<std::size_t>(9007199254740991ULL);
+    if (a>exact_limit || b>exact_limit-a)
+        throw std::invalid_argument("packed matrix size exceeds exact host dimensions");
+    return a+b;
+}
+
+static packed_shape packed_dimensions(char* name)
+{
+    const int rows=SF_row(name),cols=SF_col(name);
+    if (rows<1 || cols<1 || rows<cols || rows-cols>1)
+        throw std::invalid_argument("packed matrices must have balanced positive dimensions");
+    return {rows,cols,packed_count(static_cast<std::size_t>(rows),cols)};
+}
+
+static void validate_packed_capacity(const packed_shape& shape,std::size_t length)
+{
+    if (shape.capacity<length || shape.capacity-length>=static_cast<std::size_t>(shape.rows))
+        throw std::invalid_argument("packed matrix has incompatible payload dimensions");
+}
+
+static int packed_integer(double value,const char* name,int minimum)
+{
+    if (SF_is_missing(value) || !std::isfinite(value) || value<minimum ||
+        value>INT_MAX || value!=std::floor(value))
+        throw std::invalid_argument(std::string(name)+" must be supported integer dimensions");
+    return static_cast<int>(value);
+}
+
+static ST_retcode do_loo_packed(int argc,char* argv[])
+{
+    if (argc!=3)
+        throw std::invalid_argument("loo_packed requires input and output matrix names");
+    const packed_shape input=packed_dimensions(argv[1]);
+    if (input.capacity<5)
+        throw std::invalid_argument("packed deletion metadata is incomplete");
+    auto read=[&](std::size_t k,double& value) {
+        return SF_mat_el(argv[1],static_cast<int>(k/input.cols)+1,
+                         static_cast<int>(k%input.cols)+1,&value);
+    };
+    double header[5];ST_retcode rc;
+    for (std::size_t k=0;k<5;++k) if ((rc=read(k,header[k]))) return rc;
+    if (header[0]!=1 || (header[4]!=0 && header[4]!=1))
+        throw std::invalid_argument("unsupported packed deletion version or group flag");
+    const int n=packed_integer(header[1],"n",2),m=packed_integer(header[2],"m",1),
+              q=packed_integer(header[3],"q",1);
+    const bool grouped=header[4]==1;
+    if (m>INT_MAX/q)
+        throw std::invalid_argument("packed deletion target/component dimensions overflow");
+    const std::size_t nr=packed_count(static_cast<std::size_t>(n),m),
+                      ns=packed_count(static_cast<std::size_t>(n),q),
+                      no=packed_count(nr,q);
+    std::size_t length=packed_add(packed_add(packed_add(5,nr),ns),n-1);
+    if (grouped) length=packed_add(length,n);
+    validate_packed_capacity(input,length);
+    const packed_shape output=packed_dimensions(argv[2]);
+    validate_packed_capacity(output,no);
+    // All dimensions and capacities are checked before native allocations.
+    std::vector<int> ranks(nr),groups(grouped?n:0);
+    std::vector<double> signal(ns),table(n-1),out(no);
+    std::size_t cursor=5;double value;
+    for (std::size_t k=0;k<nr;++k) {
+        if ((rc=read(cursor++,value))) return rc;
+        ranks[k]=packed_integer(value,"ranks",1);
+        if (ranks[k]>n) throw std::invalid_argument("ranks must be permutations of 1..n");
+    }
+    for (double& v:signal) {
+        if ((rc=read(cursor++,v))) return rc;
+        if (SF_is_missing(v) || !std::isfinite(v))
+            throw std::invalid_argument("packed signals must be finite and nonmissing");
+    }
+    for (double& v:table) {
+        if ((rc=read(cursor++,v))) return rc;
+        if (SF_is_missing(v) || !std::isfinite(v))
+            throw std::invalid_argument("packed weights must be finite and nonmissing");
+    }
+    for (int& group:groups) {
+        if ((rc=read(cursor++,value))) return rc;
+        group=packed_integer(value,"groups",1);
+        if (group>n) throw std::invalid_argument("groups must be identifiers in 1..n");
+    }
+    for (;cursor<input.capacity;++cursor) {
+        if ((rc=read(cursor,value))) return rc;
+        if (value!=0) throw std::invalid_argument("packed input padding must be zero");
+    }
+    if (grouped) rdistnn::block_rank_loo(ranks.data(),signal.data(),table.data(),groups.data(),n,m,q,out.data());
+    else rdistnn::rank_loo(ranks.data(),signal.data(),table.data(),n,m,q,out.data());
+    for (double v:out)
+        if (SF_is_missing(v) || !std::isfinite(v))
+            throw std::invalid_argument("packed deletion result is outside the numeric range");
+    // Materializing every input first also makes conformable aliases safe.
+    for (std::size_t k=0;k<output.capacity;++k) {
+        rc=SF_mat_store(argv[2],static_cast<int>(k/output.cols)+1,
+                         static_cast<int>(k%output.cols)+1,k<no?out[k]:0.0);
+        if (rc) return rc;
+    }
+    return 0;
+}
+
+static ST_retcode do_loo_packed_api(int argc,char* argv[])
+{
+    if (argc!=2 || SF_row(argv[1])!=1 || SF_col(argv[1])!=1)
+        throw std::invalid_argument("loo_packed_api requires a 1 by 1 output matrix");
+    return SF_mat_store(argv[1],1,1,1.0);
 }
 
 // Matrix API: distance_batch metric X X0 inverse_scales output.
@@ -152,9 +328,12 @@ STDLL stata_call(int argc, char *argv[])
             if (!argv[i] || argv[i][0]=='\0')
                 throw std::invalid_argument("plugin arguments must be nonempty");
         if (std::strcmp(argv[0],"rank_loo")==0) return do_rank_loo(argc,argv);
+        if (std::strcmp(argv[0],"block_rank_loo")==0) return do_block_rank_loo(argc,argv);
+        if (std::strcmp(argv[0],"loo_packed")==0) return do_loo_packed(argc,argv);
+        if (std::strcmp(argv[0],"loo_packed_api")==0) return do_loo_packed_api(argc,argv);
         if (std::strcmp(argv[0],"distance_batch")==0) return do_distance_batch(argc,argv);
         if (std::strcmp(argv[0],"distance_api")==0) return do_distance_api(argc,argv);
-        throw std::invalid_argument("unknown operation; supported: rank_loo distance_batch distance_api");
+        throw std::invalid_argument("unknown operation; supported: rank_loo block_rank_loo loo_packed loo_packed_api distance_batch distance_api");
     } catch (const std::exception& error) {
         char msg[768];
         std::snprintf(msg,sizeof(msg),"rdistnn_plugin: %s.\n",error.what());

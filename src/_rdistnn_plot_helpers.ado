@@ -644,7 +644,18 @@ program define _cate_dnn_plot_weights, rclass
     local method "`e(method)'"
     local candidate_mode = ("`candidates'`allcandidates'" != "")
 
+    if e(model_version)!=2 {
+        di as error "Weight reconstruction requires a current saved model; refit with the current package."
+        exit 498
+    }
+    findfile "_rdistnn_model_decode.ado"
+    quietly run "`r(fn)'"
+    mata: rdistnn_model_validate()
     if "`view'" != "kernel" {
+        if "`targets'"=="" {
+            numlist "1/`=e(m)'"
+            local targets "`r(numlist)'"
+        }
         local selected "0"
         if `candidate_mode' {
             if "`e(tuning_mode)'" != "grid" {
@@ -667,10 +678,10 @@ program define _cate_dnn_plot_weights, rclass
                 }
             }
         }
-        if `candidate_mode' mata: st_matrix("`plot'", rdistnn_plot_rank_weights(st_matrix("`meta'"), strtoreal(tokens("`selected'"))', `n', `k', `s', "`method'", 1))
-        else mata: st_matrix("`plot'", rdistnn_plot_rank_weights(J(1,8,.), strtoreal(tokens("`selected'"))', `n', `k', `s', "`method'", 0))
+        if `candidate_mode' noisily mata: st_matrix("`plot'", rdistnn_plot_rank_weights(st_matrix("`meta'"), strtoreal(tokens("`selected'"))', `n', `k', `s', "`method'", 1,st_matrix("e(model_ranks)"),st_matrix("e(model_X)"),strtoreal(tokens("`targets'"))))
+        else noisily mata: st_matrix("`plot'", rdistnn_plot_rank_weights(J(1,8,.), strtoreal(tokens("`selected'"))', `n', `k', `s', "`method'", 0,st_matrix("e(model_ranks)"),st_matrix("e(model_X)"),strtoreal(tokens("`targets'"))))
         local nselected : word count `selected'
-        matrix colnames `plot' = rank weight cum_share candidate_id s is_default
+        matrix colnames `plot' = rank weight cum_share candidate_id s is_default target_id
         preserve
         clear
         quietly svmat double `plot', names(col)
@@ -696,18 +707,18 @@ program define _cate_dnn_plot_weights, rclass
             local edgeopt ""
             if !`candidate_mode' {
                 local edge = `n' - `s' + `k'
-                local edgeopt "xline(`edge', lpattern(dot) lcolor(gs8))"
+                local edgeopt "xline(`edge', lpattern(dot) lcolor(gs8)) note(Nominal exact-support edge: `edge')"
             }
-            twoway `plots', `edgeopt' ///
+            twoway `plots', `edgeopt' by(target_id, note("")) ///
                 `yscale' xtitle("Rank") ytitle("DNN weight") ///
                 title("DNN rank-weight profile") `nameopt' `drawopt'
         }
         else {
-            twoway `plots', yline(.5 .9, lpattern(dot) lcolor(gs8)) ///
+            twoway `plots', by(target_id, note("")) yline(.5 .9, lpattern(dot) lcolor(gs8)) ///
                 xtitle("Rank") ytitle("Cumulative weight share") ///
                 title("DNN weight concentration") `nameopt' `drawopt'
         }
-        quietly mkmat rank weight cum_share candidate_id s is_default, matrix(`plot')
+        quietly mkmat rank weight cum_share candidate_id s is_default target_id, matrix(`plot')
         restore
         return matrix plot_data = `plot'
         return scalar n_plotted = `nselected'

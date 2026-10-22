@@ -11,7 +11,7 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
     real scalar k, real scalar s, string scalar method,
     real scalar do_se, real scalar tol, real matrix components,
     real rowvector theta, real matrix V, real matrix componentV,
-    real matrix status)
+    real matrix status, | real matrix X)
 {
     real scalar n, m, j, h, d, den_scale, scale, variance, corr, omega_quarter
     real colvector sd, good
@@ -25,7 +25,8 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
         errprintf("rdistnn_clate_fit: invalid ranks, signals, tuning, or tolerance.\n")
         exit(error(198))
     }
-    W=rdistnn_weights_from_rmat(ranks,k,s,method)
+    if(args()>=13 & rows(X)>0) W=rdistnn_weights_from_rmat(ranks,k,s,method,X)
+    else W=rdistnn_weights_from_rmat(ranks,k,s,method)
     components=rdistnn_weighted_signals(signals,W)'
     theta=J(1,m,.)
     V=J(m,m,.)
@@ -48,7 +49,11 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
     }
     if(!do_se) return
 
-    loo=rdistnn_loo_from_ranks(ranks,signals,k,s,method,1)
+    if(args()>=13 & rows(X)>0) {
+        loo=rdistnn_loo_from_ranks(ranks,signals,k,s,method,1,
+            rdistnn_weights_from_ranks((1::(n-1)),k,s,method),X)
+    }
+    else loo=rdistnn_loo_from_ranks(ranks,signals,k,s,method,1)
     centered=loo:-mean(loo)
     componentV=rdistnn_covariance(loo,(n-1)/n,1,1)
     normalized=J(n,m,.)

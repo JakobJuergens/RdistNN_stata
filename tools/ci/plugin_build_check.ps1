@@ -56,6 +56,8 @@ try {
         "stplugin.c",
         "stplugin.h",
         "test_rdistnn_core.cpp",
+        "test_rdistnn_blocks.cpp",
+        "test_rdistnn_loo_plugin.cpp",
         "test_rdistnn_distance.cpp",
         "test_rdistnn_distance_plugin.cpp",
         "test_rdistnn_distance_rounding.cpp"

@@ -13,9 +13,37 @@ raw covariate columns lexicographically, then by observation order only for
 identical covariate rows. R, its C++ ranking kernels and Mata use this rule,
 including subset localization and new-target predictions. The Stata plugin
 consumes the ranks constructed by Mata. No outcomes,
-treatments or nuisance values enter it. The rank-weight vector and ESS remain
-unchanged. Distance-only sort helpers retain index ties. Current snapshots reuse
+treatments or nuisance values define the ordering or duplicate groups. Shared
+X-aware helpers average weights within exactly identical raw-covariate blocks,
+preserving block mass while potentially changing individual weights, support
+and ESS. Distinct covariate vectors at equal distance are not grouped.
+Distance-only sort helpers retain index ties. Current snapshots reuse
 their retained ranks; older development fit schemas are not a compatibility target.
+
+`_rdistnn_blocks.ado` owns block identification, mass averaging and original-signal
+block deletions. Existing shared weight/deletion paths call it, so estimator adapters
+do not maintain independent implementations. For a group at ranks `a:b`, average
+the corresponding full-sample table entries. After deleting a member, average
+the `n-1` entries at `a:(b-1)` across its remaining members; earlier groups retain
+their ranks and later groups shift by one. Signed TDNN tables follow the same
+rule without taking absolute values or renormalizing the block.
+
+The optimized route accumulates original signals with unshifted, shifted and
+survivor-averaged block weights. Prefix and suffix states outside the deleted
+block merge with its actual survivor states, retaining all leading values and
+corrections until the final sum. Rounded group-mean signals are not used.
+Canonical contiguous groups retain original member order and require O(n*m*q)
+work. Supplied ranks that interleave groups or reorder members within a group
+use direct regrouping within the selected engine, requiring O(n^2*m*q) work.
+Centering expands the union of deletion support to
+entire intersecting duplicate blocks before choosing a numerical origin.
+Direct regrouping reduces block masses in original observation order and
+signal products in localization-rank order. The native transport retains the
+original identities even when signals are centered in rank order.
+Mata and native-plugin routes are checked against explicit deletion references.
+Public commands
+warn that the practical block-averaging modification is not covered by the
+paper's theory; permutation invariance does not establish valid inference.
 
 ## Stable elementary calculations
 
@@ -24,8 +52,9 @@ subtracting a rounded value near one when orders are close. Asymptotic DNN and
 TDNN probability increments select lower or direct upper Beta tails, avoiding
 subtraction of two CDF values that have both rounded to one. These choices
 preserve the selected mathematical weighting rule and its normalization.
-Very small weights may still underflow the supported numeric representation;
-the code does not impose an additional tail cutoff.
+The code does not impose an additional tail cutoff. Host Beta evaluation and
+subsequent mixtures nevertheless have the unresolved numerical limitation
+described under [asymptotic tails](#asymptotic-tail-limits).
 
 Fitted IQR/MAD scales use R's guarded type-7 interpolation, including its
 weighted-endpoint arithmetic. SD fitting uses common conservative range gates
@@ -243,14 +272,46 @@ computed in practical double precision. Native, R and Mata represented-table
 fixtures and independent subset/combinatorial oracles cover both accuracy and
 boundary decisions.
 
-Asymptotic Beta tables retain their established host library routines. Their
-continuous weights can differ in rounding, so an exceptionally close quantile
-boundary can still select different observations across hosts. Identical
-represented tables use the shared exact index rule; no epsilon hides a discrete
-difference. Ordinary SD and covariance now shift by an observed origin before
+### Asymptotic tail limits
+
+Asymptotic Beta tables retain their established host library routines. Rounded
+interval endpoints can erase a tail mass or give R and Mata different zero
+versus nonzero support at subnormal scales. Averaging order-statistic tables,
+signed TDNN blending and normalization can lose further tiny masses. This
+remains unresolved. Extreme signals can make such differences visible in
+estimates and jackknife covariance. Fixing component probabilities alone would
+not establish correctness of the final mixed table.
+
+The plugin consumes Mata's constructed tables. Selecting a native deletion
+engine or renormalizing a table cannot recover probability already lost in
+construction. Exact tables use a different finite-population rule; switching
+methods changes the calculation. Continuous weights can also differ at an
+exceptionally close quantile boundary. Identical represented tables use the
+shared exact index rule; no epsilon hides a discrete difference. Bounded
+fixtures do not certify all tail scales, and this limitation does not relax
+the numerical parity requirement.
+
+### Origins for weighted deletions
+
+Ordinary SD and covariance shift by an observed origin before
 mean centering, rather than waiting for an exceptional numeric amplitude.
 Deletion origins additionally check exact subtraction to retain cancellation
-contributions such as 2^54 + 1 - 2^54.
+contributions such as 2^54 + 1 - 2^54. Supported columns whose entire amplitude
+is subnormal use origin zero, preventing loss of an unrepresentable weighted
+residual before the common origin is restored. When deletion weights are
+available, zero is also used if the maximum absolute coefficient times the
+supported amplitude is below the normal range, if the table mass is nonzero
+and subnormal, or if nonzero mass times that amplitude is below the normal
+range. Preserve separately rounded raw products and divide by mass afterward;
+normalizing coefficients first changes the rounding. Exact zero signed mass
+alone does not disable centering. Ordinary tiny tails with normal amplitude
+and mass retain their observed origin. Shared weight summaries avoid repeated
+table scans. Fast and direct routes use the same policy.
+
+These safeguards do not guarantee exact product distributivity after arbitrary
+block averaging or signed cancellation. Custom signed subnormal masses can
+still overflow during normalization even when raw sums are finite; finite
+double arithmetic does not guarantee partial recovery of every aggregate.
 
 Numerical module ownership is separate from numeric plot-data assembly in
 `_rdistnn_plot_mata.ado`. Private Mata names use the package prefix, including
@@ -261,8 +322,10 @@ The shared `_rdistnn_mata.ado` entry point loads arithmetic, covariance and
 whitening helpers before distance/rank evaluation, weight maps and deletion
 adapters. Those responsibilities live in `_rdistnn_accumulation.ado`,
 `_rdistnn_covariance.ado`, `_rdistnn_geometry.ado`, `_rdistnn_distance_mata.ado`,
-`_rdistnn_rank_weights.ado` and `_rdistnn_rank_loo.ado`. The native distance bridge
-and plot-data adapters remain separate. Moving an implementation does not
+`_rdistnn_rank_weights.ado`, `_rdistnn_blocks.ado` and `_rdistnn_rank_loo.ado`.
+`_rdistnn_native_transport.ado` owns balanced packed deletion transfer and
+legacy-plugin negotiation; numerical kernels retain the same logical inputs.
+The native distance bridge and plot-data adapters remain separate. Moving an implementation does not
 change its numerical law or engine-selection contract.
 
 ## Localization, diagnostics and saved-state ownership
@@ -293,3 +356,18 @@ Plot builders own rendering and delegate numeric reconstruction to the current
 snapshot model. Older no-snapshot development fits require refitting.
 Private modules stay flat under `src/`, are installed through
 `rdistnn.pkg`, and own uniquely prefixed typed Mata functions and reload guards.
+
+The Stata native bridge stages deletion inputs and outputs in balanced private
+matrices to avoid default stripe creation on tall matrices. Its packed and raw
+operations call the same kernels and preserve every represented payload value.
+The [native protocol](../src/plugin/README.md#developer-protocol-and-verification)
+describes capability detection, layout validation and compatibility with older
+plugins; transport selection does not change arithmetic or engine requirements.
+
+Observed-origin deletion centering also uses the actual table's maximum absolute
+coefficient and compensated mass. It uses zero when the weighted supported
+amplitude is subnormal, the nonzero mass is subnormal, or nonzero mass times
+supported amplitude is subnormal. Exact zero mass alone retains centering, as
+do ordinary tiny tails when maximum coefficient amplitude and mass are normal.
+Products remain rounded before any normalization; these exceptional safeguards
+do not claim exact distributivity after general signed block averaging.

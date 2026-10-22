@@ -5,6 +5,13 @@ program define rdistnn_results, rclass
     if !inlist("`e(cmd)'","np_dnn","np_tdnn","cate_dnn","clate_dnn","plqr_dnn") error 301
     if "`type'"=="" local type estimates
     if !inlist("`type'","estimates","vcov","components","status","diagnostics","weights","influence") error 198
+    if inlist("`type'","weights","influence") {
+        foreach file in _rdistnn_mata.ado _rdistnn_clate_mata.ado _rdistnn_model_mata.ado {
+            findfile "`file'"
+            quietly run "`r(fn)'"
+        }
+        mata: rdistnn_model_validate()
+    }
     local m=e(m)
     if missing(`m') | `m'<1 | `m'!=floor(`m') {
         di as error "Current fitted results require a positive integer e(m); refit `e(cmd)' with the current package."
@@ -60,21 +67,17 @@ program define rdistnn_results, rclass
         matrix colnames `data'=target `:colnames e(`field')'
     }
     if inlist("`type'","weights","influence") {
-        if e(model_version)!=1 {
+        if e(model_version)!=2 {
             di as error "Observation extraction requires a current saved model; refit `e(cmd)' with the current package."
             exit 498
         }
         if "`type'"=="influence" & !inlist("`e(cmd)'","cate_dnn","clate_dnn") error 198
-        foreach file in _rdistnn_mata.ado _rdistnn_clate_mata.ado _rdistnn_model_mata.ado {
-            findfile "`file'"
-            quietly run "`r(fn)'"
-        }
         if "`type'"=="weights" {
-            mata: st_matrix("`data'",rdistnn_model_weights(strtoreal(tokens("`targets'"))))
+            noisily mata: st_matrix("`data'",rdistnn_model_weights(strtoreal(tokens("`targets'"))))
             matrix colnames `data'=observation_id target rank distance weight
         }
         else {
-            mata: st_matrix("`data'",rdistnn_model_plot_data("influence",strtoreal(tokens("`targets'"))))
+            noisily mata: st_matrix("`data'",rdistnn_model_plot_data("influence",strtoreal(tokens("`targets'"))))
             if "`e(cmd)'"=="clate_dnn" matrix colnames `data'=target observation_id rank distance weight score contribution phi_y phi_d
             else matrix colnames `data'=target observation_id rank distance weight score contribution
         }

@@ -15,10 +15,6 @@ program define np_tdnn_plot, rclass
     foreach j of local targets {
         if `j'>e(m) error 198
     }
-    if "`targets'"!="" & "`type'"=="weights" {
-        di as error "Rank weights are shared by every target; targets() is not needed."
-        exit 198
-    }
     if "`name'"=="" local name "np_tdnn_`type'"
     local nameopt "name(`name')"
     if "`replace'"!="" local nameopt "name(`name', replace)"
@@ -41,12 +37,19 @@ program define np_tdnn_plot, rclass
     }
     else {
         if "`type'"=="weights" {
-            foreach file in _rdistnn_mata.ado _rdistnn_tdnn_mata.ado {
+            foreach file in _rdistnn_mata.ado _rdistnn_tdnn_mata.ado _rdistnn_model_mata.ado {
                 findfile "`file'"
                 quietly run "`r(fn)'"
             }
-            mata: st_matrix("`data'",((1::st_numscalar("e(N)")),rdistnn_tdnn_table(st_numscalar("e(N)"),st_numscalar("e(s1)"),st_numscalar("e(s2)"),st_numscalar("e(dim)"),st_global("e(method)"),st_numscalar("e(normalize)"))))
-            matrix colnames `data'=rank weight
+            if e(model_version)!=2 error 498
+            if "`targets'"=="" {
+                numlist "1/`=e(m)'"
+                local targets "`r(numlist)'"
+            }
+            noisily mata: _td_plot=rdistnn_model_weights(strtoreal(tokens("`targets'")))
+            mata: _td_plot=_td_plot[order(_td_plot,(2,3)),]
+            mata: st_matrix("`data'",_td_plot[,(3,5,2)])
+            matrix colnames `data'=rank weight target_id
         }
         else {
             local targetopt ""
@@ -58,7 +61,7 @@ program define np_tdnn_plot, rclass
         clear
         quietly svmat double `data', names(col)
         if "`type'"=="weights" {
-            twoway line weight rank, yline(0) xtitle("Distance rank") ///
+            twoway line weight rank, by(target_id, note("")) yline(0) xtitle("Distance rank") ///
                 ytitle("Signed weight") title("TDNN rank weights") `nameopt' `nodraw'
         }
         else {

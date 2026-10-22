@@ -16,6 +16,8 @@ archives/*.zip
 /src/plugin/rdistnn.plugin
 /src/plugin/rdistnn_core_test
 /src/plugin/rdistnn_core_test.exe
+/src/plugin/rdistnn_blocks_test
+/src/plugin/rdistnn_blocks_test.exe
 /src/plugin/rdistnn_distance*_test
 /src/plugin/rdistnn_distance*_test.exe
 /src/plugin/*.o
@@ -27,3 +29,6 @@ archives/*.zip
 __pycache__/
 .DS_Store
 Thumbs.db
+
+/src/plugin/rdistnn_loo_plugin_test
+/src/plugin/rdistnn_loo_plugin_test.exe

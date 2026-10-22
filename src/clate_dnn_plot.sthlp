@@ -55,11 +55,18 @@ Target plots also print physical-radius-90 and top-five absolute score-share ran
 
 {phang}{cmd:type(weights)} supports view(profile), the default rank-weight
 plot; view(cumulative), with .5/.9 cumulative-weight guides; and view(kernel),
-weight against fitted-metric distance by target. Profiles/cumulative weights
-are common to all targets. Under exact weights, the fitted profile marks
-support edge n-s+k, not rank s; larger s tightens localization. Kernel data
+weight against fitted-metric distance by target. Profiles and cumulative weights
+use actual block-averaged weights and can differ by target. Under exact weights,
+the fitted profile marks the unaveraged rank-table edge n-s+k, not rank s;
+a crossing duplicate block can extend nonzero weights beyond that marker. Kernel data
 are target-specific and use saved numeric observations in current fits. Kernel graphs have no
 rank-s radius marker. Candidate comparison applies only to profiles.{p_end}
+
+{pstd}
+The support formula describes the unaveraged rank table. Averaging across
+identical covariate rows can extend nonzero observation weights to the end of a
+block crossing that edge. Use the actual returned weights for realized support
+and concentration; rank-only tables do not contain the duplicate groups.
 
 {phang}{cmd:type(overlap)} supports view(mass), the default, for instrument A=1/A=0 masses;
 view(armess) for normalized within-arm ESS; and view(propensity) for weighted
@@ -92,9 +99,9 @@ xindex(), level(). Target and candidate selection may be combined.{p_end}
 {phang}{bf:tuning}: targets(), candidates()/allcandidates, level().{p_end}
 {phang}{bf:diagnostics}: targets() OR candidates()/allcandidates,
 never both target and candidate selection.{p_end}
-{phang}{bf:weights/profile}: candidates()/allcandidates and logweights;
-no targets(). logweights drops nonpositive weights and uses a log y axis.{p_end}
-{phang}{bf:weights/cumulative}: no target/candidate or other view-specific options.{p_end}
+{phang}{bf:weights/profile}: targets(), candidates()/allcandidates and logweights.
+logweights drops nonpositive weights and uses a log y axis.{p_end}
+{phang}{bf:weights/cumulative}: targets(); no candidate selection.{p_end}
 {phang}{bf:weights/kernel}: targets(); no candidate selection.{p_end}
 {phang}{bf:overlap/mass}: targets(), xindex(), sharelimits().{p_end}
 {phang}{bf:overlap/armess}: targets(); no xindex().{p_end}
@@ -167,7 +174,7 @@ se ci_lower ci_upper}.{p_end}
 {phang}{bf:target diagnostics}: {cmd:plot_id ess max_weight top5_weight_share physical_radius_90 top5_score_share is_default target_id candidate_id}.{p_end}
 {phang}{bf:candidate diagnostics}: {cmd:plot_id ess max_weight top5_weight_share
 is_default target_id candidate_id}.{p_end}
-{phang}{bf:rank weights}: {cmd:rank weight cum_share candidate_id s is_default}.{p_end}
+{phang}{bf:rank weights}: {cmd:rank weight cum_share candidate_id s is_default target_id}.{p_end}
 {phang}{bf:kernel}: {cmd:target_id rank distance weight cum_share}.{p_end}
 {phang}{bf:overlap/mass}: {cmd:X0 target_id overlap_available instrument_1_mass
 instrument_0_mass instrument_1_share}.{p_end}
@@ -208,7 +215,7 @@ r(n_plotted) counts estimate rows before missing estimates are dropped;
 candidates for tuning/rank weights; selected rows for diagnostics;
 overlap targets; targets for kernel/influence; or dashboard panels.
 It can differ from r(n_rows): G candidates and T targets yield up to G*T
-estimate/tuning rows; rank weights yield n*G and kernels/influence yield n*T.
+estimate/tuning rows; rank weights yield n*G*T and kernels/influence yield n*T.
 An all-undefined estimate selection draws a blank graph, returns n_rows=0,
 and has no plot_data matrix. Partial selections retain original target IDs.
 

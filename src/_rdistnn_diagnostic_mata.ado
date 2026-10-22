@@ -1,10 +1,27 @@
 version 17
 // Matrix-input diagnostics shared by fresh commands and saved numeric models.
 // Parsing, labels, display and estimator inference policy stay with callers.
+capture mata: mata drop rdistnn_grid_weight_diagnostics()
 capture mata: mata drop rdistnn_score_share()
 capture mata: mata drop rdistnn_diagnostics()
 capture mata: mata drop rdistnn_clate_diagnostics()
 mata:
+// Retain the five-column candidate summary, taking concentration extrema
+// across actual target-specific weights after duplicate-block averaging.
+real rowvector rdistnn_grid_weight_diagnostics(real matrix W)
+{
+    real scalar j,n,top
+    real rowvector ess,mx,share
+    real colvector w
+    n=rows(W); top=min((5,n))
+    ess=1:/colsum(W:^2); mx=colmax(abs(W)); share=J(1,cols(W),.)
+    for(j=1;j<=cols(W);j++) {
+        w=sort(abs(W[,j]),-1)
+        share[j]=rdistnn_sum(w[1..top])/rdistnn_sum(w)
+    }
+    return((min(ess),max(mx),top,max(share),any(ess:>=.9*n)))
+}
+
 // Concentration of |w*(left-right)|, with right already rounded by its
 // caller. Recover only finite-operand range failures; no overflowing product
 // or uncertain cancellation magnitude is inferred.

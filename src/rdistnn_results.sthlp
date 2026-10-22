@@ -10,6 +10,14 @@ The default type is estimates. Other types are vcov, diagnostics, weights,
 components and status (CLATE), and influence (CATE/CLATE). targets() selects
 original target IDs in the requested order. level() is a percentage.
 The active data and e() are preserved, including when saving fails.
+{pstd}
+Weights and weight-based diagnostics use the final averages within exactly
+identical raw covariate blocks, reconstructed from saved covariates and ranks.
+Their realized support and concentration can differ from the rank table.
+Weight reconstruction warns that this modification is outside the paper's
+theory; current saved-model schema 2 is required for observation extraction.
+Refit older models. See
+{help weights_dnn} for block averaging and jackknife survivor redistribution.
 {title:Returned results}
 {pstd}
 r(fit) and r(se_fit) are q by m matrices: one row per component, one column
@@ -36,6 +44,10 @@ remains missing. Confidence limits are pointwise, not simultaneous.
 {pstd}
 Reporting requires current fitted state. Weights and influence use its numeric
 model snapshot. Refit objects from older development versions.
+Current snapshots are structurally validated before observation-level
+extraction; refit an incomplete or inconsistent snapshot. Validation errors
+preserve the active data and e(). Replaying stored numeric estimates does not
+reconstruct an older model with current weights.
 For grid extraction, first use {help rdistnn_candidate}; the existing
 estimator-specific diagnostics commands retain all-candidate table exports.
 {title:See also}

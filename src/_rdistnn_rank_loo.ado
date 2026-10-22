@@ -22,7 +22,7 @@ real matrix rdistnn_loo_naive_table(real matrix ranks, real matrix signal,
     for(j=1;j<=m;j++) {
         ord=J(n,1,.)
         ord[ranks[,j]]=(1::n)
-        z=rdistnn_center_signal(signal[ord,],active,level)
+        z=rdistnn_center_signal(signal[ord,],active,level,table)
         z=z[ranks[,j],]
         for(i=1;i<=n;i++) {
             kept=((1::n):!=i)
@@ -58,7 +58,7 @@ real matrix rdistnn_loo_prefix(real matrix ranks, real matrix signal,
         ord=J(n,1,.)
         ord[ranks[,j]]=(1::n)
         active=((table:!=0)\0):|(0\(table:!=0))
-        z=rdistnn_center_signal(signal[ord,],active,level)
+        z=rdistnn_center_signal(signal[ord,],active,level,table)
         values=rdistnn_accumulation_deletions(z,table,level*mass)
         loo[,((j-1)*q+1)..(j*q)]=values[ranks[,j],]
     }
@@ -74,6 +74,7 @@ real matrix rdistnn_loo_plugin(real matrix ranks, real matrix signal,
     real scalar rc, i
     real matrix loo
     if(st_global("rdistnn_plugin_ok")!="1") return(J(0,0,.))
+    if(rdistnn_native_packed_api()) return(rdistnn_native_loo(ranks,signal,table))
     names=st_tempname(4)
     st_matrix(names[1],ranks)
     st_matrix(names[2],signal)
@@ -89,11 +90,12 @@ real matrix rdistnn_loo_plugin(real matrix ranks, real matrix signal,
 // Common dispatcher: signed and nonnegative tables use identical validation,
 // centering and native -> Mata -> explicit-deletion fallback semantics.
 real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
-    real colvector table, | real scalar center, string scalar engine)
+    real colvector table, | real scalar center, string scalar engine, real matrix X)
 {
     real scalar n,m,q,i,j,r
     real colvector seen,active,ord
     real matrix loo,z
+    real rowvector level
     string scalar plugin_mode
     pointer(function) scalar prefix
     if(args()<4) center=0
@@ -122,24 +124,36 @@ real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
         errprintf("rdistnn_jackknife_engine must be auto, plugin, mata or naive.\n")
         exit(error(198))
     }
-    if(engine!="naive" & all(signal:==0)) return(J(n,m*q,0))
+    if(args()>=6 & rows(X)>0) {
+        if(rdistnn_duplicate_rows(X)) return(rdistnn_block_loo(ranks,signal,table,center,engine,X))
+    }
+    plugin_mode=st_global("rdistnn_use_plugin")
+    if(engine=="auto" & plugin_mode!="1" & all(signal:==0)) {
+        st_global("rdistnn_last_jackknife_engine","zero")
+        return(J(n,m*q,0))
+    }
     if(center) {
         active=((table:!=0)\0):|(0\(table:!=0))
         loo=J(n,m*q,.)
         for(j=1;j<=m;j++) {
             ord=J(n,1,.)
             ord[ranks[,j]]=(1::n)
-            z=rdistnn_center_signal(signal[ord,],active)
+            z=rdistnn_center_signal(signal[ord,],active,level,table)
             z=z[ranks[,j],]
             loo[,((j-1)*q+1)..(j*q)]=rdistnn_loo_from_table(ranks[,j],z,table,0,engine)
         }
         return(loo)
     }
-    if(engine=="naive") return(rdistnn_loo_naive_table(ranks,signal,table))
-    plugin_mode=st_global("rdistnn_use_plugin")
+    if(engine=="naive") {
+        st_global("rdistnn_last_jackknife_engine","naive")
+        return(rdistnn_loo_naive_table(ranks,signal,table))
+    }
     if(engine=="plugin" | (engine=="auto" & plugin_mode!="0")) {
         loo=rdistnn_loo_plugin(ranks,signal,table)
-        if(rows(loo)==n & cols(loo)==m*q & !hasmissing(loo)) return(loo)
+        if(rows(loo)==n & cols(loo)==m*q & !hasmissing(loo)) {
+            st_global("rdistnn_last_jackknife_engine","plugin")
+            return(loo)
+        }
         if(engine=="plugin" | plugin_mode=="1") {
             errprintf("Compiled rank_loo unavailable or failed; install an updated plugin or allow Mata fallback.\n")
             exit(error(498))
@@ -148,19 +162,23 @@ real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
     prefix=findexternal("rdistnn_loo_prefix()")
     if(prefix!=NULL) {
         loo=(*prefix)(ranks,signal,table)
-        if(rows(loo)==n & cols(loo)==m*q & !hasmissing(loo)) return(loo)
+        if(rows(loo)==n & cols(loo)==m*q & !hasmissing(loo)) {
+            st_global("rdistnn_last_jackknife_engine","mata")
+            return(loo)
+        }
     }
     if(engine=="mata") {
         errprintf("Mata prefix/suffix engine unavailable or produced nonfinite deletions.\n")
         exit(error(498))
     }
+    st_global("rdistnn_last_jackknife_engine","naive")
     return(rdistnn_loo_naive_table(ranks,signal,table))
 }
 
 // DNN adapter constructs a deletion table; the dispatcher owns computation.
 real matrix rdistnn_loo_from_ranks(real matrix ranks, real matrix signal,
     real scalar k, real scalar s, | string scalar method, real scalar center,
-    real colvector precomputed_table)
+    real colvector precomputed_table, real matrix X)
 {
     real scalar n
     real colvector table
@@ -174,6 +192,7 @@ real matrix rdistnn_loo_from_ranks(real matrix ranks, real matrix signal,
     }
     if(args()<7) table=rdistnn_weights_from_ranks((1::(n-1)),k,s,method)
     else table=precomputed_table
+    if(args()>=8 & rows(X)>0) return(rdistnn_loo_from_table(ranks,signal,table,center,"",X))
     return(rdistnn_loo_from_table(ranks,signal,table,center))
 }
 
@@ -183,7 +202,7 @@ real matrix rdistnn_loo_from_ranks(real matrix ranks, real matrix signal,
 // unused rows before subtraction. A deleted earlier rank can bring the next
 // original rank into support. Signed tables require nonzero support.
 real matrix rdistnn_center_signal(real matrix signal, | real colvector active,
-    real rowvector level)
+    real rowvector level, real matrix weights)
 {
     real matrix z, used
     if(args()<2) active=J(rows(signal),1,1)
@@ -191,7 +210,8 @@ real matrix rdistnn_center_signal(real matrix signal, | real colvector active,
     level=J(1,cols(signal),0)
     if(!any(active)) return(z)
     used=select(signal,active)
-    level=rdistnn_signal_level(used)
+    if(args()>=4) level=rdistnn_signal_level(used,weights)
+    else level=rdistnn_signal_level(used)
     z[selectindex(active),]=used:-level
     return(z)
 }
@@ -220,7 +240,7 @@ real matrix rdistnn_jk_cov_from_ranks(real colvector ranks,
                                        real matrix signal,
                                        real scalar k,
                                        real scalar s,
-                                       | string scalar method)
+                                       | string scalar method, real matrix X)
 {
     real scalar     n, q
     real matrix     loo
@@ -239,7 +259,11 @@ real matrix rdistnn_jk_cov_from_ranks(real colvector ranks,
         exit(error(198))
     }
 
-    loo = rdistnn_loo_from_ranks(ranks, signal, k, s, method, 1)
+    if(args()>=6 & rows(X)>0) {
+        loo=rdistnn_loo_from_ranks(ranks,signal,k,s,method,1,
+            rdistnn_weights_from_ranks((1::(n-1)),k,s,method),X)
+    }
+    else loo=rdistnn_loo_from_ranks(ranks,signal,k,s,method,1)
     if(all(loo:==0)) return(J(q,q,0))
 
     return(rdistnn_covariance(loo,(n-1)/n,1))
@@ -252,7 +276,7 @@ real matrix rdistnn_jk_cov_multi_from_ranks(real matrix ranks,
                                              real colvector signal,
                                              real scalar k,
                                              real scalar s,
-                                             | string scalar method)
+                                             | string scalar method, real matrix X)
 {
     real scalar     n, m
     real matrix     loo
@@ -269,7 +293,11 @@ real matrix rdistnn_jk_cov_multi_from_ranks(real matrix ranks,
         exit(error(198))
     }
 
-    loo = rdistnn_loo_from_ranks(ranks, signal, k, s, method, 1)
+    if(args()>=6 & rows(X)>0) {
+        loo=rdistnn_loo_from_ranks(ranks,signal,k,s,method,1,
+            rdistnn_weights_from_ranks((1::(n-1)),k,s,method),X)
+    }
+    else loo=rdistnn_loo_from_ranks(ranks,signal,k,s,method,1)
     if(all(loo:==0)) return(J(m,m,0))
 
     return(rdistnn_covariance(loo,(n-1)/n,1))

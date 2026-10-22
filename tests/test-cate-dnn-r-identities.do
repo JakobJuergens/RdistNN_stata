@@ -76,7 +76,7 @@ local tau_tie_manual = r(sum)
 
 cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) k(2) s(4) ecol(e) m0col(m0) m1col(m1)
 local tau_tie_cmd = _b[tau]
-test_assert "[ties] tied-X CATE uses deterministic row-index weights" abs(`tau_tie_cmd' - `tau_tie_manual') < 1e-8
+test_assert "[ties] tied-X CATE uses block-averaged weights" abs(`tau_tie_cmd' - `tau_tie_manual') < 1e-8
 
 test_section "cate_dnn: [markout] missing propensity errors; other nuisance rows are excluded"
 

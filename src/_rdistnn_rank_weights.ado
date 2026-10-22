@@ -192,7 +192,7 @@ real colvector rdistnn_weights_from_ranks(real colvector ranks,
 real matrix rdistnn_weights_from_rmat(real matrix ranks,
                                        real scalar k,
                                        real scalar s,
-                                       | string scalar method)
+                                       | string scalar method, real matrix X)
 {
     real scalar j, m
     real colvector table
@@ -211,6 +211,7 @@ real matrix rdistnn_weights_from_rmat(real matrix ranks,
     for (j = 1; j <= m; j++) {
         W[,j] = table[ranks[,j]]
     }
+    if(args()>=5 & rows(X)>0) W=rdistnn_block_weights(ranks,W,X)
     return(W)
 }
 
@@ -242,6 +243,7 @@ real colvector rdistnn_weights(real matrix X, real rowvector x0,
     if (args() < 7 | rows(geometry) == 0) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
     dist=rdistnn_distance_matrix(X,x0,distance,geometry)
     ranks = rdistnn_order(dist,X)
-    return(rdistnn_weights_from_ranks(ranks, k, s, method))
+    rdistnn_duplicate_warning(X)
+    return(rdistnn_weights_from_rmat(ranks,k,s,method,X))
 }
 end

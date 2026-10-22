@@ -1,6 +1,6 @@
 # Command guide
 
-This is the compact command map for package **0.1.1**. Start with the
+This is the compact command map for package **0.1.2**. Start with the
 [article index](index.md), [getting started](getting-started.md), or
 `help rdistnn` inside Stata. Each command's installed help supplies its complete
 syntax and result reference. The articles supply interpretation and runnable
@@ -54,6 +54,10 @@ counts neighbors within each subset, and exact full-sample support is n-s+k.
 A sensitivity grid retains its specified default rather than optimizing an
 order. Infeasible nondefault rows remain visible in metadata; candidate plots
 require available rows. See [weights and tuning](weights-and-tuning.md).
+
+The support formula refers to the unaveraged rank table. With duplicate
+covariate rows, block averaging can give observations beyond that edge nonzero
+weight. Calculate realized support and concentration from the final weights.
 
 The [notation guide](notation-and-conventions.md) explains row/column order,
 complete-case samples, temporary r() results, stored e() matrices and
@@ -148,8 +152,9 @@ All three scalar estimators have estimate, diagnostics, tuning, weights and
 dashboard plots. CATE/CLATE add overlap and influence; NP adds outcome views.
 NP outcome bands describe weighted outcome quantiles, not mean uncertainty.
 Estimate/tuning plots can combine target/candidate selections; diagnostic
-views choose one scope. Rank profiles/cumulative weights are target invariant,
-and dashboards reject selection options. Unsupported options return errors.
+views choose one scope. Rank profiles and cumulative weights retain a target
+identifier because duplicate-block averaging can make them target specific.
+Dashboards reject selection options. Unsupported options return errors.
 Current fits retain a numeric snapshot, so kernel/influence and stored-table
 views work after active data changes or `estimates use`. Older development
 fits require refitting. The [visualization guide](visualising-fits.md)

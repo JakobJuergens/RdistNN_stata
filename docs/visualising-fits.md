@@ -109,11 +109,14 @@ cate_dnn_plot, type(diagnostics) allcandidates replace nodraw
 ```
 
 `view(profile)` plots DNN weight against rank. Under exact weights, the
-fitted profile marks the support edge `n-s+k`; it is not rank s.
+fitted profile marks the unaveraged rank table's edge `n-s+k`; it is not rank s.
 `logweights` removes zero weights and changes the y scale. Candidate
 comparisons are available only for profiles. `view(cumulative)` shows the
-cumulative rank weight with .5/.9 guides. Rank profiles and cumulative
-weights are common across targets, so `targets()` is rejected there.
+cumulative rank weight with .5/.9 guides. Profiles and cumulative weights use
+actual duplicate-block-averaged weights and can differ across targets.
+`targets()` selects the displayed target panels; returned rows retain
+`target_id`. A block crossing the marked rank-table edge can have nonzero
+averaged weights beyond that marker.
 
 `view(kernel)` plots target-specific weight against distance under the fitted
 localization metric (L1, L2, scaled L1/L2 or Mahalanobis). It reconstructs weights from the saved numeric model in current fits;

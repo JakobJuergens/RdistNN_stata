@@ -26,6 +26,7 @@ program define _rdistnn_reuse, rclass
         capture estimates drop `derived'
         exit `rc'
     }
+    mata: rdistnn_duplicate_warning(st_matrix("e(model_X)"))
     if "`post'"!="" estimates restore `derived'
     estimates drop `derived'
     foreach field in fit se_fit vcov table summary index data {

@@ -10,9 +10,9 @@ capture mata: mata drop rdistnn_binary_scale()
 capture mata: mata drop rdistnn_binary_parts()
 capture mata: mata drop rdistnn_weighted_quantile()
 mata:
-real rowvector rdistnn_signal_level(real matrix signal)
+real rowvector rdistnn_signal_level(real matrix signal, | real matrix weights, real scalar weight_mass)
 {
-    real scalar j
+    real scalar j,amplitude,weight_amplitude
     real rowvector lo,hi,level
     real colvector difference,back,residual
     if(!rows(signal)) return(J(1,cols(signal),0))
@@ -24,6 +24,24 @@ real rowvector rdistnn_signal_level(real matrix signal)
             level[j]=0
             if(lo[j]>0) level[j]=lo[j]
             else if(hi[j]<0) level[j]=hi[j]
+        }
+    }
+    weight_amplitude=0
+    if(args()>=2) {
+        if(length(weights)) weight_amplitude=max(vec(abs(weights)))
+        if(args()<3) weight_mass=quadsum(weights,1)
+    }
+    for(j=1;j<=cols(signal);j++) {
+        // A subnormal origin can erase an unrepresentable weighted residual
+        // before restoration. Match the direct separately-rounded products.
+        amplitude=max((abs(lo[j]),abs(hi[j])))
+        if(amplitude<2.2250738585072014e-308) level[j]=0
+        if(args()>=2) {
+            if(weight_amplitude*amplitude<2.2250738585072014e-308) level[j]=0
+            if(weight_mass!=0) {
+                if(abs(weight_mass)<2.2250738585072014e-308 |
+                    abs(weight_mass)*amplitude<2.2250738585072014e-308) level[j]=0
+            }
         }
     }
     for(j=1;j<=cols(signal);j++) {

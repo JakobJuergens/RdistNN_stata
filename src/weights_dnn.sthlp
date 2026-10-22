@@ -3,6 +3,7 @@
 {viewerjumpto "Syntax" "weights_dnn##syntax"}{...}
 {viewerjumpto "Description" "weights_dnn##description"}{...}
 {viewerjumpto "Options" "weights_dnn##options"}{...}
+{viewerjumpto "Numerical limits" "weights_dnn##numerical"}{...}
 {viewerjumpto "Stored results" "weights_dnn##results"}{...}
 {viewerjumpto "Examples" "weights_dnn##examples"}{...}
 
@@ -13,7 +14,7 @@
 
 {pstd}
 Stata 17 or later. For the package overview and article collection, see
-{help rdistnn}. This help describes package {bf:0.1.1}.
+{help rdistnn}. This help describes package {bf:0.1.2}.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -47,12 +48,22 @@ under the default k=1. Thus k is not the number of positive full-sample weights,
 and s is not a truncation to the nearest s observations.
 
 {pstd}
+The support formula describes the unaveraged rank table. Averaging across
+identical covariate rows can extend nonzero observation weights to the end of a
+block crossing that edge. Use the actual returned weights for realized support
+and concentration; rank-only tables do not contain the duplicate groups.
+
+{pstd}
 The asymptotic rule uses averaged Beta(l,s-l+1) CDF increments over adjacent
 rank fractions and renormalizes. Lower or direct upper tails avoid subtracting
 CDF values rounded to one. It is generally a full-rank approximation;
 floating-point tail weights can be zero. Both methods normalize to sum one.
 Exact distance ties use the original covariates lexicographically in their
-supplied column order. Identical covariate rows retain observation-order ties.
+supplied column order. Exactly identical raw covariate rows receive their
+block's average weight. A warning identifies this modification as outside the
+paper's theory. Block mass is preserved; individual weights, support and ESS can
+change. A block crossing the original support edge extends nonzero weights to
+its remaining members. Different vectors at equal distance are not grouped.
 
 {pstd}
 The order s has direction opposite to the usual bandwidth convention.
@@ -60,6 +71,19 @@ Larger s concentrates exact support nearer the target for fixed n and k;
 smaller s spreads weight and increases effective local sample size. ESS is
 1/sum(w_i^2), a concentration measure rather than a support count or coverage
 check. Fixed k>1 is implemented; the companion theory writes out k=1.
+
+{marker numerical}{...}
+{title:Numerical limits}
+
+{pstd}
+At subnormal scales, rounded host Beta endpoints can erase a tail mass or
+produce different zero versus nonzero support in R and Stata. Averaging order
+statistics and signed TDNN blending can also lose tiny masses. This remains
+unresolved and can affect estimates and jackknife covariance for extreme
+signals. Normalization or native deletion engines cannot restore probability
+already lost during table construction. Exact weights use a different rule;
+changing methods changes the calculation. See the
+{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/numerical-stability.md#asymptotic-tail-limits":numerical reference}.
 
 {marker options}{...}
 {title:Options}
@@ -144,9 +168,14 @@ finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
 The fitted scales or Mahalanobis whitening factor remain fixed across
 jackknife deletions and saved-model predictions. Exact distance ties use the
-original covariates lexicographically in their supplied column order, then
-observation order for identical covariate rows. Outcomes and nuisances do not
-enter this ordering; rank weights and effective sample size are preserved.
+original covariates lexicographically in their supplied column order. Exactly
+identical raw localization covariate rows receive their block's average weight.
+Each deletion removes the actual observation and averages the n-1 table over
+the remaining block, redistributing its mass across the fewer surviving members.
+Aligned row permutations preserve estimates and covariance up to numerical
+precision. The command warns that this modification is not covered by the
+paper's theory. Individual weights, support and ESS can change. Distinct vectors
+at equal distance are not grouped; outcomes and nuisances do not define groups.
 
 {title:Stored results}
 

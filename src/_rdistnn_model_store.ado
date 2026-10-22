@@ -42,6 +42,6 @@ program define _rdistnn_model_store, eclass
         di as error "Fitted scaled/Mahalanobis models require explicit frozen geometry()."
         exit 498
     }
-    ereturn scalar model_version=1
+    ereturn scalar model_version=2
     ereturn local model_vars "`inputs'"
 end

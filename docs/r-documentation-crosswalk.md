@@ -1,13 +1,19 @@
 # R documentation coverage and Stata equivalents
 
-This map covers version **0.1.1** of both packages. The reference inventory
+This map covers version **0.1.2** of both packages. The reference inventory
 is R's [article source directory](https://github.com/JakobJuergens/RdistNN/tree/master/vignettes)
 and [pkgdown reference index](https://github.com/JakobJuergens/RdistNN/blob/master/_pkgdown.yml).
 The current map follows all 13 articles and 15 reference families, including
-the supported CLATE group and separate experimental confidence sets. R remains
-the numerical reference for shared functionality. Documentation parity here
+the supported CLATE group and separate experimental confidence sets. Shared
+methods follow the R contract, with bidirectional engine comparisons and
+independent numerical references. Documentation parity here
 means usable coverage of Stata's full public surface and clear routing for
 R-only functionality; it does not add R APIs to Stata.
+
+The [known asymptotic-tail limitation](numerical-stability.md#asymptotic-tail-limits)
+can change R/Mata support at subnormal scales. It remains unresolved; matching
+fixed-table deletion results does not certify weight construction or relax the
+shared parity requirement.
 
 ## Articles
 
@@ -51,6 +57,15 @@ reference is `help rdistnn`; each public command has its own installed help.
 | Advanced — TDNN and jackknife-paper infrastructure | [Weight/jackknife explanation](weights-and-tuning.md), internal algorithms tested against deletion references | `np_tdnn`, `weights_tdnn` and signed-weight plots are shared; no generic exported jackknife interface or dedicated two-scale comparison plot |
 
 ## Translating a shared workflow
+
+Both packages average weights within exactly identical raw localization
+covariate blocks, including each deletion's remaining block. Commands warn that
+this practical modification is outside the paper's theory. Shared-engine tests
+compare actual averaged weights, estimates and covariance against explicit
+deletions; agreement is required across R/C++ and Mata/native plugin. Distinct
+covariate vectors at equal distance keep lexicographic ordering. Saved fits from
+before this policy require refitting rather than silently mixing old estimates
+with new-policy weights.
 
 | R convention | Stata convention |
 |---|---|

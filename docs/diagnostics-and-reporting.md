@@ -75,7 +75,7 @@ always contains the full selected table. `detail` changes only the display.
 
 | Diagnostic | What it answers |
 | --- | --- |
-| `ess` | With normalized weights, `1/sum(w_i^2)` measures effective information from weight concentration. It is neither a raw observation count nor a complier count. |
+| `ess` | With normalized weights, `1/sum(w_i^2)` uses final duplicate-block-averaged weights. It measures concentration, neither raw observation count nor complier count. |
 | `max_weight`, `top1_weight_share`, `top5_weight_share`, `top10_weight_share` | How much mass is carried by the largest weights? Top shares use at most n observations. |
 | `n_nonzero_weight` | Number of weights larger in absolute value than `sqrt(machine epsilon)`; tiny positive weights can be excluded numerically. |
 | `radius_rank_k`, `radius_rank_s` | Distance to the k-th and s-th nearest observations under the fitted metric; these are rank radii, not support edges. |
@@ -86,14 +86,21 @@ always contains the full selected table. `detail` changes only the display.
 | `top5_score_share` (CATE/CLATE) | Top-five share of absolute weighted centered score contributions, which can concentrate much more than the raw weights. |
 | Weighted outcome summaries (NP) | Mean, dispersion and quantiles of the local outcome distribution, rather than sampling uncertainty of its mean. |
 
-For exact top-k DNN weights the mathematical positive support is
+For the unaveraged exact top-k DNN rank table, mathematical positive support is
 `n-s+k`, and for k=1 it is `n-s+1`. Increasing s tightens localization;
 it is opposite in direction to an ordinary bandwidth. A low ESS can reveal
 concentration; a high ESS can reveal averaging over a wide region. Neither
 establishes Gaussian approximation, negligible target bias, credible nuisance
 predictions, or causal identification. The candidate `degenerate` flag
 marks `ess >= .9*n`, a nearly uniform-weight guide rather than a hypothesis
-test. See [weights and tuning](weights-and-tuning.md).
+test. Candidate rows summarize actual averaged weights across targets: minimum
+ESS, maximum absolute weight and top-five absolute-mass share, and a degenerate
+flag if any target reaches the threshold. Inspect target rows for each profile.
+See [weights and tuning](weights-and-tuning.md).
+
+The support formula refers to the unaveraged rank table. With duplicate
+covariate rows, block averaging can give observations beyond that edge nonzero
+weight. Calculate realized support and concentration from the final weights.
 
 For CATE the score contributions are `w_i*(rho_i-tau_hat)`. For CLATE they
 are `w_i*(phi_y_i-theta_hat*phi_d_i)`. These are fitted score residuals,

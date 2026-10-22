@@ -116,9 +116,15 @@ rule, explicit `s()` and candidate options. Jackknife uncertainty needs `s < n`;
 `nose` skips it.
 
 Intervals are pointwise and the sampling framework assumes independent
-observations. Cluster and survey-design inference are not supplied. Row order
-resolves equal-distance ties. Diagnostics describe support and concentration;
-they cannot verify the paper's assumptions or remove localization bias.
+observations. Cluster and survey-design inference are not supplied. Distinct
+covariate vectors at exactly equal distance use lexicographic covariate order.
+Exactly identical raw reporting-covariate rows receive their block's average
+weight, including after every jackknife deletion: the deleted row is removed,
+and the `n-1` table's block mass is divided among the survivors. Commands warn
+that this permutation-invariant modification is outside the paper's theory.
+Weights, support and ESS can change; increasing `s` cannot distinguish identical
+covariates. See the [worked block example](weights-and-tuning.md#identical-covariate-rows).
+Diagnostics cannot verify the paper's assumptions or remove localization bias.
 
 For conditional LATE, continue with the [binary-IV guide](conditional-late.md).
 [Notation](notation-and-conventions.md) explains shapes and result names;

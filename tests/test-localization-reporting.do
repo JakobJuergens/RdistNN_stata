@@ -13,8 +13,10 @@ foreach command in np_dnn cate_dnn {
     tempname original covariance
     matrix `original' = e(b)
     matrix `covariance' = e(V)
-    test_assert "[ties] `command' exact subset mean" abs(el(`original',1,1)-19/6)<1e-12
-    test_assert "[ties] `command' explicit deletion covariance" abs(el(`covariance',1,1)-89/12)<1e-12
+    // Full block weights are (5/12,5/12,1/12,1/12); literal deletions
+    // are (7,17/3,2,2), giving variance (3/4)*sum((L-mean(L))^2)=59/4.
+    test_assert "[ties] `command' exact block-averaged mean" abs(el(`original',1,1)-25/6)<1e-12
+    test_assert "[ties] `command' explicit deletion covariance" abs(el(`covariance',1,1)-59/4)<1e-12
     tempfile report
     quietly log using "`report'", text replace name(stage1_report)
     _rdistnn_report_header
@@ -32,7 +34,7 @@ foreach command in np_dnn cate_dnn {
     quietly replace signal = 3 in 1
     quietly replace signal = 1 in 2
     quietly `command' signal, xcols(x) x0(0) k(1) s(2) `scoreopt'
-    test_assert "[ties] `command' identical-X input-position sensitivity" abs(el(e(b),1,1)-el(`original',1,1)-1/3)<1e-12
+    test_assert "[ties] `command' identical-X permutation invariance" abs(el(e(b),1,1)-el(`original',1,1))<1e-12
     quietly replace signal = 1 in 1
     quietly replace signal = 3 in 2
 }

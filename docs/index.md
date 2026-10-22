@@ -1,7 +1,7 @@
 # RdistNN for Stata documentation
 
 Start with [Getting started](getting-started.md) for a first fit. These guides
-cover package **0.1.1**. In Stata, `help rdistnn` opens the command
+cover package **0.1.2**. In Stata, `help rdistnn` opens the command
 references; [release notes](../RELEASE_NOTES.md) record changes.
 
 ## Start with a task
@@ -44,9 +44,11 @@ to the current directory. Read its opening comments before running it.
 
 The [command guide](command-guide.md) is a compact workflow and option map.
 The installed help is the full syntax/result reference; the articles explain
-how to make choices and interpret the outputs. RdistNN is the numerical
-reference for shared implementations, rather than a promise that every R
-object method or experimental workflow is available in Stata.
+how to make choices and interpret the outputs. Shared implementations follow
+the RdistNN contract, with bidirectional engine comparisons and independent
+references. The [crosswalk](r-documentation-crosswalk.md) identifies R-only
+methods, and the [numerical reference](numerical-stability.md#asymptotic-tail-limits)
+records the unresolved asymptotic-tail support limitation.
 
 ## Theory and development
 

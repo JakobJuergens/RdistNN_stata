@@ -1,7 +1,7 @@
 # Notation and conventions
 
 This is the Stata counterpart of RdistNN's notation guide. It describes the
-interface in package **0.1.1**. Use [getting started](getting-started.md)
+interface in package **0.1.2**. Use [getting started](getting-started.md)
 for a first fit and [the R crosswalk](r-documentation-crosswalk.md) when
 translating an R script.
 
@@ -61,10 +61,17 @@ signals directly and do not clip them.
 
 Exact equality in distances is resolved lexicographically by the original
 covariates in their supplied column order. Outcomes, treatment, nuisance
-values and observation identifiers do not enter the ordering. Each target
-retains the same rank-weight vector and ESS. Identical covariate rows still
-use estimation-observation order; sorting those duplicates can change a fit.
-This rule does not average ties or group approximately equal distances.
+values and observation identifiers do not enter the ordering. Exactly identical
+raw localization covariate rows receive their block's average rank weight. This
+preserves block mass while potentially changing individual weights, support and
+ESS. No tolerance groups nearby covariates, and distinct covariate vectors at
+equal distance remain separate.
+
+Every jackknife deletion removes the actual observation, updates ranks and
+averages the `n-1` table within the remaining blocks. Estimates and covariance
+are invariant to aligned row permutations up to numerical precision. Commands
+warn because this modification is not covered by the paper's theory. R, C++ and
+Mata apply the same policy; rank-only utilities cannot infer groups without X.
 
 ## Names that mean different things
 
@@ -125,7 +132,9 @@ Its standard Stata `e(b)` matrix contains moments rather than coefficients.
 
 Larger s tightens localization for fixed n and k; k does not count all
 observations with positive averaged DNN weight. Exact support reaches rank
-n-s+k, whereas the asymptotic rule uses Beta-CDF increments. ESS, nonzero
+n-s+k before duplicate-block averaging, which can extend nonzero observation
+weights to the end of a block crossing that edge. The asymptotic rule uses
+Beta-CDF increments. ESS, nonzero
 support, rank radii and physical radii answer different questions. The
 [weight/tuning guide](weights-and-tuning.md) explains those distinctions and
 the rule `floor(lambda*n^((p+1)/(p+2)))`.

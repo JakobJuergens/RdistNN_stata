@@ -27,7 +27,7 @@ program define _rdistnn_estimation_state, eclass
     ereturn matrix estimates = `estimates', copy
     ereturn matrix se_targets = `ses', copy
     ereturn matrix estimate_vcov = `covariance', copy
-    ereturn local tie_rule "distance_then_covariates_then_input_position"
+    ereturn local tie_rule "distance_then_covariates_with_duplicate_block_averaging"
     quietly signestimationsample `varlist'
     quietly _rdistnn_sample_signature `varlist' if e(sample)
     ereturn local ordered_signature "`r(signature)'"

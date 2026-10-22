@@ -10,7 +10,19 @@ it into a coefficient estimator or add coefficient inference.
 
 Use a clean repository checkout with the tools in
 [CONTRIBUTING.md](CONTRIBUTING.md). Review the version/tag and release notes.
-Version `0.1.1` combines numerical fixes, covariate-based exact-distance tie
+The next planned release is `0.1.2`, currently an unpublished candidate on
+`development`. It adds duplicate-covariate
+block averaging, deletion-aware survivor weights and saved-model schema 2,
+with a theory warning; see [RELEASE_NOTES.md](RELEASE_NOTES.md). The next
+production PR will carry these changes under `0.1.2`; assigning that version
+locally does not publish a release.
+
+Review the known [asymptotic-tail limitation](docs/numerical-stability.md#asymptotic-tail-limits)
+when assessing readiness. Matching native/Mata deletions for fixed tables does
+not establish correct construction or cross-language support parity at
+subnormal scales.
+
+The `0.1.1` baseline combines numerical fixes, covariate-based exact-distance tie
 ordering, shared modules and a current-only interface, aligned with the R companion.
 The previous version `0.1.0.9004` entered production `master` through the reviewed squash
 merge of [PR #10](https://github.com/JakobJuergens/RdistNN_stata/pull/10) at
@@ -37,6 +49,22 @@ advance independently for implementation-specific fixes. A matching version
 does not promise identical feature coverage. Review the
 [R-to-Stata crosswalk](docs/r-documentation-crosswalk.md) when assigning a
 version and retain its explicit R-only and experimental boundaries.
+
+The next planned version-pinned baseline is `v0.1.2` in both packages. After
+the production PRs are merged and the required checks pass on their final
+commits, create each repository's `v0.1.2` tag and publish its verified assets.
+Keep the `0.1.2` changelog entry marked unreleased until publication, then add
+the publication date and update `Distribution-Date`. For installation after
+that release is published:
+
+```stata
+net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/v0.1.2/") replace
+```
+
+This planned tag is not an installation source yet. Keep the ordinary README
+installation on production `master` and retain historical tags, assets and
+scientific dependency pins. Record the paired final commits and asset
+checksums in the release-set manifest below.
 
 Commit candidates locally. Publishing review branches/PRs, tags, assets or
 websites requires separate authorization; do not push to `master`. Install the

@@ -11,10 +11,14 @@ is a standalone runnable example.
 `s` is the subsample order and `k` is the neighbor count within a subsample.
 The default is `k(1)`. Increasing `s` tightens localization,
 opposite to the usual bandwidth convention.
-Exact positive support reaches global rank `n - s + k`, or `n - s + 1` with
+The unaveraged exact rank table reaches global rank `n - s + k`, or `n - s + 1` with
 `k(1)`; neither `k` nor `s` counts all full-sample observations with weight.
 At `k=s`, exact weights are uniform. Orders must satisfy `k <= s <= n`;
 jackknife uncertainty additionally needs `s < n`.
+
+The support formula refers to the unaveraged rank table. With duplicate
+covariate rows, block averaging can give observations beyond that edge nonzero
+weight. Calculate realized support and concentration from the final weights.
 
 ## Exact and asymptotic rules
 
@@ -23,7 +27,21 @@ weights without enumerating subsets. `method(asymp)` uses a different,
 generally full-support approximation. Changing the method changes weights
 and can change estimates; the exact support cutoff does not apply to the
 approximation. The [paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
-gives the construction and theoretical results.
+gives the construction and theoretical results. Floating-point asymptotic
+tails can have zero entries; full support is not a numerical guarantee.
+
+### Numerical limits
+
+At subnormal scales, rounded host Beta endpoints can lose a tail mass or
+produce different zero versus nonzero support in R and Stata. Order-statistic
+averaging and signed TDNN blending can also lose tiny masses. This remains an
+unresolved limitation and can affect estimates and covariance for extreme
+signals. Normalization or a native deletion engine cannot restore probability
+already lost while constructing the table. Exact weights use a different
+finite-population rule, so changing methods changes the calculation.
+See the [numerical reference](numerical-stability.md#asymptotic-tail-limits).
+
+## Distance geometry
 
 Euclidean `distance(l2)` is the default. Its ranking is sensitive to the
 units of the coordinates; standardization can be a substantive choice.
@@ -33,8 +51,37 @@ centered-design SVD whitening factor. Retain singular values greater than
 This avoids explicitly forming or inverting covariance. The metric is fixed
 through deletion covariance calculations. Both use deterministic distance,
 then lexicographic original-covariate order for exact ties. Only identical
-covariate rows use observation order. Changing a metric changes the
+covariate rows retain an observation order for bookkeeping; their weights are
+averaged as described below. Changing a metric changes the
 neighborhood; it is not a cosmetic plot option.
+
+### Identical covariate rows
+
+For a duplicate block at ranks `a:b`, each observation receives
+`sum(w[a:b])/(b-a+1)`. Equality is checked across every raw localization column;
+different vectors at equal distance and approximately equal vectors are not
+grouped. The block mass is preserved, while individual weights and ESS can change.
+A block crossing the exact rank table's support edge can give later members
+positive averaged weight.
+
+The same rule applies after every jackknife deletion, using the `n-1` table and
+the remaining block. If a member is deleted from ranks `a:b`, its `b-a`
+survivors receive `sum(w_(n-1)[a:(b-1)])/(b-a)` each; a deleted singleton
+contributes zero. Both the table and the block size change. Shared prefix/postfix
+calculations apply the corresponding block correction without rebuilding a
+weight matrix for every deletion. The user receives a warning that this permutation-invariant
+modification is not covered by the paper's theory. Moving covariate rows requires
+moving their aligned outcomes and nuisance predictions too. Returned rank
+permutations locate the blocks; a rank table alone no longer reconstructs final
+weights when duplicate covariates occur.
+
+For `x=(0,0,1,2)`, target zero and `k(1) s(2)`, the rank table
+`(1/2,1/3,1/6,0)` becomes `(5/12,5/12,1/6,0)`.
+Deleting the first row leaves `x=(0,1,2)` with weights `(2/3,1/3,0)`, so its
+identical partner's weight rises from `5/12` to `2/3`. With all X rows identical
+and normalized weights, the full weights are `1/n`, and the survivors' weights
+are `1/(n-1)`. Increasing `s` cannot distinguish those identical covariates;
+the warning still applies.
 
 ## Generate weights at one target
 

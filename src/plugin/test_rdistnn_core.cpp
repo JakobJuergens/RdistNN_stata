@@ -92,6 +92,25 @@ int main()
     if (cancellation_loo[2] != 1 || cancellation_loo[6] != 21)
         return fail("prefix/suffix merge discarded a correction");
 
+    // Original rounded products: deleting the only nonzero signal is zero.
+    const int tiny_ranks[] = {1,2,3};
+    const double eta = std::ldexp(1.0,-1074);
+    const double tiny_weights[] = {eta,eta};
+    const double tiny_signal[] = {1.5,0,0, 1.5,1.5,1.5};
+    double tiny_out[6];
+    rdistnn::rank_loo(tiny_ranks,tiny_signal,tiny_weights,3,1,2,tiny_out);
+    const double tiny_expected[] = {0,2,2,4,4,4};
+    for(int i=0;i<6;++i)
+        if(tiny_out[i]/eta!=tiny_expected[i]) return fail("subnormal weighted origin changes zero/constant deletions");
+
+    const double w = std::ldexp(1.25,-1022);
+    const double canceled_weights[] = {w,-(w-eta)};
+    const double constant = 1.5+std::numeric_limits<double>::epsilon();
+    const double constant_signal[] = {constant,constant,constant};
+    rdistnn::rank_loo(tiny_ranks,constant_signal,canceled_weights,3,1,1,tiny_out);
+    for(int i=0;i<3;++i)
+        if(tiny_out[i]/eta!=1) return fail("nonzero subnormal mass changes constant deletions");
+
     std::cout << "rdistnn core test passed\n";
     return 0;
 }

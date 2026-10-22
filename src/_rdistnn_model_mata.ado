@@ -46,14 +46,17 @@ real matrix rdistnn_model_plot_data(string scalar type, real rowvector targets)
 
 real matrix rdistnn_model_weights(real rowvector targets)
 {
-    real matrix R,D,W,out
+    real matrix R,D,W,out,X
     real scalar j,t,n
+    rdistnn_model_validate()
     R=st_matrix("e(model_ranks)"); D=st_matrix("e(model_distances)")
+    X=st_matrix("e(model_X)")
+    rdistnn_duplicate_warning(X)
     if(st_global("e(cmd)")=="np_tdnn") {
         W=rdistnn_tdnn_weights(R,st_numscalar("e(s1)"),st_numscalar("e(s2)"),
-            st_numscalar("e(dim)"),st_global("e(method)"),st_numscalar("e(normalize)"))
+            st_numscalar("e(dim)"),st_global("e(method)"),st_numscalar("e(normalize)"),X)
     }
-    else W=rdistnn_weights_from_rmat(R,st_numscalar("e(k)"),st_numscalar("e(s)"),st_global("e(method)"))
+    else W=rdistnn_weights_from_rmat(R,st_numscalar("e(k)"),st_numscalar("e(s)"),st_global("e(method)"),X)
     n=rows(R); out=J(0,5,.)
     for(j=1;j<=cols(targets);j++) {
         t=targets[j]
@@ -75,25 +78,26 @@ void rdistnn_model_evaluate(string scalar target_name, real scalar s,
     n=rows(X); m=rows(X0); q=cols(signals)
     if(cmd=="np_tdnn") {
         W=rdistnn_tdnn_weights(ranks,st_numscalar("e(s1)"),st_numscalar("e(s2)"),
-            st_numscalar("e(dim)"),method,st_numscalar("e(normalize)"))
+            st_numscalar("e(dim)"),method,st_numscalar("e(normalize)"),X)
     }
-    else W=rdistnn_weights_from_rmat(ranks,k,s,method)
+    else W=rdistnn_weights_from_rmat(ranks,k,s,method,X)
     fit=rdistnn_weighted_signals(signals,W); b=vec(fit)'; neff=1:/colsum(W:^2)
     V=J(m*q,m*q,.)
     components=CV=status=J(1,1,.)
     if(cmd=="clate_dnn") {
         tol=st_numscalar("e(denominator_tol)")
-        rdistnn_clate_fit(ranks,signals,k,s,method,do_se,tol,components,b,V,CV,status)
+        rdistnn_clate_fit(ranks,signals,k,s,method,do_se,tol,components,b,V,CV,status,X)
         fit=b
     }
     else if(do_se & cmd=="np_tdnn") {
         V=rdistnn_tdnn_cov(ranks,signals,st_numscalar("e(s1)"),st_numscalar("e(s2)"),
-            st_numscalar("e(dim)"),method,st_numscalar("e(normalize)"))
+            st_numscalar("e(dim)"),method,st_numscalar("e(normalize)"),X)
     }
     else if(do_se) {
-        if(q==1) V=rdistnn_jk_cov_multi_from_ranks(ranks,signals,k,s,method)
+        if(q==1) V=rdistnn_jk_cov_multi_from_ranks(ranks,signals,k,s,method,X)
         else {
-            loo=rdistnn_loo_from_ranks(ranks,signals,k,s,method,1)
+            loo=rdistnn_loo_from_ranks(ranks,signals,k,s,method,1,
+                rdistnn_weights_from_ranks((1::(n-1)),k,s,method),X)
             V=rdistnn_covariance(loo,(n-1)/n,1)
         }
     }

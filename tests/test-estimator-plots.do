@@ -54,7 +54,7 @@ foreach family in cate np clate {
     local nr = r(n_rows)
     capture matrix PW = r(plot_data)
     local drc = _rc
-    test_assert "[plots `family'] rank weights expose plotted positive rows" `drc'==0 & `nr'>0 & `nr'<120
+    test_assert "[plots `family'] rank weights expose plotted positive rows" `drc'==0 & `nr'>0 & `nr'<600
     if `drc'==0 & colsof(PW)>=2 {
         mata: st_numscalar("plot_min_weight", min(st_matrix("PW")[,2]))
         test_assert "[plots `family'] log rank data exclude nonpositive rows" scalar(plot_min_weight)>0 & rowsof(PW)==`nr'
@@ -66,7 +66,9 @@ foreach family in cate np clate {
     test_assert "[plots `family'] kernel rows exposed" `drc'==0 & `nr'==120
     if `drc'==0 test_assert "[plots `family'] kernel target identity" PK[1,1]==2 & PK[61,1]==4
     capture noisily `family'_dnn_plot, type(weights) targets(2) replace nodraw
-    test_assert "[plots `family'] rejects no-op rank target selection" _rc==198
+    test_assert "[plots `family'] rank target selection is supported" _rc==0
+    matrix PRSEL=r(plot_data)
+    test_assert "[plots `family'] rank profile exposes target-specific rows" rowsof(PRSEL)==60 & colsof(PRSEL)==7
     capture noisily `family'_dnn_plot, type(diagnostics) targets(2) candidates(1) replace nodraw
     test_assert "[plots `family'] rejects conflicting diagnostics selection" _rc==198
     capture noisily `family'_dnn_plot, type(tuning) style(forest) replace nodraw
@@ -133,6 +135,33 @@ foreach family in cate np clate {
     test_assert "[plots `family'] snapshot kernel survives changed order" _rc==0
     capture noisily `family'_dnn_plot, targets(2) name(plot_contract) replace nodraw
     test_assert "[plots `family'] stored-result plots survive data changes" _rc==0
+}
+
+test_section "estimator weight plots: large-batch default target selection"
+clear
+set obs 12
+gen double kw_x=(_n-6)/5
+gen double kw_y=1+kw_x^2
+gen double kw_den=.8+.05*kw_x
+matrix KW_TARGETS=(-.8\-.6\-.4\-.2\0\.2\.4\.6\.8)
+foreach family in cate np clate {
+    local extra ""
+    if "`family'"=="cate" local extra "pseudooutcome"
+    if "`family'"=="clate" local extra "pseudooutcome denominator(kw_den)"
+    quietly `family'_dnn kw_y, xcols(kw_x) x0matrix(KW_TARGETS) s(3) nose `extra'
+    quietly `family'_dnn_plot, type(weights) view(kernel) name(plot_kernel_defaults) replace nodraw
+    local nr=r(n_rows)
+    local ids "`r(targets)'"
+    test_assert "[plots `family'] large-batch kernel defaults to first/middle/last" `nr'==36 & "`ids'"=="1 5 9"
+    quietly `family'_dnn_plot, type(weights) view(kernel) targets(8 2) name(plot_kernel_defaults) replace nodraw
+    matrix KW_PLOT=r(plot_data)
+    test_assert "[plots `family'] explicit kernel targets retain selection and order" rowsof(KW_PLOT)==24 & KW_PLOT[1,1]==8 & KW_PLOT[13,1]==2
+    foreach view in profile cumulative {
+        quietly `family'_dnn_plot, type(weights) view(`view') name(plot_kernel_defaults) replace nodraw
+        local nr=r(n_rows)
+        local ids "`r(targets)'"
+        test_assert "[plots `family'] `view' defaults retain every target" `nr'==108 & "`ids'"=="1 2 3 4 5 6 7 8 9"
+    }
 }
 
 test_section "estimator plot coherence: uncertainty and undefined target masks"

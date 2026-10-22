@@ -1,5 +1,45 @@
 # Release Notes
 
+## 0.1.2 — unreleased
+
+- Preserve the documented first/middle/last target default for kernel plots
+  above eight targets while retaining target-specific rank profiles.
+- Align direct regrouping block-mass reduction in original observation order
+  across Mata and native engines for supplied ranks that interleave duplicate
+  groups or reorder their members.
+
+- Average weights within blocks of exactly identical raw localization covariates,
+  recomputing the averages after each deletion. Estimates, standard errors and
+  covariance are invariant to aligned row permutations up to floating-point
+  error, including signed TDNN
+  and paired CLATE calculations. Warn that this modification is not covered by
+  the paper's theory.
+- Share block helpers across weights, estimation, saved prediction, candidates,
+  diagnostics and plots under the same Mata/native-plugin and R companion
+  contract. The asymptotic-tail limitation below remains unresolved.
+  Actual weights, support and ESS can change; different vectors at equal
+  distance retain lexicographic ordering. Saved models use schema version 2;
+  refit older saved objects before postestimation or prediction.
+- Accumulate original signals with shared block prefix/suffix arithmetic in
+  Mata and the native plugin. Retain small surviving observations after deleting
+  a dominant duplicate, signed-table variation and genuine subnormal signals.
+- Use a shared balanced matrix transport for native deletions, avoiding the
+  setup cost of tall Stata matrices. Retain compatibility with older plugins
+  and the existing forced-engine and automatic-fallback behavior.
+- Validate saved snapshot dimensions, controls, row identifiers, frozen geometry
+  and cached rank-distance order before prediction or observation-level
+  reconstruction. Invalid snapshots request refitting without altering the
+  caller's fitted results or data.
+- Select shared deletion origins using actual coefficient and mass summaries.
+  Preserve raw rounded products before normalization for subnormal weighted
+  amplitudes or nonzero tiny masses; exact zero signed mass alone retains
+  centering.
+- Document unresolved asymptotic Beta-tail rounding: R and Mata can differ in
+  zero versus nonzero support at subnormal scales, and averaging or signed
+  TDNN blending can lose tiny masses. Normalization and native deletion engines
+  do not repair probability already lost in table construction. See the
+  [numerical reference](docs/numerical-stability.md#asymptotic-tail-limits).
+
 ## 0.1.1 — 2026-10-21
 
 - Resolve exact distance ties lexicographically by the original covariates in

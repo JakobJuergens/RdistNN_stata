@@ -238,6 +238,7 @@ program define clate_dnn, eclass
     quietly run "`r(fn)'"
     mata {
         _cl_X = st_data(., "`xvars'", "`touse'")
+        rdistnn_duplicate_warning(_cl_X)
         _cl_X0 = st_matrix("`targets'")
         _cl_geometry = _cl_DX = _cl_ranks = J(0,0,.)
         rdistnn_localization_geometry(_cl_X,_cl_X0,"`resolved_distance'","`scalerule'",
@@ -268,7 +269,7 @@ program define clate_dnn, eclass
             }
             rdistnn_clate_fit(_cl_ranks,_cl_signals,`k',_cl_meta[_cl_g,8],
                 "`resolved_method'",`active',`denominatortol',
-                _cl_c,_cl_b,_cl_V,_cl_CV,_cl_status)
+                _cl_c,_cl_b,_cl_V,_cl_CV,_cl_status,_cl_X)
             _cl_grid[_cl_g,.] = _cl_b
             _cl_gridse[_cl_g,.] = sqrt(diagonal(_cl_V))'
             _cl_gridy[_cl_g,.] = _cl_c[,1]'
@@ -284,7 +285,7 @@ program define clate_dnn, eclass
             }
         }
         _cl_b = st_matrix("`theta'")
-        _cl_W = rdistnn_weights_from_rmat(_cl_ranks,`k',`resolved_s',"`resolved_method'")
+        _cl_W = rdistnn_weights_from_rmat(_cl_ranks,`k',`resolved_s',"`resolved_method'",_cl_X)
         _cl_A = _cl_e = J(0,1,.)
         if ("`route'"=="augmented_iv") {
             _cl_A = st_data(.,"`acol'","`touse'")
@@ -297,11 +298,8 @@ program define clate_dnn, eclass
         for(_cl_g=1;_cl_g<=`ng';_cl_g++) {
             _cl_grid_diag[_cl_g,3]=min((5,`n'))
             if(_cl_meta[_cl_g,4]==0) continue
-            _cl_wr=rdistnn_weights_from_ranks((1::`n'),`k',_cl_meta[_cl_g,8],"`resolved_method'")
-            _cl_topn=min((5,`n'))
-            _cl_ess=1/quadsum(_cl_wr:^2)
-            _cl_grid_diag[_cl_g,.]=(_cl_ess,max(abs(_cl_wr)),_cl_topn,
-                quadsum(abs(_cl_wr[1.._cl_topn]))/quadsum(abs(_cl_wr)),_cl_ess>=.9*`n')
+            _cl_grid_W=rdistnn_weights_from_rmat(_cl_ranks,`k',_cl_meta[_cl_g,8],"`resolved_method'",_cl_X)
+            _cl_grid_diag[_cl_g,.]=rdistnn_grid_weight_diagnostics(_cl_grid_W)
         }
         st_matrix("`grid_diag'",_cl_grid_diag)
         st_matrix("`semat'",sqrt(diagonal(st_matrix("`vcov'")))')

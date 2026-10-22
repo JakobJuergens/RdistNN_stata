@@ -4,6 +4,13 @@ This file records which high-value `RdistNN` contracts are enforced by the
 Stata suite. It is a selection guide, not a claim that every R-specific API has
 a Stata equivalent.
 
+Shared contracts are checked bidirectionally and against independent oracles;
+neither implementation's output alone establishes accuracy. Existing tiny-Beta
+fixtures cover bounded cases, while the
+[asymptotic-tail support limitation](../docs/numerical-stability.md#asymptotic-tail-limits)
+remains unresolved. Passing fixed-table deletion tests does not certify all
+probability construction, averaging or signed-blending boundaries.
+
 ## Shared contracts
 
 | Contract from the R suite | Stata evidence |
@@ -17,7 +24,8 @@ a Stata equivalent.
 | R quantile near-tie ranks/estimates, analytic extreme fitted scales, failed-scale guards and scaled L1 recovery | `test-geometry-numerical-stability.do`, `fixtures/r_geometry_fixtures.do` |
 | Actual R C++ and forced fallback L1/L2/scaled distances/ranks, large offsets, double-accumulation ties, scalar/batch and duplicate targets | `test-native-distances.do`, `fixtures/r_native_distance_fixtures.do` |
 | Forced native/Mata geometry across all five estimators and both weight methods, fitted scales, grids/covariance, candidates and cold saved prediction | `test-native-distances-estimators.do` |
-| Canonical raw-covariate exact-distance ties across current estimators/engines, unchanged ESS, subsets and restored predictions | `test-canonical-covariate-ties.do` |
+| Canonical raw-covariate exact-distance ties across current estimators/engines, subsets and restored predictions | `test-canonical-ties.do` |
+| Exact-X block averaging, survivor-weight redistribution after actual deletion, full paired/cross-target covariance, permutation invariance, all forced engines, range guards, saved reuse and target-specific plots; R's `test-duplicate-block-averaging.R` | `test-duplicate-blocks.do`; independent explicit deletion and regrouping references cover every metric, both weight methods and signed TDNN. |
 | TDNN exact/asymptotic signed rank tables, support-aware covariance, scalar/batch equivalence and saved-state reuse | `test-tdnn.do`, `test-tdnn-saved.do` |
 | Mata/plugin equivalence and signed-target parsing | `test-weights-dnn-plugin.do` |
 | Scalar, vector, and multi-target rank-shift jackknife covariance against explicit deletion loops | `test-mata-jackknife.do`, `test-mata-jackknife-vector.do`, `test-mata-jackknife-golden.do` |
