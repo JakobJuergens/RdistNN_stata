@@ -1,6 +1,6 @@
 # Save, report and reuse fitted results
 
-Version 0.1.1 provides three common commands for DNN/TDNN regression, CATE, CLATE and
+Version 0.1.2 provides three common commands for DNN/TDNN regression, CATE, CLATE and
 PLQR. They use the R result methods as the reference for shared behavior.
 PLQR retains its supplied-coefficient **moment-only** scope.
 
@@ -74,9 +74,17 @@ New-target distances are computed once. A candidate at existing targets
 uses the saved geometry. No nuisance predictions are refitted.
 
 Fits use exact distance followed by lexicographic original covariates, then
-observation order for identical covariate rows. Cached ranks remain
-authoritative. Refit objects created by older development versions before
-reusing them with the current package.
+observation order for identical covariate rows as bookkeeping. Final weights
+are averaged within the identical-covariate blocks, including every deletion's
+remaining block. Cached ranks and retained raw covariates jointly determine
+these weights. The command warns that this modification is outside the paper's
+theory. Saved-model schema version 2 records the policy; refit older saved objects
+before reusing them with the current package. Current snapshots are also
+validated for consistent dimensions, controls, observation/target identities,
+frozen geometry and cached ordering before reconstruction. An invalid snapshot
+requests refitting before prediction or observation-level extraction and
+preserves the active data and fitted results. Replaying already stored numeric
+estimates does not reconstruct the old model under the new weight policy.
 
 `rdistnn_predict` preserves active data and estimates by default. `post`
 explicitly activates the derived fit; `store(name)` saves it independently.

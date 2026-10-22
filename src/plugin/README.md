@@ -54,7 +54,8 @@ global rdistnn_jackknife_engine plugin
 Explicit `plugin` or `mata` selections surface failures rather than silently
 switching engines. `rdistnn_last_distance_engine` records the last distance
 calculation; a cached result may perform no new calculation. It does not report
-the jackknife engine. Remove diagnostic settings afterward:
+the jackknife engine. `rdistnn_last_jackknife_engine` separately records the
+actual deletion route. Remove diagnostic settings afterward:
 
 ```stata
 macro drop rdistnn_distance_engine rdistnn_jackknife_engine rdistnn_use_plugin
@@ -104,16 +105,53 @@ are m by p, inverse scales are 1 by p, and the preallocated output is n by m:
 ```text
 distance_api output
 distance_batch l1|l2 X X0 inverse_scales|none output
+rank_loo ranks signals table output
+block_rank_loo ranks signals table groups output
+loo_packed_api output
+loo_packed input output
 ```
 
 Capability version 1 validates dimensions, finite inputs and positive inverse
-scales before publishing output. `rank_loo` accepts fixed ranks, signals and
-a deletion weight table. Temporary Mata-created Stata matrices can exceed
-`c(matsize)`; the bridge removes them and leaves the dataset unchanged.
+scales before publishing output. Both deletion operations accept n by m ranks,
+n by q signals and an (n-1) by 1 deletion table, returning n by (m*q) output in
+target/component blocks. `block_rank_loo` additionally accepts n by 1 integer
+group identifiers in `1:n` and computes actual-observation deletions from the
+original signals. Canonical contiguous groups retain original member order and
+use linear work in n; supplied ranks that interleave groups or reorder members
+use native direct regrouping. A plugin without this
+operation cannot satisfy a forced native block-deletion request.
+Current Mata deletion bridges use the shared `_rdistnn_native_transport.ado`
+module. An uncached `loo_packed_api` probe writes capability version 1 to a
+1 by 1 matrix. Supporting plugins receive a balanced frame through `loo_packed`;
+older plugins retain the raw `rank_loo` and `block_rank_loo` protocols above.
+A recognized packed request failure never retries the raw operation: automatic
+mode follows its existing Mata fallback, while required native execution errors.
+
+The packed input contains five exact doubles, `[1,n,m,q,grouped]`, followed by
+column-major arrays `ranks`, `signals`, `table`, and, when grouped is 1, `groups`.
+The physical frame stores this sequence in row-major order, with
+`r = ceil(sqrt(length))`, `c = ceil(length/r)` and zero padding. The output frame
+holds the unchanged column-major `n` by `m*q` result in the same physical order,
+with zero padding. Both frames have positive balanced dimensions (`r >= c`,
+`r-c <= 1`) and fewer than `r` padding cells. Native code validates metadata,
+integer bounds, checked products and sums, expected frame capacities, finite
+inputs and zero input padding before allocating kernel arrays or publishing
+output. Conformable input/output aliases are safe because all inputs are read
+first. Raw and packed operations call the same numerical kernels.
+
+Balanced staging avoids Stata's expensive default stripe construction for tall
+matrices; the logical algorithm and its linear complexity are unchanged. Legacy
+plugins retain the previous transfer cost. Temporary Mata-created Stata matrices
+can exceed `c(matsize)`; the bridge removes them and leaves the dataset unchanged.
 
 The [numerical reference](../../docs/numerical-stability.md) owns arithmetic,
 range recovery and support-aware covariance centering. Native tests cover the
-frozen-rank deletions, distances, rounding and actual entry-point failure propagation.
+frozen-rank deletions, distances, rounding, packed layouts and actual entry-point
+failure propagation.
+
+The plugin consumes rank-weight tables constructed by Mata. Forcing native
+deletions therefore does not address the
+[known asymptotic-tail construction limit](../../docs/numerical-stability.md#asymptotic-tail-limits).
 Mata constructs ranks and rank-weight tables; the plugin consumes these inputs
 without a separate sorting or weight-construction implementation.
 With a matching plugin and licensed Stata, run

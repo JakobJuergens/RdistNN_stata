@@ -49,4 +49,15 @@ inline void rank_loo(const int *ranks, const double *signal, const double *table
     rdistnn_arithmetic::rank_loo(ranks,signal,table,n,m,q,out);
 }
 
+inline void block_rank_loo(const int *ranks, const double *signal, const double *table,
+                           const int *groups, int n, int m, int q, double *out)
+{
+    if (n<2 || m<1 || q<1) throw std::invalid_argument("block_rank_loo requires n>=2, m>=1 and q>=1");
+    if (out==nullptr || ranks==nullptr || groups==nullptr)
+        throw std::invalid_argument("block deletion arrays must not be null");
+    validate_finite_array(signal,static_cast<std::size_t>(n)*q,"signal");
+    validate_finite_array(table,static_cast<std::size_t>(n-1),"table");
+    rdistnn_arithmetic::block_rank_loo(ranks,signal,table,groups,n,m,q,out);
+}
+
 } // namespace rdistnn

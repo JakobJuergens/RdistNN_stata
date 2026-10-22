@@ -21,7 +21,7 @@ if ("$rdistnn_plugin_ok" == "") {
     }
 }
 
-foreach module in accumulation covariance geometry distance_plugin distance_mata rank_weights rank_loo localization_mata diagnostic_mata plqr_mata plot_mata {
+foreach module in native_transport accumulation covariance blocks geometry distance_plugin distance_mata rank_weights rank_loo localization_mata diagnostic_mata plqr_mata plot_mata {
     findfile "_rdistnn_`module'.ado"
     quietly run "`r(fn)'"
 }

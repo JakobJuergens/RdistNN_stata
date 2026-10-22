@@ -1,6 +1,6 @@
 v 3
 d 'RDISTNN': Conditional effects and regression with DNN weights
-d Version: 0.1.1
+d Version: 0.1.2
 d Distribution-Date: 20261021
 d
 d Conditional average treatment effects and
@@ -68,7 +68,9 @@ f src/_rdistnn_plqr_mata.ado
 f src/_rdistnn_distance_mata.ado
 f src/_rdistnn_plot_mata.ado
 f src/_rdistnn_covariance.ado
+f src/_rdistnn_native_transport.ado
 f src/_rdistnn_accumulation.ado
+f src/_rdistnn_blocks.ado
 f src/_rdistnn_rank_weights.ado
 f src/_rdistnn_geometry.ado
 f src/_rdistnn_rank_loo.ado

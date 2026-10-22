@@ -109,12 +109,14 @@ real matrix rdistnn_plot_rank_weights(real matrix meta,
                                        real scalar k,
                                        real scalar default_s,
                                        string scalar method,
-                                       real scalar use_meta)
+                                       real scalar use_meta, | real matrix ranks,
+                                       real matrix X, real rowvector targets)
 {
-    real scalar i, g, s, is_default
-    real colvector w
-    real matrix out
-    out = J(0, 6, .)
+    real scalar i, g, s, is_default,j,t
+    real colvector w,ord
+    real matrix out,W
+    out = J(0, args()>=8 ? 7 : 6, .)
+    if(args()>=8) rdistnn_duplicate_warning(X)
     for (i = 1; i <= rows(idx); i++) {
         g = idx[i]
         if (use_meta) {
@@ -125,9 +127,20 @@ real matrix rdistnn_plot_rank_weights(real matrix meta,
             s = default_s
             is_default = 1
         }
-        w = rdistnn_weights_from_ranks((1::n), k, s, method)
-        out = out \ ((1::n), w, runningsum(w), J(n,1,g),
-            J(n,1,s), J(n,1,is_default))
+        if(args()>=8) {
+            W=rdistnn_weights_from_rmat(ranks,k,s,method,X)
+            for(j=1;j<=cols(targets);j++) {
+                t=targets[j]; ord=J(n,1,.); ord[ranks[,t]]=(1::n)
+                w=W[ord,t]
+                out=out\((1::n),w,runningsum(w),J(n,1,g),
+                    J(n,1,s),J(n,1,is_default),J(n,1,t))
+            }
+        }
+        else {
+            w = rdistnn_weights_from_ranks((1::n), k, s, method)
+            out = out \ ((1::n), w, runningsum(w), J(n,1,g),
+                J(n,1,s), J(n,1,is_default))
+        }
     }
     return(out)
 }

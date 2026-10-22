@@ -48,25 +48,36 @@ oracle <- function(X, X0, signal, k, s, method, distance, active) {
       unname(as.list(as.data.frame(X[ids,,drop=FALSE]))), list(ids)))
   }
   average <- function(ids, j) {
+    nn <- length(ids)
     if (method == "exact") {
+      # Enumerate subset selections first, then uniformly redistribute each
+      # raw-X group's resulting full weight mass. Repeat after actual removal;
+      # package rank-weight/grouping/deletion helpers are never called.
       subsets <- combn(ids, s, simplify = FALSE)
-      rowMeans(vapply(subsets, function(ii) {
+      w <- numeric(nn)
+      for (ii in subsets) {
         win <- ii[lex_order(ii,j)[seq_len(k)]]
-        colMeans(signal[win, , drop = FALSE])
-      }, numeric(2L)))
+        w[match(win,ids)] <- w[match(win,ids)] + 1/(k*length(subsets))
+      }
     } else {
-      nn <- length(ids)
       ord <- lex_order(ids,j)
-      # Integrate the polynomial beta order-statistic densities, rather than
-      # using package rank-weight or deletion helpers or differences of pbeta.
-      w <- vapply(seq_len(nn), function(r) {
+      # Integrate polynomial beta densities, rather than package rank tables
+      # or deletion helpers or differences of pbeta.
+      ranked <- vapply(seq_len(nn), function(r) {
         sum(vapply(seq_len(k), function(i) {
           integrate(function(u) dbeta(u, i, s-i+1L), (r-1)/nn, r/nn,
                     rel.tol = 1e-12, abs.tol = 1e-15)$value
         }, numeric(1L))) / k
       }, numeric(1L))
-      colSums(signal[ids[ord], , drop = FALSE] * w)
+      w <- numeric(nn); w[ord] <- ranked
     }
+    done <- rep(FALSE,nn)
+    for (ii in seq_len(nn)) if (!done[ii]) {
+      members <- vapply(ids,function(h) all(X[h,]==X[ids[ii],]),logical(1L))
+      w[members] <- sum(w[members])/sum(members)
+      done[members] <- TRUE
+    }
+    colSums(signal[ids, , drop = FALSE] * w)
   }
   components <- t(vapply(seq_len(m), function(j) average(seq_len(n), j), numeric(2L)))
   if (!active) return(list(components = components))
@@ -98,7 +109,7 @@ for (method in c("exact", "asymp")) for (distance in c("l2", "mahalanobis")) {
   add(paste("seeded boundary s=n-1", method, distance), X, X0, signal, 3L, 7L, method, distance)
 }
 Xt <- cbind(c(0,0,1,-1,2,-2,1,-1), c(0,0,0,0,0,0,1,-1))
-add("distance ties resolve by original covariates", Xt, rbind(c(0,0),c(1,0),c(0,0)), signal, 2L, 4L)
+add("distance ties use raw covariates and duplicate block averages", Xt, rbind(c(0,0),c(1,0),c(0,0)), signal, 2L, 4L)
 add("k=s gives ordinary sample means", X, X0, signal, 3L, 3L)
 u <- c(-1,-.2,.1,.35,.6,.9,1.4,2)
 Xs <- cbind(u,2*u)
@@ -160,8 +171,8 @@ for (delta in c(1e-5,1e-9)) {
       Xnear,Tnear,sig_s,
       distance="mahalanobis",independent=FALSE)
 }
-add("reference-only allconstant zero covariance",cbind(rep(5,8),rep(-2,8)),
-    rbind(c(0,0),c(5,-2)),sig_s,k=2L,distance="mahalanobis",independent=FALSE)
+add("all-identical covariates give ordinary sample-mean deletions",cbind(rep(5,8),rep(-2,8)),
+    rbind(c(0,0),c(5,-2)),sig_s,k=2L,distance="mahalanobis",independent=TRUE)
 Xeps <- cbind(c(-1,0,1,0,0),c(0,-2^-26,0,2^-26,0))
 Seps <- cov(Xeps)
 stopifnot(rcond(Seps)==.Machine$double.eps,

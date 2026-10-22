@@ -27,6 +27,12 @@ their numerical normalization. Exact tables always retain the R reference's
 normalization safeguards. Outcomes and distance geometry remain frozen under
 common delete-one resamples. Joint covariance retains cross-target dependence.
 
+{pstd}
+The support formula describes the unaveraged rank table. Averaging across
+identical covariate rows can extend nonzero observation weights to the end of a
+block crossing that edge. Use the actual returned weights for realized support
+and concentration; rank-only tables do not contain the duplicate groups.
+
 {p 4 4 2}
 Distances are {cmd:l2}, {cmd:l1}, {cmd:l2_scaled}, {cmd:l1_scaled}, and
 {cmd:mahalanobis}. For scaled metrics, {cmd:scalerule()} is {cmd:sd},
@@ -38,8 +44,12 @@ The default positive scale floor is 1e-12. Fitted geometry is saved for reuse.
 
 {pstd}
 The documented sampling framework uses independent observations; cluster
-and survey-design inference are not supplied. Input row order breaks distance
-ties, so permuting tied observations can change estimates.
+and survey-design inference are not supplied. Exactly identical raw covariate
+rows receive their block's average signed weight. Each deletion removes the
+actual observation before averaging the n-1 table within the remaining block.
+The resulting estimates and covariance are invariant to aligned permutations
+up to numerical precision. A warning identifies this modification as outside
+the paper's theory. Different vectors at equal distance are not grouped.
 
 
 {p 4 4 2}

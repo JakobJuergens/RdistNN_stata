@@ -56,7 +56,8 @@ real colvector rdistnn_tdnn_table(real scalar n, real scalar s1,
 }
 
 real matrix rdistnn_tdnn_weights(real matrix ranks, real scalar s1,
-    real scalar s2, real scalar dim, string scalar method, real scalar normalize)
+    real scalar s2, real scalar dim, string scalar method, real scalar normalize,
+    | real matrix X)
 {
     real colvector table
     real matrix W
@@ -72,17 +73,22 @@ real matrix rdistnn_tdnn_weights(real matrix ranks, real scalar s1,
         }
         W[,j]=table[ranks[,j]]
     }
+    if(args()>=7 & rows(X)>0) W=rdistnn_block_weights(ranks,W,X)
     return(W)
 }
 
 real matrix rdistnn_tdnn_cov(real matrix ranks, real matrix signal,
     real scalar s1, real scalar s2, real scalar dim, string scalar method,
-    real scalar normalize)
+    real scalar normalize, | real matrix X)
 {
     real scalar n
     real matrix loo
     n=rows(ranks)
-    loo=rdistnn_loo_from_table(ranks,signal,
+    if(args()>=8 & rows(X)>0) {
+        loo=rdistnn_loo_from_table(ranks,signal,
+            rdistnn_tdnn_table(n-1,s1,s2,dim,method,normalize),1,"",X)
+    }
+    else loo=rdistnn_loo_from_table(ranks,signal,
         rdistnn_tdnn_table(n-1,s1,s2,dim,method,normalize),1)
     return(rdistnn_covariance(loo,(n-1)/n,1))
 }

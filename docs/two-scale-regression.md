@@ -31,6 +31,14 @@ it has no effect on the exact tables. Targets use either `x0()` or
 The full-sample weights use the fitted training geometry. Each delete-one
 calculation removes an observation, shifts retained ranks, and rebuilds both
 rank tables at the same `s1`, `s2` and `dim`. Geometry remains fixed.
+Exactly identical raw reporting-covariate rows share the average of their
+signed weights. After deleting a member, its block's `n-1` table mass is divided
+among the survivors; the block is not held at its original size. Signed mass is
+preserved without taking absolute values or adding a block normalization.
+The command warns that this permutation-invariant modification is outside the
+paper's theory. It can change support and concentration. See the
+[shared block rule](weights-and-tuning.md#identical-covariate-rows).
+
 `e(estimate_vcov)` retains covariance across targets and is already on the
 estimator scale. Covariance requires `s2<n`; `nose` permits `s2=n` and leaves
 uncertainty unavailable. Pointwise normal intervals require the relevant
@@ -41,7 +49,10 @@ bands, and the two-scale construction does not establish those conditions.
 
 The signed diagnostic table reports positive, negative and absolute weight
 mass, the signed sum, squared-weight concentration, maximum absolute weight
-and nonzero support. An inverse squared-weight concentration is an algebraic
+and nonzero support, all from the final averaged observation weights. Profiles
+can differ by target; `np_tdnn_plot, type(weights) targets(2)` selects target 2,
+and its returned plot data include `target_id`.
+An inverse squared-weight concentration is an algebraic
 concentration measure; negative weights prevent an ordinary probability-mass
 interpretation. The distance summary uses absolute weights and is labelled
 accordingly. Probability-weighted outcome quantiles and cumulative probability

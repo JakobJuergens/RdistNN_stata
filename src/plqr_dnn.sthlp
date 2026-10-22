@@ -136,11 +136,18 @@ exact k=s gives uniform weights and no target-specific localization.
 {cmd:method(asymp)} uses normalized Beta-rank weights. There is no separate
 normalization option in this command.
 
+{pstd}
+The support formula describes the unaveraged rank table. Averaging across
+identical covariate rows can extend nonzero observation weights to the end of a
+block crossing that edge. Use the actual returned weights for realized support
+and concentration; rank-only tables do not contain the duplicate groups.
+
 {phang}
 {cmd:distance(l2)} uses Euclidean geometry. {cmd:distance(mahalanobis)}
 requires at least two reporting covariates and uses full-estimation-sample
 covariance geometry, with generalized-inverse behavior for singular covariance.
-Input observation position breaks distance ties. The metric stays fixed
+Different covariate vectors at exact distance ties use lexicographic order;
+identical-covariate blocks receive averaged weights. The metric stays fixed
 during deletions. See {help weights_dnn} for the shared rank-weight rules.
 
 {marker covariance}{...}
@@ -148,8 +155,10 @@ during deletions. See {help weights_dnn} for the shared rank-weight rules.
 
 {pstd}
 The documented sampling framework uses independent observations; cluster
-and survey-design inference are not supplied. Input row order breaks distance
-ties, so permuting tied observations can change estimates.
+and survey-design inference are not supplied. Exactly identical raw localization
+covariate rows share their block's average weight in the full sample and every
+deletion's remaining block. Commands warn that this permutation-invariant
+modification is not covered by the paper's theory.
 
 
 {pstd}
@@ -195,9 +204,14 @@ finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
 The fitted scales or Mahalanobis whitening factor remain fixed across
 jackknife deletions and saved-model predictions. Exact distance ties use the
-original covariates lexicographically in their supplied column order, then
-observation order for identical covariate rows. Outcomes and nuisances do not
-enter this ordering; rank weights and effective sample size are preserved.
+original covariates lexicographically in their supplied column order. Exactly
+identical raw localization covariate rows receive their block's average weight.
+Each deletion removes the actual observation and averages the n-1 table over
+the remaining block, redistributing its mass across the fewer surviving members.
+Aligned row permutations preserve estimates and covariance up to numerical
+precision. The command warns that this modification is not covered by the
+paper's theory. Individual weights, support and ESS can change. Distinct vectors
+at equal distance are not grouped; outcomes and nuisances do not define groups.
 
 {title:Stored results}
 

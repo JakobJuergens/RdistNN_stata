@@ -35,6 +35,10 @@ local test_files ///
     test-plot-command-order ///
     test-module-loading     ///
     test-canonical-ties     ///
+    test-duplicate-blocks   ///
+    test-block-numerical-regression ///
+    test-packed-native-transport ///
+    test-weighted-underflow-origin ///
     test-mata-distances      ///
     test-mata-rank-r-mirror  ///
     test-mata-weights-exact  ///
@@ -98,6 +102,7 @@ local test_files ///
     test-clate-dnn-postestimation ///
     test-estimator-reporting ///
     test-saved-prediction     ///
+    test-saved-model-validation ///
     test-candidates          ///
     test-snapshot-observations ///
     test-estimator-diagnostics ///

@@ -122,6 +122,7 @@ program define plqr_dnn, eclass
     tempname b V theta_mat moment_mat moment_vcov_mat
     mata {
         _pl_X      = st_data(., "`xvars'", "`touse'")
+        rdistnn_duplicate_warning(_pl_X)
         _pl_y      = st_data(., "`outcome'", "`touse'")
         _pl_D      = st_data(., "`dvars'", "`touse'")
         _pl_g0     = st_data(., "`gvar'", "`touse'")
@@ -133,12 +134,12 @@ program define plqr_dnn, eclass
         _pl_geometry = rdistnn_fit_geometry(_pl_X,"`distance'","`scalerule'",strtoreal(tokens("`scalevec'")),`scaleeps')
         _pl_DX     = rdistnn_distance_matrix(_pl_X, _pl_x0, "`distance'", _pl_geometry)
         _pl_ranks  = rdistnn_ranks_from_dmat(_pl_DX,_pl_X)
-        _pl_w      = rdistnn_weights_from_ranks(_pl_ranks, `k', `s', "`method'")
+        _pl_w      = rdistnn_weights_from_rmat(_pl_ranks, `k', `s', "`method'",_pl_X)
         _pl_below = rdistnn_plqr_indicator(_pl_D,_pl_theta,_pl_g0,_pl_y)
         _pl_resid  = `tau' :- _pl_below
         _pl_score  = (_pl_D :- _pl_md) :* (_pl_resid * J(1, cols(_pl_D), 1))
         _pl_moment = rdistnn_weighted_signals(_pl_w, _pl_score)
-        _pl_V      = rdistnn_jk_cov_from_ranks(_pl_ranks, _pl_score, `k', `s', "`method'")
+        _pl_V      = rdistnn_jk_cov_from_ranks(_pl_ranks, _pl_score, `k', `s', "`method'",_pl_X)
         _pl_neff   = 1 / sum(_pl_w :^2)
         st_matrix("`b'", _pl_moment)
         st_matrix("`V'", _pl_V)
@@ -183,7 +184,7 @@ program define plqr_dnn, eclass
     ereturn local  method   "`method'"
     ereturn local  se_method "rank_shift"
     ereturn local  jackknife "fast"
-    ereturn local  tie_rule "distance_then_covariates_then_input_position"
+    ereturn local  tie_rule "distance_then_covariates_with_duplicate_block_averaging"
     ereturn local  cmd      "plqr_dnn"
     ereturn local  cmdline  "plqr_dnn `0'"
 

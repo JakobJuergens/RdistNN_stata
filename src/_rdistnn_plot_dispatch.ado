@@ -83,10 +83,7 @@ program define _rdistnn_plot_dispatch, rclass
     }
     if "`type'"=="weights" {
         if "`view'"=="" local view "profile"
-        if "`targets'"!="" & "`view'"!="kernel" {
-            di as error "targets() applies to weight view(kernel); rank weights are common to every target."
-            exit 198
-        }
+
         if `candidate_mode' & "`view'"!="profile" {
             di as error "Candidate weights require view(profile)."
             exit 198
@@ -224,7 +221,7 @@ end
 
 program define _rdistnn_plot_sample_guard
     version 17
-    if e(model_version)!=1 {
+    if e(model_version)!=2 {
         di as error "Observation-level plots require current fitted model state; refit `e(cmd)' with the current package."
         exit 498
     }

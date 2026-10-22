@@ -1,5 +1,7 @@
 # RdistNN for Stata
 
+Release candidate **0.1.2** (unreleased). See [release notes](RELEASE_NOTES.md) for changes.
+
 **RdistNN for Stata** estimates conditional treatment effects and regression
 functions using distributional nearest-neighbor (DNN) weights. Choose covariate
 profiles, fit local estimates, and inspect jackknife standard errors, local
@@ -132,8 +134,12 @@ uncertainty requires `s < n`; `nose` skips it. See
 Intervals are **pointwise**. The framework assumes independent observations;
 cluster and survey-design inference are not supplied. Exact distance ties use
 the original covariates lexicographically in their supplied column order.
-Identical covariate rows retain observation-order ties, so reordering those
-duplicates can change a result. Outcomes and nuisances do not enter this ordering.
+For exactly identical localization covariate rows, weights are averaged within
+each duplicate block, including the remaining block in every jackknife deletion.
+Estimates and covariance are invariant to aligned row permutations up to
+numerical precision. The command warns because this practical modification is
+not covered by the paper's theory. Individual weights, support and effective
+sample size can change. Refit saved objects created before this policy.
 
 Nuisance predictions must be aligned with the estimation observations.
 Propensity clipping is numerical protection, not a remedy for poor overlap.
@@ -153,6 +159,11 @@ your platform using the [plugin guide](src/plugin/README.md). Its engine
 controls and the [numerical implementation reference](docs/numerical-stability.md)
 are intended for performance work and troubleshooting.
 
+Asymptotic Beta tables retain a known rounding limitation at extremely small
+tail masses, including possible R/Stata support differences. See the
+[weight guide](docs/weights-and-tuning.md#numerical-limits) before interpreting
+calculations at those scales.
+
 ## Further reading and help
 
 The [article index](docs/index.md) routes all workflows and runnable examples;
@@ -170,5 +181,5 @@ with [additional permission to link the plugin with Stata](LINKING_EXCEPTION.md)
 
 ## Contributors
 
-Quality assurance, testing and validation:
-[Zakareya Chehime](https://github.com/Zakareya-Chehime).
+- [Jakob R. Juergens](https://jakobjuergens.com/): main package author and maintainer.
+- [Zakareya Chehime](https://github.com/Zakareya-Chehime): quality assurance, testing and validation.

@@ -109,7 +109,7 @@ _rdistnn_assert_from_plus _rdistnn_clate_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_distance_mata.ado, plusnorm("`plus_norm'")
 _rdistnn_assert_from_plus _rdistnn_plot_helpers.ado, plusnorm("`plus_norm'")
-foreach helper in report report_header estimation_state sample_signature diagnostics diagnostics_save plot_dispatch model_store model_mata model_fit model_plot reuse tdnn_mata rank_weights rank_loo distance_plugin accumulation covariance geometry plot_mata {
+foreach helper in report report_header estimation_state sample_signature diagnostics diagnostics_save plot_dispatch model_store model_mata model_fit model_plot reuse tdnn_mata rank_weights rank_loo distance_plugin native_transport accumulation covariance geometry plot_mata {
     _rdistnn_assert_from_plus _rdistnn_`helper'.ado, plusnorm("`plus_norm'")
 }
 _rdistnn_assert_from_plus rdistnn_license.md, plusnorm("`plus_norm'")
@@ -185,6 +185,18 @@ mata: assert(!hasmissing(st_matrix("install_prediction")))
 restore
 capture macro drop rdistnn_distance_engine
 capture macro drop rdistnn_last_distance_engine
+
+// Require the installed original-signal block API, including its native path.
+// A rounded block mean would lose the unit survivor after deleting 2^54.
+mata {
+    install_block_loo=rdistnn_loo_from_table((1::3),(2^54\1\0),(1\0),0,"plugin",(0\0\1))
+    assert(all(install_block_loo:==(1\2^54\2^53)))
+    assert(st_global("rdistnn_last_jackknife_engine")=="plugin")
+    install_eta=rdistnn_power2(-1074)
+    assert(install_eta>0)
+    install_block_loo=rdistnn_loo_from_table((1::3),(install_eta\0\0),(1\0),0,"plugin",(0\0\1))
+    assert(all(install_block_loo:==(0\install_eta\0)))
+}
 
 np_dnn y, xcols(x1 x2) x0(0 0) k(3) s(12)
 if _b[mu] >= . | _se[mu] >= . {
@@ -372,7 +384,7 @@ if e(k) != 1 | e(s) != floor(.4*160^(3/4)) {
 // The CLATE example exercises only freshly installed files, including cold
 // paired evaluator loading, diagnostics and instrument/influence/tuning plots.
 do "__REPO_FROM__/examples/reusing-fits.do"
-if e(model_version)!=1 | e(m)!=3 {
+if e(model_version)!=2 | e(m)!=3 {
     di as error "installed saved-fit prediction example failed."
     exit 459
 }

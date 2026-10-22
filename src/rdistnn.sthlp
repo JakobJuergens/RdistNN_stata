@@ -13,10 +13,11 @@
 weights, diagnostics and native plots
 
 {pstd}
-Stata 17 or later. Package {bf:0.1.1} provides conditional treatment
+Stata 17 or later. Package {bf:0.1.2} provides conditional treatment
 estimation, nonparametric and two-scale regression, and shared reporting.
-RdistNN is the numerical reference for shared functionality; the Stata
-companion has its own documented public surface.
+Shared methods follow the RdistNN contract and are checked against independent
+references and across engines. The Stata companion has its own documented
+public surface.
 
 {marker commands}{...}
 {title:Commands}
@@ -59,6 +60,12 @@ not a request to keep only the first s full-sample observations. Exact support
 ends at rank n-s+k. Larger s tightens localization; ESS=1/sum(w_i^2) measures
 weight concentration. Exact/asymptotic methods and L1/L2, scaled L1/L2 and Mahalanobis metrics are
 available subject to each command's sample/dimension checks.
+
+{pstd}
+The support formula describes the unaveraged rank table. Averaging across
+identical covariate rows can extend nonzero observation weights to the end of a
+block crossing that edge. Use the actual returned weights for realized support
+and concentration; rank-only tables do not contain the duplicate groups.
 
 {pstd}
 {help np_tdnn} combines two orders s1<s2 for conditional mean regression.
@@ -117,6 +124,15 @@ For identification, nuisance-learning and localization conditions, see the
 and the estimator-specific help.
 
 {pstd}
+Commands average localization weights within blocks of exactly identical raw
+covariate rows. Every jackknife deletion removes the observation before
+averaging the remaining block's n-1 weights. Estimates and covariance are
+invariant to aligned row permutations up to numerical precision. Commands warn
+that this modification is not covered by the paper's theory. Individual
+weights, support and ESS can change; distinct covariate vectors at equal
+distance are not averaged. Refit saved objects created before this policy.
+
+{pstd}
 CLATE additionally needs the documented binary-IV causal assumptions for a
 conditional complier interpretation. Negative or near-zero first-stage signals
 are retained with statuses; pointwise Wald inference is not weak-IV-uniform.
@@ -156,6 +172,11 @@ The {browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/num
 describes their behavior and limits. Exact constants retain zero variance;
 unavailable ratio uncertainty retains its numerical status. These safeguards
 do not verify the statistical assumptions for inference.
+{pstd}
+Asymptotic Beta-tail rounding remains unresolved at subnormal scales, including
+possible R/Stata differences in zero versus nonzero support. Normalization and
+native deletion engines cannot recover probability lost in table construction.
+See {help weights_dnn##numerical:weights_dnn} and {help weights_tdnn##numerical:weights_tdnn}.
 
 {title:Contributors}
 

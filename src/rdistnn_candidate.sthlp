@@ -10,11 +10,22 @@ at the candidate's resolved s. It does not enumerate subsamples or rebuild
 geometry. Duplicate resolved orders give identical fits while retaining the
 requested candidate ID. The chosen fit has no nested tuning grid.
 {pstd}
+Weights are reconstructed from saved raw covariates as well as ranks. Exactly
+identical raw covariate rows receive their block's average weight, and each
+deletion redistributes the n-1 table's block mass over the surviving members.
+Commands warn that this modification is outside the paper's theory. Refit
+older saved results without e(model_version)=2 before extracting candidates;
+see {help weights_dnn} for the shared block rule.
+{pstd}
 The parent's covariance policy is retained, including nose. post replaces the
 active fit; store(name) retains a named standalone fit. By default e() and the
 active data are preserved. Errors preserve the active fit. Old results without
 a numeric model snapshot require a refit. PLQR has no integrated Stata candidate
 grid and therefore cannot supply a candidate view.
+{pstd}
+Current snapshots are validated before reconstruction, including dimensions,
+controls, identities, fitted geometry and cached ordering. Refit an incomplete
+or inconsistent snapshot. Validation errors preserve the active data and e().
 {title:Returned results}
 {pstd}
 Returns r(candidate), r(s), and the reporting/prediction matrices documented

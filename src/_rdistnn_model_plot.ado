@@ -13,7 +13,7 @@ program define _rdistnn_model_plot, rclass
         quietly run "`r(fn)'"
     }
     tempname plot
-    mata: st_matrix("`plot'",rdistnn_model_plot_data("`type'",strtoreal(tokens("`targets'"))))
+    noisily mata: st_matrix("`plot'",rdistnn_model_plot_data("`type'",strtoreal(tokens("`targets'"))))
     local nameopt "name(`name')"
     if "`replace'"!="" local nameopt "name(`name', replace)"
     if "`type'"=="kernel" matrix colnames `plot'=target_id rank distance weight cum_share

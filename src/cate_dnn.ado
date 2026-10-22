@@ -230,6 +230,7 @@ program define cate_dnn, eclass
     tempname b V
     mata {
         _ct_X     = st_data(., "`xvars'", "`touse'")
+        rdistnn_duplicate_warning(_ct_X)
         _ct_X0    = st_matrix("`targets_mat'")
         _ct_geometry = _ct_DX = _ct_ranks = J(0,0,.)
         rdistnn_localization_geometry(_ct_X,_ct_X0,"`distance'","`scalerule'",
@@ -260,18 +261,12 @@ program define cate_dnn, eclass
             }
             else {
                 _ct_sg = _ct_candidates[_ct_g, 8]
-                _ct_Wg = rdistnn_weights_from_rmat(_ct_ranks, `k', _ct_sg, "`method'")
+                _ct_Wg = rdistnn_weights_from_rmat(_ct_ranks, `k', _ct_sg, "`method'",_ct_X)
                 _ct_grid_est[_ct_g,.] = rdistnn_weighted_signals(_ct_rho, _ct_Wg)
-                _ct_wr = rdistnn_weights_from_ranks((1::`n'), `k', _ct_sg, "`method'")
-                _ct_topn = min((5, `n'))
-                _ct_ess = 1 / quadsum(_ct_wr :^ 2)
-                _ct_grid_diag[_ct_g,.] = (_ct_ess,
-                    max(abs(_ct_wr)), _ct_topn,
-                    quadsum(abs(_ct_wr[1.._ct_topn])) / quadsum(abs(_ct_wr)),
-                    _ct_ess >= .9 * `n')
+                _ct_grid_diag[_ct_g,.]=rdistnn_grid_weight_diagnostics(_ct_Wg)
                 if ("`se'" == "") {
                     _ct_Vg = rdistnn_jk_cov_multi_from_ranks(
-                        _ct_ranks, _ct_rho, `k', _ct_sg, "`method'")
+                        _ct_ranks, _ct_rho, `k', _ct_sg, "`method'",_ct_X)
                     _ct_grid_se[_ct_g,.] = sqrt(diagonal(_ct_Vg))'
                 }
                 // Save the default's first representative, including when the

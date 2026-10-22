@@ -28,9 +28,15 @@ for the package overview and {help cate_dnn_plot} for figures.
 {pstd}
 ess=1/sum(w^2) measures concentration of normalized weights. max_weight and
 top-1/top-5/top-10 shares measure the largest raw weights. For exact top-k DNN,
-mathematical positive support has n-s+k observations (n-s+1 at k=1).
+the unaveraged rank table has positive support through n-s+k (n-s+1 at k=1).
 n_nonzero_weight counts abs(w)>sqrt(machine epsilon), so extremely small
 positive weights can be excluded. Larger s tightens localization.
+
+{pstd}
+The support formula describes the unaveraged rank table. Averaging across
+identical covariate rows can extend nonzero observation weights to the end of a
+block crossing that edge. Use the actual returned weights for realized support
+and concentration; rank-only tables do not contain the duplicate groups.
 
 {pstd}
 radius_rank_k and radius_rank_s are distances to those nearest ranks under

@@ -22,6 +22,32 @@ The command matches R {cmd:rank_weight_tdnn_exact()} and
 Asymptotic tables use Beta increments with normalization enabled by default.
 Weights may be negative and must not be interpreted as probabilities.
 
+{pstd}
+The support formula describes the unaveraged rank table. Averaging across
+identical covariate rows can extend nonzero observation weights to the end of a
+block crossing that edge. Use the actual returned weights for realized support
+and concentration; rank-only tables do not contain the duplicate groups.
+
+{p 4 4 2}
+For exactly identical raw covariate rows, signed weights are averaged within
+each block without absolute values or renormalization. The command warns that
+this permutation-invariant modification is not covered by the paper's theory.
+Block mass is preserved; individual weights, support and concentration can
+change. The rank table is the unaveraged rule and cannot alone reconstruct
+the final observation weights when duplicate groups occur.
+
+{marker numerical}{...}
+{title:Numerical limits}
+
+{pstd}
+Asymptotic host Beta endpoints, order-statistic averaging and signed TDNN
+blending can lose tiny masses or produce R/Stata support differences at
+subnormal scales. This remains unresolved. Extreme signals can amplify the
+effect in estimates and jackknife covariance. Normalization and native deletion
+engines do not restore probability lost in table construction. See
+{help weights_dnn##numerical:weights_dnn} and the
+{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/numerical-stability.md#asymptotic-tail-limits":numerical reference}.
+
 {title:Saved results}
 
 {p 4 4 2}

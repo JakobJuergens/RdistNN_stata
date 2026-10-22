@@ -8,7 +8,7 @@ program define _rdistnn_model_fit, eclass
         di as error "Current CATE saved results require AIPW or supplied pseudo-outcomes; refit cate_dnn."
         exit 498
     }
-    if e(model_version)!=1 {
+    if e(model_version)!=2 {
         di as error "Active estimates have no supported saved model; refit with the current package version."
         exit 498
     }
@@ -27,10 +27,6 @@ program define _rdistnn_model_fit, eclass
     if `candidate'>0 local lambda=el(e(tuning_candidates),`candidate',7)
     local p=colsof(`targets')
     local m=rowsof(`targets')
-    if `p'!=colsof(e(model_X)) {
-        di as error "Targets must have one column per fitted localization covariate."
-        exit 198
-    }
     foreach file in _rdistnn_mata.ado _rdistnn_clate_mata.ado _rdistnn_model_mata.ado {
         findfile "`file'"
         quietly run "`r(fn)'"

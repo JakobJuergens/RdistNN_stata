@@ -52,6 +52,7 @@ program define np_tdnn, eclass
     local geopt ""
     capture matrix `geom'=r(geometry)
     if !_rc local geopt "geometry(`geom')"
+    mata: rdistnn_duplicate_warning(_td_X)
     mata {
         _td_y=st_data(.,"`outcome'","`touse'")
         st_matrix("`signals'",_td_y)
@@ -68,7 +69,7 @@ program define np_tdnn, eclass
     mata: st_matrix("`concentration'",st_matrix("`diag'")[,5]')
     matrix colnames `concentration'=`labels'
     if "`se'"=="" {
-        mata: st_matrix("`V'",rdistnn_tdnn_cov(st_matrix("`R'"),st_matrix("`signals'"),`s1',`s2',`dim',"`method'",`normalized'))
+        mata: st_matrix("`V'",rdistnn_tdnn_cov(st_matrix("`R'"),st_matrix("`signals'"),`s1',`s2',`dim',"`method'",`normalized',_td_X))
         matrix rownames `V'=`labels'
         matrix colnames `V'=`labels'
         ereturn post `b' `V', esample(`touse')

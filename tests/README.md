@@ -24,7 +24,8 @@ do "tests/tests.do" "test-saved-prediction"
 do "tests/tests.do" "test-candidates"
 do "tests/tests.do" "test-observation-reconstruction"
 do "tests/tests.do" "test-reporting-export-contracts"
-do "tests/tests.do" "test-canonical-covariate-ties"
+do "tests/tests.do" "test-canonical-ties"
+do "tests/tests.do" "test-duplicate-blocks"
 ```
 
 The optional argument is a Stata `strmatch()` wildcard matched against the
@@ -38,7 +39,9 @@ assertions as the full suite.
 | Exact represented rank tables, CDF decisions and near-full subsets | `test-exact-rank-portability.do`, `fixtures/exact_rank_tables.csv` |
 | CATE population signal behavior | `test-cate-signal-contract.do` |
 | Derived coefficient stripes and verified estimation samples | `test-derived-fit-contract.do` |
-| Canonical raw-covariate exact-distance ties, identical-X fallback, subset/permutation invariance, unchanged ESS and current saved prediction | `test-canonical-covariate-ties.do` |
+| Canonical raw-covariate ordering of exact-distance ties, subset/permutation invariance and current saved prediction | `test-canonical-ties.do` |
+| Exact-X block averaging, actual-observation deletion and survivor weights, naive/Mata/native parity, signed TDNN, paired covariance, extreme ranges, reuse and target-specific plots | `test-duplicate-blocks.do` |
+| Original-signal block states, exact finite survivors and signed zero-mass covariance, genuine subnormals, unnormalized mass and forced engine execution | `test-block-numerical-regression.do`, native `test_rdistnn_blocks.cpp` |
 | Weighted CDF boundary indices, physical radius/SD ranges and restored predictions | `test-weighted-distribution-range.do`, `fixtures/weighted_cdf_fixtures.do` |
 | Distances and deterministic ranks | `test-mata-distances.do`, `test-mata-rank-r-mirror.do` |
 | Exact/asymptotic weights | `test-mata-weights-exact.do`, `test-mata-weights-asymp.do`, `test-weights-dnn-*.do` |
@@ -81,6 +84,12 @@ also runs through its exact filename filter. Shared data generators and
 assertions live in `test_framework.do`.
 
 ## Fixtures and controls
+
+Tiny-Beta and close-order fixtures are bounded numerical checks, not a
+guarantee for every subnormal tail. The
+[numerical reference](../docs/numerical-stability.md#asymptotic-tail-limits)
+records unresolved R/Mata support differences and loss during mixtures.
+Keep weight construction separate from fixed-table deletion verification.
 
 Follow the [numerical parity contract](../CONTRIBUTING.md#numerical-parity-contract):
 force and establish native/Mata routes, test fallback separately, retain
@@ -161,3 +170,16 @@ through the master wildcard argument, including `test-saved-prediction`,
 `test-candidates`, `test-observation-reconstruction` and
 `test-reporting-export-contracts`. Reporting/export retains the fixed
 `build/premerge/postestimation-*-profile.svg` filenames consumed by the SVG gate.
+
+`test-packed-native-transport.do` checks balanced frame ordering and padding,
+logical multi-target/component reconstruction, actual packed native execution,
+and forced versus automatic behavior after a recognized packed failure. The
+standalone `rdistnn_loo_plugin_test` exercises the real entry point with malformed
+metadata, overflow, invalid ranks/groups, nonfinite values, padding/shape errors,
+read failures, aliases and bitwise raw/packed comparisons. Legacy capability
+compatibility is also covered by private audit runs against an older binary.
+
+`test-weighted-underflow-origin.do` checks zero survivors, constant signals,
+signed/unnormalized subnormal table mass, amplified rounded duplicate weights,
+centered/raw paths and actual naive/Mata/native execution. It also protects
+ordinary tiny-tail and exact zero-mass origin behavior.

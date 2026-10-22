@@ -16,7 +16,7 @@
 
 {pstd}
 Stata 17 or later is required. See {help rdistnn} for the package overview.
-This help describes the interface in package {bf:0.1.1}.
+This help describes the interface in package {bf:0.1.2}.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -60,8 +60,10 @@ This help describes the interface in package {bf:0.1.1}.
 {pstd}
 The documented sampling framework uses independent observations. Cluster and
 survey-design inference are not supplied. Exact distance ties use original
-covariates lexicographically; identical covariate rows retain observation-order
-ties, so reordering those duplicates can change estimates. Reported order fractions
+covariates lexicographically. Weights are averaged within exactly identical
+covariate blocks, including each deletion's remaining block, to preserve
+estimates and covariance under aligned permutations. A warning identifies this
+modification as outside the paper's theory. Reported order fractions
 are descriptive and do not establish inference conditions.
 
 {pstd}
@@ -171,6 +173,12 @@ inference, s must be less than n; with {opt nose}, s may equal n.  Omitting
 {cmd:s(0)} is the sentinel for the default rule. The uniform cases s=1 or
 k=s give no localization. An infeasible default order raises an error.
 
+{pstd}
+The support formula describes the unaveraged rank table. Averaging across
+identical covariate rows can extend nonzero observation weights to the end of a
+block crossing that edge. Use the actual returned weights for realized support
+and concentration; rank-only tables do not contain the duplicate groups.
+
 {phang}{opt tuningmode(grid)} evaluates a tuning grid after computing target
 ranks once.  The primary {cmd:e(b)}, {cmd:e(V)}, {cmd:e(s)}, and ESS results
 remain anchored to the marked default candidate.  Grid mode cannot be combined
@@ -233,9 +241,14 @@ finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
 The fitted scales or Mahalanobis whitening factor remain fixed across
 jackknife deletions and saved-model predictions. Exact distance ties use the
-original covariates lexicographically in their supplied column order, then
-observation order for identical covariate rows. Outcomes and nuisances do not
-enter this ordering; rank weights and effective sample size are preserved.
+original covariates lexicographically in their supplied column order. Exactly
+identical raw localization covariate rows receive their block's average weight.
+Each deletion removes the actual observation and averages the n-1 table over
+the remaining block, redistributing its mass across the fewer surviving members.
+Aligned row permutations preserve estimates and covariance up to numerical
+precision. The command warns that this modification is not covered by the
+paper's theory. Individual weights, support and ESS can change. Distinct vectors
+at equal distance are not grouped; outcomes and nuisances do not define groups.
 
 {title:Stored results}
 

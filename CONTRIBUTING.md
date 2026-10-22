@@ -46,13 +46,20 @@ and frozen-rank versus geometry-refitting deletions distinct when they define
 different computations. Export numeric fixture data across languages; using
 the same seed in R and Stata does not establish identical random draws.
 
-Require exact ranks, stable original-row tie order, support, target identities,
+Require exact ranks, lexicographic order for distinct covariate vectors at equal
+distance, duplicate-block averaging, support, target identities,
 statuses and missing-value masks after documented representation mappings.
 Compare continuous estimates, distances, weights and covariance at explicit,
 justified tolerances, using exact numeric equality where arithmetic is fully
 specified. A small numeric difference cannot excuse a changed neighbor,
 support or status. Investigate discrepancies before widening tolerances or
 regenerating fixtures.
+
+The [known asymptotic-tail limitation](docs/numerical-stability.md#asymptotic-tail-limits)
+remains unresolved. Fixed-table engine agreement does not establish correct
+weight construction, and bounded Beta fixtures do not certify every tail scale.
+Document the discrepancy rather than broadening tolerances or treating changed
+support as continuous rounding.
 
 Keep decision-sensitive operation order and precision aligned. For distances,
 subtract before applying frozen inverse scales, accumulate coordinates in

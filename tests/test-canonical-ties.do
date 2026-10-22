@@ -67,7 +67,7 @@ foreach family in np cate clate plqr tdnn {
     quietly `cmd' `input', `xopt' `targets' `extra'
     matrix TB=e(estimates)
     test_assert "`family': fresh point estimate follows canonical ties" abs(TB[1,1]-`expected')<1e-12
-    test_assert "`family': fresh fit records canonical tie provenance" "`e(tie_rule)'"=="distance_then_covariates_then_input_position"
+    test_assert "`family': fresh fit records canonical tie provenance" "`e(tie_rule)'"=="distance_then_covariates_with_duplicate_block_averaging"
     tempfile cold
     quietly estimates save "`cold'", replace
     preserve
@@ -82,7 +82,7 @@ foreach family in np cate clate plqr tdnn {
     quietly estimates use "`cold'"
     quietly rdistnn_predict, x0matrix(TT) sefit post
     matrix TP=e(estimates)
-    test_assert "`family': cold saved prediction keeps canonical ties and target identities" abs(TP[1,1]-`expected')<1e-12 & TP[1,1]==TP[1,2] & "`e(tie_rule)'"=="distance_then_covariates_then_input_position"
+    test_assert "`family': cold saved prediction keeps canonical ties and target identities" abs(TP[1,1]-`expected')<1e-12 & TP[1,1]==TP[1,2] & "`e(tie_rule)'"=="distance_then_covariates_with_duplicate_block_averaging"
     restore
 }
 
@@ -93,7 +93,7 @@ foreach family in np cate clate {
     quietly `family'_dnn ty, xcols(tx1 tx2) x0(0 0) `extra' tuningmode(grid) sgrid(2 3 2) sdefault(3)
     quietly rdistnn_candidate, candidate(1) post
     matrix TB=e(estimates)
-    test_assert "`family': candidate extraction reuses canonical ranks without changing ESS" abs(TB[1,1]-50/3)<1e-12 & abs(e(neff)-18/7)<1e-14 & "`e(tie_rule)'"=="distance_then_covariates_then_input_position"
+    test_assert "`family': candidate extraction reuses canonical ranks without changing ESS" abs(TB[1,1]-50/3)<1e-12 & abs(e(neff)-18/7)<1e-14 & "`e(tie_rule)'"=="distance_then_covariates_with_duplicate_block_averaging"
 }
 
 quietly np_dnn ty, xcols(tx1 tx2) x0(0 0) s(3) nose

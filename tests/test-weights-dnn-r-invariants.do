@@ -36,11 +36,11 @@ gen double x2 = 0
 weights_dnn x1 x2, x0(0 0) k(2) s(4) method(exact) generate(w_tie)
 mata {
     _w_cmd = st_data(., "w_tie")
-    _w_ref = rdistnn_weights_from_ranks((1::10), 2, 4, "exact")
+    _w_ref = J(10,1,1/10)
     st_numscalar("_weights_tie_diff", max(abs(_w_cmd - _w_ref)))
     st_numscalar("_weights_tie_sum", abs(sum(_w_cmd) - 1))
 }
-test_assert "[ties] all-equal X uses row-index tie order" scalar(_weights_tie_diff) < 1e-12
+test_assert "[ties] all-equal X averages all ranks to sample-mean weights" scalar(_weights_tie_diff) < 1e-12
 test_assert "[ties] plateau weights sum to one" scalar(_weights_tie_sum) < 1e-12
 
 test_section "weights_dnn: [ifin] generated weights respect estimation sample"

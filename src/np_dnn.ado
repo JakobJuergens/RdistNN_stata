@@ -143,6 +143,7 @@ program define np_dnn, eclass
     tempname b V
     mata {
         _np_X = st_data(., "`xvars'", "`touse'")
+        rdistnn_duplicate_warning(_np_X)
         _np_X0 = st_matrix("`targets_mat'")
         _np_geometry = _np_DX = _np_ranks = J(0,0,.)
         rdistnn_localization_geometry(_np_X,_np_X0,"`distance'","`scalerule'",
@@ -173,18 +174,12 @@ program define np_dnn, eclass
             }
             else {
                 _np_sg = _np_candidates[_np_g, 8]
-                _np_Wg = rdistnn_weights_from_rmat(_np_ranks, `k', _np_sg, "`method'")
+                _np_Wg = rdistnn_weights_from_rmat(_np_ranks, `k', _np_sg, "`method'",_np_X)
                 _np_grid_est[_np_g,.] = rdistnn_weighted_signals(_np_y, _np_Wg)
-                _np_wr = rdistnn_weights_from_ranks((1::`n'), `k', _np_sg, "`method'")
-                _np_topn = min((5, `n'))
-                _np_ess = 1 / quadsum(_np_wr :^ 2)
-                _np_grid_diag[_np_g,.] = (_np_ess,
-                    max(abs(_np_wr)), _np_topn,
-                    quadsum(abs(_np_wr[1.._np_topn])) / quadsum(abs(_np_wr)),
-                    _np_ess >= .9 * `n')
+                _np_grid_diag[_np_g,.]=rdistnn_grid_weight_diagnostics(_np_Wg)
                 if ("`se'" == "") {
                     _np_Vg = rdistnn_jk_cov_multi_from_ranks(
-                        _np_ranks, _np_y, `k', _np_sg, "`method'")
+                        _np_ranks, _np_y, `k', _np_sg, "`method'",_np_X)
                     _np_grid_se[_np_g,.] = sqrt(diagonal(_np_Vg))'
                 }
                 // Save the default's first representative, including when the

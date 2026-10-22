@@ -131,7 +131,7 @@ test_assert "signed diagnostics retain requested order" el(TD_d,1,1)==2 & el(TD_
 test_assert "signed diagnostics report negative mass" el(TD_d,1,6)>0
 quietly np_tdnn_plot, type(weights) nodraw replace
 matrix TD_plot=r(plot_data)
-test_assert "signed weight plot exposes numeric data" colsof(TD_plot)==2
+test_assert "signed weight plot exposes numeric data" colsof(TD_plot)==3
 test_section "TDNN: observation mapping and signed concentration state"
 preserve
 replace x1=. in 4

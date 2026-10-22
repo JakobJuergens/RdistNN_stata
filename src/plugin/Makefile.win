@@ -19,6 +19,8 @@ CORE_TEST = rdistnn_core_test.exe
 DISTANCE_TEST = rdistnn_distance_test.exe
 PROTOCOL_TEST = rdistnn_distance_plugin_test.exe
 ROUNDING_TEST = rdistnn_distance_rounding_test.exe
+BLOCK_TEST = rdistnn_blocks_test.exe
+LOO_PROTOCOL_TEST = rdistnn_loo_plugin_test.exe
 HEADERS  = rdistnn_core.hpp rdistnn_distance.hpp compensated_arithmetic.hpp
 SRCS     = stplugin.c rdistnn_plugin.cpp
 
@@ -42,15 +44,25 @@ $(ROUNDING_TEST): test_rdistnn_distance_rounding.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) /Fe$(ROUNDING_TEST) test_rdistnn_distance_rounding.cpp
 	-del /f test_rdistnn_distance_rounding.obj 2>nul
 
+$(BLOCK_TEST): test_rdistnn_blocks.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) /Fe$(BLOCK_TEST) test_rdistnn_blocks.cpp
+	-del /f test_rdistnn_blocks.obj 2>nul
 
-check: $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST)
+
+$(LOO_PROTOCOL_TEST): test_rdistnn_loo_plugin.cpp rdistnn_plugin.cpp $(HEADERS) stplugin.h
+	$(CXX) $(CXXFLAGS) /Fe$(LOO_PROTOCOL_TEST) test_rdistnn_loo_plugin.cpp
+	-del /f test_rdistnn_loo_plugin.obj 2>nul
+
+check: $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST) $(BLOCK_TEST) $(LOO_PROTOCOL_TEST)
 	$(CORE_TEST)
 	$(DISTANCE_TEST) 2 2 0.5790338377234229 1.4758492921057114
 	$(PROTOCOL_TEST)
 	$(ROUNDING_TEST) 2 2 0.5790338377234229 1.4758492921057114
+	$(BLOCK_TEST)
+	$(LOO_PROTOCOL_TEST)
 
 clean:
-	-del /f $(TARGET) $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST) *.obj *.exp *.lib
+	-del /f $(TARGET) $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST) $(BLOCK_TEST) $(LOO_PROTOCOL_TEST) *.obj *.exp *.lib
 
 # Alternative: build with MinGW/GCC (e.g. via Rtools)
 #
