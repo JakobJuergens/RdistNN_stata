@@ -7,6 +7,8 @@ capture mata: mata drop rdistnn_sample_sd()
 capture mata: mata drop rdistnn_fit_geometry()
 capture mata: mata drop rdistnn_ranks()
 capture mata: mata drop rdistnn_scaled_difference()
+capture mata: mata drop rdistnn_distance_power2()
+capture mata: mata drop rdistnn_scaled_norm_row()
 capture mata: mata drop rdistnn_l2_range_row()
 capture mata: mata drop rdistnn_distance_matrix()
 capture mata: mata drop rdistnn_ranks_from_dmat()
@@ -30,25 +32,17 @@ real colvector rdistnn_l2dist(real matrix X, real rowvector x0)
 
 // ── rdistnn_order ─────────────────────────────────────────────────────
 // Return the integer rank order (1 = nearest) of each observation
-// by distance to x0. Raw covariates resolve ties when supplied; identical
-// covariates and distance-only callers retain original-position fallback.
+// by distance to x0, breaking exact represented ties by original row order.
 //
 // Returns: n-vector of integer ranks.
 //
-real colvector rdistnn_order(real colvector dist2, | real matrix X)
+real colvector rdistnn_order(real colvector dist2)
 {
     real colvector  idx, rnk
     real scalar     n, i
 
     n   = rows(dist2)
-    if(args()<2) idx = order((dist2, (1::n)), (1, 2))
-    else {
-        if(rows(X)!=n | cols(X)<1 | hasmissing(X)) {
-            errprintf("Covariate tie ordering requires finite aligned raw covariates.\n")
-            exit(error(198))
-        }
-        idx = order((dist2,X,(1::n)),1..(cols(X)+2))
-    }
+    idx = order((dist2, (1::n)), (1, 2))
     rnk = J(n, 1, .)
     for (i = 1; i <= n; i++) {
         rnk[idx[i]] = i
@@ -173,7 +167,7 @@ real colvector rdistnn_ranks(real matrix X, real rowvector x0,
 {
     if(args()<3) distance="l2"
     if(args()<4) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
-    return(rdistnn_order(rdistnn_distance_matrix(X,x0,distance,geometry),X))
+    return(rdistnn_order(rdistnn_distance_matrix(X,x0,distance,geometry)))
 }
 
 // Shared scalar recovery for scaled L1/L2; valid final differences may fit
@@ -181,13 +175,89 @@ real colvector rdistnn_ranks(real matrix X, real rowvector x0,
 real scalar rdistnn_scaled_difference(real scalar x,real scalar target,
     real scalar inverse)
 {
-    real scalar d,half_x,half_t
+    real scalar d,half_x,half_t,half
     d=x-target
-    if(missing(d) & abs(inverse)<1) {
+    if(abs(d)>=. & abs(inverse)<1) {
         half_x=x*0.5; half_t=target*0.5
-        return((half_x-half_t)*(inverse+inverse))
+        half=half_x-half_t
+        if(abs(half)>=.) return((x*.25-target*.25)*(4*inverse))
+        return(half*(inverse+inverse))
     }
     return(d*inverse)
+}
+
+// Split the restoration so a representable final subnormal is rounded once.
+// Match R truncation and C++ integer division, including negative powers.
+real scalar rdistnn_distance_power2(real scalar value, real scalar power)
+{
+    real scalar half
+    if(value==0) return(value)
+    half=trunc(power/2)
+    return((value*rdistnn_power2(half))*rdistnn_power2(power-half))
+}
+
+// Exceptional scaled products retain binary exponents through the complete
+// row norm. Ordinary rows continue using their original rounded products.
+real scalar rdistnn_scaled_norm_row(real matrix X, real scalar i,
+    real rowvector target, real rowvector inverse, real scalar l2,
+    | real scalar squared)
+{
+    real scalar c,raw,shift,m,e,scale_m,scale_e,total,ratio,square,term
+    real scalar active,rounded_max,rounded,norm
+    real rowvector left,right
+    if(args()<6) squared=0
+    scale_m=total=0; scale_e=0; active=0; rounded_max=0
+    for(c=1;c<=cols(X);c++) {
+        raw=X[i,c]-target[c]; shift=0
+        if(abs(raw)>=.) {
+            raw=X[i,c]*.25-target[c]*.25
+            shift=2
+        }
+        if(raw==0 | inverse[c]==0) continue
+        if(missing(raw) | missing(inverse[c])) return(abs(raw*inverse[c]))
+        active=active+1
+        rounded=abs(rdistnn_scaled_difference(X[i,c],target[c],inverse[c]))
+        // Mata max() ignores missing, whereas a coordinate overflow must
+        // remain an explicit distance overflow after norm recovery.
+        if(missing(rounded)) return(rounded)
+        rounded_max=max((rounded_max,rounded))
+        left=rdistnn_binary_parts(abs(raw))
+        right=rdistnn_binary_parts(abs(inverse[c]))
+        while(left[1]>=1) {
+            left[1]=left[1]/2; left[2]=left[2]+1
+        }
+        while(right[1]>=1) {
+            right[1]=right[1]/2; right[2]=right[2]+1
+        }
+        m=left[1]*right[1]; e=left[2]+right[2]+shift
+        if(m<.5) {
+            m=m*2; e=e-1
+        }
+        if(scale_m==0) {
+            scale_m=m; scale_e=e; total=1
+        }
+        else if(e>scale_e | (e==scale_e & m>scale_m)) {
+            ratio=rdistnn_distance_power2(scale_m/m,scale_e-e)
+            square=ratio*ratio
+            term=total*(l2 ? square : ratio)
+            total=1+term
+            scale_m=m; scale_e=e
+        }
+        else {
+            ratio=rdistnn_distance_power2(m/scale_m,e-scale_e)
+            square=ratio*ratio
+            total=total+(l2 ? square : ratio)
+        }
+    }
+    if(scale_m==0) return(0)
+    // Preserve direct product rounding for a single active coordinate,
+    // including rows padded with zeros at subnormal rounding boundaries.
+    if(active==1) return(squared ? rounded_max*rounded_max : rounded_max)
+    if(squared) return(rdistnn_distance_power2((scale_m*total)*scale_m,2*scale_e))
+    norm=rdistnn_distance_power2(scale_m*(l2 ? sqrt(total) : total),scale_e)
+    if(missing(norm)) return(norm)
+    // Monotonic rounding preserves the exact norm's coordinate lower bound.
+    return(max((norm,rounded_max)))
 }
 
 // Recompute an exceptional row with constant accumulator workspace. Ordinary
@@ -197,10 +267,10 @@ real scalar rdistnn_l2_range_row(real matrix X, real scalar i,
     real rowvector target, real matrix geometry, real scalar scaled)
 {
     real scalar c,d,a,scale,ssq,ratio,term
+    if(scaled) return(rdistnn_scaled_norm_row(X,i,target,1:/geometry,1))
     scale=0; ssq=1
     for(c=1;c<=cols(X);c++) {
         d=X[i,c]-target[c]
-        if(scaled) d=rdistnn_scaled_difference(X[i,c],target[c],1/geometry[c])
         a=abs(d)
         if(missing(a)) return(.)
         if(a!=0) {
@@ -224,9 +294,9 @@ real scalar rdistnn_l2_range_row(real matrix X, real scalar i,
 real matrix rdistnn_distance_matrix(real matrix X, real matrix X0,
     | string scalar distance, real matrix geometry)
 {
-    real scalar j,m,c,i
+    real scalar j,m,c,i,inverse
     real matrix dmat,A
-    real colvector total,exceptional,square,redo
+    real colvector total,exceptional,square,redo,raw
     string scalar engine,plugin_mode
     real scalar native_batch
     st_global("rdistnn_last_distance_engine","")
@@ -272,7 +342,7 @@ real matrix rdistnn_distance_matrix(real matrix X, real matrix X0,
                 return(dmat)
             }
             if(engine=="plugin" | plugin_mode=="1") {
-                errprintf("Compiled distance API unavailable or failed; install an updated plugin or use automatic/Mata dispatch.\n")
+                errprintf("Compiled distance API is unavailable; install the current plugin or set rdistnn_distance_engine mata.\n")
                 exit(error(498))
             }
         }
@@ -281,28 +351,31 @@ real matrix rdistnn_distance_matrix(real matrix X, real matrix X0,
     m=rows(X0); dmat=J(rows(X),m,.)
     for(j=1;j<=m;j++) {
         A=X:-X0[j,]
-        if(distance=="l1_scaled" | distance=="l2_scaled") A=A:*(1:/geometry)
+        exceptional=J(rows(X),1,0)
+        if(distance=="l1_scaled" | distance=="l2_scaled") {
+            for(c=1;c<=cols(A);c++) {
+                raw=A[,c]; inverse=1/geometry[c]
+                exceptional=exceptional :| (abs(raw):>=.)
+                A[,c]=raw:*inverse
+                exceptional=exceptional :|
+                    ((raw:!=0) :& (inverse!=0) :& (abs(A[,c]):<2.2250738585072014e-308))
+            }
+        }
         // Match the R/native coordinate order, including rounding at near ties.
         // rowsum() may use wider accumulation and therefore change ranks.
         if(distance=="l1" | distance=="l1_scaled") {
-            if(distance=="l1_scaled" & hasmissing(A)) {
-                // Revisit only failed coordinates; finite ordinary products
-                // and their accumulation order are left intact.
-                for(c=1;c<=cols(A);c++) {
-                    redo=selectindex(A[,c]:>=.)
-                    for(i=1;i<=length(redo);i++) {
-                        A[redo[i],c]=rdistnn_scaled_difference(
-                            X[redo[i],c],X0[j,c],1/geometry[c])
-                    }
-                }
-            }
             total=J(rows(X),1,0)
             for(c=1;c<=cols(A);c++) total=total:+abs(A[,c])
             dmat[,j]=total
+            if(distance=="l1_scaled") {
+                redo=selectindex(exceptional)
+                for(i=1;i<=length(redo);i++) {
+                    dmat[redo[i],j]=rdistnn_scaled_norm_row(X,redo[i],X0[j,],1:/geometry,0)
+                }
+            }
         }
         else if(distance=="l2" | distance=="l2_scaled") {
             total=J(rows(X),1,0)
-            exceptional=J(rows(X),1,0)
             for(c=1;c<=cols(A);c++) {
                 square=A[,c]:*A[,c]
                 // Missing squares propagate to total; form row masks only
@@ -334,7 +407,7 @@ real matrix rdistnn_distance_matrix(real matrix X, real matrix X0,
 }
 
 // Convert each distance column to a full rank permutation.
-real matrix rdistnn_ranks_from_dmat(real matrix dmat, | real matrix X)
+real matrix rdistnn_ranks_from_dmat(real matrix dmat)
 {
     real scalar j
     real matrix ranks
@@ -345,8 +418,7 @@ real matrix rdistnn_ranks_from_dmat(real matrix dmat, | real matrix X)
     }
     ranks = J(rows(dmat), cols(dmat), .)
     for (j = 1; j <= cols(dmat); j++) {
-        if(args()<2) ranks[,j] = rdistnn_order(dmat[,j])
-        else ranks[,j] = rdistnn_order(dmat[,j],X)
+        ranks[,j] = rdistnn_order(dmat[,j])
     }
     return(ranks)
 }
@@ -359,7 +431,7 @@ real matrix rdistnn_ranks_matrix(real matrix X, real matrix X0,
     if (args() < 3) distance = "l2"
     if (args() < 4) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
     return(rdistnn_ranks_from_dmat(
-        rdistnn_distance_matrix(X, X0, distance, geometry),X))
+        rdistnn_distance_matrix(X, X0, distance, geometry)))
 }
 
 // Physical radius always uses ordinary original-coordinate Euclidean distance.

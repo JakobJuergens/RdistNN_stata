@@ -28,10 +28,10 @@ mata {
     _r1 = rdistnn_ranks(_X, (0, 0), "l2")
     _r2 = rdistnn_ranks(_X, (0, 0), "l2")
     st_numscalar("_tie_repeat", max(abs(_r1 - _r2)))
-    st_numscalar("_tie_expected", max(abs(_r1 - (4 \ 1 \ 3 \ 2))))
+    st_numscalar("_tie_expected", max(abs(_r1 - (1::4))))
 }
 test_assert "[ties] repeated tie ranking is deterministic" scalar(_tie_repeat) == 0
-test_assert "[ties] symmetric L2 ties use raw covariate lexicographic order" scalar(_tie_expected) == 0
+test_assert "[ties] distinct symmetric L2 profiles use original row order" scalar(_tie_expected) == 0
 
 test_section "rdistnn_ranks: [perm] row permutation maps ranks consistently"
 

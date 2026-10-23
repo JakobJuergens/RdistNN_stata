@@ -3,7 +3,7 @@
 `cate_dnn` and `np_dnn` share localization, tuning, batch-target and reporting
 conventions. Their inputs determine what the local average means: CATE
 averages an observation-level treatment-effect signal, while NP regression
-averages an outcome. This article documents package **0.1.2**.
+averages an outcome. This article documents package **0.1.3**.
 See [getting started](getting-started.md) for installation and a compact tour.
 
 ## Targets and samples
@@ -156,9 +156,9 @@ supported by the implementation. `method(asymp)` uses beta-order-statistic
 increments, rather than the finite-population exact weights. The exact
 support formula does not apply to that approximation.
 
-The support formula refers to the unaveraged rank table. With duplicate
-covariate rows, block averaging can give observations beyond that edge nonzero
-weight. Calculate realized support and concentration from the final weights.
+The support formula refers to the unaveraged rank table. Exact-distance
+averaging can give observations beyond that edge nonzero weight when their
+group crosses it. Calculate realized support and concentration from the final weights.
 
 L2 distances depend on covariate scales. Scaled and Mahalanobis metrics use
 training-sample geometry, held fixed during deletions and saved prediction.

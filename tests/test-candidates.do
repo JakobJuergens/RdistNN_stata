@@ -15,7 +15,7 @@ if `candidate_rc'==0 {
     test_assert "candidate extraction preserves active e()" scalar(_fr_parent)==0 & e(s)==3
     test_assert "candidate extraction uses the requested order" abs(FR_CANDIDATE[1,1]-`candidate_estimate'[3,1])<1e-12
     rdistnn_candidate, candidate(3) post
-    test_assert "explicit candidate posting creates a reusable fit" e(s)==4 & e(model_version)==2 & "`e(cmd)'"=="np_dnn"
+    test_assert "explicit candidate posting creates a reusable fit" e(s)==4 & e(model_version)==3 & "`e(cmd)'"=="np_dnn"
 }
 matrix FR_TARGETS=(0\.5\2)
 quietly np_dnn fr_y, xcols(fr_x) x0matrix(FR_TARGETS) s(3)
@@ -62,6 +62,6 @@ foreach family in np cate clate {
     quietly `family'_dnn_diagnostics
     quietly `family'_dnn_plot, type(estimates) name(fr_candidate_plot) replace nodraw
     quietly rdistnn_predict, x0(.5) sefit
-    test_assert "`family': candidate supports reporting, plots and subsequent prediction" e(model_version)==2 & e(s)==5
+    test_assert "`family': candidate supports reporting, plots and subsequent prediction" e(model_version)==3 & e(s)==5
     estimates drop fr_candidate
 }

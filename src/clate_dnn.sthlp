@@ -15,7 +15,7 @@
 
 {pstd}
 Stata 17 or later is required. Supplied-prediction CLATE and ordinary paired-signal
-ratios are supported workflows in the package version {bf:0.1.2} under the documented
+ratios are supported workflows in the package version {bf:0.1.3} under the documented
 pointwise inference conditions. See {help rdistnn} for package navigation.
 
 {marker syntax}{...}
@@ -144,14 +144,15 @@ Larger s tightens localization; exact k=s gives uniform weights.
 {cmd:method(asymp)} uses normalized Beta-rank weights.
 {cmd:distance(mahalanobis)} holds full-estimation-sample covariance geometry
 fixed across deletions, using generalized-inverse behavior for singular covariance.
-Different covariate vectors at exact distance ties use lexicographic order;
-identical-covariate blocks receive averaged weights.
+At each target, observations with exactly equal represented selected-metric
+distance share the mean of their assigned rank weights, including distinct
+covariate profiles. No tolerance groups nearby distances.
 
 {pstd}
-The support formula describes the unaveraged rank table. Averaging across
-identical covariate rows can extend nonzero observation weights to the end of a
-block crossing that edge. Use the actual returned weights for realized support
-and concentration; rank-only tables do not contain the duplicate groups.
+The support formula describes the unaveraged rank table. Averaging assigned
+weights across exact-distance groups can extend nonzero observation weights to
+the end of a group crossing that edge. Use actual returned weights for realized
+support and concentration; rank-only tables do not contain target-specific groups.
 
 {phang}
 {cmd:tuningmode(grid)} compares multipliers .3 .4 .5 .75 while retaining the
@@ -175,10 +176,11 @@ without changing the fitted arrays. It does not create simultaneous bands.
 
 {pstd}
 The documented sampling framework uses independent observations; cluster
-and survey-design inference are not supplied. Exactly identical raw localization
-covariate rows share their block's average weight in the full sample and every
-deletion's remaining block. Commands warn that this permutation-invariant
-modification is not covered by the paper's theory.
+and survey-design inference are not supplied. At each target, observations with
+exactly equal represented selected-metric distance share the mean of their
+assigned rank weights for both signals, including each deletion's surviving
+group. No tolerance groups nearby distances. Inference with persistent distance
+ties is not established.
 
 
 {pstd}
@@ -235,8 +237,6 @@ and no Wald statistic, p-value or interval. {cmd:nose} instead gives missing
 uncertainty and covariance status 1. No zero coefficient substitutes for an
 undefined ratio. All requested target positions remain in canonical tables.
 
-{marker results}{...}
-
 {title:Distance scaling}
 
 {pstd}
@@ -252,16 +252,19 @@ are absolute scales, not inverse scales. Each scale is floored at the positive
 finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
 The fitted scales or Mahalanobis whitening factor remain fixed across
-jackknife deletions and saved-model predictions. Exact distance ties use the
-original covariates lexicographically in their supplied column order. Exactly
-identical raw localization covariate rows receive their block's average weight.
-Each deletion removes the actual observation and averages the n-1 table over
-the remaining block, redistributing its mass across the fewer surviving members.
-Aligned row permutations preserve estimates and covariance up to numerical
-precision. The command warns that this modification is not covered by the
-paper's theory. Individual weights, support and ESS can change. Distinct vectors
-at equal distance are not grouped; outcomes and nuisances do not define groups.
+jackknife deletions and saved-model predictions. Ranks use represented selected-metric distance then original row index.
+At each target, observations with exactly equal distance share the mean of their
+assigned rank weights, including different covariate profiles and zero-weight
+ranks beyond nominal support. No tolerance or rounding groups nearby distances.
+Each deletion removes the actual observation before averaging the n-1 table
+over each remaining group using its survivor count. Signed and unnormalized
+mass is preserved; individual weights, support and ESS can change. Aligned row
+permutations preserve estimates and covariance up to numerical precision.
+The paper assumes a continuous distance distribution, under which old and new
+rules agree almost surely. Inference with persistent distance ties and a uniform
+MSE improvement are not established; outcomes and nuisances do not define groups.
 
+{marker results}{...}
 {title:Stored results}
 
 {pstd}
@@ -341,7 +344,7 @@ Undefined ratios retain target positions; unavailable bounds remain missing.
 {pstd}
 {help clate_dnn_diagnostics} supplies instrument-labelled target diagnostics,
 first-stage SE/statistic, paired components and statuses. Shared stored
-{cmd:e(diagnostics)} retains CATE slot names for compatibility; treated/control
+{cmd:e(diagnostics)} uses shared CATE slot names; treated/control
 slots mean instrument 1/0. Influence concentration uses
 abs(w*(phi_Y-theta*phi_D)), not individual effects or deletion pseudo-values.
 {help clate_dnn_plot} covers estimates, overlap, weights, influence and grids.

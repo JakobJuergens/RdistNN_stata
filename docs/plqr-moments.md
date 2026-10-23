@@ -87,9 +87,9 @@ Larger `s` tightens localization, opposite to an ordinary bandwidth; exact
 weights. `distance(mahalanobis)` requires at least two reporting covariates
 and uses the covariance geometry of the full estimation sample.
 
-The support formula refers to the unaveraged rank table. With duplicate
-covariate rows, block averaging can give observations beyond that edge nonzero
-weight. Calculate realized support and concentration from the final weights.
+The support formula refers to the unaveraged rank table. Exact-distance
+averaging can give observations beyond that edge nonzero weight when their
+group crosses it. Calculate realized support and concentration from the final weights.
 
 For each deletion the command removes one row, shifts the other rows' ranks,
 and recomputes the weights at the same target, `s`, `k` and method. It freezes

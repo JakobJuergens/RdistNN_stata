@@ -3,7 +3,7 @@
 `clate_dnn` estimates a conditional local average treatment effect using a
 binary instrument `A`, binary treatment `D`, and externally supplied nuisance
 predictions. Supplied-prediction CLATE and ordinary paired-signal ratios are
-supported workflows in package version **0.1.2** under the documented pointwise
+supported workflows in package version **0.1.3** under the documented pointwise
 inference conditions.
 Start with the [documentation index](index.md) for installation
 and the [runnable oracle example](../examples/clate.do) for a complete script.
@@ -15,12 +15,13 @@ assumptions are given in the
 [paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z).
 Conditional LATE generally differs from population CATE and residualized IV.
 
-Exactly identical reporting-covariate rows receive their block's average
-localization weight, shared by the numerator and denominator. Each deletion
-removes the actual observation before averaging the remaining block's `n-1`
-weights. Grouping uses `xcols()`, not treatment, instrument or nuisance values.
-The command warns that this permutation-invariant modification is outside the
-paper's theory; it does not establish inference for discrete covariate designs.
+At each target, observations with exactly equal represented selected-metric
+distance share the mean of their assigned rank weights, using the same groups
+for numerator and denominator. Each deletion removes the actual observation
+before averaging the remaining group's `n-1` weights. Treatment, instrument and
+nuisance values do not define the groups. The paper assumes a continuous
+distance distribution, under which old and new rules agree almost surely;
+inference with persistent distance ties is not established.
 
 ## Inputs and the augmented signals
 
@@ -31,11 +32,11 @@ before estimation.
 
 | Stata option | Quantity evaluated at each observation's full adjustment state |
 | --- | --- |
-| `ecol(e)` | `Pr(A=1 | V)`, instrument propensity |
-| `my0col(my0)` | `E[Y | A=0,V]` |
-| `my1col(my1)` | `E[Y | A=1,V]` |
-| `md0col(md0)` | `E[D | A=0,V]` |
-| `md1col(md1)` | `E[D | A=1,V]` |
+| `ecol(e)` | `Pr(A=1 \| V)`, instrument propensity |
+| `my0col(my0)` | `E[Y \| A=0,V]` |
+| `my1col(my1)` | `E[Y \| A=1,V]` |
+| `md0col(md0)` | `E[D \| A=0,V]` |
+| `md1col(md1)` | `E[D \| A=1,V]` |
 
 The arm indices refer to the **instrument**, not treatment. Both adjusted
 signals use the same propensity and DNN weights; the fit divides their local

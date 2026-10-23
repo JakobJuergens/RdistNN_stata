@@ -1,6 +1,7 @@
 // Frozen R-compatible distance geometry and batched observation-level weights.
 quietly do "src/_rdistnn_mata.ado"
 do "tests/test_framework.do"
+do "tests/helpers/distance-reference.do"
 quietly do "tests/fixtures/r_geometry_fixtures.do"
 test_section "R geometry and batch weights"
 foreach rule in sd mad iqr range custom {
@@ -61,14 +62,14 @@ foreach metric in l1 l1_scaled l2_scaled mahalanobis {
             mata: GG=st_matrix("e(model_geometry)")
         }
         // Independent explicit deletion reference: preserve original row ties
-        // and fixed full-sample geometry; rebuild ranks and weights each time.
+        // and fixed full-sample geometry; independently enumerate tied subset choices.
         mata {
             GL=J(rows(GX),rows(GX0),.)
             for(gi=1;gi<=rows(GX);gi++) {
                 gkeep=selectindex((1::rows(GX)):!=gi)
                 gdx=rdistnn_distance_matrix(GX[gkeep,],GX0,"`metric'",GG)
                 gr=rdistnn_ranks_from_dmat(gdx)
-                gw=rdistnn_weights_from_rmat(gr,1,3,"exact")
+                gw=rdistnn_test_subset_weights(gdx,1,3)
                 GL[gi,]=GY[gkeep,]'*gw
             }
             GC=GL:-mean(GL)
@@ -86,7 +87,7 @@ foreach metric in l1 l1_scaled l2_scaled mahalanobis {
         matrix NEW0=(.7,5,8)
         mata {
             gdx=rdistnn_distance_matrix(GX,st_matrix("NEW0"),"`metric'",GG)
-            gw=rdistnn_weights_from_rmat(rdistnn_ranks_from_dmat(gdx),1,3,"exact")
+            gw=rdistnn_test_subset_weights(gdx,1,3)
             st_matrix("GPred",GY'*gw)
         }
         np_dnn y, xcols(x1 x2 x3) x0matrix(RG_X0) s(3) distance(`metric') `scaleopts'

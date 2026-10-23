@@ -163,3 +163,53 @@ matrix DIAG_UNDEFINED = r(localization)
 matrix DIAG_UNDEFINED_STATUS = r(status)
 matrix DIAG_UNDEFINED_COMPONENTS = r(components)
 test_assert "[clate diagnostics] undefined ratios keep canonical target/status identity" `undefined_rc'==0 & rowsof(DIAG_UNDEFINED)==2 & colsof(DIAG_UNDEFINED)==14 & DIAG_UNDEFINED[1,1]==3 & rowsof(DIAG_UNDEFINED_STATUS)==2 & colsof(DIAG_UNDEFINED_STATUS)==5 & DIAG_UNDEFINED_STATUS[1,1]==1 & DIAG_UNDEFINED_COMPONENTS[1,1]==3 & missing(DIAG_UNDEFINED_COMPONENTS[1,9])
+
+// Shared R reference: X=1:80, x0=0, k=1, s=50 has 31 represented
+// positive weights. Rank 20 is 6525/168911425810424, below sqrt(eps).
+// A nonzero-support count must include it rather than threshold the tail.
+test_section "diagnostics retain every represented nonzero rank weight"
+local support_distance "$rdistnn_distance_engine"
+local support_jackknife "$rdistnn_jackknife_engine"
+global rdistnn_distance_engine mata
+global rdistnn_jackknife_engine mata
+clear
+set obs 80
+gen double support_x=_n
+gen double support_y=1
+gen double support_den=1
+gen double support_d=1
+gen double support_zero=0
+matrix SUPPORT_TARGETS=(0\-1)
+foreach family in np cate clate plqr {
+    local command "`family'_dnn"
+    local options "xcols(support_x) x0matrix(SUPPORT_TARGETS) tuningmode(grid) sgrid(50 60) sdefault(50) nose"
+    if "`family'"=="cate" local options "`options' pseudooutcome"
+    if "`family'"=="clate" local options "`options' pseudooutcome denominator(support_den)"
+    if "`family'"=="plqr" local options "x(support_x) x0(0) d(support_d) md(support_zero) g(support_zero) thetaeval(0) s(50)"
+    quietly `command' support_y, `options'
+    matrix SUPPORT_DIAGNOSTICS=e(diagnostics)
+    test_assert "`family': strict support agrees with the R n80/s50 literal" SUPPORT_DIAGNOSTICS[1,6]==31
+    quietly rdistnn_results, type(weights) targets(1)
+    matrix SUPPORT_WEIGHTS=r(data)
+    mata: st_numscalar("support_actual",sum(st_matrix("SUPPORT_WEIGHTS")[,5]:!=0))
+    test_assert "`family': diagnostics count every exported nonzero weight" SUPPORT_DIAGNOSTICS[1,6]==scalar(support_actual)
+    test_assert "`family': tiny rank-20 weight matches independent exact fraction" abs(SUPPORT_WEIGHTS[20,5]-3.8629713583279245e-11)<1e-24 & SUPPORT_WEIGHTS[20,5]>0 & SUPPORT_WEIGHTS[20,5]<sqrt(c(epsdouble))
+    if "`family'"!="plqr" {
+        quietly rdistnn_candidate, candidate(2) store(SUPPORT_CANDIDATE)
+        quietly estimates restore SUPPORT_CANDIDATE
+        test_assert "`family': candidate support retains the R n80/s60 literal" el(e(diagnostics),1,6)==21
+        estimates drop SUPPORT_CANDIDATE
+    }
+    tempfile support_saved
+    quietly estimates save "`support_saved'", replace
+    preserve
+    clear
+    mata: mata clear
+    quietly estimates use "`support_saved'"
+    quietly rdistnn_predict, x0(.25) post
+    local expected=cond("`family'"=="plqr",31,21)
+    test_assert "`family': cold saved prediction uses the complete represented support" el(e(diagnostics),1,6)==`expected' & _N==0
+    restore
+}
+global rdistnn_distance_engine "`support_distance'"
+global rdistnn_jackknife_engine "`support_jackknife'"

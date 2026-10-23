@@ -113,7 +113,7 @@ fitted profile marks the unaveraged rank table's edge `n-s+k`; it is not rank s.
 `logweights` removes zero weights and changes the y scale. Candidate
 comparisons are available only for profiles. `view(cumulative)` shows the
 cumulative rank weight with .5/.9 guides. Profiles and cumulative weights use
-actual duplicate-block-averaged weights and can differ across targets.
+actual exact-distance-averaged weights and can differ across targets.
 `targets()` selects the displayed target panels; returned rows retain
 `target_id`. A block crossing the marked rank-table edge can have nonzero
 averaged weights beyond that marker.

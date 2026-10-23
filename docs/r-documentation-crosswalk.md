@@ -1,6 +1,6 @@
 # R documentation coverage and Stata equivalents
 
-This map covers version **0.1.2** of both packages. The reference inventory
+This map covers version **0.1.3** of both packages. The reference inventory
 is R's [article source directory](https://github.com/JakobJuergens/RdistNN/tree/master/vignettes)
 and [pkgdown reference index](https://github.com/JakobJuergens/RdistNN/blob/master/_pkgdown.yml).
 The current map follows all 13 articles and 15 reference families, including
@@ -52,20 +52,27 @@ reference is `help rdistnn`; each public command has its own installed help.
 | Experimental — PLQR | `plqr_dnn`; [moment article](plqr-moments.md) | Initial fitting uses one target; saved prediction supports batches of moments at supplied theta. R's density-backed Jacobian/coefficient reporting at supplied theta, conditioning/calibration plots, coefficient prediction uncertainty and integrated candidate grids remain absent |
 | Experimental — local IV-GMM (companion paper) | No Stata public command | `gmm_dnn`, `new_gmm_model`, DR-IV models, GMM result methods, IV demo/simulation helpers remain R-only |
 | Developer API — scores (U-stat kernels) | Built-in CATE/NP/CLATE/PLQR score paths described in their guides | Score specifications, registration, generic evaluation and parameter-aware derivative paths remain R-only |
-| Developer API — distances (rankers) | `distance(l1|l2|l1_scaled|l2_scaled|mahalanobis)`; [weight guide](weights-and-tuning.md#exact-and-asymptotic-rules) | L1, scaled L1/L2 and Mahalanobis are shared; arbitrary R distance specifications/registries remain R-only |
-| Developer API — rank → weight mappings | `method(exact|asymp)`, k/s controls | Custom rank-weight specifications and registries remain R-only; `weights_tdnn` supplies the two-scale mappings |
+| Developer API — distances (rankers) | `distance(l1\|l2\|l1_scaled\|l2_scaled\|mahalanobis)`; [weight guide](weights-and-tuning.md#exact-and-asymptotic-rules) | L1, scaled L1/L2 and Mahalanobis are shared; arbitrary R distance specifications/registries remain R-only |
+| Developer API — rank → weight mappings | `method(exact\|asymp)`, k/s controls | Custom rank-weight specifications and registries remain R-only; `weights_tdnn` supplies the two-scale mappings |
 | Advanced — TDNN and jackknife-paper infrastructure | [Weight/jackknife explanation](weights-and-tuning.md), internal algorithms tested against deletion references | `np_tdnn`, `weights_tdnn` and signed-weight plots are shared; no generic exported jackknife interface or dedicated two-scale comparison plot |
 
 ## Translating a shared workflow
 
-Both packages average weights within exactly identical raw localization
-covariate blocks, including each deletion's remaining block. Commands warn that
-this practical modification is outside the paper's theory. Shared-engine tests
-compare actual averaged weights, estimates and covariance against explicit
-deletions; agreement is required across R/C++ and Mata/native plugin. Distinct
-covariate vectors at equal distance keep lexicographic ordering. Saved fits from
-before this policy require refitting rather than silently mixing old estimates
-with new-policy weights.
+Both packages average assigned rank weights within exact represented
+selected-metric distance groups, separately for each target and each deletion's
+survivors. This includes distinct covariate profiles and zero-weight ranks
+beyond nominal support; signed and unnormalized mass is preserved. Shared-engine
+tests compare actual averaged weights, estimates and covariance against explicit
+deletions across R/C++ and Mata/native. Cached per-target groups and the selected
+policy are validated; saved fits from earlier policies require refitting.
+Bare supplied ranks/orders use strict-order semantics unless distances accompany
+them. Stata freezes fitted geometry on every deletion route; R additionally
+retains deletion-refitted NP/TDNN/CATE/PLQR `loo` routes. Paired ratios freeze
+geometry and share the same weights for both signals in both packages.
+
+The paper assumes a continuous distance distribution, under which old and new
+rules agree almost surely. Persistent distance-tie inference and a uniform
+MSE improvement are not established.
 
 | R convention | Stata convention |
 |---|---|
@@ -97,3 +104,10 @@ The [R-to-Stata test crosswalk](https://github.com/JakobJuergens/RdistNN_stata/b
 and behavioral evidence. That test map and this documentation map answer
 different questions: one shows which contracts are checked; the other tells
 a reader where to learn and how to translate the available workflows.
+
+The shared reporting contract uses native host controls: R condition classes
+and handlers correspond semantically to Stata's standard codes and text/error
+channels, not to a second numeric code system. Both implementations reuse
+validated exact-distance groups and provide bounded target-family summaries.
+Stata quiet/capture examples and statuses are documented in
+[diagnostics and reporting](diagnostics-and-reporting.md#warnings-and-failures).

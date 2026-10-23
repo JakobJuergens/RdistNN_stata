@@ -16,9 +16,9 @@ The unaveraged exact rank table reaches global rank `n - s + k`, or `n - s + 1` 
 At `k=s`, exact weights are uniform. Orders must satisfy `k <= s <= n`;
 jackknife uncertainty additionally needs `s < n`.
 
-The support formula refers to the unaveraged rank table. With duplicate
-covariate rows, block averaging can give observations beyond that edge nonzero
-weight. Calculate realized support and concentration from the final weights.
+The support formula refers to the unaveraged rank table. Exact-distance
+averaging can give observations beyond that edge nonzero weight when their
+group crosses it. Calculate realized support and concentration from the final weights.
 
 ## Exact and asymptotic rules
 
@@ -49,39 +49,61 @@ units of the coordinates; standardization can be a substantive choice.
 centered-design SVD whitening factor. Retain singular values greater than
 `max(n,p) * 2^-52 * largest_singular_value`; null directions contribute zero.
 This avoids explicitly forming or inverting covariance. The metric is fixed
-through deletion covariance calculations. Both use deterministic distance,
-then lexicographic original-covariate order for exact ties. Only identical
-covariate rows retain an observation order for bookkeeping; their weights are
-averaged as described below. Changing a metric changes the
-neighborhood; it is not a cosmetic plot option.
+through deletion covariance calculations. High-level ranks use represented
+distance then original row index; observations sharing a distance receive the
+same averaged rank weight. Changing a metric changes the neighborhood and its
+target-specific groups; it is not a cosmetic plot option.
 
-### Identical covariate rows
+### Exact distance ties
 
-For a duplicate block at ranks `a:b`, each observation receives
-`sum(w[a:b])/(b-a+1)`. Equality is checked across every raw localization column;
-different vectors at equal distance and approximately equal vectors are not
-grouped. The block mass is preserved, while individual weights and ESS can change.
-A block crossing the exact rank table's support edge can give later members
-positive averaged weight.
+For a group at ranks `a:b`, each observation receives
+`sum(w[a:b])/(b-a+1)`. Equality is checked on the actual represented output of
+the selected metric at each target, with no tolerance or rounding. Distinct
+covariate profiles at equal distance belong to the same group. Average assigned
+rank weights over observations, including zero entries beyond nominal support;
+do not evaluate a rank rule at a mean rank or average unique profiles. Signed
+and unnormalized group masses are preserved. Individual weights, support and
+ESS can change; a group crossing the nominal support edge can give later
+members nonzero averaged weight.
 
-The same rule applies after every jackknife deletion, using the `n-1` table and
-the remaining block. If a member is deleted from ranks `a:b`, its `b-a`
-survivors receive `sum(w_(n-1)[a:(b-1)])/(b-a)` each; a deleted singleton
-contributes zero. Both the table and the block size change. Shared prefix/postfix
-calculations apply the corresponding block correction without rebuilding a
-weight matrix for every deletion. The user receives a warning that this permutation-invariant
-modification is not covered by the paper's theory. Moving covariate rows requires
-moving their aligned outcomes and nuisance predictions too. Returned rank
-permutations locate the blocks; a rank table alone no longer reconstructs final
-weights when duplicate covariates occur.
+Each jackknife deletion removes the actual observation before applying the
+`n-1` table to the survivors. Deleting a member of ranks `a:b` leaves `b-a`
+survivors at ranks `a:(b-1)`, each receiving
+`sum(w_(n-1)[a:(b-1)])/(b-a)`; a deleted singleton contributes zero. Both the
+table and group size change. Existing block kernels run per target and retain
+common deleted observations for paired signals and cross-target covariance.
+Stata freezes fitted geometry on every deletion route. R's NP/TDNN/CATE/PLQR
+`loo` route can refit sample-dependent geometry; its fast route and all paired
+ratio routes freeze it.
 
-For `x=(0,0,1,2)`, target zero and `k(1) s(2)`, the rank table
-`(1/2,1/3,1/6,0)` becomes `(5/12,5/12,1/6,0)`.
-Deleting the first row leaves `x=(0,1,2)` with weights `(2/3,1/3,0)`, so its
-identical partner's weight rises from `5/12` to `2/3`. With all X rows identical
-and normalized weights, the full weights are `1/n`, and the survivors' weights
-are `1/(n-1)`. Increasing `s` cannot distinguish those identical covariates;
-the warning still applies.
+For `x=(-1,1,2,3,4)`, target zero and `k(1) s(3)`, the exact table
+`(.6,.3,.1,0,0)` becomes `(.45,.45,.1,0,0)` because the first two observations
+have equal distance. With outcome `(0,10,0,0,0)`, the estimate is `4.5` and the
+five deleted estimates are `(7.5,0,5,5,5)`, whose mean is `4.5`.
+
+For exact DNN, averaging corresponds to uniform orderings within distance ties
+and uniform subsets of size `s`. Within a given subset, a boundary tie with `b`
+included observations and `r` remaining top-`k` slots assigns each member
+inclusion probability `r/b`, retaining the usual `1/k` averaging. For `k=2`, a subset containing one closer observation
+and two tied boundary observations gives weights `(.5,.25,.25)`. Including all
+boundary observations with equal weight defines a different rule.
+
+If every represented distance to a target is equal and weights are normalized,
+each observation receives `1/n` and each survivor `1/(n-1)`. Increasing `s`
+cannot distinguish group members. Groups can differ across targets and metrics.
+Moving covariate rows requires moving their aligned outcomes and nuisances too;
+estimates and covariance are then invariant up to numerical precision.
+
+The paper assumes a continuous distance distribution, under which the earlier
+and current rules agree almost surely. Commands warn because inference with
+persistent distance ties is not established. Averaging does not supply a
+uniform mean-squared-error improvement.
+
+A rank table alone cannot reconstruct the weights without the target-specific
+groups. Bare low-level ranks/orders retain strict-order semantics unless
+supplied distances accompany them. Saved fits cache ranks, distances, groups
+and the selected policy; refit objects created under an earlier policy,
+including version 0.1.2.
 
 ## Generate weights at one target
 
@@ -95,8 +117,9 @@ Run this on numeric covariates in the active dataset. `if`/`in` and complete
 covariates determine the weight sample. `generate()` creates a new double
 variable in original observation order, with missing values outside that
 sample. Use a new variable name. Numeric weights, ranks and distances are always
-returned in `r(weights)`, `r(ranks)` and `r(distances)`, with complete-sample
-rows and target columns. `r(row_ids)` maps rows to original observation numbers.
+returned in `r(weights)`, `r(ranks)`, `r(distances)` and `r(groups)`, with
+complete-sample rows and target columns. `r(groups)` contains integer IDs for
+exact represented distance equality separately in each target column. `r(row_ids)` maps rows to original observation numbers.
 The command is r-class and posts no estimation results; copy its returns before
 another r-class command overwrites them.
 
@@ -250,7 +273,8 @@ Scales and Mahalanobis geometry stay fixed across all deletion calculations
 and saved-model predictions. A new target does not refit its metric.
 
 `weights_dnn` accepts either `x0()` or `x0matrix()`. It returns complete-sample
-rows by target columns in `r(weights)`, `r(ranks)` and `r(distances)`, plus
+rows by target columns in `r(weights)`, `r(ranks)`, `r(distances)` and
+`r(groups)`, plus
 `r(row_ids)` mapping each row to the original dataset. `generate()` is available
 for one target; it leaves excluded observations missing.
 

@@ -13,7 +13,7 @@
 weights, diagnostics and native plots
 
 {pstd}
-Stata 17 or later. Package {bf:0.1.2} provides conditional treatment
+Stata 17 or later. Package {bf:0.1.3} provides conditional treatment
 estimation, nonparametric and two-scale regression, and shared reporting.
 Shared methods follow the RdistNN contract and are checked against independent
 references and across engines. The Stata companion has its own documented
@@ -62,10 +62,10 @@ weight concentration. Exact/asymptotic methods and L1/L2, scaled L1/L2 and Mahal
 available subject to each command's sample/dimension checks.
 
 {pstd}
-The support formula describes the unaveraged rank table. Averaging across
-identical covariate rows can extend nonzero observation weights to the end of a
-block crossing that edge. Use the actual returned weights for realized support
-and concentration; rank-only tables do not contain the duplicate groups.
+The support formula describes the unaveraged rank table. Averaging assigned
+weights across exact-distance groups can extend nonzero observation weights to
+the end of a group crossing that edge. Use actual returned weights for realized
+support and concentration; rank-only tables do not contain target-specific groups.
 
 {pstd}
 {help np_tdnn} combines two orders s1<s2 for conditional mean regression.
@@ -124,13 +124,16 @@ For identification, nuisance-learning and localization conditions, see the
 and the estimator-specific help.
 
 {pstd}
-Commands average localization weights within blocks of exactly identical raw
-covariate rows. Every jackknife deletion removes the observation before
-averaging the remaining block's n-1 weights. Estimates and covariance are
-invariant to aligned row permutations up to numerical precision. Commands warn
-that this modification is not covered by the paper's theory. Individual
-weights, support and ESS can change; distinct covariate vectors at equal
-distance are not averaged. Refit saved objects created before this policy.
+At each target, commands average assigned rank weights over observations with
+exactly equal represented selected-metric distance, including distinct covariate
+profiles and zero-weight ranks beyond nominal support. No tolerance or rounding
+groups nearby distances. Each deletion removes the actual observation before
+averaging the n-1 table within surviving groups. Signed and unnormalized group
+mass is preserved; individual weights, support and ESS can change. Aligned row
+permutations preserve estimates and covariance up to numerical precision.
+The paper assumes a continuous distance distribution, under which old and new
+rules agree almost surely. Inference with persistent distance ties and a uniform
+MSE improvement are not established. Refit objects from earlier policies.
 
 {pstd}
 CLATE additionally needs the documented binary-IV causal assumptions for a
@@ -183,3 +186,19 @@ See {help weights_dnn##numerical:weights_dnn} and {help weights_tdnn##numerical:
 {pstd}
 Quality assurance, testing and validation:
 {browse "https://github.com/Zakareya-Chehime":Zakareya Chehime}.
+
+{title:Warnings and failures}
+
+{pstd}
+Ordinary {cmd:warning:} and {cmd:note:} messages respect {cmd:quietly}.
+Fatal explanations remain visible under {cmd:quietly}; {cmd:capture} may
+suppress them. Use {cmd:capture noisily} to see the explanation while handling
+{cmd:_rc}, and save the code before cleanup commands.
+
+{pstd}
+CLATE summaries show at most five example target IDs; inspect {cmd:e(status)}
+and {cmd:e(components)} for every row. {cmd:nose} does not warn about omitted
+uncertainty. Negative defined first stages are descriptive notes.
+Missing or inconsistent saved state requires refitting. Missing native
+capability can select Mata automatically; execution/resource failures stop
+with their original code. Native allocation failures use 909.

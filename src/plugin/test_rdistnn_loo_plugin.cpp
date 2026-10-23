@@ -80,6 +80,28 @@ int main() {
             require(invoke({"loo_packed","F","D"})==0,"packed comparison failed");
             require(unpack(matrices["D"],3)==matrices["RAW"].values,"raw/packed arithmetic differs");
         }
+        // Finite inputs may produce a result outside Stata's numeric range.
+        // Raw/packed and strict/grouped transports share 498 and publish none.
+        for(bool grouped:{false,true}) {
+            baseline(grouped);
+            std::vector<double> payload={1,3,1,1,grouped?1.:0.,1,2,3,
+                7e307,7e307,7e307,1,1};
+            if(grouped) payload.insert(payload.end(),{1,2,3});
+            matrices["F"]=packed(payload); matrices["D"]=packed({17,17,17});
+            const auto before=matrices["D"].values;
+            require(invoke({"loo_packed","F","D"})==498,
+                    "packed arithmetic range failure lost 498");
+            require(writes==0 && matrices["D"].values==before,
+                    "packed range failure published output");
+            matrices["R"]={3,1,{1,2,3}}; matrices["S"]={3,1,{7e307,7e307,7e307}};
+            matrices["T"]={2,1,{1,1}}; matrices["G"]={3,1,{1,2,3}};
+            matrices["RAW"]={3,1,{17,17,17}};
+            require((grouped?invoke({"block_rank_loo","R","S","T","G","RAW"}):
+                invoke({"rank_loo","R","S","T","RAW"}))==498,
+                "raw arithmetic range failure lost 498");
+            require(writes==0 && matrices["RAW"].values==std::vector<double>({17,17,17}),
+                    "raw range failure published output");
+        }
         // Multiple targets and components retain the raw column layout.
         for(bool grouped:{false,true}) for(int n:{6,17}) {
             baseline(grouped);

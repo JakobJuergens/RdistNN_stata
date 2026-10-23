@@ -644,7 +644,7 @@ program define _cate_dnn_plot_weights, rclass
     local method "`e(method)'"
     local candidate_mode = ("`candidates'`allcandidates'" != "")
 
-    if e(model_version)!=2 {
+    if e(model_version)!=3 {
         di as error "Weight reconstruction requires a current saved model; refit with the current package."
         exit 498
     }
@@ -678,8 +678,8 @@ program define _cate_dnn_plot_weights, rclass
                 }
             }
         }
-        if `candidate_mode' noisily mata: st_matrix("`plot'", rdistnn_plot_rank_weights(st_matrix("`meta'"), strtoreal(tokens("`selected'"))', `n', `k', `s', "`method'", 1,st_matrix("e(model_ranks)"),st_matrix("e(model_X)"),strtoreal(tokens("`targets'"))))
-        else noisily mata: st_matrix("`plot'", rdistnn_plot_rank_weights(J(1,8,.), strtoreal(tokens("`selected'"))', `n', `k', `s', "`method'", 0,st_matrix("e(model_ranks)"),st_matrix("e(model_X)"),strtoreal(tokens("`targets'"))))
+        if `candidate_mode' noisily mata: st_matrix("`plot'", rdistnn_plot_rank_weights(st_matrix("`meta'"), strtoreal(tokens("`selected'"))', `n', `k', `s', "`method'", 1,st_matrix("e(model_ranks)"),strtoreal(tokens("`targets'")),st_matrix("e(model_distances)")))
+        else noisily mata: st_matrix("`plot'", rdistnn_plot_rank_weights(J(1,8,.), strtoreal(tokens("`selected'"))', `n', `k', `s', "`method'", 0,st_matrix("e(model_ranks)"),strtoreal(tokens("`targets'")),st_matrix("e(model_distances)")))
         local nselected : word count `selected'
         matrix colnames `plot' = rank weight cum_share candidate_id s is_default target_id
         preserve
@@ -705,7 +705,7 @@ program define _cate_dnn_plot_weights, rclass
             local yscale ""
             if "`logweights'" != "" local yscale "yscale(log)"
             local edgeopt ""
-            if !`candidate_mode' {
+            if !`candidate_mode' & "`method'"=="exact" {
                 local edge = `n' - `s' + `k'
                 local edgeopt "xline(`edge', lpattern(dot) lcolor(gs8)) note(Nominal exact-support edge: `edge')"
             }
@@ -766,10 +766,10 @@ program define _cate_dnn_plot_dashboard, rclass
                 local graphs "`graphs' `gest'"
         local ++npanels
     }
-    capture matrix `diagcheck' = e(diagnostics)
+    matrix `diagcheck' = e(diagnostics)
     if !_rc {
         if el(`diagcheck', 1, 12) == 1 {
-            capture quietly _cate_dnn_plot_overlap, name(`gover') replace nodraw ///
+            quietly _cate_dnn_plot_overlap, name(`gover') replace nodraw ///
                 view(mass) xindex(`xindex')
             if !_rc {
                 _rdistnn_plot_add_panel, matrix(`panel_info') id(`=`npanels'+1')
@@ -780,7 +780,7 @@ program define _cate_dnn_plot_dashboard, rclass
             }
         }
         if el(`diagcheck', 1, 16) == 1 {
-            capture quietly _cate_dnn_plot_overlap, name(`gprop') replace nodraw ///
+            quietly _cate_dnn_plot_overlap, name(`gprop') replace nodraw ///
                 view(propensity) xindex(`xindex')
             if !_rc {
                 _rdistnn_plot_add_panel, matrix(`panel_info') id(`=`npanels'+1')
@@ -792,7 +792,7 @@ program define _cate_dnn_plot_dashboard, rclass
         }
     }
     if !`has_overlap' {
-        capture quietly _cate_dnn_plot_diagnostics, name(`gdiag') replace nodraw
+        quietly _cate_dnn_plot_diagnostics, name(`gdiag') replace nodraw
         if !_rc {
             _rdistnn_plot_add_panel, matrix(`panel_info') id(`=`npanels'+1')
                 local panels "`panels' diagnostics"
@@ -800,7 +800,7 @@ program define _cate_dnn_plot_dashboard, rclass
             local ++npanels
         }
     }
-    capture quietly _cate_dnn_plot_weights, name(`gweight') replace nodraw ///
+    quietly _cate_dnn_plot_weights, name(`gweight') replace nodraw ///
         view(cumulative)
     if !_rc {
         _rdistnn_plot_add_panel, matrix(`panel_info') id(`=`npanels'+1')
@@ -809,7 +809,7 @@ program define _cate_dnn_plot_dashboard, rclass
         local ++npanels
     }
     if "`e(tuning_mode)'" == "grid" {
-        capture quietly _cate_dnn_plot_tuning, name(`gtune') replace nodraw ///
+        quietly _cate_dnn_plot_tuning, name(`gtune') replace nodraw ///
             level(`level') allcandidates
         if !_rc {
             _rdistnn_plot_add_panel, matrix(`panel_info') id(`=`npanels'+1')

@@ -1,5 +1,78 @@
 # Release Notes
 
+## 0.1.3 — 2026-10-22
+
+- Remove retired raw-covariate tie-breaking arguments and unused block-mass
+  code. Low-level and estimator distance rankings now share the distance-then-
+  original-row-index rule.
+- Validate saved uncertainty methods, standard errors and covariance structure
+  before reuse, preserving deliberately disabled uncertainty and legitimate
+  status-bearing unavailable CLATE results.
+- Propagate Break, resource and unexpected failures during saved-result sample
+  verification; missing or differently typed caller variables remain valid
+  when reconstruction uses the retained training snapshot.
+- Always build source assets for a published release, including releases
+  within the ordinary source-snapshot cooldown window.
+- Share literal Stata/Mata error rendering and standard return codes. Ordinary
+  notices respect `quietly`; fatal explanations and original resource/Break
+  codes survive error cleanup.
+- Reuse prepared exact-distance groups across candidate grids, deletion
+  kernels, saved predictions and plots. Tie notices perform no sorting or
+  distance evaluation; complete saved-state validation still precedes reuse.
+- Summarize CLATE target issues once per family with bounded example IDs,
+  retain all status/component rows, and keep `nose` silent about omitted
+  uncertainty. Negative defined first stages receive descriptive notes.
+- Distinguish missing native capability from execution failure. Plugin
+  allocations return 909 and unexpected exceptions return 498; neither
+  silently becomes portable fallback.
+
+- Replace the 0.1.2 identical-covariate rule with one target-specific
+  exact-distance policy. Observations at exactly equal represented distance
+  under the selected metric receive the mean of their assigned rank weights,
+  including zero entries beyond nominal support. No rounding or tolerance is
+  used; signed and unnormalized group masses are preserved.
+- Order high-level ranks by distance and original row index. Distinct profiles
+  at equal distance share weights. Standalone weights return per-target
+  `r(groups)` alongside ranks and distances. Bare supplied low-level ranks/orders retain
+  strict-order semantics unless distances accompany them.
+- Rebuild each deletion from the actual survivors and the `n-1` table. Existing
+  Mata/native block kernels are reused per target, preserving common deleted
+  observations for paired signals and cross-target covariance. Stata retains
+  frozen fitted geometry on every deletion route.
+- Saved-model schema 3 retains `e(tie_rule)` as
+  `exact_distance_block_averaging_v1` and per-target `e(model_groups)` alongside
+  ranks and distances. Validate the policy and cached groups for prediction,
+  candidates, diagnostics and plots; refit older objects, including version 0.1.2.
+- Remove obsolete helper signatures and saved-metadata repairs. Native deletion
+  dispatch requires the current packed interface; automatic execution falls
+  back to Mata when it is unavailable, while forced native execution errors.
+- The paper assumes a continuous distance distribution, under which old and new
+  rules agree almost surely. Persistent distance-tie inference and a uniform
+  mean-squared-error improvement are not established. Keep released 0.1.2
+  tags/assets and historical scientific pins unchanged.
+- Reject malformed current reporting arrays, negative standard errors,
+  inconsistent targets and missing nuisance links before saved-fit reuse.
+  Preserve legitimate unavailable uncertainty and undefined CLATE ratios.
+- Count all represented nonzero weights in support diagnostics. Explain
+  candidate diagnostic extrema across targets and use exact-support plot
+  annotations only for exact weights.
+- Use the uniform identity for asymptotic weights when `k = s`, including the
+  `s = 1` TDNN component. Preserve representable weighted-SD root contributions
+  before normalizing extreme input weights.
+- Recover exceptional scaled L1/L2 norms before individual coordinate products
+  underflow, preserving representable distances and their exact tie groups.
+  Use the same binary arithmetic and range decisions across the shared engines,
+  including huge negative raw differences.
+- Clarify that independently fitted Mahalanobis SVD factors can round
+  differently even in well-conditioned full-rank designs. Exact distance
+  groups, weights and estimates can consequently differ across packages or
+  platforms; distance averaging does not resolve this portability limitation.
+- Keep posted TDNN predictions consistent with fresh fits: retain signed
+  concentration fields without introducing probability-based ESS aliases.
+- Correct installed-help navigation and guide tables. Release uploads now
+  fail on existing asset names, preserving published assets on workflow reruns;
+  source snapshots avoid fetching unused Git history.
+
 ## 0.1.2 — 2026-10-22
 
 - Preserve the documented first/middle/last target default for kernel plots

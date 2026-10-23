@@ -5,8 +5,9 @@ r_root <- normalizePath(file.path("..", "RdistNN"), mustWork = TRUE)
 # Fixture values exercise the reference R implementation and do not require a
 # compiler. Compiled-versus-fallback equivalence is covered by the R test suite.
 pkgload::load_all(r_root, compile = FALSE, quiet = TRUE)
+source("tools/lib/distance_tie_reference.R")
 
-fixture_lines <- character()
+fixture_lines <- .distance_reference_source_metadata(r_root)
 
 emit_matrix <- function(name, x) {
   x <- as.matrix(x)
@@ -98,6 +99,10 @@ for (method in c("exact", "asymp")) {
     method = method, k = 2L, s = 5L,
     se = TRUE, jackknife = "fast", return = "ess"
   )
+  np_ref <- .distance_reference_fit(.distance_reference_l2(X,matrix(x0,nrow=1L)),
+    matrix(y_np),k=2L,s=5L,method=method)
+  .distance_reference_check(np_fit$mu,np_ref$point,paste(method,"NP point"))
+  .distance_reference_check(np_fit$se,np_ref$se,paste(method,"NP uncertainty"))
   emit_matrix(paste0("np_", method), c(np_fit$mu, np_fit$se, np_fit$ess))
 
   cate_fit <- cate_dnn(
@@ -105,6 +110,11 @@ for (method in c("exact", "asymp")) {
     method = method, k = 2L, s = 5L,
     se = TRUE, jackknife = "fast", return = c("W", "ess")
   )
+  cate_ref <- .distance_reference_fit(.distance_reference_l2(X,X0),matrix(rho),
+    k=2L,s=5L,method=method)
+  .distance_reference_check(cate_fit$tau,cate_ref$point,paste(method,"CATE point"))
+  .distance_reference_check(cate_fit$se,cate_ref$se,paste(method,"CATE uncertainty"))
+  .distance_reference_check(cate_fit$ess,1/colSums(cate_ref$W^2),paste(method,"CATE ESS"))
   emit_matrix(paste0("cate_", method, "_tau"), cate_fit$tau)
   emit_matrix(paste0("cate_", method, "_se"), cate_fit$se)
   emit_matrix(paste0("cate_", method, "_ess"), cate_fit$ess)
@@ -138,6 +148,10 @@ for (method in c("exact", "asymp")) {
   plqr_vcov <- .dnn_jackknife_vcov_from_loo(
     loo = plqr_loo, q = 2L, n = n, m = 1L
   )$vcov[[1L]]
+  plqr_ref <- .distance_reference_fit(.distance_reference_l2(X,matrix(x0,nrow=1L)),
+    plqr_expected_score,k=2L,s=5L,method=method)
+  .distance_reference_check(plqr_fit$moment,plqr_ref$point,paste(method,"PLQR point"))
+  .distance_reference_check(plqr_vcov,plqr_ref$covariance,paste(method,"PLQR covariance"))
   emit_matrix(paste0("plqr_", method, "_moment"), plqr_fit$moment)
   emit_matrix(paste0("plqr_", method, "_moment_vcov"), plqr_vcov)
   emit_matrix(paste0("plqr_", method, "_se"), plqr_fit$moment_se)
@@ -174,6 +188,14 @@ np_grid_fit <- np_dnn(
   return = c("W", "ess", "dx")
 )
 np_grid <- np_grid_fit$tuning_grid
+for(j in seq_len(nrow(np_grid$candidates))) {
+  if(!isTRUE(np_grid$candidates$feasible[j])) next
+  sref <- np_grid$candidates$s[j]
+  reference <- .distance_reference_fit(.distance_reference_l2(X,X0),matrix(y_np),k=2L,s=sref)
+  rows <- np_grid$estimates$candidate_id==np_grid$candidates$candidate_id[j]
+  .distance_reference_check(np_grid$estimates$estimate[rows],reference$point,paste("NP candidate",sref))
+  .distance_reference_check(np_grid$estimates$se[rows],reference$se,paste("NP candidate uncertainty",sref))
+}
 np_grid_candidates <- cbind(
   candidate_id = seq_len(nrow(np_grid$candidates)),
   computed_id = match(
@@ -211,6 +233,14 @@ cate_grid_fit <- cate_dnn(
   return = "ess"
 )
 cate_grid <- cate_grid_fit$tuning_grid
+for(j in seq_len(nrow(cate_grid$candidates))) {
+  if(!isTRUE(cate_grid$candidates$feasible[j])) next
+  sref <- cate_grid$candidates$s[j]
+  reference <- .distance_reference_fit(.distance_reference_l2(X,X0),matrix(rho),k=2L,s=sref)
+  rows <- cate_grid$estimates$candidate_id==cate_grid$candidates$candidate_id[j]
+  .distance_reference_check(cate_grid$estimates$estimate[rows],reference$point,paste("CATE candidate",sref))
+  .distance_reference_check(cate_grid$estimates$se[rows],reference$se,paste("CATE candidate uncertainty",sref))
+}
 cate_grid_candidates <- cbind(
   candidate_id = seq_len(nrow(cate_grid$candidates)),
   computed_id = match(

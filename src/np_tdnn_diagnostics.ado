@@ -3,6 +3,7 @@ program define np_tdnn_diagnostics, rclass
     version 17
     syntax [, TARGETS(numlist integer >=1) DETAIL SAVING(string asis) REPLACE]
     if "`e(cmd)'"!="np_tdnn" error 301
+    _rdistnn_model_check
     local selected "`targets'"
     if "`selected'"=="" {
         forvalues j=1/`=e(m)' {

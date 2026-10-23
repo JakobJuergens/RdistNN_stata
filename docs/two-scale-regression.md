@@ -31,13 +31,13 @@ it has no effect on the exact tables. Targets use either `x0()` or
 The full-sample weights use the fitted training geometry. Each delete-one
 calculation removes an observation, shifts retained ranks, and rebuilds both
 rank tables at the same `s1`, `s2` and `dim`. Geometry remains fixed.
-Exactly identical raw reporting-covariate rows share the average of their
-signed weights. After deleting a member, its block's `n-1` table mass is divided
+At each target, observations with exactly equal represented selected-metric
+distance share the mean of their assigned signed rank weights. After deleting a member, its block's `n-1` table mass is divided
 among the survivors; the block is not held at its original size. Signed mass is
 preserved without taking absolute values or adding a block normalization.
-The command warns that this permutation-invariant modification is outside the
-paper's theory. It can change support and concentration. See the
-[shared block rule](weights-and-tuning.md#identical-covariate-rows).
+Averaging can change support and concentration. The command warns that inference
+with persistent distance ties is not established. See the
+[shared block rule](weights-and-tuning.md#exact-distance-ties).
 
 `e(estimate_vcov)` retains covariance across targets and is already on the
 estimator scale. Covariance requires `s2<n`; `nose` permits `s2=n` and leaves

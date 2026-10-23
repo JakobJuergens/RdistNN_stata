@@ -278,3 +278,40 @@ foreach kind in estimates tuning {
     local ciu : list posof "ci_upper" in cn
     test_assert "[plots CLATE] `kind' valid candidate bounds survive infeasible grid rows" P_AVAILABLE[1,`sel']>0 & !missing(P_AVAILABLE[1,`cil'],P_AVAILABLE[1,`ciu']) & P_AVAILABLE[1,`ciu']>P_AVAILABLE[1,`cil']
 }
+
+// The finite n-s+k edge belongs to the exact rank table. Asymptotic
+// weights can remain positive beyond that rank, including at n.
+test_section "rank profile exact-support annotations respect the weight method"
+clear
+set obs 40
+gen double support_plot_x=_n
+gen double support_plot_y=sin(support_plot_x)
+foreach method in exact asymp {
+    quietly np_dnn support_plot_y, xcols(support_plot_x) x0(0) ///
+        tuningmode(grid) sgrid(4 6) sdefault(4) method(`method') nose
+    foreach selection in default candidate {
+        local candidateopt ""
+        if "`selection'"=="candidate" local candidateopt "candidates(1)"
+        local svg "build/coherence/np-weights-support-`method'-`selection'.svg"
+        quietly np_dnn_plot, type(weights) view(profile) `candidateopt' ///
+            name(plot_support_contract) replace nodraw saving("`svg'")
+        matrix SUPPORT_PROFILE=r(plot_data)
+        if "`selection'"=="default" {
+            local last_weight=SUPPORT_PROFILE[40,2]
+            if "`method'"=="exact" test_assert "[plots exact] rank-table support ends at 37" `last_weight'==0
+            else test_assert "[plots asymp] represented support extends beyond rank 37" `last_weight'>0
+        }
+        // Inspect the actual exported graph note, not a source-code pattern.
+        tempname svgfile
+        file open `svgfile' using "`svg'", read text
+        local has_exact_edge 0
+        file read `svgfile' line
+        while r(eof)==0 {
+            if strpos(`"`line'"',"Nominal exact-support edge: 37")>0 local has_exact_edge 1
+            file read `svgfile' line
+        }
+        file close `svgfile'
+        local expected=("`method'"=="exact" & "`selection'"=="default")
+        test_assert "[plots `method'/`selection'] exported graph has only applicable exact-support note" `has_exact_edge'==`expected'
+    }
+}

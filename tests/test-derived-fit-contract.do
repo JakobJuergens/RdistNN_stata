@@ -58,7 +58,7 @@ foreach family in np cate clate {
     test_assert "`family': scalar prediction retains family coefficient" "`names'"=="`coef'"
 }
 foreach family in np tdnn cate clate {
-    foreach state in unchanged outside inside reordered cleared {
+    foreach state in unchanged outside inside reordered cleared wrongtype empty {
         clear
         set obs 12
         gen double fx=(_n-6)/5
@@ -80,6 +80,11 @@ foreach family in np tdnn cate clate {
         if "`state'"=="inside" quietly replace fy=999 in 4
         if "`state'"=="reordered" quietly gsort -fid
         if "`state'"=="cleared" clear
+        if "`state'"=="wrongtype" {
+            drop fy
+            gen str8 fy="unrelated"
+        }
+        if "`state'"=="empty" keep if 0
         quietly rdistnn_predict, x0matrix(FT) sefit post
         quietly count if e(sample)
         local expected=cond(inlist("`state'","unchanged","outside"),`n',0)
@@ -99,3 +104,38 @@ test_assert "partially undefined candidate retains original theta2 stripe" "`nam
 quietly rdistnn_predict, x0matrix(PART) post
 local names : colnames e(b)
 test_assert "partially undefined prediction retains original theta2 stripe" "`names'"=="theta2"
+
+test_section "derived sample verification propagates unexpected failures"
+do "tests/helpers/postestimation-state.do"
+clear
+set obs 12
+gen double fx=(_n-6)/5
+gen double fy=1+fx^2+.2*sin(_n)
+quietly np_dnn fy, xcols(fx) x0matrix(FT) tuningmode(grid) sgrid(2 3) sdefault(3)
+estimates store DF_SIGNATURE_PARENT
+tempfile df_signature_data
+quietly save "`df_signature_data'", replace
+_pmpe_snapshot
+// Inject at the existing host helper boundary; no installed testing hook.
+program drop _rdistnn_sample_signature
+program define _rdistnn_sample_signature
+    exit $DF_SIGNATURE_RC
+end
+foreach code in 1 909 498 {
+    global DF_SIGNATURE_RC `code'
+    foreach route in predict candidate {
+        quietly estimates restore DF_SIGNATURE_PARENT
+        if "`route'"=="predict" capture quietly rdistnn_predict, x0(0) sefit post
+        if "`route'"=="candidate" capture quietly rdistnn_candidate, candidate(1) post
+        local rc=_rc
+        test_assert "`route': sample verification preserves unexpected code `code'" `rc'==`code'
+        _pmpe_unchanged, data("`df_signature_data'")
+        local same=r(ok)
+        test_assert "`route': failed sample verification preserves complete caller state" `same'
+    }
+}
+macro drop DF_SIGNATURE_RC
+program drop _rdistnn_sample_signature
+findfile _rdistnn_sample_signature.ado
+quietly run "`r(fn)'"
+estimates drop DF_SIGNATURE_PARENT

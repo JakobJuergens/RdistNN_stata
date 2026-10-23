@@ -1,10 +1,83 @@
 *! version 0.1.0  2026-10-21
 version 17
-// Exact raw-X duplicate blocks. Rank-only callers never enter these helpers.
-foreach fn in duplicate_rows duplicate_warning block_ranges block_weights block_deletion_mass block_add block_table_mean block_loo_direct block_loo_prefix block_loo_plugin block_loo {
+// Exact equality blocks. Highlevel callers supply one metric-distance column
+// per target. Generic block primitives can also group explicit equality features.
+foreach fn in distance_groups group_ties distance_warning distance_weights distance_loo duplicate_rows block_ranges block_weights block_add block_table_mean block_loo_direct block_loo_prefix block_loo_plugin block_loo {
     capture mata: mata drop rdistnn_`fn'()
 }
 mata:
+// Group IDs follow sorted metric distance, independently of supplied ranks.
+// Equality uses represented
+// metric distances exactly. No coordinate or tolerance criterion is applied.
+real matrix rdistnn_distance_groups(real matrix ranks, real matrix DX, | real scalar ordered)
+{
+    real scalar n,m,j,r,g
+    real colvector ord
+    real matrix groups
+    n=rows(ranks); m=cols(ranks)
+    if(rows(DX)!=n | cols(DX)!=m | hasmissing(DX)) exit(error(198))
+    if(args()<3) ordered=0
+    groups=J(n,m,.)
+    for(j=1;j<=m;j++) {
+        if(ordered) {
+            ord=J(n,1,.)
+            ord[ranks[,j]]=(1::n)
+        }
+        else ord=order((DX[,j],(1::n)),(1,2))
+        g=1
+        groups[ord[1],j]=g
+        for(r=2;r<=n;r++) {
+            if(DX[ord[r],j]!=DX[ord[r-1],j]) g++
+            groups[ord[r],j]=g
+        }
+    }
+    return(groups)
+}
+
+// Group IDs are contiguous 1..G, supplied by preparation or validated e(model_groups).
+real rowvector rdistnn_group_ties(real matrix groups)
+{
+    return(colmax(groups):<rows(groups))
+}
+
+void rdistnn_distance_warning(real matrix groups)
+{
+    if(any(rdistnn_group_ties(groups))) {
+        displayas("text")
+        display("warning: Exact distance ties detected; weights are averaged within each target's equal-distance blocks, including jackknife deletions. The theory assumes a continuous distance distribution and does not establish inference for persistent ties.")
+    }
+}
+
+real matrix rdistnn_distance_weights(real matrix ranks, real matrix W, real matrix DX, | real matrix prepared_groups)
+{
+    real scalar j
+    real matrix out
+    if(rows(DX)!=rows(ranks) | cols(DX)!=cols(ranks) | hasmissing(DX)) exit(error(198))
+    out=W
+    if(args()<4) prepared_groups=J(0,0,.)
+    for(j=1;j<=cols(ranks);j++) out[,j]=rdistnn_block_weights(ranks[,j],W[,j],DX[,j],rows(prepared_groups) ? prepared_groups[,j] : J(0,1,.))
+    return(out)
+}
+
+// The native ABI accepts one group column. Dispatch targets independently so
+// each target retains its own exact distance groups and deletion support.
+real matrix rdistnn_distance_loo(real matrix ranks, real matrix signal,
+    real colvector table, real scalar center, string scalar engine, real matrix DX, | real matrix prepared_groups)
+{
+    real scalar j,q
+    real matrix out
+    if(rows(DX)!=rows(ranks) | cols(DX)!=cols(ranks) | hasmissing(DX)) exit(error(198))
+    if(args()<7) prepared_groups=J(0,0,.)
+    q=cols(signal); out=J(rows(ranks),cols(ranks)*q,.)
+    for(j=1;j<=cols(ranks);j++) {
+        if(rows(prepared_groups) ? max(prepared_groups[,j])<rows(ranks) : rdistnn_duplicate_rows(DX[,j])) {
+            out[,((j-1)*q+1)..(j*q)]=rdistnn_block_loo(ranks[,j],signal,table,center,engine,DX[,j],rows(prepared_groups) ? prepared_groups[,j] : J(0,1,.))
+        }
+        else out[,((j-1)*q+1)..(j*q)]=rdistnn_loo_from_table(ranks[,j],signal,table,center,engine)
+    }
+    return(out)
+}
+
 real scalar rdistnn_duplicate_rows(real matrix X)
 {
     real matrix sorted
@@ -15,15 +88,8 @@ real scalar rdistnn_duplicate_rows(real matrix X)
     return(0)
 }
 
-void rdistnn_duplicate_warning(real matrix X)
-{
-    if(rdistnn_duplicate_rows(X)) {
-        printf("{txt}Identical covariate rows detected; weights are averaged within duplicate-covariate blocks, including jackknife deletions. This permutation-invariant modification is not covered by the paper's theory.\n")
-    }
-}
-
 // Rows of the result are contiguous [first,last] rank intervals. Equality is
-// checked on every supplied raw coordinate, never on distance or signals.
+// checked on every supplied equality-feature column, never on signal values.
 real matrix rdistnn_block_ranges(real colvector ranks, real matrix X)
 {
     real colvector ord
@@ -45,17 +111,24 @@ real matrix rdistnn_block_ranges(real colvector ranks, real matrix X)
     return(out[1..g,])
 }
 
-real matrix rdistnn_block_weights(real matrix ranks, real matrix W, real matrix X)
+real matrix rdistnn_block_weights(real matrix ranks, real matrix W, real matrix X, | real colvector prepared_groups)
 {
     real scalar j,g,a,b,mass
     real colvector ord,ix,rawranks
     real matrix blocks,out
     out=W
     if(rows(X)!=rows(ranks) | cols(X)<1 | hasmissing(X)) exit(error(198))
-    if(!rdistnn_duplicate_rows(X)) return(out)
-    ord=order(X,(1..cols(X)))
+    if(args()<4) prepared_groups=J(0,1,.)
+    if(rows(prepared_groups)) {
+        if(max(prepared_groups)==rows(ranks)) return(out)
+        ord=J(rows(ranks),1,.); ord[ranks[,1]]=(1::rows(ranks))
+    }
+    else {
+        if(!rdistnn_duplicate_rows(X)) return(out)
+        ord=order((X,(1::rows(X))),(1..(cols(X)+1)))
+    }
     rawranks=J(rows(X),1,.); rawranks[ord]=(1::rows(X))
-    blocks=rdistnn_block_ranges(rawranks,X)
+    blocks=rdistnn_block_ranges(rawranks,rows(prepared_groups) ? prepared_groups : X)
     for(j=1;j<=cols(ranks);j++) {
         for(g=1;g<=rows(blocks);g++) {
             a=blocks[g,1]; b=blocks[g,2]
@@ -69,39 +142,6 @@ real matrix rdistnn_block_weights(real matrix ranks, real matrix W, real matrix 
         }
     }
     return(out)
-}
-
-// Remaining mass for each actual deletion within a raw-X group. Localization
-// produces contiguous positions, so every coefficient is the same. Explicitly
-// supplied ranks may interleave groups; two compensated scans retain their
-// earlier/later rank shifts without any per-observation recomputation.
-real colvector rdistnn_block_deletion_mass(real colvector positions, real colvector table)
-{
-    real scalar n,c,h,r,high,low,value,next_high
-    real colvector out,correction
-    n=rows(table)+1; c=rows(positions)
-    if(positions[c]-positions[1]==c-1) {
-        return(J(c,1,rdistnn_sum(table[positions[1]..(positions[c]-1)])/(c-1)))
-    }
-    out=correction=J(c,1,0); high=low=0
-    for(h=1;h<=c;h++) {
-        out[h]=high; correction[h]=low; r=positions[h]
-        if(r==n) continue
-        value=table[r]; next_high=high+value
-        if(abs(high)>=abs(value)) low=low+((high-next_high)+value)
-        else low=low+((value-next_high)+high)
-        high=next_high
-    }
-    high=low=0
-    for(h=c;h>=1;h--) {
-        out[h]=rdistnn_sum((out[h]\high\correction[h]\low)); r=positions[h]
-        if(r==1) continue
-        value=table[r-1]; next_high=high+value
-        if(abs(high)>=abs(value)) low=low+((high-next_high)+value)
-        else low=low+((value-next_high)+high)
-        high=next_high
-    }
-    return(out:/(c-1))
 }
 
 void rdistnn_block_add(real scalar high, real scalar low, real scalar value)
@@ -132,7 +172,7 @@ real scalar rdistnn_block_table_mean(real colvector table, real scalar first, re
 }
 
 // Explicit regrouping is also the bounded fallback for supplied ranks whose
-// equal-X groups interleave or reorder members. This path takes O(n^2*q).
+// equality groups interleave or reorder members. This path takes O(n^2*q).
 real matrix rdistnn_block_loo_direct(real matrix z, real colvector table, real colvector groups,
     | real colvector observation_ids)
 {
@@ -242,26 +282,15 @@ real matrix rdistnn_block_loo_prefix(real matrix z, real colvector table, real c
 
 real matrix rdistnn_block_loo_plugin(real matrix ranks, real matrix z, real colvector table, real colvector groups)
 {
-    string rowvector names
-    real scalar rc,i
-    real matrix out
-    if(st_global("rdistnn_plugin_ok")!="1") return(J(0,0,.))
-    if(rdistnn_native_packed_api()) return(rdistnn_native_loo(ranks,z,table,groups))
-    names=st_tempname(5)
-    st_matrix(names[1],ranks); st_matrix(names[2],z); st_matrix(names[3],table)
-    st_matrix(names[4],groups); st_matrix(names[5],J(rows(ranks),cols(ranks)*cols(z),.))
-    rc=_stata("plugin call rdistnn_plugin, block_rank_loo "+invtokens(names),1)
-    out=J(0,0,.)
-    if(rc==0) out=st_matrix(names[5])
-    for(i=1;i<=5;i++) st_matrix(names[i],J(0,0,.))
-    return(out)
+    if(st_global("rdistnn_plugin_ok")!="1" | !rdistnn_native_packed_api()) return(J(0,0,.))
+    return(rdistnn_native_loo(ranks,z,table,groups))
 }
 
 // Center on the union of deletion support, expanded to every member of each
-// intersecting raw-X group. Each selected engine computes original-signal
+// intersecting equality group. Each selected engine computes original-signal
 // deletions itself; forcing native cannot run a dummy rank_loo calculation.
 real matrix rdistnn_block_loo(real matrix ranks, real matrix signal,
-    real colvector table, real scalar center, string scalar engine, real matrix X)
+    real colvector table, real scalar center, string scalar engine, real matrix X, | real colvector prepared_groups)
 {
     real scalar n,q,j,g,a,b,h
     real colvector ord,active,raword,rawranks,positions,groups
@@ -270,10 +299,18 @@ real matrix rdistnn_block_loo(real matrix ranks, real matrix signal,
     string scalar plugin_mode
     n=rows(ranks); q=cols(signal)
     if(rows(X)!=n | cols(X)<1 | hasmissing(X)) exit(error(198))
-    raword=order(X,(1..cols(X)))
-    rawranks=J(n,1,.); rawranks[raword]=(1::n)
-    blocks=rdistnn_block_ranges(rawranks,X); groups=J(n,1,.)
-    for(g=1;g<=rows(blocks);g++) groups[raword[blocks[g,1]..blocks[g,2]]]=J(blocks[g,2]-blocks[g,1]+1,1,g)
+    if(args()<7) prepared_groups=J(0,1,.)
+    if(rows(prepared_groups)) {
+        raword=J(n,1,.); raword[ranks[,1]]=(1::n)
+        blocks=rdistnn_block_ranges(ranks[,1],prepared_groups)
+        groups=prepared_groups
+    }
+    else {
+        raword=order((X,(1::rows(X))),(1..(cols(X)+1)))
+        rawranks=J(n,1,.); rawranks[raword]=(1::n)
+        blocks=rdistnn_block_ranges(rawranks,X); groups=J(n,1,.)
+        for(g=1;g<=rows(blocks);g++) groups[raword[blocks[g,1]..blocks[g,2]]]=J(blocks[g,2]-blocks[g,1]+1,1,g)
+    }
     plugin_mode=st_global("rdistnn_use_plugin")
     out=J(n,cols(ranks)*q,.)
     for(j=1;j<=cols(ranks);j++) {
@@ -297,7 +334,7 @@ real matrix rdistnn_block_loo(real matrix ranks, real matrix signal,
             else {
                 values=J(0,0,.)
                 if(engine=="plugin" | plugin_mode=="1") {
-                    errprintf("Compiled block_rank_loo unavailable or failed; install an updated plugin or allow Mata fallback.\n")
+                    errprintf("Compiled block deletion API is unavailable; install the current plugin or set rdistnn_jackknife_engine mata.\n")
                     exit(error(498))
                 }
             }

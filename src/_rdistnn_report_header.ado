@@ -7,9 +7,7 @@ program define _rdistnn_report_header
     if "`e(cmd)'" == "clate_dnn" local title "DNN Conditional Local Average Treatment Effect"
     if "`e(cmd)'" == "plqr_dnn" local title "Experimental DNN PLQR Localized-Moment Evaluator"
     local m = e(m)
-    if missing(`m') local m = 1
     local p = e(p)
-    if missing(`p') local p = e(kx)
     di _n as text "`title'"
     di as text "Observations: " as result e(N) as text "  Targets: " as result `m' ///
         as text "  Covariates: " as result `p'

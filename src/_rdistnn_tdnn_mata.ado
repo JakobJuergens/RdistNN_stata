@@ -36,8 +36,9 @@ real colvector rdistnn_tdnn_table(real scalar n, real scalar s1,
         b=rdistnn_exact_table(n,1,s2)
     }
     else {
+        if(s1==1) a=J(n,1,1/n)
         for(r=1;r<=n;r++) {
-            a[r]=rdistnn_beta_interval(1,s1,(r-1)/n,r/n)
+            if(s1>1) a[r]=rdistnn_beta_interval(1,s1,(r-1)/n,r/n)
             b[r]=rdistnn_beta_interval(1,s2,(r-1)/n,r/n)
         }
     }
@@ -57,11 +58,12 @@ real colvector rdistnn_tdnn_table(real scalar n, real scalar s1,
 
 real matrix rdistnn_tdnn_weights(real matrix ranks, real scalar s1,
     real scalar s2, real scalar dim, string scalar method, real scalar normalize,
-    | real matrix X)
+    | real matrix DX, real matrix prepared_groups)
 {
     real colvector table
     real matrix W
     real scalar j,n
+    if(args()<8) prepared_groups=J(0,0,.)
     n=rows(ranks)
     table=rdistnn_tdnn_table(n,s1,s2,dim,method,normalize)
     if(cols(ranks)<1 | hasmissing(ranks)) exit(error(198))
@@ -73,20 +75,21 @@ real matrix rdistnn_tdnn_weights(real matrix ranks, real scalar s1,
         }
         W[,j]=table[ranks[,j]]
     }
-    if(args()>=7 & rows(X)>0) W=rdistnn_block_weights(ranks,W,X)
+    if(args()>=7 & rows(DX)>0) W=rdistnn_distance_weights(ranks,W,DX,prepared_groups)
     return(W)
 }
 
 real matrix rdistnn_tdnn_cov(real matrix ranks, real matrix signal,
     real scalar s1, real scalar s2, real scalar dim, string scalar method,
-    real scalar normalize, | real matrix X)
+    real scalar normalize, | real matrix DX, real matrix prepared_groups)
 {
     real scalar n
     real matrix loo
+    if(args()<9) prepared_groups=J(0,0,.)
     n=rows(ranks)
-    if(args()>=8 & rows(X)>0) {
+    if(args()>=8 & rows(DX)>0) {
         loo=rdistnn_loo_from_table(ranks,signal,
-            rdistnn_tdnn_table(n-1,s1,s2,dim,method,normalize),1,"",X)
+            rdistnn_tdnn_table(n-1,s1,s2,dim,method,normalize),1,"",DX,prepared_groups)
     }
     else loo=rdistnn_loo_from_table(ranks,signal,
         rdistnn_tdnn_table(n-1,s1,s2,dim,method,normalize),1)

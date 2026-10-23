@@ -1,6 +1,7 @@
 # Run from RdistNN_stata. Fixtures require the sibling's current native build.
 root <- normalizePath("../RdistNN", mustWork = TRUE)
 pkgload::load_all(root, compile = FALSE, quiet = TRUE)
+source("tools/lib/distance_tie_reference.R")
 getr <- function(name) get(name, envir = asNamespace("RdistNN"))
 old <- options(RdistNN.use_compiled = TRUE)
 for (kernel in c("rustat_compensated_sum", "rustat_compensated_crossprod",
@@ -25,6 +26,8 @@ hex <- function(x) {
   paste0(if (x < 0) "-" else "+", significand, "X",
     if (exponent < 0) "-" else "+", sprintf("%03x", abs(exponent)))
 }
+lines <- c(lines, .distance_reference_source_metadata(root))
+
 emit <- function(name, value) {
   if (is.null(value)) stop("Missing fixture value: ", name)
   value <- as.matrix(value)
@@ -68,6 +71,13 @@ X <- cbind(seq_len(n) / 8, (seq_len(n) %% 5) / 4)
 Y <- signal[, 1L]; den <- signal[, 2L]
 targets <- X[c(2L, 13L), , drop = FALSE]
 pred_targets <- X[c(19L, 2L, 19L), , drop = FALSE]
+# Independent ordinary-scale table, tie-mass and deletion references.
+reference_consumer <- function(sig,X0,method,tdnn=FALSE,ratio=FALSE) {
+  dx <- .distance_reference_l2(X,X0)
+  .distance_reference_fit(dx,sig,s=7L,method=method,
+    s1=if(tdnn)4L else NULL,s2=if(tdnn)7L else NULL,dim=ncol(X),ratio=ratio)
+}
+check_reference <- .distance_reference_check
 emit("X", X); emit("Y", Y); emit("den", den)
 emit("targets", targets); emit("predict", pred_targets)
 for (method in c("exact", "asymp")) for (kind in c("np", "cate", "ratio", "tdnn")) {
@@ -84,15 +94,25 @@ for (method in c("exact", "asymp")) for (kind in c("np", "cate", "ratio", "tdnn"
   stopifnot(identical(point(fits[[1L]]), point(fits[[2L]])),
     isTRUE(all.equal(fits[[1L]]$se, fits[[2L]]$se, tolerance = 1e-13)))
   id <- paste(kind, method, sep = "_")
+  ref <- reference_consumer(if (kind == "ratio") cbind(Y,den) else matrix(Y),
+    targets, method, tdnn = kind == "tdnn", ratio = kind == "ratio")
+  for (fit in fits) {
+    check_reference(point(fit), ref$point, paste(id, "point"))
+    check_reference(fit$se, ref$se, paste(id, "uncertainty"))
+  }
   emit(paste0(id, "_point"), matrix(point(fits[[1L]]), 1))
   emit(paste0(id, "_se"), matrix(as.numeric(fits[[1L]]$se), 1))
   if (kind %in% c("np", "tdnn")) {
+    check_reference(vcov(fits[[1L]]), ref$covariance, paste(id,"joint covariance"))
     emit(paste0(id, "_vcov"), vcov(fits[[1L]]))
     options(RdistNN.use_compiled = TRUE)
     p1 <- predict(unserialize(serialize(fits[[1L]], NULL)), X0 = pred_targets, se.fit = TRUE)
     options(RdistNN.use_compiled = FALSE)
     p2 <- predict(unserialize(serialize(fits[[2L]], NULL)), X0 = pred_targets, se.fit = TRUE)
     stopifnot(identical(p1$fit, p2$fit), isTRUE(all.equal(p1$se.fit, p2$se.fit, tolerance = 1e-13)))
+    pred_ref <- reference_consumer(matrix(Y), pred_targets, method, tdnn = kind == "tdnn")
+    check_reference(p1$fit, pred_ref$point, paste(id,"prediction"))
+    check_reference(p1$se.fit, pred_ref$se, paste(id,"prediction uncertainty"))
     emit(paste0(id, "_pred"), matrix(p1$fit, 1))
     emit(paste0(id, "_pred_se"), matrix(p1$se.fit, 1))
   }
@@ -107,6 +127,11 @@ for (method in c("exact", "asymp")) {
       g = rep(0, n), theta_eval = 0, x0 = targets[1L, ], s = 7, method = method)
   })
   stopifnot(identical(fits[[1L]]$moment, fits[[2L]]$moment))
+  ref <- reference_consumer(D * (.5-as.numeric(Y <= 0)), targets[1L,,drop=FALSE], method)
+  for (fit in fits) {
+    check_reference(fit$moment, ref$point, paste("PLQR",method,"moment"))
+    check_reference(fit$moment_se, ref$se, paste("PLQR",method,"uncertainty"))
+  }
   emit(paste0("plqr_", method, "_point"), fits[[1L]]$moment)
   emit(paste0("plqr_", method, "_se"), fits[[1L]]$moment_se)
 }

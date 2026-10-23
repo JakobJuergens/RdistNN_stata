@@ -14,7 +14,7 @@ Requires active {help np_tdnn} estimates. Default {cmd:type(estimates)} uses
 the common estimate plot adapter and pointwise confidence bounds.
 {cmd:style()} and {cmd:xindex()} apply to estimates only.
 {cmd:type(weights)} displays final signed weights around zero, with selected
-{cmd:targets()} in separate panels. Duplicate-block averaging can make profiles
+{cmd:targets()} in separate panels. Exact-distance averaging can make profiles
 differ by target; {cmd:r(plot_data)} includes rank, weight and target_id.
 {cmd:type(diagnostics)} plots total absolute weight by selected target.
 Signed weights do not define probability distributions; no outcome-quantile

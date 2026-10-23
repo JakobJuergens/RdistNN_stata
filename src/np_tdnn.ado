@@ -42,9 +42,10 @@ program define np_tdnn, eclass
     quietly weights_tdnn `xvars' if `touse', `targetopt' s1(`s1') s2(`s2') ///
         dim(`dim') method(`method') distance(`distance') scalerule(`scalerule') ///
         `scaleopt' scaleeps(`scaleeps') `normopt'
-    tempname W R DX T diag geom b V signals concentration
+    tempname W R DX groups T diag geom b V signals concentration
     matrix `W'=r(weights)
     matrix `R'=r(ranks)
+    matrix `groups'=r(groups)
     matrix `DX'=r(distances)
     matrix `T'=r(targets)
     matrix `diag'=r(diagnostics)
@@ -52,7 +53,6 @@ program define np_tdnn, eclass
     local geopt ""
     capture matrix `geom'=r(geometry)
     if !_rc local geopt "geometry(`geom')"
-    mata: rdistnn_duplicate_warning(_td_X)
     mata {
         _td_y=st_data(.,"`outcome'","`touse'")
         st_matrix("`signals'",_td_y)
@@ -69,7 +69,7 @@ program define np_tdnn, eclass
     mata: st_matrix("`concentration'",st_matrix("`diag'")[,5]')
     matrix colnames `concentration'=`labels'
     if "`se'"=="" {
-        mata: st_matrix("`V'",rdistnn_tdnn_cov(st_matrix("`R'"),st_matrix("`signals'"),`s1',`s2',`dim',"`method'",`normalized',_td_X))
+        mata: st_matrix("`V'",rdistnn_tdnn_cov(st_matrix("`R'"),st_matrix("`signals'"),`s1',`s2',`dim',"`method'",`normalized',st_matrix("`DX'"),st_matrix("`groups'")))
         matrix rownames `V'=`labels'
         matrix colnames `V'=`labels'
         ereturn post `b' `V', esample(`touse')
@@ -86,7 +86,7 @@ program define np_tdnn, eclass
     ereturn scalar dim=`dim'
     ereturn scalar normalize=`normalized'
     mata: st_local("concentration_min",strofreal(min(st_matrix("`concentration'")),"%21.0g")); st_local("concentration_max",strofreal(max(st_matrix("`concentration'")),"%21.0g"))
-    // Compatibility names retain signed squared-weight concentration only.
+    // Shared reporting fields retain signed squared-weight concentration only.
     ereturn scalar neff_min=`concentration_min'
     ereturn scalar neff_max=`concentration_max'
     if `m'==1 ereturn scalar neff=el(`concentration',1,1)
@@ -117,7 +117,7 @@ program define np_tdnn, eclass
     local vars `xvars' `outcome'
     local vars : list uniq vars
     quietly _rdistnn_estimation_state `vars'
-    quietly _rdistnn_model_store `vars', signals(`signals') ranks(`R') distances(`DX') `geopt'
+    quietly _rdistnn_model_store `vars', signals(`signals') ranks(`R') distances(`DX') groups(`groups') `geopt'
     _np_tdnn_Display, level(`level')
 end
 

@@ -6,6 +6,12 @@ weights, diagnostics and plots. PLQR moment evaluation remains experimental. Rea
 [the article collection](docs/index.md) and [command guide](docs/command-guide.md) for current contracts. Open an issue
 before proposing a new estimator or a public-interface change.
 
+The maintained [implementation guidance](markdown_notes/implementation_guidance.md)
+records error/warning severity, actionable copy, grouping reuse, selective
+recovery and unit/performance testing requirements. Read it before changing
+those surfaces. It records intended design; code, help and passing regressions
+establish which behavior has been implemented.
+
 ## Development and production workflow
 
 Use local `development` for ongoing work and keep it unpublished until
@@ -18,6 +24,31 @@ complete the required CI checks and review, and squash-merge the PR. This keeps
 intermediate development commits out of the production history users follow.
 Direct pushes to `master` require an explicit maintainer override. Keep local
 development current with the reviewed production state before the next change.
+
+The first development commit after production `0.1.x` establishes
+`0.1.x.9000`. Each subsequent development commit increments the fourth component,
+including small changes: `0.1.x.9001`, `0.1.x.9002`, and so on. Uncommitted drafts
+do not advance this sequence. Read the current version from `rdistnn.pkg`'s
+`Version` and the current `RELEASE_NOTES.md` heading; update both together.
+By default, each production merge becomes `0.1.(x+1)`; the maintainer may choose another
+version. After that release, append `.9000` to the selected production version
+to start development. For example, the cycle after production `0.1.2` starts at
+`0.1.2.9000`, then `0.1.2.9001`; its next default production version is `0.1.3`.
+
+## Current development compatibility
+
+Use the current documented interfaces and complete current fit schemas.
+During this early development stage, remove compatibility layers for older
+package versions: retired aliases and wrappers, saved-state upgraders and
+migration shims. Keep one current implementation unless the maintainer
+explicitly requests an exception. Older, incomplete or inconsistent fits
+require an actionable refit error; do not silently reconstruct or repair them.
+Current fits must still survive serialization and support documented reuse.
+
+Document intentional interface changes and update their regression tests.
+Preserve historical changelogs, released tags/assets and frozen scientific
+evidence. Compatibility and deprecation commitments can be revisited when the
+packages stabilize; prior production releases do not change the current policy.
 
 ## Local setup
 
@@ -46,8 +77,9 @@ and frozen-rank versus geometry-refitting deletions distinct when they define
 different computations. Export numeric fixture data across languages; using
 the same seed in R and Stata does not establish identical random draws.
 
-Require exact ranks, lexicographic order for distinct covariate vectors at equal
-distance, duplicate-block averaging, support, target identities,
+Require exact ranks ordered by represented distance then original row index,
+target-specific exact-distance group membership and rank-weight averaging,
+support, target identities,
 statuses and missing-value masks after documented representation mappings.
 Compare continuous estimates, distances, weights and covariance at explicit,
 justified tolerances, using exact numeric equality where arithmetic is fully

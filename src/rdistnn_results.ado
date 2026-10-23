@@ -34,12 +34,6 @@ program define rdistnn_results, rclass
     matrix `fit'=`table'[1,1...]
     matrix `se'=`table'[2,1...]
     local fields : e(matrices)
-    foreach field in estimate_vcov targets {
-        if !`: list field in fields' {
-            di as error "Current fitted results require e(`field'); refit `e(cmd)' with the current package."
-            exit 498
-        }
-    }
     mata: st_matrix("`V'",st_matrix("e(estimate_vcov)")[st_matrix("`selection'"),st_matrix("`selection'")])
     mata: st_matrix("`fit'",colshape(st_matrix("`fit'"),`q')'); st_matrix("`se'",colshape(st_matrix("`se'"),`q')')
     matrix `coordinates'=e(targets)
@@ -67,10 +61,6 @@ program define rdistnn_results, rclass
         matrix colnames `data'=target `:colnames e(`field')'
     }
     if inlist("`type'","weights","influence") {
-        if e(model_version)!=2 {
-            di as error "Observation extraction requires a current saved model; refit `e(cmd)' with the current package."
-            exit 498
-        }
         if "`type'"=="influence" & !inlist("`e(cmd)'","cate_dnn","clate_dnn") error 198
         if "`type'"=="weights" {
             noisily mata: st_matrix("`data'",rdistnn_model_weights(strtoreal(tokens("`targets'"))))
@@ -82,6 +72,7 @@ program define rdistnn_results, rclass
             else matrix colnames `data'=target observation_id rank distance weight score contribution
         }
     }
+    _rdistnn_report_notices, targets(`targets')
     quietly _rdistnn_diagnostics_save, matrix(`data') saving(`saving') `replace'
     if "`e(cmd)'"=="plqr_dnn" {
         tempname theta

@@ -176,7 +176,7 @@ mata {
     _x0   = (0.2, 0.1)
     _r1   = rdistnn_ranks(_X, _x0, "mahalanobis")
     _Sinv = rdistnn_mahal_geometry(_X)
-    _r2   = rdistnn_order(rdistnn_distance_matrix(_X, _x0, "mahalanobis", _Sinv), _X)
+    _r2   = rdistnn_order(rdistnn_distance_matrix(_X, _x0, "mahalanobis", _Sinv))
     st_numscalar("_r", max(abs(_r1 - _r2)))
 }
 test_assert "[agree] rdistnn_ranks mahal = order(whitened distances)" scalar(_r) == 0

@@ -147,8 +147,7 @@ program define clate_dnn, eclass
     else {
         local nx0 : word count `x0'
         if `nx0' != `kx' {
-            di as error "x0() must have `kx' elements (one per covariate in xcols())."
-            exit 198
+            _rdistnn_messages error, rc(198) message("x0() requires `kx' values; got `nx0'.") hint("Supply one value per covariate in xcols().")
         }
         local x0_matrix ""
         foreach v of local x0 {
@@ -184,8 +183,7 @@ program define clate_dnn, eclass
     quietly count if `touse'
     local n=r(N)
     if `k'<1 {
-        di as error "k() must be >= 1."
-        exit 198
+        _rdistnn_messages error, rc(198) message("k() must be a positive integer; got `k'.") hint("Set k() to at least 1.")
     }
     if "`distance'"=="" local distance "l2"
     if !inlist("`distance'","l2","mahalanobis","l1","l1_scaled","l2_scaled") {
@@ -238,11 +236,11 @@ program define clate_dnn, eclass
     quietly run "`r(fn)'"
     mata {
         _cl_X = st_data(., "`xvars'", "`touse'")
-        rdistnn_duplicate_warning(_cl_X)
         _cl_X0 = st_matrix("`targets'")
         _cl_geometry = _cl_DX = _cl_ranks = J(0,0,.)
         rdistnn_localization_geometry(_cl_X,_cl_X0,"`resolved_distance'","`scalerule'",
             strtoreal(tokens("`scalevec'")),`scaleeps',_cl_geometry,_cl_DX,_cl_ranks)
+        _cl_groups=rdistnn_distance_groups(_cl_ranks,_cl_DX,1)
         _cl_signals = st_data(., "`phiy' `phid'", "`touse'")
         _cl_meta = st_matrix("`meta'")
         _cl_grid = _cl_gridse = _cl_gridy = _cl_gridd = J(`ng',`m',.)
@@ -269,7 +267,7 @@ program define clate_dnn, eclass
             }
             rdistnn_clate_fit(_cl_ranks,_cl_signals,`k',_cl_meta[_cl_g,8],
                 "`resolved_method'",`active',`denominatortol',
-                _cl_c,_cl_b,_cl_V,_cl_CV,_cl_status,_cl_X)
+                _cl_c,_cl_b,_cl_V,_cl_CV,_cl_status,_cl_DX,_cl_groups)
             _cl_grid[_cl_g,.] = _cl_b
             _cl_gridse[_cl_g,.] = sqrt(diagonal(_cl_V))'
             _cl_gridy[_cl_g,.] = _cl_c[,1]'
@@ -285,7 +283,7 @@ program define clate_dnn, eclass
             }
         }
         _cl_b = st_matrix("`theta'")
-        _cl_W = rdistnn_weights_from_rmat(_cl_ranks,`k',`resolved_s',"`resolved_method'",_cl_X)
+        _cl_W = rdistnn_weights_from_rmat(_cl_ranks,`k',`resolved_s',"`resolved_method'",_cl_DX,_cl_groups)
         _cl_A = _cl_e = J(0,1,.)
         if ("`route'"=="augmented_iv") {
             _cl_A = st_data(.,"`acol'","`touse'")
@@ -298,7 +296,7 @@ program define clate_dnn, eclass
         for(_cl_g=1;_cl_g<=`ng';_cl_g++) {
             _cl_grid_diag[_cl_g,3]=min((5,`n'))
             if(_cl_meta[_cl_g,4]==0) continue
-            _cl_grid_W=rdistnn_weights_from_rmat(_cl_ranks,`k',_cl_meta[_cl_g,8],"`resolved_method'",_cl_X)
+            _cl_grid_W=rdistnn_weights_from_rmat(_cl_ranks,`k',_cl_meta[_cl_g,8],"`resolved_method'",_cl_DX,_cl_groups)
             _cl_grid_diag[_cl_g,.]=rdistnn_grid_weight_diagnostics(_cl_grid_W)
         }
         st_matrix("`grid_diag'",_cl_grid_diag)
@@ -461,14 +459,14 @@ program define clate_dnn, eclass
     local signature_vars `xvars' `input' `nuisance_vars' `denominator'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
-    tempname model_signals model_ranks model_distances model_geometry
-    mata: st_matrix("`model_signals'",_cl_signals); st_matrix("`model_ranks'",_cl_ranks); st_matrix("`model_distances'",_cl_DX)
+    tempname model_groups model_signals model_ranks model_distances model_geometry
+    mata: st_matrix("`model_groups'",_cl_groups); st_matrix("`model_signals'",_cl_signals); st_matrix("`model_ranks'",_cl_ranks); st_matrix("`model_distances'",_cl_DX)
     local geometry_option ""
     if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
         mata: st_matrix("`model_geometry'",_cl_geometry)
         local geometry_option "geometry(`model_geometry')"
     }
-    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances') `geometry_option'
+    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances') groups(`model_groups') `geometry_option'
     _clate_dnn_Display, level(`level')
 end
 

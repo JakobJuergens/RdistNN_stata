@@ -39,13 +39,16 @@ assertions as the full suite.
 | Exact represented rank tables, CDF decisions and near-full subsets | `test-exact-rank-portability.do`, `fixtures/exact_rank_tables.csv` |
 | CATE population signal behavior | `test-cate-signal-contract.do` |
 | Derived coefficient stripes and verified estimation samples | `test-derived-fit-contract.do` |
-| Canonical raw-covariate ordering of exact-distance ties, subset/permutation invariance and current saved prediction | `test-canonical-ties.do` |
-| Exact-X block averaging, actual-observation deletion and survivor weights, naive/Mata/native parity, signed TDNN, paired covariance, extreme ranges, reuse and target-specific plots | `test-duplicate-blocks.do` |
-| Original-signal block states, exact finite survivors and signed zero-mass covariance, genuine subnormals, unnormalized mass and forced engine execution | `test-block-numerical-regression.do`, native `test_rdistnn_blocks.cpp` |
+| Exact-distance ranks, subset/permutation invariance and current saved prediction | `test-canonical-ties.do` |
+| Exact-distance block averaging, actual-observation deletion and survivor weights, naive/Mata/native parity, signed TDNN, paired covariance, extreme ranges, reuse and target-specific plots | `test-duplicate-blocks.do` |
+| Target-specific exact-distance groups, symmetric/boundary/zero-rank ties, signed tables, survivor deletion, saved-policy validation and native/Mata parity | `test-distance-ties.do` |
+| Cached-state guard rejects corrupted groups in reporting, covariance, diagnostics and estimate/diagnostic plots after clearing active data and Mata; rejection preserves fitted state | `test-cached-model-guard.do` |
+| Shared R/C++/Mata/native exact-distance fixtures, explicit subset and deletion references | `test-distance-tie-r-parity.do`, `fixtures/r_distance_tie_fixtures.do` |
+| Original-signal block states, exact finite survivors and signed zero-mass covariance, genuine subnormals, unnormalized mass and forced engine execution | `test-block-numerical-regression.do`, `src/plugin/test_rdistnn_blocks.cpp` |
 | Weighted CDF boundary indices, physical radius/SD ranges and restored predictions | `test-weighted-distribution-range.do`, `fixtures/weighted_cdf_fixtures.do` |
 | Distances and deterministic ranks | `test-mata-distances.do`, `test-mata-rank-r-mirror.do` |
 | Exact/asymptotic weights | `test-mata-weights-exact.do`, `test-mata-weights-asymp.do`, `test-weights-dnn-*.do` |
-| Native exact-table subset references and active protocol failure propagation without output writes | `src/plugin/test_rdistnn_weights.cpp`, `src/plugin/test_rdistnn_distance_plugin.cpp` |
+| Native distance-protocol validation and failed requests without output writes | `src/plugin/test_rdistnn_distance_plugin.cpp` |
 | Scalar/vector/multi-target jackknife references | `test-mata-jackknife*.do` |
 | Compiled/fast Mata/retained naive deletion parity, matrix bridge, fallback hierarchy and all-estimator grid/covariance reuse | `test-mata-jackknife-prefix.do`, `test-jackknife-engines.do` |
 | Support-aware centering, inactive extremes, deletion boundary ranks, asymptotic tails and the shared R variance-9 fixture | `test-mata-jackknife-prefix.do`, `src/plugin/test_rdistnn_core.cpp` |
@@ -70,8 +73,9 @@ assertions as the full suite.
 | Actual R native/fallback distance and rank fixtures; forced distance routes, invalid protocol inputs, overflow, matrix dimensions above matsize | `test-native-distances.do` |
 | Native/Mata equivalence for every estimator, metric/scaling rule and weight method, tuning and saved-fit prediction | `test-native-distances-estimators.do` |
 | Two-scale signed regression/weights, full covariance, reporting and saved reuse | `test-tdnn.do`, `test-tdnn-saved.do` |
-| Independent tiny Beta masses, close-order TDNN coefficients and affected estimator/prediction paths | `test-weight-numerical-stability.do`, `src/plugin/test_rdistnn_weights.cpp` |
+| Independent Mata tiny Beta masses, close-order TDNN coefficients and affected estimator/prediction paths | `test-weight-numerical-stability.do` |
 | Extreme L2 recovery, shared arithmetic boundaries, exact ranks and genuine output overflow | `test-distance-range-stability.do`, `src/plugin/test_rdistnn_distance.cpp`, `src/plugin/test_rdistnn_distance_plugin.cpp` |
+| Scaled L1/L2 collectively represented subnormal norms and final rounding, with actual Mata/native route assertions and independent native analytic checks; R `test-distance-scaled-underflow.R` | `test-distance-range-stability.do`, `src/plugin/test_rdistnn_distance.cpp` |
 | Actual R native/fallback extreme-distance estimates, joint covariance and restored prediction | `test-stability-r-parity.do`, `fixtures/r_stability_fixtures.do` |
 | Actual R native/fallback centered-design geometry, full rank decisions, extreme estimator covariance and restored prediction | `test-covariance-geometry-r-parity.do`, `fixtures/r_covariance_geometry_fixtures.do` |
 | Fixed shared R values | `test-r-parity-priority.do` |
@@ -90,6 +94,8 @@ guarantee for every subnormal tail. The
 [numerical reference](../docs/numerical-stability.md#asymptotic-tail-limits)
 records unresolved R/Mata support differences and loss during mixtures.
 Keep weight construction separate from fixed-table deletion verification.
+Probability construction and TDNN coefficients run in Mata. Native tests consume
+supplied rank tables and check distance/deletion kernels and the plugin protocol.
 
 Follow the [numerical parity contract](../CONTRIBUTING.md#numerical-parity-contract):
 force and establish native/Mata routes, test fallback separately, retain
@@ -103,6 +109,7 @@ contract change; each output records its reference identity where applicable:
 | Fixture | Generator in `tools/` | Main consumer |
 | --- | --- | --- |
 | Native distances/ranks | `generate_r_native_distance_fixtures.R` | `test-native-distances*` |
+| Exact-distance groups, subset/deletion references and reusable fits | `generate_distance_tie_fixtures.R` | `test-distance-tie-r-parity` |
 | Extreme distances/Beta/TDNN | `generate_r_stability_fixtures.R` | `test-stability-r-parity` |
 | Scales and quantiles | `generate_r_geometry_fixtures.R` | `test-geometry-numerical-stability` |
 | Covariance/geometry | `generate_r_covariance_geometry_fixtures.R` | `test-covariance-geometry-r-parity` |
@@ -153,6 +160,11 @@ reference is `rdistnn_log_binomial()` and must not occupy or drop `lncomb()`.
 
 ## Shared test ownership
 
+[Implementation guidance](../markdown_notes/implementation_guidance.md#unit-and-regression-tests)
+owns message/recovery tests, actual grouping-reuse evidence and the distinction
+between structural performance checks and benchmarks. Keep new cases in their
+behavioral owner and reuse the helpers below.
+
 `helpers/fitted-data.do` creates the deterministic sample used by independently
 selectable saved-prediction, candidate and snapshot-observation suites.
 `helpers/e-state.do` compares all matrix values and stripes without depending on
@@ -176,10 +188,38 @@ logical multi-target/component reconstruction, actual packed native execution,
 and forced versus automatic behavior after a recognized packed failure. The
 standalone `rdistnn_loo_plugin_test` exercises the real entry point with malformed
 metadata, overflow, invalid ranks/groups, nonfinite values, padding/shape errors,
-read failures, aliases and bitwise raw/packed comparisons. Legacy capability
-compatibility is also covered by private audit runs against an older binary.
+read failures, aliases and bitwise raw/packed comparisons. The Mata bridge
+requires current packed capability: forced native calls error when it is absent,
+and automatic calls use Mata. Neither route retries a raw operation.
 
 `test-weighted-underflow-origin.do` checks zero survivors, constant signals,
-signed/unnormalized subnormal table mass, amplified rounded duplicate weights,
+signed/unnormalized subnormal table mass, amplified rounded tied weights,
 centered/raw paths and actual naive/Mata/native execution. It also protects
 ordinary tiny-tail and exact zero-mass origin behavior.
+
+`test-message-reporting.do` owns cross-cutting message contracts: standard
+return codes, literal text, bounded examples/values, ordinary/quiet/capture
+channels, caller `e()`/`r()` preservation, batch CLATE summaries and `nose`,
+public geometry preparation counters, validated cached-group reuse and native
+capability versus execution-failure injection. Instrumentation lives in
+`helpers/reporting-instrument.do`, outside installed code. Run it with:
+
+```stata
+do "tests/tests.do" "test-message-reporting"
+```
+
+`tools/bench/bench_reporting.do` takes explicit before/after installation and
+receipt directories. It exercises n=64/2,000/32,000, scalar/batch NP fits,
+11-candidate grids and saved multipanel consumers, ties, ordinary/quiet output and both
+forced engines. It retains timings, call counters and complete numerical
+matrices; the Windows launcher can record process peak working-set memory.
+Base fits cover all three sizes; grids and multipanel reuse use the middle
+size. At n*m above Stata/SE's 11,000-row plot transport limit, the benchmark
+uses the real Mata panel preparation rather than claiming full graph rendering.
+These measurements are evidence, not CI timing thresholds.
+
+The reporting suite also checks independent estimator replay, near-uniform
+DNN/TDNN concentration at the existing `.9*n` guide, infeasible optional grid
+rows, requested prediction intervals, and quiet kernel/influence consumers.
+A single shared public notice owner is exercised; numerical kernels do not
+keep warning flags or emit their own copies.

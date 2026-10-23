@@ -4,7 +4,7 @@ program define _rdistnn_model_post, eclass
     version 17
     syntax, TARGETS(name) S(integer) ACTIVE(integer) CANDIDATE(integer) ///
         B(name) V(name) DIAGNOSTICS(name) COMPONENTS(name) COMPONENTV(name) ///
-        STATUS(name) NEFF(name) RANKS(name) DX(name) W(name) FIT(name) SES(name) ///
+        STATUS(name) NEFF(name) RANKS(name) DX(name) GROUPS(name) W(name) FIT(name) SES(name) ///
         LAMBDA(real) P(integer) M(integer)
     local V "`v'"
     local DX "`dx'"
@@ -35,7 +35,11 @@ program define _rdistnn_model_post, eclass
     tempvar sample
     quietly gen byte `sample'=0
     capture quietly _rdistnn_sample_signature `e(signature_vars)' if e(sample)
-    if !_rc {
+    local signature_rc=_rc
+    // Unrelated caller data can lack a fitted variable or retain it as text.
+    // Other failures, including Break and resource errors, must propagate.
+    if `signature_rc' & !inlist(`signature_rc',109,111) exit `signature_rc'
+    if !`signature_rc' {
         if `"`r(signature)'"'==`"`e(ordered_signature)'"' quietly replace `sample'=e(sample)
     }
     local labels ""
@@ -123,16 +127,18 @@ program define _rdistnn_model_post, eclass
     ereturn scalar neff_min=r(_model_min)
     ereturn scalar neff_max=r(_model_max)
     ereturn scalar neff=cond(`m'==1,el(`neff',1,1),.)
-    ereturn scalar ess=cond(`m'==1,el(`neff',1,1),.)
-    ereturn scalar ess_min=e(neff_min)
-    ereturn scalar ess_max=e(neff_max)
+    if "`cmd'"!="np_tdnn" {
+        ereturn scalar ess=cond(`m'==1,el(`neff',1,1),.)
+        ereturn scalar ess_min=e(neff_min)
+        ereturn scalar ess_max=e(neff_max)
+    }
     ereturn matrix estimates=`b', copy
     ereturn matrix se_targets=`ses', copy
     ereturn matrix estimate_vcov=`V', copy
     ereturn matrix targets=`targets', copy
     ereturn matrix x0_matrix=`targets', copy
     ereturn matrix neff_targets=`neff', copy
-    ereturn matrix ess_targets=`neff', copy
+    if "`cmd'"!="np_tdnn" ereturn matrix ess_targets=`neff', copy
     local cols "ess max_weight top1_weight_share top5_weight_share top10_weight_share n_nonzero_weight distance_available radius_rank_k radius_rank_s weighted_mean_distance weighted_median_distance"
     if "`cmd'"=="np_tdnn" local cols "signed_sum positive_mass negative_mass abs_mass inverse_l2_concentration max_abs_weight n_nonzero_weight abs_mean_distance"
     if "`cmd'"=="np_dnn" local cols "`cols' outcome_available weighted_mean_y weighted_sd_y weighted_y_q10 weighted_y_q50 weighted_y_q90"
@@ -142,6 +148,7 @@ program define _rdistnn_model_post, eclass
     ereturn matrix target_diagnostics=`diagnostics', copy
     ereturn matrix model_ranks=`ranks', copy
     ereturn matrix model_distances=`DX', copy
+    ereturn matrix model_groups=`groups', copy
     ereturn matrix model_targets=`targets', copy
     ereturn matrix fitted_values=`fit', copy
     if "`cmd'"=="clate_dnn" {

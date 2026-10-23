@@ -27,7 +27,7 @@ program define _nd_case
     mata {
         nd_c=st_matrix("ND_`id'_C"); nd_r=st_matrix("ND_`id'_R")
         st_numscalar("nd_err",max(abs(st_matrix("ND_OUT")-nd_c):/(1:+abs(nd_c))))
-        st_numscalar("nd_rank",max(abs(rdistnn_ranks_from_dmat(st_matrix("ND_OUT"),st_matrix("`xx'"))-st_matrix("ND_`id'_rankC"))))
+        st_numscalar("nd_rank",max(abs(rdistnn_ranks_from_dmat(st_matrix("ND_OUT"))-st_matrix("ND_`id'_rankC"))))
         st_numscalar("nd_rdiff",sum(st_matrix("ND_`id'_rankC"):!=st_matrix("ND_`id'_rankR")))
     }
     test_assert "`id': native distances match actual Rcpp" scalar(nd_err)<1e-14
@@ -46,7 +46,7 @@ program define _nd_case
         local observed "$rdistnn_last_distance_engine"
         mata {
             st_numscalar("nd_err",max(abs(nd_D-nd_c):/(1:+abs(nd_c))))
-            st_numscalar("nd_rank",max(abs(rdistnn_ranks_from_dmat(nd_D,st_matrix("`xx'"))-st_matrix("ND_`id'_rankC"))))
+            st_numscalar("nd_rank",max(abs(rdistnn_ranks_from_dmat(nd_D)-st_matrix("ND_`id'_rankC"))))
             nd_perm=(rows(st_matrix("`target'"))..1)
             nd_P=rdistnn_distance_matrix(st_matrix("`xx'"),st_matrix("`target'")[nd_perm,],"`distance'",nd_G)
             st_numscalar("nd_perm",max(abs(nd_P-nd_D[,nd_perm])))

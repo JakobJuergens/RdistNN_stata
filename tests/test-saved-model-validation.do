@@ -1,4 +1,4 @@
-// Corrupt schema-2 snapshots must fail before reuse or observation reconstruction.
+// Corrupt schema-3 snapshots must fail before reuse or observation reconstruction.
 version 17
 do "tests/test_framework.do"
 do "tests/helpers/e-state.do"
@@ -68,35 +68,157 @@ program define _smv_corrupt, eclass
     if "`case'"=="count" ereturn scalar N=9
     if "`case'"=="dimension" ereturn scalar p=3
     if "`case'"=="target_count" ereturn scalar m=3
-    if "`case'"=="legacy" ereturn scalar model_version=1
+    if "`case'"=="legacy" ereturn scalar model_version=2
+    if "`case'"=="old_policy" ereturn local tie_rule "distance_then_covariates_with_duplicate_block_averaging"
+    if "`case'"=="group_mismatch" {
+        matrix `value'=e(model_groups)
+        matrix `value'[1,1]=99
+        ereturn matrix model_groups=`value', copy
+    }
+    if "`case'"=="group_missing" {
+        matrix `value'=(.)
+        ereturn matrix model_groups=`value', copy
+    }
     if "`case'"=="geometry" {
         matrix `value'=(1,0)
         ereturn matrix model_geometry=`value', copy
+    }
+    if inlist("`case'","target_identity","target_dimensions") {
+        matrix `value'=e(targets)
+        if "`case'"=="target_identity" matrix `value'[1,1]=987654321
+        else matrix `value'=`value'[1,1...]
+        ereturn matrix targets=`value', copy
+    }
+    if inlist("`case'","estimates_dimensions","ses_dimensions","vcov_dimensions","diagnostics_dimensions") {
+        local field "estimates"
+        if "`case'"=="ses_dimensions" local field "se_targets"
+        if "`case'"=="vcov_dimensions" local field "estimate_vcov"
+        if "`case'"=="diagnostics_dimensions" local field "diagnostics"
+        matrix `value'=(1)
+        ereturn matrix `field'=`value', copy
+    }
+    if "`case'"=="missing_estimate" {
+        matrix `value'=e(estimates)
+        matrix `value'[1,1]=.
+        ereturn matrix estimates=`value', copy
+    }
+    if inlist("`case'","status_dimensions","components_dimensions","componentcov_dimensions") {
+        local field "status"
+        if "`case'"=="components_dimensions" local field "components"
+        if "`case'"=="componentcov_dimensions" local field "component_vcov"
+        matrix `value'=(1)
+        ereturn matrix `field'=`value', copy
+    }
+    if "`case'"=="negative_se" {
+        matrix `value'=e(se_targets)
+        matrix `value'[1,1]=-2
+        ereturn matrix se_targets=`value', copy
+    }
+    if inlist("`case'","missing_se","inconsistent_se") {
+        matrix `value'=e(se_targets)
+        matrix `value'[1,1]=cond("`case'"=="missing_se",.,el(`value',1,1)+1)
+        ereturn matrix se_targets=`value', copy
+    }
+    if inlist("`case'","negative_variance","asymmetric_vcov","missing_variance") {
+        matrix `value'=e(estimate_vcov)
+        if "`case'"=="negative_variance" matrix `value'[1,1]=-1
+        if "`case'"=="missing_variance" matrix `value'[1,1]=.
+        if "`case'"=="asymmetric_vcov" matrix `value'[1,2]=el(`value',1,2)+1
+        ereturn matrix estimate_vcov=`value', copy
+    }
+    if "`case'"=="se_method" ereturn local se_method "invalid"
+    if "`case'"=="jackknife_method" ereturn local jackknife "none"
+    if inlist("`case'","status_values","status_missing","status_availability") {
+        matrix `value'=e(status)
+        if "`case'"=="status_values" matrix `value'[1,5]=2
+        if "`case'"=="status_missing" matrix `value'[1,1]=.
+        if "`case'"=="status_availability" matrix `value'[1,1]=1
+        ereturn matrix status=`value', copy
+    }
+    if inlist("`case'","status_ok_missing","status_ok_zero","status_zero_nonzero","status_failed_finite") {
+        tempname ses covariance
+        matrix `value'=e(status)
+        matrix `ses'=e(se_targets)
+        matrix `covariance'=e(estimate_vcov)
+        matrix `value'[1,5]=0
+        if inlist("`case'","status_ok_missing","status_ok_zero") {
+            local v=cond("`case'"=="status_ok_missing",.,0)
+            matrix `ses'[1,1]=`v'
+            forvalues j=1/`=colsof(`covariance')' {
+                matrix `covariance'[1,`j']=`v'
+                matrix `covariance'[`j',1]=`v'
+            }
+        }
+        if "`case'"=="status_zero_nonzero" matrix `value'[1,4]=2
+        if "`case'"=="status_failed_finite" matrix `value'[1,4]=3
+        ereturn matrix status=`value', copy
+        ereturn matrix se_targets=`ses', copy
+        ereturn matrix estimate_vcov=`covariance', copy
+    }
+    if "`case'"=="bad_arm_link" ereturn local t_col "not_retained"
+    if "`case'"=="bad_propensity_link" ereturn local e_col "not_retained"
+    if "`case'"=="missing_arm_link" ereturn local t_col ""
+    if "`case'"=="missing_propensity_link" ereturn local e_col ""
+    if "`case'"=="negative_clip" ereturn scalar clip=-.2
+    if "`case'"=="missing_clip" ereturn scalar clip=.
+    if "`case'"=="large_clip" ereturn scalar clip=.9
+    if "`case'"=="negative_tolerance" ereturn scalar denominator_tol=-1
+    if "`case'"=="missing_tolerance" ereturn scalar denominator_tol=.
+end
+
+// Both retained-state fixtures exercise the same public routes and e() guard.
+capture program drop _smv_check_routes
+program define _smv_check_routes
+    syntax, ESTIMATES(name) SNAPSHOT(name) CASE(string) ROUTES(string) [FAMILY(name) QUERY]
+    if "`family'"=="" local family "np"
+    local label "`case'"
+    local rejected "corrupt snapshot is rejected"
+    local preserved "failure preserves complete e() and sample"
+    local caller "_N==8 & smv_y[1]==1"
+    local graph "smv_invalid"
+    if "`query'"!="" {
+        local label "`family'/`case'"
+        local rejected "reject invalid retained state with refit error"
+        local preserved "preserve current e() and query data"
+        local caller `"_N==3 & caller[1]=="preserved" & smvc_x[1]==777"'
+        local graph "smvc_invalid"
+    }
+    foreach route of local routes {
+        quietly estimates restore `estimates'
+        if "`route'"=="cached" capture quietly rdistnn_predict, x0matrix(SMV_TARGETS) post
+        if "`route'"=="new" capture quietly rdistnn_predict, x0(.25 0) post
+        if "`route'"=="replay" capture quietly `family'_dnn
+        if inlist("`route'","estimates","results") capture quietly rdistnn_results
+        if "`route'"=="vcov" capture quietly rdistnn_results, type(vcov)
+        if "`route'"=="resultdiag" capture quietly rdistnn_results, type(diagnostics)
+        if "`route'"=="diagnostics" capture quietly `family'_dnn_diagnostics
+        if "`route'"=="weights" capture quietly rdistnn_results, type(weights)
+        if "`route'"=="kernel" capture quietly `family'_dnn_plot, type(weights) view(kernel) name(`graph') replace nodraw
+        if "`route'"=="profile" capture quietly `family'_dnn_plot, type(weights) name(`graph') replace nodraw
+        if "`route'"=="estimateplot" capture quietly `family'_dnn_plot, type(estimates) name(`graph') replace nodraw
+        if "`route'"=="diagplot" capture quietly `family'_dnn_plot, type(diagnostics) name(`graph') replace nodraw
+        if "`route'"=="plot" capture quietly `family'_dnn_plot, name(`graph') replace nodraw
+        if "`route'"=="predict" capture quietly rdistnn_predict, x0(.25 0) sefit post
+        if "`route'"=="candidate" capture quietly rdistnn_candidate, candidate(1) post
+        local rc=_rc
+        test_assert "`label'/`route': `rejected'" `rc'==498
+        _rdistnn_test_e_compare, snapshot(`snapshot')
+        local same=r(equal)
+        test_assert "`label'/`route': `preserved'" `same' & `caller'
     }
 end
 
 test_section "saved snapshot corruption: reject consistently and preserve caller state"
 foreach case in negative_distance missing_distance rank_order rank_tie duplicate_rank ///
     fractional_id duplicate_id missing_id short_ids input_rows input_names ///
-    signal_columns signal_missing method distance count dimension target_count legacy {
+    signal_columns signal_missing method distance count dimension target_count legacy old_policy group_mismatch group_missing {
     quietly estimates restore SMV_PARENT
     _smv_corrupt, case(`case')
     estimates store SMV_CORRUPT_ACTIVE
     quietly estimates restore SMV_CORRUPT_ACTIVE
     _rdistnn_test_e_snapshot, name(SMV_CORRUPT)
-    foreach route in cached new weights kernel profile {
-        quietly estimates restore SMV_CORRUPT_ACTIVE
-        if "`route'"=="cached" capture quietly rdistnn_predict, x0matrix(SMV_TARGETS) post
-        if "`route'"=="new" capture quietly rdistnn_predict, x0(.25 0) post
-        if "`route'"=="weights" capture quietly rdistnn_results, type(weights)
-        if "`route'"=="kernel" capture quietly np_dnn_plot, type(weights) view(kernel) name(smv_invalid) replace nodraw
-        if "`route'"=="profile" capture quietly np_dnn_plot, type(weights) name(smv_invalid) replace nodraw
-        local rc=_rc
-        test_assert "`case'/`route': corrupt snapshot is rejected" `rc'==498
-        _rdistnn_test_e_compare, snapshot(SMV_CORRUPT)
-        local same=r(equal)
-        test_assert "`case'/`route': failure preserves complete e() and sample" `same' & _N==8 & smv_y[1]==1
-    }
+    _smv_check_routes, estimates(SMV_CORRUPT_ACTIVE) snapshot(SMV_CORRUPT) case(`case') ///
+        routes("cached new weights kernel profile estimates vcov resultdiag diagnostics estimateplot diagplot")
     estimates drop SMV_CORRUPT_ACTIVE
     _rdistnn_test_e_snapshot_drop, name(SMV_CORRUPT)
 }
@@ -159,6 +281,85 @@ foreach family in np tdnn cate clate plqr {
 }
 quietly estimates restore SMV_PARENT
 estimates drop SMV_PARENT
-program drop _smv_corrupt
 global rdistnn_distance_engine "`smv_distance'"
 global rdistnn_jackknife_engine "`smv_jackknife'"
+
+// Canonical report arrays and route-specific retained controls belong to the
+// current snapshot too. Corruption must fail before a consumer repairs it.
+test_section "current retained-state reporting and route contracts"
+clear
+set obs 12
+gen long smvc_id=_n
+gen double smvc_x=(_n-6.5)/3
+gen double smvc_z=cond(mod(_n,2),-.5,.5)
+gen double smvc_y=1+smvc_x^2+sin(_n)/10
+gen double smvc_den=.1+.01*smvc_x
+gen byte smvc_d=mod(_n,2)
+gen double smvc_e=cond(mod(_n,2),0,1)
+gen double smvc_m0=.2+smvc_x
+gen double smvc_m1=.5+smvc_x
+matrix SMVC_TARGETS=(-.5,0\0,0\-.5,0)
+foreach family in np cate clate {
+    local extra ""
+    local cases "target_identity target_dimensions estimates_dimensions ses_dimensions negative_se vcov_dimensions diagnostics_dimensions missing_estimate missing_se inconsistent_se negative_variance asymmetric_vcov missing_variance se_method jackknife_method"
+    if "`family'"=="cate" {
+        local extra "tcol(smvc_d) ecol(smvc_e) m0col(smvc_m0) m1col(smvc_m1)"
+        local cases "bad_arm_link bad_propensity_link missing_arm_link missing_propensity_link negative_clip missing_clip large_clip"
+    }
+    if "`family'"=="clate" {
+        local extra "pseudooutcome denominator(smvc_den)"
+        local cases "negative_tolerance missing_tolerance status_dimensions components_dimensions componentcov_dimensions status_values status_missing status_availability inconsistent_se negative_variance asymmetric_vcov se_method jackknife_method status_ok_missing status_ok_zero status_zero_nonzero status_failed_finite"
+    }
+    quietly `family'_dnn smvc_y if !inlist(smvc_id,1,5,12), ///
+        xcols(smvc_x smvc_z) x0matrix(SMVC_TARGETS) ///
+        tuningmode(grid) sgrid(2 3 2) sdefault(3) `extra'
+    estimates store SMVC_VALID
+    foreach case of local cases {
+        quietly estimates restore SMVC_VALID
+        _smv_corrupt, case(`case')
+        estimates store SMVC_INVALID
+        preserve
+        clear
+        set obs 3
+        gen str12 caller="preserved"
+        gen double smvc_x=777
+        quietly estimates restore SMVC_INVALID
+        mata: mata clear
+        _rdistnn_test_e_snapshot, name(SMVC_STATE)
+        _smv_check_routes, estimates(SMVC_INVALID) snapshot(SMVC_STATE) case(`case') ///
+            routes("replay results vcov diagnostics plot weights predict candidate") family(`family') query
+        _rdistnn_test_e_snapshot_drop, name(SMVC_STATE)
+        restore
+        estimates drop SMVC_INVALID
+    }
+    estimates drop SMVC_VALID
+}
+program drop _smv_corrupt
+program drop _smv_check_routes
+
+test_section "valid retained ratio uncertainty states"
+clear
+set obs 8
+gen double state_x=_n
+gen double state_den=1+_n/100
+gen double state_y=2*state_den
+quietly clate_dnn state_y, pseudooutcome denominator(state_den) xcols(state_x) x0(0) s(3)
+capture quietly rdistnn_results
+local rc=_rc
+test_assert "defined zero-score ratio retains exact zero covariance status" `rc'==0 & e(status)[1,4]==2 & e(estimate_vcov)[1,1]==0
+quietly clate_dnn state_y, pseudooutcome denominator(state_den) xcols(state_x) x0(0) s(3) nose
+capture quietly rdistnn_results
+local rc=_rc
+test_assert "nose ratio retains intentionally uncomputed uncertainty" `rc'==0 & e(status)[1,4]==1 & missing(e(se_targets)[1,1])
+replace state_den=0
+replace state_y=_n^2
+quietly clate_dnn state_y, pseudooutcome denominator(state_den) xcols(state_x) x0(0) s(3)
+capture quietly rdistnn_results
+local rc=_rc
+test_assert "undefined ratio retains component-success status and missing ratio covariance" `rc'==0 & e(status)[1,1]==1 & e(status)[1,4]==0 & missing(e(estimate_vcov)[1,1])
+replace state_den=1
+replace state_y=cond(mod(_n,2),-1,1)*2^-540
+quietly clate_dnn state_y, pseudooutcome denominator(state_den) xcols(state_x) x0(0) s(3)
+capture quietly rdistnn_results
+local rc=_rc
+test_assert "numerical covariance failure retains a finite defined ratio" `rc'==0 & e(status)[1,1]==0 & e(status)[1,4]==3 & missing(e(estimate_vcov)[1,1])

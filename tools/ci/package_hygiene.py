@@ -5,7 +5,7 @@ import re
 from collections import Counter
 from pathlib import Path, PurePosixPath
 
-SHARED_HEADERS = ('compensated_arithmetic.hpp',)
+SHARED_HEADERS = ('compensated_arithmetic.hpp', 'distance_arithmetic.hpp')
 MATA_FUNCTION = re.compile(
     r'^[ \t]*(?:(?:real|string|complex|transmorphic)\s+(?:scalar|vector|rowvector|colvector|matrix)|void)'
     r'\s+([A-Za-z_]\w*)\s*\(', re.M,

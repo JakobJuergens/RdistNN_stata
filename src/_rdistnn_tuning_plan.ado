@@ -172,7 +172,7 @@ program define _rdistnn_tuning_plan, rclass
             di as error "Default s(`s') < k(`k'). Increase n or lambda(), or decrease k()."
         }
         else if `default_reason' == 2 {
-            di as error "Default s(`s') must be less than n(`n') for jackknife SE; specify nose or reduce lambda()."
+            di as error "Delete-one inference requires s() < the estimation sample size; got s = `s' and n = `n'. Reduce s() or lambda(), or specify nose."
         }
         else {
             di as error "Default s(`s') must be no greater than n(`n') when nose is specified."

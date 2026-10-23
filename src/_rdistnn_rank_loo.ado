@@ -1,7 +1,7 @@
 *! version 0.1.0  2026-10-18
 version 17
 // Arbitrary-rank-table deletions and DNN covariance adapters; TDNN reuses tables.
-foreach fn in naive naive_table prefix plugin from_ranks from_table {
+foreach fn in naive_table prefix plugin from_ranks from_table {
     capture mata: mata drop rdistnn_loo_`fn'()
 }
 capture mata: mata drop rdistnn_center_signal()
@@ -34,14 +34,6 @@ real matrix rdistnn_loo_naive_table(real matrix ranks, real matrix signal,
     return(loo)
 }
 
-// Compatibility adapter for the original DNN reference API.
-real matrix rdistnn_loo_naive(real matrix ranks, real matrix signal,
-    real scalar k, real scalar s, string scalar method)
-{
-    return(rdistnn_loo_naive_table(ranks,signal,
-        rdistnn_weights_from_ranks((1::(rows(ranks)-1)),k,s,method)))
-}
-
 // Two linear passes per target/component. The table at n-1 is shared across
 // every deletion and target; no deletion-specific rank or signal copies.
 real matrix rdistnn_loo_prefix(real matrix ranks, real matrix signal,
@@ -70,27 +62,16 @@ real matrix rdistnn_loo_prefix(real matrix ranks, real matrix signal,
 real matrix rdistnn_loo_plugin(real matrix ranks, real matrix signal,
     real colvector table)
 {
-    string rowvector names
-    real scalar rc, i
-    real matrix loo
-    if(st_global("rdistnn_plugin_ok")!="1") return(J(0,0,.))
-    if(rdistnn_native_packed_api()) return(rdistnn_native_loo(ranks,signal,table))
-    names=st_tempname(4)
-    st_matrix(names[1],ranks)
-    st_matrix(names[2],signal)
-    st_matrix(names[3],table)
-    st_matrix(names[4],J(rows(ranks),cols(ranks)*cols(signal),.))
-    rc=_stata("plugin call rdistnn_plugin, rank_loo "+invtokens(names),1)
-    loo=J(0,0,.)
-    if(rc==0) loo=st_matrix(names[4])
-    for(i=1;i<=4;i++) st_matrix(names[i],J(0,0,.))
-    return(loo)
+    if(st_global("rdistnn_plugin_ok")!="1" | !rdistnn_native_packed_api()) return(J(0,0,.))
+    return(rdistnn_native_loo(ranks,signal,table))
 }
 
+// Accompanying DX enables exact-distance groups; supplied ranks are never
+// recomputed. Without DX, deletions use the strict rank table.
 // Common dispatcher: signed and nonnegative tables use identical validation,
 // centering and native -> Mata -> explicit-deletion fallback semantics.
 real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
-    real colvector table, | real scalar center, string scalar engine, real matrix X)
+    real colvector table, | real scalar center, string scalar engine, real matrix DX, real matrix prepared_groups)
 {
     real scalar n,m,q,i,j,r
     real colvector seen,active,ord
@@ -98,6 +79,7 @@ real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
     real rowvector level
     string scalar plugin_mode
     pointer(function) scalar prefix
+    if(args()<7) prepared_groups=J(0,0,.)
     if(args()<4) center=0
     if(args()<5 | engine=="") engine=st_global("rdistnn_jackknife_engine")
     if(engine=="") engine="auto"
@@ -124,9 +106,7 @@ real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
         errprintf("rdistnn_jackknife_engine must be auto, plugin, mata or naive.\n")
         exit(error(198))
     }
-    if(args()>=6 & rows(X)>0) {
-        if(rdistnn_duplicate_rows(X)) return(rdistnn_block_loo(ranks,signal,table,center,engine,X))
-    }
+    if(args()>=6 & rows(DX)>0) return(rdistnn_distance_loo(ranks,signal,table,center,engine,DX,prepared_groups))
     plugin_mode=st_global("rdistnn_use_plugin")
     if(engine=="auto" & plugin_mode!="1" & all(signal:==0)) {
         st_global("rdistnn_last_jackknife_engine","zero")
@@ -155,7 +135,7 @@ real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
             return(loo)
         }
         if(engine=="plugin" | plugin_mode=="1") {
-            errprintf("Compiled rank_loo unavailable or failed; install an updated plugin or allow Mata fallback.\n")
+            errprintf("Compiled rank deletion API is unavailable; install an updated plugin or allow Mata fallback.\n")
             exit(error(498))
         }
     }
@@ -178,10 +158,11 @@ real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
 // DNN adapter constructs a deletion table; the dispatcher owns computation.
 real matrix rdistnn_loo_from_ranks(real matrix ranks, real matrix signal,
     real scalar k, real scalar s, | string scalar method, real scalar center,
-    real colvector precomputed_table, real matrix X)
+    real colvector precomputed_table, real matrix DX, real matrix prepared_groups)
 {
     real scalar n
     real colvector table
+    if(args()<9) prepared_groups=J(0,0,.)
     if(args()<5 | method=="") method="exact"
     if(args()<6) center=0
     n=rows(ranks)
@@ -192,7 +173,7 @@ real matrix rdistnn_loo_from_ranks(real matrix ranks, real matrix signal,
     }
     if(args()<7) table=rdistnn_weights_from_ranks((1::(n-1)),k,s,method)
     else table=precomputed_table
-    if(args()>=8 & rows(X)>0) return(rdistnn_loo_from_table(ranks,signal,table,center,"",X))
+    if(args()>=8 & rows(DX)>0) return(rdistnn_loo_from_table(ranks,signal,table,center,"",DX,prepared_groups))
     return(rdistnn_loo_from_table(ranks,signal,table,center))
 }
 
@@ -240,11 +221,12 @@ real matrix rdistnn_jk_cov_from_ranks(real colvector ranks,
                                        real matrix signal,
                                        real scalar k,
                                        real scalar s,
-                                       | string scalar method, real matrix X)
+                                       | string scalar method, real matrix DX, real matrix prepared_groups)
 {
     real scalar     n, q
     real matrix     loo
 
+    if(args()<7) prepared_groups=J(0,0,.)
     if (args() < 5 | method == "") method = "exact"
 
     n = rows(ranks)
@@ -259,9 +241,9 @@ real matrix rdistnn_jk_cov_from_ranks(real colvector ranks,
         exit(error(198))
     }
 
-    if(args()>=6 & rows(X)>0) {
+    if(args()>=6 & rows(DX)>0) {
         loo=rdistnn_loo_from_ranks(ranks,signal,k,s,method,1,
-            rdistnn_weights_from_ranks((1::(n-1)),k,s,method),X)
+            rdistnn_weights_from_ranks((1::(n-1)),k,s,method),DX,prepared_groups)
     }
     else loo=rdistnn_loo_from_ranks(ranks,signal,k,s,method,1)
     if(all(loo:==0)) return(J(q,q,0))
@@ -276,11 +258,12 @@ real matrix rdistnn_jk_cov_multi_from_ranks(real matrix ranks,
                                              real colvector signal,
                                              real scalar k,
                                              real scalar s,
-                                             | string scalar method, real matrix X)
+                                             | string scalar method, real matrix DX, real matrix prepared_groups)
 {
     real scalar     n, m
     real matrix     loo
 
+    if(args()<7) prepared_groups=J(0,0,.)
     if (args() < 5 | method == "") method = "exact"
     n = rows(ranks)
     m = cols(ranks)
@@ -293,9 +276,9 @@ real matrix rdistnn_jk_cov_multi_from_ranks(real matrix ranks,
         exit(error(198))
     }
 
-    if(args()>=6 & rows(X)>0) {
+    if(args()>=6 & rows(DX)>0) {
         loo=rdistnn_loo_from_ranks(ranks,signal,k,s,method,1,
-            rdistnn_weights_from_ranks((1::(n-1)),k,s,method),X)
+            rdistnn_weights_from_ranks((1::(n-1)),k,s,method),DX,prepared_groups)
     }
     else loo=rdistnn_loo_from_ranks(ranks,signal,k,s,method,1)
     if(all(loo:==0)) return(J(m,m,0))

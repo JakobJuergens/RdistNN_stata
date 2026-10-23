@@ -1,7 +1,7 @@
 # Save, report and reuse fitted results
 
-Version 0.1.2 provides three common commands for DNN/TDNN regression, CATE, CLATE and
-PLQR. They use the R result methods as the reference for shared behavior.
+Version 0.1.3 provides three common commands for DNN/TDNN
+regression, CATE, CLATE and PLQR. They use the R result methods as the reference for shared behavior.
 PLQR retains its supplied-coefficient **moment-only** scope.
 
 ## Extract numeric reports
@@ -73,18 +73,26 @@ and frozen signals. Mahalanobis geometry always uses that training sample.
 New-target distances are computed once. A candidate at existing targets
 uses the saved geometry. No nuisance predictions are refitted.
 
-Fits use exact distance followed by lexicographic original covariates, then
-observation order for identical covariate rows as bookkeeping. Final weights
-are averaged within the identical-covariate blocks, including every deletion's
-remaining block. Cached ranks and retained raw covariates jointly determine
-these weights. The command warns that this modification is outside the paper's
-theory. Saved-model schema version 2 records the policy; refit older saved objects
-before reusing them with the current package. Current snapshots are also
-validated for consistent dimensions, controls, observation/target identities,
-frozen geometry and cached ordering before reconstruction. An invalid snapshot
-requests refitting before prediction or observation-level extraction and
-preserves the active data and fitted results. Replaying already stored numeric
-estimates does not reconstruct the old model under the new weight policy.
+Fits use represented selected-metric distance followed by original row index
+for bookkeeping. At each target, exactly equal distances share the mean of their
+assigned rank weights, including each deletion's surviving group. Saved-model
+schema 3 records `e(tie_rule)="exact_distance_block_averaging_v1"`,
+`e(model_groups)` as an `n x m` matrix of target-specific integer groups,
+`e(model_distances)` and `e(model_ranks)`, together with frozen fitted geometry.
+Reconstruction validates dimensions, controls, observation/target identities,
+policy and agreement among distances, groups and cached ranks. Reporting-only
+replay, diagnostics and estimate plots validate current state without repeating
+a tie warning; constructing or reconstructing weights warns once per public call.
+
+Refit older saved objects, including schema 2 from version 0.1.2, before reuse.
+All retained-state operations, including reporting-only replay, diagnostics,
+plots, prediction and observation-level extraction, require complete current
+state. Invalid snapshots request refitting and preserve active data and fitted
+results. The early development package does not upgrade or repair snapshots
+from older versions; no migration reader is provided.
+The paper assumes a continuous distance distribution, under which old and new
+rules agree almost surely; inference with persistent distance ties is not
+established.
 
 `rdistnn_predict` preserves active data and estimates by default. `post`
 explicitly activates the derived fit; `store(name)` saves it independently.

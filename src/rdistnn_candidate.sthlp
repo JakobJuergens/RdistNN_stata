@@ -10,12 +10,13 @@ at the candidate's resolved s. It does not enumerate subsamples or rebuild
 geometry. Duplicate resolved orders give identical fits while retaining the
 requested candidate ID. The chosen fit has no nested tuning grid.
 {pstd}
-Weights are reconstructed from saved raw covariates as well as ranks. Exactly
-identical raw covariate rows receive their block's average weight, and each
-deletion redistributes the n-1 table's block mass over the surviving members.
-Commands warn that this modification is outside the paper's theory. Refit
-older saved results without e(model_version)=2 before extracting candidates;
-see {help weights_dnn} for the shared block rule.
+Weights are reconstructed from saved ranks and target-specific exact-distance
+groups. At each target, equal represented selected-metric distances share the
+mean of their assigned rank weights. Each deletion redistributes the n-1
+table's group mass over actual survivors. Commands warn that inference with
+persistent distance ties is not established. Refit saved results from earlier
+policies, including e(model_version)=2; current schema 3 and
+exact_distance_block_averaging_v1 are required. See {help weights_dnn}.
 {pstd}
 The parent's covariance policy is retained, including nose. post replaces the
 active fit; store(name) retains a named standalone fit. By default e() and the
@@ -24,7 +25,8 @@ a numeric model snapshot require a refit. PLQR has no integrated Stata candidate
 grid and therefore cannot supply a candidate view.
 {pstd}
 Current snapshots are validated before reconstruction, including dimensions,
-controls, identities, fitted geometry and cached ordering. Refit an incomplete
+controls, identities, fitted geometry, selected tie policy, cached ranks,
+distances and per-target groups. Refit an incomplete
 or inconsistent snapshot. Validation errors preserve the active data and e().
 {title:Returned results}
 {pstd}

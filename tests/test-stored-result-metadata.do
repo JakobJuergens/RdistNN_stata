@@ -88,3 +88,31 @@ foreach family in np cate clate {
     test_assert "`family': point-only prediction records no VCE" "`e(vce)'"=="none"
     test_assert "`family': point-only prediction clears the VCE label" "`e(vcetype)'"==""
 }
+
+test_section "saved TDNN keeps signed concentration fields without probability ESS aliases"
+clear
+set obs 12
+gen double sc_x=_n
+gen double sc_y=sin(_n)
+matrix SC_TARGETS=(0\13)
+foreach targetset in scalar batch {
+    local targets "x0(0)"
+    if "`targetset'"=="batch" local targets "x0matrix(SC_TARGETS)"
+    quietly np_tdnn sc_y, xcols(sc_x) `targets' s1(2) s2(5)
+    matrix SC_DIAGNOSTICS=e(diagnostics)
+    matrix SC_CONCENTRATION=e(neff_targets)
+    foreach phase in fresh derived {
+        if "`phase'"=="derived" quietly rdistnn_predict, `targets' sefit post
+        local scalars : e(scalars)
+        local matrices : e(matrices)
+        foreach field in ess ess_min ess_max {
+            local present : list field in scalars
+            test_assert "TDNN `targetset'/`phase': omits probability-named `field'" !`present'
+        }
+        local field "ess_targets"
+        local present : list field in matrices
+        test_assert "TDNN `targetset'/`phase': omits probability-named weight ESS matrix" !`present'
+        mata: st_numscalar("sc_unchanged",all(st_matrix("e(diagnostics)"):==st_matrix("SC_DIAGNOSTICS")) & max(abs(st_matrix("e(neff_targets)")-st_matrix("SC_CONCENTRATION")))<=8*epsilon(1)*max((1,max(abs(st_matrix("SC_CONCENTRATION"))))))
+        test_assert "TDNN `targetset'/`phase': keeps signed diagnostics and concentration" scalar(sc_unchanged) & el(e(diagnostics),1,3)>0
+    }
+}

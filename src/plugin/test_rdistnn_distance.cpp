@@ -18,6 +18,13 @@ template<class F> void invalid_unchanged(F fn, const std::vector<double>& out) {
     require(rejected,"invalid distance input accepted");
     require(out==before,"invalid distance input modified output");
 }
+template<class F> void overflow_unchanged(F fn, const std::vector<double>& out) {
+    const auto before=out;
+    bool rejected=false;
+    try { fn(); } catch (const std::overflow_error&) { rejected=true; }
+    require(rejected,"numeric overflow was not typed as arithmetic failure");
+    require(out==before,"numeric overflow modified output");
+}
 // Independent wider-precision, target-first reference; no production helper use.
 long double reference(const double* x,int n,int p,const double* target,int m,
                       int i,int q,const double* inv,bool l1) {
@@ -145,7 +152,7 @@ int main(int argc, char** argv) {
         invalid_unchanged([&]{call(x,std::numeric_limits<int>::max(),1,
                                    targets,std::numeric_limits<int>::max(),nullptr,out.data());},out);
         const double extreme[]={0,1e308},negative[]={-1e308};
-        invalid_unchanged([&]{call(extreme,2,1,negative,1,nullptr,out.data());},out);
+        overflow_unchanged([&]{call(extreme,2,1,negative,1,nullptr,out.data());},out);
         // Intermediate squares may overflow/underflow while the norm is finite.
         for(double h:{1e200,1e-200,std::ldexp(1.0,510),std::ldexp(1.0,-540)}) {
             const double huge[]={3*h,4*h,0,0,5*h, 4*h,3*h,h,0,0};
@@ -195,8 +202,55 @@ int main(int argc, char** argv) {
         const double large[]={1e308},opposite[]={-1e308},small_inverse[]={0.25};
         call(large,1,1,opposite,1,small_inverse,out.data());
         require(out[0]==5e307,"scaled finite subtraction recovery");
+        // Scaling individual coordinates first can erase a representable norm.
+        // These exact subnormal answers are independent analytic references.
+        const double eta=std::numeric_limits<double>::denorm_min();
+        const double subnormal_x[]={0,eta,2*eta,3*eta, 0,eta,2*eta,3*eta};
+        const double half_inverse[]={0.5,0.5},subnormal_targets[]={0,0,0,0};
+        const double want_sub_l1[]={0,eta,2*eta,3*eta};
+        const double want_sub_l2[]={0,eta,eta,2*eta};
+        double subnormal_out[8];
+        for(auto metric:{distance_metric::l1,distance_metric::l2}) {
+            rdistnn::distance_batch_core(subnormal_x,4,2,subnormal_targets,2,
+                half_inverse,subnormal_out,metric);
+            for(int q=0;q<2;++q) for(int i=0;i<4;++i)
+                require(subnormal_out[i+4*q]==(metric==distance_metric::l1 ?
+                    want_sub_l1[i] : want_sub_l2[i]),"collectively representable scaled norm");
+            const double above_half[]={std::nextafter(0.5,1.0)},eta_x[]={eta};
+            rdistnn::distance_batch_core(eta_x,1,1,subnormal_targets,1,above_half,
+                subnormal_out,metric);
+            require(subnormal_out[0]==eta,"subnormal restoration rounded twice");
+        }
+        // A normal mantissa product can itself round away a residual at a
+        // later subnormal boundary. Single-coordinate norms retain the direct
+        // product, including zero padding; multiple coordinates respect its
+        // monotonic lower bound without an epsilon.
+        for(auto metric:{distance_metric::l1,distance_metric::l2}) {
+            const double x_above[]={3*eta,0},inverse_above[]={0x1.5555555555556p-3,1};
+            const double x_below[]={5*eta,0},inverse_below[]={0.3,1};
+            rdistnn::distance_batch_core(x_above,1,2,subnormal_targets,1,
+                inverse_above,subnormal_out,metric);
+            require(subnormal_out[0]==eta,"single product rounded below true half boundary");
+            rdistnn::distance_batch_core(x_below,1,2,subnormal_targets,1,
+                inverse_below,subnormal_out,metric);
+            require(subnormal_out[0]==eta,"single product rounded above true half boundary");
+            const double x_multi[]={3*eta,eta},inverse_multi[]={0x1.5555555555556p-3,
+                std::ldexp(1.0,-100)};
+            rdistnn::distance_batch_core(x_multi,1,2,subnormal_targets,1,
+                inverse_multi,subnormal_out,metric);
+            require(subnormal_out[0]>=eta,"norm fell below a rounded coordinate");
+        }
+        // A negative finite subtraction beyond the common Stata boundary
+        // must take the same binary recovery route as its positive reflection.
+        const double negative_huge[]={-1.2145570335719173e308,
+            -1.0963786929977578e308,-1.3598484029441836e308};
+        const double huge_inverse[]={std::ldexp(1.0,-700),std::ldexp(1.0,-700),
+            std::ldexp(1.0,-700)},huge_zero[]={0,0,0};
+        call(negative_huge,1,3,huge_zero,1,huge_inverse,subnormal_out);
+        require(subnormal_out[0]==0x1.2ef864d71ee05p+324,
+            "negative huge scaled raw difference arithmetic");
         const double final_overflow[]={0,1.5e308,0,1.5e308},zero2[]={0,0};
-        invalid_unchanged([&]{call(final_overflow,2,2,zero2,1,nullptr,out.data());},out);
+        overflow_unchanged([&]{call(final_overflow,2,2,zero2,1,nullptr,out.data());},out);
         std::cout<<"rdistnn distance tests passed\n";
     } catch(const std::exception& e) {
         std::cerr<<"rdistnn distance test failed: "<<e.what()<<'\n'; return 1;

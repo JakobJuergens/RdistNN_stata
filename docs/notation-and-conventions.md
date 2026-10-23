@@ -1,7 +1,7 @@
 # Notation and conventions
 
 This is the Stata counterpart of RdistNN's notation guide. It describes the
-interface in package **0.1.2**. Use [getting started](getting-started.md)
+interface in package **0.1.3**. Use [getting started](getting-started.md)
 for a first fit and [the R crosswalk](r-documentation-crosswalk.md) when
 translating an R script.
 
@@ -59,19 +59,21 @@ applicable diagnostics. `clip()` defaults to 1e-8; this numerical operation
 does not establish population overlap. Supplied-score routes use their
 signals directly and do not clip them.
 
-Exact equality in distances is resolved lexicographically by the original
-covariates in their supplied column order. Outcomes, treatment, nuisance
-values and observation identifiers do not enter the ordering. Exactly identical
-raw localization covariate rows receive their block's average rank weight. This
-preserves block mass while potentially changing individual weights, support and
-ESS. No tolerance groups nearby covariates, and distinct covariate vectors at
-equal distance remain separate.
+High-level ranks use represented selected-metric distance then original row
+index. At each target, observations with exactly equal distance receive the
+mean of their assigned rank weights, including distinct covariate profiles and
+zero-weight ranks beyond nominal support. No tolerance or rounding groups
+nearby distances; outcomes, treatment and nuisance values do not define groups.
+Signed and unnormalized mass is preserved, while weights, support and ESS can change.
 
 Every jackknife deletion removes the actual observation, updates ranks and
-averages the `n-1` table within the remaining blocks. Estimates and covariance
-are invariant to aligned row permutations up to numerical precision. Commands
-warn because this modification is not covered by the paper's theory. R, C++ and
-Mata apply the same policy; rank-only utilities cannot infer groups without X.
+averages the `n-1` table within surviving groups using their remaining sizes.
+Aligned row permutations preserve estimates and covariance up to numerical
+precision. The paper assumes a continuous distance distribution, under which
+old and new policies agree almost surely. Commands warn because inference with
+persistent distance ties is not established; no uniform MSE improvement is
+claimed. Bare rank/order utilities use strict orders unless supplied distances
+define the groups. Refit saved fits created under earlier policies.
 
 ## Names that mean different things
 
@@ -132,7 +134,7 @@ Its standard Stata `e(b)` matrix contains moments rather than coefficients.
 
 Larger s tightens localization for fixed n and k; k does not count all
 observations with positive averaged DNN weight. Exact support reaches rank
-n-s+k before duplicate-block averaging, which can extend nonzero observation
+n-s+k before exact-distance averaging, which can extend nonzero observation
 weights to the end of a block crossing that edge. The asymptotic rule uses
 Beta-CDF increments. ESS, nonzero
 support, rank radii and physical radii answer different questions. The

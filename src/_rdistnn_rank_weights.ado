@@ -102,7 +102,8 @@ real colvector rdistnn_weights_exact(real colvector ranks,
 }
 
 // Stable Beta interval probability; use the small upper tail directly above
-// the shared lower-endpoint crossover. Preserve every representable mass.
+// the shared lower-endpoint crossover. Extreme subnormal masses can still
+// be lost through host Beta evaluation or rounded interval endpoints.
 real scalar rdistnn_beta_interval(real scalar a, real scalar b,
     real scalar lower, real scalar upper)
 {
@@ -136,6 +137,12 @@ real colvector rdistnn_weights_asymp(real colvector ranks,
     real colvector  w, w_rank
 
     n      = rows(ranks)
+    // All subset neighbors average to the uniform law, without rounded Beta
+    // increments introducing rank asymmetry or requiring n*s evaluations.
+    if(k==s) {
+        w_rank=J(n,1,1/n)
+        return(w_rank:/rdistnn_sum(w_rank))
+    }
     w_rank = J(n, 1, 0)
 
     for (l = 1; l <= k; l++) {
@@ -189,15 +196,18 @@ real colvector rdistnn_weights_from_ranks(real colvector ranks,
 }
 
 // Apply the rank-to-weight map independently to every target/rank column.
+// Supplied ranks stay authoritative. Only accompanying DX enables exact
+// distance averaging. Otherwise weights use the strict rank table.
 real matrix rdistnn_weights_from_rmat(real matrix ranks,
                                        real scalar k,
                                        real scalar s,
-                                       | string scalar method, real matrix X)
+                                       | string scalar method, real matrix DX, real matrix prepared_groups)
 {
     real scalar j, m
     real colvector table
     real matrix W
 
+    if(args()<6) prepared_groups=J(0,0,.)
     if (args() < 4 | method == "") method = "exact"
     m = cols(ranks)
     if (m < 1) {
@@ -211,7 +221,7 @@ real matrix rdistnn_weights_from_rmat(real matrix ranks,
     for (j = 1; j <= m; j++) {
         W[,j] = table[ranks[,j]]
     }
-    if(args()>=5 & rows(X)>0) W=rdistnn_block_weights(ranks,W,X)
+    if(args()>=5 & rows(DX)>0) W=rdistnn_distance_weights(ranks,W,DX,prepared_groups)
     return(W)
 }
 
@@ -236,14 +246,16 @@ real colvector rdistnn_weights(real matrix X, real rowvector x0,
                                   real matrix geometry)
 {
     real colvector dist, ranks
+    real matrix groups
 
     if (args() < 5 | method == "")   method   = "exact"
     if (args() < 6 | distance == "") distance = "l2"
 
     if (args() < 7 | rows(geometry) == 0) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
     dist=rdistnn_distance_matrix(X,x0,distance,geometry)
-    ranks = rdistnn_order(dist,X)
-    rdistnn_duplicate_warning(X)
-    return(rdistnn_weights_from_rmat(ranks,k,s,method,X))
+    ranks = rdistnn_order(dist)
+    groups=rdistnn_distance_groups(ranks,dist,1)
+    rdistnn_distance_warning(groups)
+    return(rdistnn_weights_from_rmat(ranks,k,s,method,dist,groups))
 }
 end

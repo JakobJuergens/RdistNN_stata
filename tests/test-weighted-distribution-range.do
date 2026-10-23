@@ -2,6 +2,18 @@ version 17
 quietly do "src/_rdistnn_mata.ado"
 do "tests/test_framework.do"
 test_section "weighted diagnostic range and canonical CDF decisions"
+mata {
+    // Analytic two-point SD rounds to one. Both weights and root weights are
+    // represented, but dividing before taking the root loses 2^-2000.
+    wd_root_x=(0\rdistnn_power2(1000))
+    wd_root_w=(rdistnn_power2(1000)\rdistnn_power2(-1000))
+    st_numscalar("wd_root_forward",rdistnn_weighted_sd(wd_root_x,wd_root_w))
+    st_numscalar("wd_root_reverse",rdistnn_weighted_sd(wd_root_x[(2\1)],wd_root_w[(2\1)]))
+    st_numscalar("wd_root_negative",rdistnn_weighted_sd(-wd_root_x,wd_root_w))
+}
+test_assert "weighted SD retains a represented root of underflowed normalized mass" abs(wd_root_forward-1)<2e-15
+test_assert "extreme-weight SD is invariant to row reversal" abs(wd_root_reverse-1)<2e-15
+test_assert "extreme-weight SD is invariant to outcome reflection" abs(wd_root_negative-1)<2e-15
 foreach engine in mata plugin {
     global rdistnn_distance_engine `engine'
     clear

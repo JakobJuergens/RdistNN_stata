@@ -98,7 +98,7 @@ real scalar rdistnn_weighted_cdf_index(real colvector w, real scalar prob)
 real scalar rdistnn_weighted_sd(real colvector x, real colvector w)
 {
     real scalar mass,amplitude,scale,center,spread,norm
-    real colvector ix,z,weights,d
+    real colvector ix,z,weights,root_weights,d
     ix=selectindex(w:>0)
     if(any(w:<0) | !length(ix)) return(.)
     z=x[ix]; weights=w[ix]
@@ -118,9 +118,12 @@ real scalar rdistnn_weighted_sd(real colvector x, real colvector w)
         scale=rdistnn_binary_scale(amplitude)
     }
     z=z:/scale
+    // A normalized weight can underflow while its root and the SD remain
+    // representable. Form roots before dividing by the total's root.
+    root_weights=sqrt(weights):/sqrt(mass)
     weights=weights:/mass
     center=rdistnn_compensated_sum(z:*weights)
-    d=sqrt(weights):*(z:-center)
+    d=root_weights:*(z:-center)
     spread=max(abs(d))
     if(spread==0) return(0)
     z=d:/spread

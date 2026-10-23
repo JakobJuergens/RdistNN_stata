@@ -19,24 +19,15 @@ program define _rdistnn_diagnostics, rclass
         exit 198
     }
 
+    _rdistnn_model_check
     tempname raw profiles out compact localization
     local stored : e(matrices)
     local scope "targets"
     if "`candidates'`allcandidates'" == "" {
-        foreach required in diagnostics targets {
-            if !`: list required in stored' {
-                di as error "Active `command' estimates do not contain e(`required'); refit with the current package version."
-                exit 498
-            }
-        }
         matrix `raw' = e(diagnostics)
         matrix `profiles' = e(targets)
         local total = rowsof(`raw')
         local p = colsof(`profiles')
-        if rowsof(`profiles') != `total' | colsof(`raw') < 11 {
-            di as error "Active estimates contain incompatible target diagnostics."
-            exit 498
-        }
         local selected "`targets'"
         if "`selected'" == "" {
             forvalues j = 1/`total' {

@@ -113,7 +113,7 @@ real matrix rdistnn_diagnostics(string scalar cmd, real matrix X,
         ord=order((w,(1::n)),(-1,2)); sorted=sort(d,1)
         out[j,1..11]=(1/quadsum(w:^2),max(w),w[ord[1]],
             quadsum(w[ord[1..min((5,n))]]),quadsum(w[ord[1..min((10,n))]]),
-            sum(abs(w):>sqrt(epsilon(1))),1,sorted[min((k,n))],
+            sum(w:!=0),1,sorted[min((k,n))],
             sorted[min((s,n))],cross(d,w)/total,rdistnn_weighted_quantile(d,w,.5))
         if(cmd=="np_dnn") {
             ybar=rdistnn_weighted_signals(signals,w)/total

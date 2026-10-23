@@ -14,7 +14,7 @@
 
 {pstd}
 Stata 17 or later. For the package overview and article collection, see
-{help rdistnn}. This help describes package {bf:0.1.2}.
+{help rdistnn}. This help describes package {bf:0.1.3}.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -48,22 +48,24 @@ under the default k=1. Thus k is not the number of positive full-sample weights,
 and s is not a truncation to the nearest s observations.
 
 {pstd}
-The support formula describes the unaveraged rank table. Averaging across
-identical covariate rows can extend nonzero observation weights to the end of a
-block crossing that edge. Use the actual returned weights for realized support
-and concentration; rank-only tables do not contain the duplicate groups.
+The support formula describes the unaveraged rank table. Averaging assigned
+weights across exact-distance groups can extend nonzero observation weights to
+the end of a group crossing that edge. Use actual returned weights for realized
+support and concentration; rank-only tables do not contain target-specific groups.
 
 {pstd}
 The asymptotic rule uses averaged Beta(l,s-l+1) CDF increments over adjacent
 rank fractions and renormalizes. Lower or direct upper tails avoid subtracting
 CDF values rounded to one. It is generally a full-rank approximation;
 floating-point tail weights can be zero. Both methods normalize to sum one.
-Exact distance ties use the original covariates lexicographically in their
-supplied column order. Exactly identical raw covariate rows receive their
-block's average weight. A warning identifies this modification as outside the
-paper's theory. Block mass is preserved; individual weights, support and ESS can
-change. A block crossing the original support edge extends nonzero weights to
-its remaining members. Different vectors at equal distance are not grouped.
+Ranks use represented selected-metric distance then original row index.
+At each target, observations with exactly equal distance receive the mean of
+their assigned rank weights, including distinct profiles and zero-weight ranks
+beyond nominal support. No tolerance or rounding groups nearby distances.
+Signed and unnormalized group mass is preserved; individual weights, support
+and ESS can change. The paper assumes a continuous distance distribution, under
+which old and new rules agree almost surely. Inference with persistent distance
+ties and a uniform MSE improvement are not established.
 
 {pstd}
 The order s has direction opposite to the usual bandwidth convention.
@@ -71,6 +73,11 @@ Larger s concentrates exact support nearer the target for fixed n and k;
 smaller s spreads weight and increases effective local sample size. ESS is
 1/sum(w_i^2), a concentration measure rather than a support count or coverage
 check. Fixed k>1 is implemented; the companion theory writes out k=1.
+For exact DNN, averaging corresponds to uniform orderings within distance ties
+and uniform subsets of size s. A tied boundary group shares only the remaining
+top-k slots. With k=2, one closer observation and two tied boundary observations
+in a subset receive weights (.5,.25,.25); including all three with equal weight
+would define a different rule.
 
 {marker numerical}{...}
 {title:Numerical limits}
@@ -120,6 +127,15 @@ contribute zero. The covariance matrix and its inverse are not formed.
 The estimator wrappers have their own dimension checks.
 Euclidean neighborhoods depend on covariate units.
 
+{pstd}
+SVD fitting and projection rounding can change represented Mahalanobis distance
+equality or ordering across packages or platforms, even for well-conditioned
+full-rank designs far from the cutoff. Ranks, exact-distance groups, weights
+and estimates can then differ. Group averaging uses each fit's computed
+distances, with no tolerance or additional rounding, and cannot reconcile
+these differences. See the
+{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/numerical-stability.md#fitted-mahalanobis-factorization":numerical geometry reference}.
+
 {phang}
 {opt method(exact|asymp)} chooses the finite-population exact rule (default)
 or Beta-increment approximation. Changing it changes the weight vector.
@@ -150,8 +166,6 @@ requires compiled prefix/suffix sums. Drop that global for automatic compiled,
 fast Mata, then naive fallback. Native distance and jackknife matrices created
 through Mata may exceed {cmd:c(matsize)}; dispatch preserves that setting.
 
-{marker results}{...}
-
 {title:Distance scaling}
 
 {pstd}
@@ -167,16 +181,19 @@ are absolute scales, not inverse scales. Each scale is floored at the positive
 finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
 The fitted scales or Mahalanobis whitening factor remain fixed across
-jackknife deletions and saved-model predictions. Exact distance ties use the
-original covariates lexicographically in their supplied column order. Exactly
-identical raw localization covariate rows receive their block's average weight.
-Each deletion removes the actual observation and averages the n-1 table over
-the remaining block, redistributing its mass across the fewer surviving members.
-Aligned row permutations preserve estimates and covariance up to numerical
-precision. The command warns that this modification is not covered by the
-paper's theory. Individual weights, support and ESS can change. Distinct vectors
-at equal distance are not grouped; outcomes and nuisances do not define groups.
+jackknife deletions and saved-model predictions. Ranks use represented selected-metric distance then original row index.
+At each target, observations with exactly equal distance share the mean of their
+assigned rank weights, including different covariate profiles and zero-weight
+ranks beyond nominal support. No tolerance or rounding groups nearby distances.
+Each deletion removes the actual observation before averaging the n-1 table
+over each remaining group using its survivor count. Signed and unnormalized
+mass is preserved; individual weights, support and ESS can change. Aligned row
+permutations preserve estimates and covariance up to numerical precision.
+The paper assumes a continuous distance distribution, under which old and new
+rules agree almost surely. Inference with persistent distance ties and a uniform
+MSE improvement are not established; outcomes and nuisances do not define groups.
 
+{marker results}{...}
 {title:Stored results}
 
 {synoptset 18}{...}
@@ -188,8 +205,9 @@ at equal distance are not grouped; outcomes and nuisances do not define groups.
 
 {pstd}
 Copy r-class results before running another command that overwrites them.
-{cmd:r(weights)}, {cmd:r(ranks)} and {cmd:r(distances)} retain n-by-m numeric
-matrices; {cmd:r(row_ids)} maps their rows to original observation numbers.
+{cmd:r(weights)}, {cmd:r(ranks)}, {cmd:r(distances)} and {cmd:r(groups)} retain
+n-by-m numeric matrices; groups are integer IDs for exact represented distance
+equality within each target. {cmd:r(row_ids)} maps rows to original observations.
 {cmd:r(targets)} and {cmd:r(neff_targets)} retain target coordinates and ESS.
 {cmd:r(geometry)} retains fitted scales or packed Mahalanobis whitening
 geometry when used.

@@ -52,7 +52,7 @@ test_assert "[batch] e(m) records three targets" `m_batch' == 3
 test_assert "[batch] target source records X0" "`source_batch'" == "X0"
 test_assert "[batch] e(x0matrix) records source matrix" "`x0matrix_batch'" == "X0_batch"
 
-test_section "cate_dnn: [R parity] deterministic batch golden values"
+test_section "cate_dnn: [subset identities] deterministic batch exact-distance ties"
 
 clear
 input double x1 x2 rho_r_golden
@@ -71,20 +71,24 @@ quietly cate_dnn rho_r_golden, xcols(x1 x2) x0matrix(X0_r_golden) ///
 matrix B_r_golden = e(b)
 matrix V_r_golden = e(V)
 matrix N_r_golden = e(neff_targets)
+do "tests/helpers/distance-reference.do"
 mata {
-    // Exact subset/deletion arithmetic: target2 ties place X=(-1,-1)
-    // before X=(0,-1); the other targets and ESS retain their values.
-    _tau_r_ref = (0.77857142857142836, 0.3732142857142857, 2.38214285714285667)
-    _se_r_ref = (0.74964277206832730, 1.0724533789400823, 0.88585108390583511)
-    _neff_r_ref = J(1, 3, 4.8659384309831193)
+    _golden_D=st_matrix("e(model_distances)")
+    _golden_S=st_data(.,"rho_r_golden")
+    _golden_W=rdistnn_test_subset_weights(_golden_D,2,4)
+    _golden_L=rdistnn_test_subset_deletions(_golden_D,_golden_S,2,4)
+    _golden_V=(7/8)*cross(_golden_L:-mean(_golden_L),_golden_L:-mean(_golden_L))
+    _tau_r_ref=_golden_S'*_golden_W
+    _se_r_ref=sqrt(diagonal(_golden_V))'
+    _neff_r_ref=1:/colsum(_golden_W:^2)
     _se_stata = sqrt(diagonal(st_matrix("V_r_golden")))'
     st_numscalar("_batch_r_tau", max(abs(st_matrix("B_r_golden") - _tau_r_ref)))
     st_numscalar("_batch_r_se", max(abs(_se_stata - _se_r_ref)))
     st_numscalar("_batch_r_neff", max(abs(st_matrix("N_r_golden") - _neff_r_ref)))
 }
-test_assert "[R parity] batch estimates match canonical RdistNN tie ordering" scalar(_batch_r_tau) < 1e-10
-test_assert "[R parity] batch marginal SEs match canonical RdistNN tie ordering" scalar(_batch_r_se) < 1e-10
-test_assert "[R parity] batch effective sample sizes match canonical RdistNN tie ordering" scalar(_batch_r_neff) < 1e-10
+test_assert "[subset identities] batch estimates match independent tied subset selection" scalar(_batch_r_tau) < 1e-10
+test_assert "[subset identities] batch marginal SEs match independent subset deletions" scalar(_batch_r_se) < 1e-10
+test_assert "[subset identities] batch effective sample sizes use averaged actual weights" scalar(_batch_r_neff) < 1e-10
 
 test_section "cate_dnn: [batch] one-row x0matrix() preserves scalar contract"
 

@@ -3,14 +3,8 @@
 program define _rdistnn_report, rclass
     version 17
     syntax [, Level(cilevel)]
+    _rdistnn_model_check
     tempname estimates ses covariance table summary status b se crit
-    local matrices : e(matrices)
-    foreach field in estimates se_targets {
-        if !`: list field in matrices' {
-            di as error "Current fitted results require e(`field'); refit `e(cmd)' with the current package."
-            exit 498
-        }
-    }
     matrix `estimates' = e(estimates)
     matrix `ses' = e(se_targets)
     local m = colsof(`estimates')
@@ -53,14 +47,7 @@ program define _rdistnn_report, rclass
     }
     di as text "Pointwise confidence level: `level'%"
     matrix list `summary', noheader format(%12.6g)
-    if "`e(cmd)'" == "clate_dnn" {
-        forvalues j=1/`m' {
-            if el(`status',`j',1)!=0 di as text "note: target `j' ratio is unavailable; see e(status) and e(components)."
-            if el(`status',`j',2)==1 di as text "note: target `j' has a negative first stage."
-            if el(`status',`j',3)==1 di as text "note: target `j' first stage is near zero; the ratio is not regularized."
-            if el(`status',`j',5)==0 di as text "note: target `j' has no pointwise Wald interval."
-        }
-    }
+    _rdistnn_report_notices
     return matrix table = `table'
     return matrix summary = `summary'
     return scalar level = `level'

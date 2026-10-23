@@ -19,6 +19,9 @@ foreach engine in mata plugin {
         gs_D=rdistnn_distance_matrix(gs_QX,gs_QT,"l2_scaled",gs_G)
         st_numscalar("gs_ranks",all(rdistnn_ranks_from_dmat(gs_D):==st_matrix("RG_IQR_rank")))
         st_numscalar("gs_distances",mreldif(gs_D,st_matrix("RG_IQR_D")))
+        // With s=n, the exact learner uniformly chooses from the represented
+        // nearest shell. This reference uses distances only, without ranks.
+        st_numscalar("gs_iqr_mean",100*(gs_D[1,1]==min(gs_D[,1]))/sum(gs_D[,1]:==min(gs_D[,1])))
     }
     test_assert "`engine': IQR near-tie ranks equal R exactly" scalar(gs_ranks)==1
     test_assert "`engine': IQR distances equal R" scalar(gs_distances)<2e-15
@@ -27,7 +30,7 @@ foreach engine in mata plugin {
     svmat double RG_IQR_X, names(gsx)
     gen double gsy=cond(_n==1,100,0)
     quietly np_dnn gsy, xcols(gsx1 gsx2) x0matrix(RG_IQR_X0) s(10) nose distance(l2_scaled) scalerule(iqr)
-    test_assert "`engine': IQR near-tie actual estimate equals R" el(e(b),1,1)==100
+    test_assert "`engine': IQR nearest-shell estimate equals independent distance average" abs(el(e(b),1,1)-scalar(gs_iqr_mean))<1e-12
 }
 
 test_section "Fitted geometry: SD recovery keeps R near-tie neighbors"
@@ -66,7 +69,8 @@ foreach h in 1e154 1e200 1e-200 {
         svmat double GS_X, names(gsx)
         gen double gsy=cond(_n==2,100,0)
         quietly np_dnn gsy, xcols(gsx1 gsx2) x0(0 1) s(4) nose distance(l2_scaled) scalerule(sd) scaleeps(`gs_eps')
-        test_assert "`engine'/`h': SD actual estimate equals analytic/R reference" el(e(b),1,1)==100
+        // Rows2 and4 are the distinct equally-near covariate points.
+        test_assert "`engine'/`h': SD actual estimate averages symmetric nearest points" el(e(b),1,1)==50
         tempfile gs_saved
         quietly estimates save "`gs_saved'", replace
         preserve
@@ -75,7 +79,7 @@ foreach h in 1e154 1e200 1e-200 {
         matrix GS_NEW=(0,1\0,1)
         quietly rdistnn_predict, x0matrix(GS_NEW)
         matrix GS_P=r(fit)
-        test_assert "`engine'/`h': saved fitted SD survives duplicate targets" GS_P[1,1]==100 & GS_P[1,2]==100
+        test_assert "`engine'/`h': saved fitted SD survives duplicate targets" GS_P[1,1]==50 & GS_P[1,2]==50
         restore
     }
 }
@@ -122,3 +126,22 @@ foreach engine in mata plugin {
     test_assert "`engine': unrepresentable final L1 still errors" `gs_rc'==498
 }
 macro drop rdistnn_distance_engine
+
+test_section "finite three-coordinate true L1 overflow is a public range failure"
+preserve
+clear
+set obs 2
+gen double gs_huge1=7e307
+gen double gs_huge2=7e307
+gen double gs_huge3=7e307
+foreach engine in mata plugin {
+    global rdistnn_distance_engine `engine'
+    capture quietly weights_dnn gs_huge1 gs_huge2 gs_huge3, x0(0 0 0) s(1) distance(l1) generate(gs_no_output)
+    local gs_range_rc=_rc
+    test_assert "`engine': finite 3D L1 inputs beyond double range return 498" `gs_range_rc'==498
+    capture confirm variable gs_no_output
+    local gs_no_output_rc=_rc
+    test_assert "`engine': arithmetic range failure commits no generated output or data edits" `gs_no_output_rc'==111 & _N==2 & gs_huge1[1]==7e307 & gs_huge2[1]==7e307 & gs_huge3[1]==7e307
+}
+macro drop rdistnn_distance_engine
+restore

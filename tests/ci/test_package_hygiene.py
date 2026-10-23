@@ -73,11 +73,16 @@ class PackageHygieneTests(unittest.TestCase):
                 (stata / 'src/plugin' / name).write_bytes(b'canonical\n')
                 (r / 'inst/include' / name).write_bytes(b'canonical\n')
             self.assertEqual(self.checker.shared_header_issues(stata, r), [])
-            name = self.checker.SHARED_HEADERS[0]
-            (r / 'inst/include' / name).write_bytes(b'drift\n')
-            self.assertTrue(any(name in x for x in self.checker.shared_header_issues(stata, r)))
-            (r / 'inst/include' / name).unlink()
-            self.assertTrue(any('missing' in x for x in self.checker.shared_header_issues(stata, r)))
+            for name in self.checker.SHARED_HEADERS:
+                with self.subTest(header=name):
+                    path = r / 'inst/include' / name
+                    path.write_bytes(b'drift\n')
+                    self.assertEqual(self.checker.shared_header_issues(stata, r),
+                                     ['mirrored header differs: ' + name])
+                    path.unlink()
+                    self.assertEqual(self.checker.shared_header_issues(stata, r),
+                                     ['missing mirrored header: ' + name])
+                    path.write_bytes(b'canonical\n')
 
     def test_mata_modules_declare_the_supported_version_floor(self):
         with tempfile.TemporaryDirectory() as directory:
