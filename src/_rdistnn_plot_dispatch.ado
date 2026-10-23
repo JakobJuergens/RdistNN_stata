@@ -12,6 +12,7 @@ program define _rdistnn_plot_dispatch, rclass
         di as error "`family'_dnn_plot requires active `family'_dnn estimates."
         exit 301
     }
+    _rdistnn_model_check
     if "`type'" == "" local type "estimates"
     local type = lower("`type'")
     local view = lower("`view'")
@@ -149,6 +150,7 @@ program define _rdistnn_plot_dispatch, rclass
     if "`type'"!="dashboard" & `built_rows'!=0 matrix `plot_data' = r(plot_data)
     else if "`type'"=="dashboard" matrix `panel_info' = r(panel_info)
     if `"`saving'"'!="" quietly _rdistnn_plot_export, name(`name') saving(`saving') `replace'
+    _rdistnn_report_notices, `topt'
     return clear
     if "`type'"!="dashboard" {
         if `built_rows'!=0 {
@@ -221,7 +223,7 @@ end
 
 program define _rdistnn_plot_sample_guard
     version 17
-    if e(model_version)!=2 {
+    if e(model_version)!=3 {
         di as error "Observation-level plots require current fitted model state; refit `e(cmd)' with the current package."
         exit 498
     }

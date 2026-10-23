@@ -99,6 +99,10 @@ pwsh -NoProfile -File tools/ci/plugin_build_check.ps1
 ## Developer protocol and verification
 
 `rdistnn_distance.hpp` contains the shared Rcpp-independent distance kernels.
+It uses `distance_arithmetic.hpp`, mirrored byte-for-byte from RdistNN's
+`inst/include/`, for common exceptional subtraction and scaled-norm arithmetic.
+Both native makefiles and the portability build helper include this header;
+the package hygiene check with `--r-root` detects mirror drift.
 The matrix protocol is column-major: training `X` is n by p, targets `X0`
 are m by p, inverse scales are 1 by p, and the preallocated output is n by m:
 
@@ -118,14 +122,15 @@ target/component blocks. `block_rank_loo` additionally accepts n by 1 integer
 group identifiers in `1:n` and computes actual-observation deletions from the
 original signals. Canonical contiguous groups retain original member order and
 use linear work in n; supplied ranks that interleave groups or reorder members
-use native direct regrouping. A plugin without this
-operation cannot satisfy a forced native block-deletion request.
+use native direct regrouping.
 Current Mata deletion bridges use the shared `_rdistnn_native_transport.ado`
-module. An uncached `loo_packed_api` probe writes capability version 1 to a
-1 by 1 matrix. Supporting plugins receive a balanced frame through `loo_packed`;
-older plugins retain the raw `rank_loo` and `block_rank_loo` protocols above.
-A recognized packed request failure never retries the raw operation: automatic
-mode follows its existing Mata fallback, while required native execution errors.
+module and require packed capability. An uncached `loo_packed_api` probe writes
+capability version 1 to a 1 by 1 matrix, then `loo_packed` receives a balanced
+frame. Missing packed capability uses the ordinary Mata fallback in automatic
+mode and errors when native execution is required. A native execution failure
+or malformed packed result stops with its error instead of selecting fallback.
+The dispatcher does not retry through the raw operations. Raw `rank_loo` and
+`block_rank_loo` remain current, directly tested C++ ABI operations.
 
 The packed input contains five exact doubles, `[1,n,m,q,grouped]`, followed by
 column-major arrays `ranks`, `signals`, `table`, and, when grouped is 1, `groups`.
@@ -140,9 +145,9 @@ output. Conformable input/output aliases are safe because all inputs are read
 first. Raw and packed operations call the same numerical kernels.
 
 Balanced staging avoids Stata's expensive default stripe construction for tall
-matrices; the logical algorithm and its linear complexity are unchanged. Legacy
-plugins retain the previous transfer cost. Temporary Mata-created Stata matrices
-can exceed `c(matsize)`; the bridge removes them and leaves the dataset unchanged.
+matrices; the logical algorithm and its linear complexity are unchanged.
+Temporary Mata-created Stata matrices can exceed `c(matsize)`; the bridge removes
+them and leaves the dataset unchanged.
 
 The [numerical reference](../../docs/numerical-stability.md) owns arithmetic,
 range recovery and support-aware covariance centering. Native tests cover the

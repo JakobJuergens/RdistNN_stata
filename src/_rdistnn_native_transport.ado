@@ -1,6 +1,6 @@
 version 17
 // Balanced private matrix frames avoid expensive default stripes on tall
-// native inputs and outputs. Raw plugin operations remain compatible.
+// native inputs and outputs. Raw plugin operations remain separately available.
 foreach fn in frame unframe packed_api loo {
     capture mata: mata drop rdistnn_native_`fn'()
 }
@@ -37,15 +37,21 @@ real matrix rdistnn_native_unframe(real matrix frame, real scalar n, real scalar
 real scalar rdistnn_native_packed_api()
 {
     string scalar name
-    real scalar rc,available
+    real scalar rc,api
+    real matrix result
     if(st_global("rdistnn_plugin_ok")!="1") return(0)
     name=st_tempname()
     st_matrix(name,J(1,1,.))
     rc=_stata("plugin call rdistnn_plugin, loo_packed_api "+name,1)
-    available=0
-    if(rc==0) available=st_matrix(name)[1,1]==1
+    result=st_matrix(name)
     st_matrix(name,J(0,0,.))
-    return(available)
+    if(rc==198) return(0)
+    if(rc) rdistnn_fail(rc,"Native deletion capability probe failed. Resolve the execution/resource error or select rdistnn_jackknife_engine mata explicitly.")
+    if(rows(result)!=1 | cols(result)!=1) rdistnn_fail(498,"Native deletion capability returned malformed output. Reinstall the current plugin or select Mata explicitly.")
+    api=result[1,1]
+    if(api==0) return(0)
+    if(api!=1) rdistnn_fail(498,"Native deletion capability returned an invalid version. Reinstall the current plugin or select Mata explicitly.")
+    return(1)
 }
 
 // Header: version,n,m,q,grouped; then vec(ranks), vec(signal), table,
@@ -76,6 +82,8 @@ real matrix rdistnn_native_loo(real matrix ranks, real matrix signal,
     result=J(0,0,.)
     if(rc==0) result=rdistnn_native_unframe(st_matrix(names[2]),n,m*q)
     for(i=1;i<=2;i++) st_matrix(names[i],J(0,0,.))
+    if(rc) rdistnn_fail(rc,"Native deletion execution failed. Resolve the execution/resource error or select rdistnn_jackknife_engine mata explicitly.")
+    if(rows(result)!=n | cols(result)!=m*q | hasmissing(result)) rdistnn_fail(498,"Native deletion execution returned malformed output. Reinstall the current plugin; if this persists, report a reproducible example.")
     return(result)
 }
 end

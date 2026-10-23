@@ -23,18 +23,18 @@ Asymptotic tables use Beta increments with normalization enabled by default.
 Weights may be negative and must not be interpreted as probabilities.
 
 {pstd}
-The support formula describes the unaveraged rank table. Averaging across
-identical covariate rows can extend nonzero observation weights to the end of a
-block crossing that edge. Use the actual returned weights for realized support
-and concentration; rank-only tables do not contain the duplicate groups.
+The support formula describes the unaveraged rank table. Averaging assigned
+weights across exact-distance groups can extend nonzero observation weights to
+the end of a group crossing that edge. Use actual returned weights for realized
+support and concentration; rank-only tables do not contain target-specific groups.
 
 {p 4 4 2}
-For exactly identical raw covariate rows, signed weights are averaged within
-each block without absolute values or renormalization. The command warns that
-this permutation-invariant modification is not covered by the paper's theory.
-Block mass is preserved; individual weights, support and concentration can
-change. The rank table is the unaveraged rule and cannot alone reconstruct
-the final observation weights when duplicate groups occur.
+At each target, observations with exactly equal represented selected-metric
+distance receive the mean of their assigned signed rank weights, without
+absolute values or renormalization. No tolerance groups nearby distances.
+Group mass is preserved; individual weights, support and concentration can
+change. Rank tables alone cannot reconstruct the final weights without the
+target-specific groups. Inference with persistent distance ties is not established.
 
 {marker numerical}{...}
 {title:Numerical limits}
@@ -51,8 +51,9 @@ engines do not restore probability lost in table construction. See
 {title:Saved results}
 
 {p 4 4 2}
-{cmd:r(weights)}, {cmd:r(ranks)}, and {cmd:r(distances)} are n-by-m matrices
-in estimation-sample observation order. {cmd:r(row_ids)} maps their rows to
+{cmd:r(weights)}, {cmd:r(ranks)}, {cmd:r(distances)} and {cmd:r(groups)} are
+n-by-m matrices in estimation-sample observation order. Groups are integer IDs
+for exact represented distance equality within each target. {cmd:r(row_ids)} maps their rows to
 the original observation numbers, including after {cmd:if}, {cmd:in}, and
 missing-covariate exclusions. {cmd:r(rank_weights)} is the n-by-1
 rank table. {cmd:r(targets)} retains target rows; {cmd:r(geometry)} retains

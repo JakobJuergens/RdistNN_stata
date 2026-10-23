@@ -5,6 +5,7 @@ program define np_tdnn_plot, rclass
         TARGETS(numlist integer >=1) Level(cilevel) NAME(name) REPLACE ///
         NODRAW SAVING(string asis)]
     if "`e(cmd)'"!="np_tdnn" error 301
+    _rdistnn_model_check
     if "`type'"=="" local type "estimates"
     if !inlist("`type'","estimates","weights","diagnostics") {
         di as error "type() must be estimates, weights or diagnostics for signed TDNN."
@@ -18,6 +19,9 @@ program define np_tdnn_plot, rclass
     if "`name'"=="" local name "np_tdnn_`type'"
     local nameopt "name(`name')"
     if "`replace'"!="" local nameopt "name(`name', replace)"
+    local notice_targets ""
+    if "`targets'"!="" local notice_targets "targets(`targets')"
+    _rdistnn_report_notices, `notice_targets'
     tempname data
     if "`type'"=="estimates" {
         capture program list _cate_dnn_plot_estimates
@@ -41,7 +45,7 @@ program define np_tdnn_plot, rclass
                 findfile "`file'"
                 quietly run "`r(fn)'"
             }
-            if e(model_version)!=2 error 498
+            if e(model_version)!=3 error 498
             if "`targets'"=="" {
                 numlist "1/`=e(m)'"
                 local targets "`r(numlist)'"

@@ -8,17 +8,18 @@ accuracy in addition to agreement between engines. See the
 [contributor contract](https://github.com/JakobJuergens/RdistNN_stata/blob/master/CONTRIBUTING.md#numerical-parity-contract)
 and [native guide](../src/plugin/README.md) for verification and engine controls.
 
-Covariate-aware ranks resolve exact represented distance ties by the original
-raw covariate columns lexicographically, then by observation order only for
-identical covariate rows. R, its C++ ranking kernels and Mata use this rule,
-including subset localization and new-target predictions. The Stata plugin
-consumes the ranks constructed by Mata. No outcomes,
-treatments or nuisance values define the ordering or duplicate groups. Shared
-X-aware helpers average weights within exactly identical raw-covariate blocks,
-preserving block mass while potentially changing individual weights, support
-and ESS. Distinct covariate vectors at equal distance are not grouped.
-Distance-only sort helpers retain index ties. Current snapshots reuse
-their retained ranks; older development fit schemas are not a compatibility target.
+High-level ranks use exact represented selected-metric distance then original
+row index. Target-specific groups contain every observation with the same
+represented distance, including distinct raw covariate profiles and zero-weight
+ranks beyond nominal support. Shared helpers average assigned rank weights over
+observations in each group, preserving signed and unnormalized mass. No tolerance,
+additional rounding, outcome, treatment or nuisance defines groups. R, C++ and
+Mata share this rule; the Stata plugin consumes Mata's ranks and per-target
+group IDs.
+Bare supplied low-level ranks/orders retain strict-order semantics unless
+distances accompany them. Current snapshots validate and reuse cached groups,
+distances, ranks and `exact_distance_block_averaging_v1`; older policies require
+refitting.
 
 `_rdistnn_blocks.ado` owns block identification, mass averaging and original-signal
 block deletions. Existing shared weight/deletion paths call it, so estimator adapters
@@ -36,14 +37,15 @@ Canonical contiguous groups retain original member order and require O(n*m*q)
 work. Supplied ranks that interleave groups or reorder members within a group
 use direct regrouping within the selected engine, requiring O(n^2*m*q) work.
 Centering expands the union of deletion support to
-entire intersecting duplicate blocks before choosing a numerical origin.
+entire intersecting target-specific distance groups before choosing a numerical origin.
 Direct regrouping reduces block masses in original observation order and
 signal products in localization-rank order. The native transport retains the
 original identities even when signals are centered in rank order.
 Mata and native-plugin routes are checked against explicit deletion references.
 Public commands
-warn that the practical block-averaging modification is not covered by the
-paper's theory; permutation invariance does not establish valid inference.
+warn that inference with persistent distance ties is not established. The paper
+assumes a continuous distance distribution, under which the old and new rules
+agree almost surely; no uniform MSE improvement is established.
 
 ## Stable elementary calculations
 
@@ -66,20 +68,29 @@ SD calculations. Nonfinite fitted scales are rejected before the epsilon
 floor is applied; only finite small or constant scales are clamped. Fitted
 scales must themselves fit Stata's finite nonmissing range.
 
-Scaled L1 and L2 share binary-half subtraction recovery when a raw difference
-reaches `2^1023` and the inverse scale is below one. Ordinary differences retain
-subtract-then-scale rounding and ordered accumulation in every engine.
+Ordinary L1/L2 differences retain subtract-then-scale rounding and ordered
+coordinate accumulation; L2 rounds each square before adding it. Unscaled L2
+recovers exceptional rows with scaled sum of squares when the accumulated
+squared sum reaches `2^1023` or a nonzero coordinate's square is subnormal or
+zero. Scaled L1/L2 also recover rows when a raw difference reaches `2^1023` in
+magnitude or a nonzero scaled coordinate product becomes subnormal, including
+zero. This common boundary covers both signs and Stata's narrower finite
+nonmissing range; using each host's own overflow trigger could change neighbors.
 
-L2 and fitted-scale L2 retain ordered coordinate accumulation with rounded
-squares for ordinary rows. All engines recover exceptional rows with scaled
-sum of squares when the accumulated squared sum reaches `2^1023`, a nonzero
-coordinate's square is subnormal or zero, or a scaled raw difference reaches
-`2^1023`. A huge raw difference with inverse scale below one uses binary-halved
-operands before multiplying by twice that inverse scale. The shared boundary
-accounts for Stata's narrower finite nonmissing range; using each host's own
-overflow trigger could change neighbors. Recovery rescans exceptional rows
-with constant accumulator state. Finite representable norms remain usable;
-genuine out-of-range outputs retain failure/unavailable-value behavior.
+Exceptional scaled rows retain coordinate products as binary mantissas and
+exponents until the complete norm is restored. Thus individually unrepresentable
+scaled coordinates can contribute to a representable L1 or L2 norm. For huge
+raw differences, this recovery uses separately rounded binary quarters before
+subtraction. Final binary powers are restored in two balanced steps to avoid
+premature subnormal rounding. A coordinate is active when its raw difference and inverse
+scale are both nonzero. With exactly one active coordinate, retain its directly
+rounded scaled magnitude; the squared R L2 API then rounds its square separately.
+With multiple active coordinates, an unsquared recovered norm is at least the
+largest directly rounded scaled magnitude. No additional lower bound is applied
+to multi-coordinate squared results. Recovery does not guarantee correct rounding
+for every norm. It rescans only exceptional rows with constant accumulator state.
+Genuine out-of-range outputs retain the documented failure or unavailable-value
+behavior.
 
 Shared support-aware centering protects deletion covariance from large common
 signal levels. Paired CLATE covariance also uses scaled linearized scores;
@@ -138,8 +149,19 @@ ordered compensated projection in its native and interpreted routes.
 
 The explicit design-scale cutoff replaces the old inverse-attempt and
 covariance-truncation policy. New fits may choose different neighbors when the
-old arithmetic lost a resolvable direction. SVD libraries can still differ at
-the rank boundary; universal bitwise factorization equivalence is not promised.
+old arithmetic lost a resolvable direction. SVD fitting and projection rounding
+can change represented distance equality or ordering across packages or platforms,
+even for well-conditioned full-rank designs far from the cutoff. Ranks,
+exact-distance groups, weights and estimates can then differ materially.
+The same projected norm kernel does not make independently fitted geometry
+bitwise equivalent. Group averaging uses each fit's computed distances, with
+no tolerance or additional rounding; it cannot reconcile different computed
+distances. For example, centered rows `(2,1)`, `(-2,-1)`, `(1,2)`, `(-1,-2)`
+are mathematically equidistant from zero, with squared Mahalanobis distance
+`3/2`. A one-ULP computed distance difference can split this group: with
+outcomes `(0,0,10,10)`, `k=1` and `s=3`, weights `(.5,.5,0,0)` give estimate
+zero, while uniform weights give five.
+
 Saved geometry stores a header with scale and rank (rank when `p>=2`), a
 raw observed origin and the zero-padded square factor: `(p+2) x p`.
 Target reordering, subsetting and serialized prediction reuse this fitted
@@ -238,7 +260,9 @@ Exact represented DNN tables have shared selected-index fixtures, checked
 against independently rounded exact totals and prefixes during generation.
 
 NP outcome SD is a scaled weighted norm. Binary scaling and an observed origin
-retain small differences around large outcome levels. Zero-weight outcomes
+retain small differences around large outcome levels. Square-root weights are
+formed before normalization to retain representable root contributions even
+when a normalized input weight underflows. Zero-weight outcomes
 cannot determine the scale, and the SD is restored directly: its variance need
 not itself be representable. Physical CATE/CLATE radii reuse stable ordinary
 Euclidean distances in original coordinates, regardless of the fitted metric.
@@ -274,7 +298,9 @@ boundary decisions.
 
 ### Asymptotic tail limits
 
-Asymptotic Beta tables retain their established host library routines. Rounded
+Asymptotic tables also use uniform weights when k=s, including the s=1
+single-scale component of TDNN. Other Beta tables retain their established
+host library routines. Rounded
 interval endpoints can erase a tail mass or give R and Mata different zero
 versus nonzero support at subnormal scales. Averaging order-statistic tables,
 signed TDNN blending and normalization can lose further tiny masses. This
@@ -324,7 +350,7 @@ adapters. Those responsibilities live in `_rdistnn_accumulation.ado`,
 `_rdistnn_covariance.ado`, `_rdistnn_geometry.ado`, `_rdistnn_distance_mata.ado`,
 `_rdistnn_rank_weights.ado`, `_rdistnn_blocks.ado` and `_rdistnn_rank_loo.ado`.
 `_rdistnn_native_transport.ado` owns balanced packed deletion transfer and
-legacy-plugin negotiation; numerical kernels retain the same logical inputs.
+current capability validation; numerical kernels retain the same logical inputs.
 The native distance bridge and plot-data adapters remain separate. Moving an implementation does not
 change its numerical law or engine-selection contract.
 
@@ -343,14 +369,16 @@ The fresh CATE contribution-availability/reduction convention and restored-model
 remain explicit at the shared boundary. Physical-distance diagnostics preserve
 the engine recorded by localization.
 
-`_rdistnn_model_fit.ado` coordinates supported saved-model checks, numeric
-evaluation and derived-result posting. `_rdistnn_model_decode.ado` validates and
-decodes version-1 numeric inputs, retained ranks/frozen geometry and stored arm
-inputs; `_rdistnn_model_mata.ado` evaluates the estimator. Posting, coefficient
-stripes, descriptive metadata and uncertainty labels belong to
-`_rdistnn_model_post.ado`. `_rdistnn_reuse.ado` owns the caller's estimation-state
-transaction, including failures. The snapshot version remains 1 and saved
-score provenance is retained.
+`_rdistnn_model_fit.ado` coordinates current saved-model checks, numeric
+evaluation and derived-result posting. `_rdistnn_model_check.ado` validates the
+complete schema-3 snapshot before cached consumers, including ranks, distances,
+per-target groups, selected policy, frozen geometry and stored arm inputs.
+`_rdistnn_model_decode.ado` decodes that current state;
+`_rdistnn_model_mata.ado` evaluates the estimator. Posting, coefficient stripes,
+descriptive metadata and uncertainty labels belong to `_rdistnn_model_post.ado`.
+`_rdistnn_reuse.ado` owns the caller's estimation-state transaction, including
+failures. Saved score provenance is retained; older or incomplete snapshots
+require refitting.
 
 Plot builders own rendering and delegate numeric reconstruction to the current
 snapshot model. Older no-snapshot development fits require refitting.
@@ -358,11 +386,15 @@ Private modules stay flat under `src/`, are installed through
 `rdistnn.pkg`, and own uniquely prefixed typed Mata functions and reload guards.
 
 The Stata native bridge stages deletion inputs and outputs in balanced private
-matrices to avoid default stripe creation on tall matrices. Its packed and raw
-operations call the same kernels and preserve every represented payload value.
+matrices to avoid default stripe creation on tall matrices. The dispatcher
+requires packed capability. Missing capability permits automatic Mata dispatch
+or a forced-native error. A failed packed execution or malformed output stops
+with its reported return code; it does not trigger automatic fallback or retry
+raw operations. The current directly tested raw C++ ABI operations share
+the same kernels and preserve every represented payload value.
 The [native protocol](../src/plugin/README.md#developer-protocol-and-verification)
-describes capability detection, layout validation and compatibility with older
-plugins; transport selection does not change arithmetic or engine requirements.
+describes capability and layout validation; transport does not change arithmetic
+or engine requirements.
 
 Observed-origin deletion centering also uses the actual table's maximum absolute
 coefficient and compensated mass. It uses zero when the weighted supported
@@ -371,3 +403,19 @@ supported amplitude is subnormal. Exact zero mass alone retains centering, as
 do ordinary tiny tails when maximum coefficient amplitude and mass are normal.
 Products remain rounded before any normalization; these exceptional safeguards
 do not claim exact distributivity after general signed block averaging.
+
+### Reporting uses prepared geometry
+
+Public geometry preparation derives exact-distance group IDs from the already
+ordered ranks. Candidate weights and deletion kernels receive the same groups;
+model posting retains those groups without rebuilding them. Current saved
+models validate their groups against retained distances/ranks before prediction,
+weights or plots use them. New target geometry prepares its own groups.
+Standalone equality-feature primitives keep their generic semantics.
+
+Nonfatal tie reporting reads the prepared groups and performs no distance
+evaluation, sorting or group reconstruction. Native bridges distinguish absent
+capability from a failing operation and preserve host return codes after
+transport cleanup. The plugin contains every C++ exception at its ABI:
+`std::bad_alloc` returns 909, direct invalid requests return 198, and unexpected
+execution failures return 498.

@@ -34,7 +34,10 @@ quietly do "src/_rdistnn_mata.ado"
 local test_files ///
     test-plot-command-order ///
     test-module-loading     ///
+    test-message-reporting ///
     test-canonical-ties     ///
+    test-distance-ties      ///
+    test-distance-tie-r-parity ///
     test-duplicate-blocks   ///
     test-block-numerical-regression ///
     test-packed-native-transport ///
@@ -103,6 +106,7 @@ local test_files ///
     test-estimator-reporting ///
     test-saved-prediction     ///
     test-saved-model-validation ///
+    test-cached-model-guard ///
     test-candidates          ///
     test-snapshot-observations ///
     test-estimator-diagnostics ///

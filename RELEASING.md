@@ -10,6 +10,28 @@ it into a coefficient estimator or add coefficient inference.
 
 Use a clean repository checkout with the tools in
 [CONTRIBUTING.md](CONTRIBUTING.md). Review the version/tag and release notes.
+Version `0.1.3` replaces the 0.1.2 identical-covariate rule with
+target-specific exact represented distance averaging and saved-model schema 3.
+Earlier saved fits require refitting. Preserve all historical tags, assets and
+scientific dependency pins when publishing this release.
+
+The first development commit after production `0.1.x` establishes
+`0.1.x.9000`. Increment its fourth component in each subsequent development
+commit, even a small documentation or implementation change. Drafting a version
+in uncommitted changes does not advance this sequence. Read the current version
+from `rdistnn.pkg`'s `Version` and the current `RELEASE_NOTES.md` heading; keep
+them synchronized. For example, development after production `0.1.2` starts at
+`0.1.2.9000`, then `0.1.2.9001`. The publication date records publication, rather
+than each local commit, and individual ado revision headers retain their own histories.
+
+For each production merge, default to `0.1.(x+1)` unless the maintainer
+explicitly selects another version. Prepare that production version in the
+reviewed candidate before merging, then start development by appending `.9000`
+to the selected production version. Thus this default cycle leads to production
+`0.1.3`, followed by development `0.1.3.9000`. Production merging, tagging and
+asset publication remain separate authorized steps. R and Stata development
+suffixes may advance independently when only one package changes.
+
 Version `0.1.2` entered production `master` through the reviewed squash merge
 of [PR #14](https://github.com/JakobJuergens/RdistNN_stata/pull/14) on 2026-10-22
 at [`7fbaa9dcf225b79742fb4d43215652b615bab449`](https://github.com/JakobJuergens/RdistNN_stata/commit/7fbaa9dcf225b79742fb4d43215652b615bab449).
@@ -33,8 +55,9 @@ aligned with the R companion. Version `0.1.0.9003` identifies the previous
 production snapshot. Exact
 tables, compensated reductions, whitening rank policy, shared covariance and
 the native Beta nonconvergence guard first shipped in the merged
-0.1.0.9003 snapshot. Earlier TDNN/distance work remains under 0.1.0.9002. Retain the
-intended release version for candidates; create tagged versions only when
+0.1.0.9003 snapshot. Earlier TDNN/distance work remains under 0.1.0.9002. Keep the
+selected production version throughout its final verification and merge;
+ongoing development commits follow the policy above. Create tagged versions only when
 authorized.
 Updating `master` does not itself publish a tag or replace assets from the
 existing `v0.1.0` release.
@@ -53,13 +76,12 @@ does not promise identical feature coverage. Review the
 version and retain its explicit R-only and experimental boundaries.
 
 The current version-pinned Stata release is
-[`v0.1.2`](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.2),
-published from the verified production commit
-`8ff1d5137e4f909a402ac5b08c4af30008dcfe67`. Its source ZIP, four platform
-plugins and checksum files are attached to the release. Install with:
+[`v0.1.3`](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.3).
+The tag selects the verified production snapshot; its source ZIP, four
+platform plugins and checksum files are attached to the release. Install with:
 
 ```stata
-net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/v0.1.2/") replace
+net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/v0.1.3/") replace
 ```
 
 The tag fixes the installation source at the released commit. Keep the ordinary
@@ -77,8 +99,9 @@ net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/Rdist
 
 This pins the reviewed source snapshot. Unpinned `master` follows production
 source; `v0.1.0` selects the existing older public tag and release assets.
-Different source snapshots can share a development version, so retain the
-full commit or checked archive identity. Unpublished future candidates require
+Historical source snapshots shared development versions; retain their
+full commit or checked archive identity. Current development commits follow
+the increment policy above. Unpublished future candidates require
 a local checkout at their full commit or the checked curated ZIP; their GitHub
 URLs do not exist yet.
 
@@ -133,10 +156,12 @@ separate, and avoid circular committed HEAD references.
    only that host. Review failures and verify the bundled Windows plugin
    separately through the Stata parity/installation tests.
 
-   Before merging a feature branch into production, run the hosted checks on
-   its final commit using manual dispatch (`gh workflow run WORKFLOW --ref
-   BRANCH`). Run `pkg-check.yml`, `plugin-build.yml`, `package-snapshot.yml`,
-   and `repository-policy.yml`, and require their successful completion.
+   Before merging a feature branch into production, require successful hosted
+   runs of `pkg-check.yml`, `plugin-build.yml`, `package-snapshot.yml`, and
+   `repository-policy.yml` on its final commit. Reuse successful PR-triggered
+   runs for that exact commit; manually dispatch workflows not otherwise
+   triggered (`gh workflow run WORKFLOW --ref BRANCH`). Do not duplicate a
+   successful run solely because the same verified tree is staged or committed.
 
 4. Build the source ZIP with the same helper used by CI:
 
@@ -189,6 +214,7 @@ GitHub release from the verified commit. Adapt its entry in
 `RELEASE_NOTES.md` into the announcement, with explicit CLATE/PLQR status
 and a link to the getting-started example. Keep existing version tags and
 their assets unchanged.
+Release uploads fail on existing asset names; reruns must preserve published assets.
 
 The existing package-snapshot workflow attaches the validated source ZIP as
 `rdistnn-source.zip` and its `SHA256SUMS-source.txt`. The native-plugin workflow

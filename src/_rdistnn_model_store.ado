@@ -2,7 +2,7 @@
 // Numeric snapshots survive estimates save/use and do not depend on Mata globals.
 program define _rdistnn_model_store, eclass
     version 17
-    syntax varlist(numeric), SIGNALS(name) RANKS(name) DISTANCES(name) [GEOMETRY(name)]
+    syntax varlist(numeric), SIGNALS(name) RANKS(name) DISTANCES(name) GROUPS(name) [GEOMETRY(name)]
     local inputs : list uniq varlist
     local xvars "`e(xvars)'"
     tempname data X row_ids targets
@@ -14,11 +14,7 @@ program define _rdistnn_model_store, eclass
     matrix colnames `data'=`inputs'
     matrix colnames `X'=`xvars'
     matrix colnames `row_ids'=observation_id
-    local matrices : e(matrices)
-    local target_field "targets"
-    local has_targets : list target_field in matrices
-    if `has_targets' matrix `targets'=e(targets)
-    else mata: st_matrix("`targets'",strtoreal(tokens(st_global("e(x0)"))))
+    matrix `targets'=e(targets)
     local n=e(N)
     foreach value in `data' `X' `row_ids' `signals' `ranks' `distances' {
         if rowsof(`value')!=`n' {
@@ -42,6 +38,8 @@ program define _rdistnn_model_store, eclass
         di as error "Fitted scaled/Mahalanobis models require explicit frozen geometry()."
         exit 498
     }
-    ereturn scalar model_version=2
+    ereturn matrix model_groups=`groups', copy
+    ereturn scalar model_version=3
+    ereturn local tie_rule "exact_distance_block_averaging_v1"
     ereturn local model_vars "`inputs'"
 end

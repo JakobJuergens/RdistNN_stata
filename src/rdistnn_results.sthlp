@@ -11,13 +11,13 @@ components and status (CLATE), and influence (CATE/CLATE). targets() selects
 original target IDs in the requested order. level() is a percentage.
 The active data and e() are preserved, including when saving fails.
 {pstd}
-Weights and weight-based diagnostics use the final averages within exactly
-identical raw covariate blocks, reconstructed from saved covariates and ranks.
-Their realized support and concentration can differ from the rank table.
-Weight reconstruction warns that this modification is outside the paper's
-theory; current saved-model schema 2 is required for observation extraction.
-Refit older models. See
-{help weights_dnn} for block averaging and jackknife survivor redistribution.
+Weights and weight-based diagnostics use the final mean rank weights within
+exact represented selected-metric distance groups, separately for each target.
+These are reconstructed from validated saved ranks, distances and groups.
+Realized support and concentration can differ from the rank table. Weight
+reconstruction warns that inference with persistent distance ties is not
+established. Schema 3 and exact_distance_block_averaging_v1 are required;
+refit older models. See {help weights_dnn} for survivor redistribution.
 {title:Returned results}
 {pstd}
 r(fit) and r(se_fit) are q by m matrices: one row per component, one column

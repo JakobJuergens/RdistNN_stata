@@ -2,6 +2,8 @@
 // dist_l2.cpp with Rcpp removed. Shared by scalar and batch callers.
 #pragma once
 
+#include "distance_arithmetic.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -14,19 +16,13 @@ namespace rdistnn {
 enum class distance_metric { l1, l2 };
 
 // Match Mata arithmetic selection before its finite missing-value boundary.
-inline constexpr double distance_l2_range_limit=0x1p1023;
+inline constexpr double distance_l2_range_limit=rustat::distance_range_limit;
 
 // Shared L1/L2 exceptional subtraction: ordinary values keep subtract-then-
 // scale rounding; exact binary halves rescue an unrepresentable difference.
 inline double scaled_distance_difference(double x,double target,double inverse)
 {
-    const double difference=x-target;
-    if(std::fabs(difference)>=distance_l2_range_limit && std::fabs(inverse)<1) {
-        const volatile double half_x=x*0.5,half_t=target*0.5;
-        const double half_difference=half_x-half_t;
-        return half_difference*(inverse+inverse);
-    }
-    return difference*inverse;
+    return rustat::scaled_distance_difference(x,target,inverse);
 }
 
 // R and Mata round the squared coordinate before adding it. An explicit
@@ -43,12 +39,13 @@ inline double distance_l2_range_row(const double* X, int n, int p, int i,
                                    const double* target, int stride_target,
                                    const double* inv_s)
 {
+    if(inv_s)
+        return rustat::scaled_norm_row(X,n,p,i,target,stride_target,inv_s,true);
     double scale=0,ssq=1;
     for(int j=0;j<p;++j) {
         const double x=X[i+static_cast<std::size_t>(j)*n];
         const double t=target[static_cast<std::size_t>(j)*stride_target];
         double d=x-t;
-        if(inv_s) d=scaled_distance_difference(x,t,inv_s[j]);
         const double a=std::fabs(d);
         if(!std::isfinite(a)) return a;
         if(a!=0) {
@@ -117,12 +114,14 @@ inline void distance_batch_core(const double* X, int n, int p,
             const double d=inv_s?scaled_distance_difference(
                 X[i+static_cast<std::size_t>(j)*stride_n],
                 X0[q+static_cast<std::size_t>(j)*stride_m],inv_s[j]):diff;
+            exceptional=exceptional || (inv_s &&
+                (std::fabs(diff)>=distance_l2_range_limit ||
+                 (diff!=0 && std::fabs(d)<std::numeric_limits<double>::min())));
             if(metric==distance_metric::l1) acc+=std::fabs(d);
             else {
                 const double square=rounded_distance_square(d);
                 // Nonfinite squares propagate to acc; inspect it after the loop.
                 exceptional=exceptional ||
-                    (inv_s && std::fabs(diff)>=distance_l2_range_limit) ||
                     (d!=0 && square<std::numeric_limits<double>::min());
                 acc+=square;
             }
@@ -130,9 +129,10 @@ inline void distance_batch_core(const double* X, int n, int p,
         const double value=metric==distance_metric::l2 ?
             ((exceptional || !std::isfinite(acc) || acc>=distance_l2_range_limit) ?
                 distance_l2_range_row(X,n,p,i,X0+q,m,inv_s) :
-                std::sqrt(acc)) : acc;
+                std::sqrt(acc)) :
+            (exceptional ? rustat::scaled_norm_row(X,n,p,i,X0+q,m,inv_s,false) : acc);
         if (!std::isfinite(value))
-            throw std::invalid_argument("distance arithmetic overflowed");
+            throw std::overflow_error("distance arithmetic overflowed");
         result[i+static_cast<std::size_t>(q)*stride_n]=value;
     }
     std::copy(result.begin(),result.end(),out);

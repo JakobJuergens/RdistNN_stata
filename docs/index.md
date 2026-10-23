@@ -1,7 +1,7 @@
 # RdistNN for Stata documentation
 
 Start with [Getting started](getting-started.md) for a first fit. These guides
-cover package **0.1.2**. In Stata, `help rdistnn` opens the command
+cover package **0.1.3**. In Stata, `help rdistnn` opens the command
 references; [release notes](../RELEASE_NOTES.md) record changes.
 
 ## Start with a task

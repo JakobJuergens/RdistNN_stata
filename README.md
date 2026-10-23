@@ -1,6 +1,6 @@
 # RdistNN for Stata
 
-Version **0.1.2**. See [release notes](RELEASE_NOTES.md) for changes.
+Version **0.1.3**. See [release notes](RELEASE_NOTES.md) for changes.
 
 **RdistNN for Stata** estimates conditional treatment effects and regression
 functions using distributional nearest-neighbor (DNN) weights. Choose covariate
@@ -26,6 +26,8 @@ This installs production `master`. The portable
 ado/Mata implementation runs on Windows, macOS and Linux without R, Python or
 a compiler. Native acceleration is optional; see the [plugin guide](src/plugin/README.md)
 for platform-specific binaries.
+
+For the version-pinned release, replace `master` with `v0.1.3` in the installation URL.
 
 For reproducible installation, retain the full source commit or checked archive
 identity; [RELEASING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/RELEASING.md)
@@ -132,14 +134,18 @@ uncertainty requires `s < n`; `nose` skips it. See
 ## Interpreting inference
 
 Intervals are **pointwise**. The framework assumes independent observations;
-cluster and survey-design inference are not supplied. Exact distance ties use
-the original covariates lexicographically in their supplied column order.
-For exactly identical localization covariate rows, weights are averaged within
-each duplicate block, including the remaining block in every jackknife deletion.
-Estimates and covariance are invariant to aligned row permutations up to
-numerical precision. The command warns because this practical modification is
-not covered by the paper's theory. Individual weights, support and effective
-sample size can change. Refit saved objects created before this policy.
+cluster and survey-design inference are not supplied. At each target, observations
+with exactly equal represented distance under the selected metric share the
+average of their assigned rank weights, including every deletion's surviving
+group. Nearby distances are not merged. This includes different covariate profiles
+at equal distance; individual weights, support and effective sample size can
+change. Aligned row permutations preserve estimates and covariance up to numerical
+precision. Refit saved objects created under an earlier tie policy.
+
+The paper assumes a continuous distance distribution, under which the earlier
+and current rules agree almost surely. Commands warn when distance ties occur:
+inference for persistent distance ties is not established. Averaging does not
+supply a uniform mean-squared-error improvement.
 
 Nuisance predictions must be aligned with the estimation observations.
 Propensity clipping is numerical protection, not a remedy for poor overlap.

@@ -1,6 +1,6 @@
 v 3
 d 'RDISTNN': Conditional effects and regression with DNN weights
-d Version: 0.1.2
+d Version: 0.1.3
 d Distribution-Date: 20261022
 d
 d Conditional average treatment effects and
@@ -18,7 +18,7 @@ d current working-paper citation metadata is maintained in RdistNN.
 d Supported supplied-prediction binary-IV CLATE with paired
 d frozen-score covariance, CATE-style tuning, diagnostics and native plots.
 d
-d Author: Jakob Juergens
+d Author: Jakob R. Juergens
 d Contributor: Zakareya Chehime (quality assurance, testing and validation)
 d License: GNU GPL version 3 or later (GPL-3.0-or-later)
 d Native plugin: additional Stata-linking permission in rdistnn_linking_exception.md
@@ -64,6 +64,7 @@ f src/weights_tdnn.ado
 f src/weights_tdnn.sthlp
 f src/_rdistnn_tdnn_mata.ado
 f src/_rdistnn_mata.ado
+f src/_rdistnn_messages.ado
 f src/_rdistnn_plqr_mata.ado
 f src/_rdistnn_distance_mata.ado
 f src/_rdistnn_plot_mata.ado
@@ -81,6 +82,7 @@ f src/_rdistnn_sample_signature.ado
 f src/_rdistnn_estimation_state.ado
 f src/_rdistnn_model_store.ado
 f src/_rdistnn_report.ado
+f src/_rdistnn_report_notices.ado
 f src/_rdistnn_report_header.ado
 f src/_rdistnn_diagnostics.ado
 f src/_rdistnn_diagnostics_save.ado
@@ -99,4 +101,5 @@ f src/_rdistnn_diagnostic_mata.ado
 f src/_rdistnn_localization_mata.ado
 f src/_rdistnn_tuning_plan.ado
 f src/_rdistnn_model_decode.ado
+f src/_rdistnn_model_check.ado
 f src/_rdistnn_model_post.ado

@@ -58,15 +58,15 @@ plot; view(cumulative), with .5/.9 cumulative-weight guides; and view(kernel),
 weight against fitted-metric distance by target. Profiles and cumulative weights
 use actual block-averaged weights and can differ by target. Under exact weights,
 the fitted profile marks the unaveraged rank-table edge n-s+k, not rank s;
-a crossing duplicate block can extend nonzero weights beyond that marker. Kernel data
+a crossing exact-distance group can extend nonzero weights beyond that marker. Kernel data
 are target-specific and use saved numeric observations in current fits. Kernel graphs have no
 rank-s radius marker. Candidate comparison applies only to profiles.{p_end}
 
 {pstd}
-The support formula describes the unaveraged rank table. Averaging across
-identical covariate rows can extend nonzero observation weights to the end of a
-block crossing that edge. Use the actual returned weights for realized support
-and concentration; rank-only tables do not contain the duplicate groups.
+The support formula describes the unaveraged rank table. Averaging assigned
+weights across exact-distance groups can extend nonzero observation weights to
+the end of a group crossing that edge. Use actual returned weights for realized
+support and concentration; rank-only tables do not contain target-specific groups.
 
 {phang}{cmd:type(overlap)} supports view(mass), the default, for instrument A=1/A=0 masses;
 view(armess) for normalized within-arm ESS; and view(propensity) for weighted
@@ -147,9 +147,10 @@ with standard Stata graph commands.
 
 {pstd}
 Estimate, diagnostic, tuning, overlap and dashboard views use stored
-results. Rank profiles/cumulative weights use stored n/k/s/method. They
-remain available after original data change, provided their stored tables
-exist. Current kernel/influence views use e(model_*) snapshots and work after
+results. Every view validates the complete current fitted snapshot.
+Rank profiles/cumulative weights reconstruct the actual weights from cached
+ranks, distances and target-specific groups. Current kernel/influence views use
+e(model_*) snapshots and work after
 original inputs change or are cleared, including after estimates save/use.
 Fits without the current required snapshot need refitting.
 See {help rdistnn_predict}.

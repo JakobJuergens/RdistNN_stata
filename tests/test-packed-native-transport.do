@@ -6,8 +6,8 @@ mata {
     PT_F=rdistnn_native_frame(PT_V)
     PT_FLAT=vec(PT_F')
     st_numscalar("PT_SHAPE",rows(PT_F)==5 & cols(PT_F)==4 & all(PT_FLAT[1..17]:==PT_V) & all(PT_FLAT[18..20]:==0))
-    PT_R=((1::6),(6::1)); PT_S=((1::6),sin((1::6))); PT_T=(1\-.5\0\2\-1); PT_G=(1\1\2\2\3\3)
-    PT_GROUP_MATA=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"mata",PT_G)
+    PT_R=((1::6),(6::1)); PT_S=((1::6),sin((1::6))); PT_T=(1\-.5\0\2\-1); PT_G=(1\1\2\2\3\3); PT_DX=(PT_G,PT_G)
+    PT_GROUP_MATA=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"mata",PT_DX)
     PT_A=rdistnn_native_loo(PT_R,PT_S,PT_T,PT_G)
     PT_B=rdistnn_block_loo_plugin(PT_R,PT_S,PT_T,PT_G)
     st_numscalar("PT_API",rdistnn_native_packed_api()==1)
@@ -26,7 +26,8 @@ test_assert "grouped bridge executes packed native multi-target and multi-compon
 test_assert "rank bridge executes packed native multi-target and multi-component deletion" PT_RANK
 test_assert "unframing restores logical column-major matrices" PT_RESTORE
 
-// A recognized packed request failure cannot retry a legacy raw operation.
+// Empty unavailable bridge output cannot retry a raw operation. Actual native
+// execution failures propagate; test-message-reporting covers those separately.
 mata: mata drop rdistnn_native_loo()
 mata:
 real matrix rdistnn_native_loo(real matrix ranks, real matrix signal, real colvector table, | real colvector groups)
@@ -36,24 +37,56 @@ real matrix rdistnn_native_loo(real matrix ranks, real matrix signal, real colve
 end
 capture mata: PT_A=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"plugin")
 local packed_fail_rc = _rc
-test_assert "forced native reports recognized packed failure" `packed_fail_rc' == 498
+test_assert "forced native rejects unavailable packed bridge output" `packed_fail_rc' == 498
 mata {
     PT_A=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"auto")
     st_numscalar("PT_FALLBACK",st_global("rdistnn_last_jackknife_engine")=="mata" & all(PT_A:==PT_C))
 }
-test_assert "auto uses Mata after recognized packed failure" PT_FALLBACK
-capture mata: PT_A=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"plugin",PT_G)
+test_assert "auto uses Mata for unavailable packed bridge output" PT_FALLBACK
+capture mata: PT_A=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"plugin",PT_DX)
 local packed_block_fail_rc = _rc
-test_assert "forced grouped native reports recognized packed failure" `packed_block_fail_rc' == 498
+test_assert "forced grouped native rejects unavailable packed bridge output" `packed_block_fail_rc' == 498
 mata {
-    PT_A=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"auto",PT_G)
+    PT_A=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"auto",PT_DX)
     st_numscalar("PT_BLOCK_FALLBACK",st_global("rdistnn_last_jackknife_engine")=="mata" & all(PT_A:==PT_GROUP_MATA))
 }
-test_assert "auto grouped path uses Mata after recognized packed failure" PT_BLOCK_FALLBACK
+test_assert "auto grouped path uses Mata for unavailable packed bridge output" PT_BLOCK_FALLBACK
 local packed_prior_use_plugin "$rdistnn_use_plugin"
 global rdistnn_use_plugin 1
 capture mata: PT_A=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"auto")
 local packed_required_fail_rc = _rc
-test_assert "required native auto mode reports recognized packed failure" `packed_required_fail_rc' == 498
+test_assert "required native auto mode rejects unavailable packed bridge output" `packed_required_fail_rc' == 498
+global rdistnn_use_plugin "`packed_prior_use_plugin'"
+quietly do "src/_rdistnn_native_transport.ado"
+
+// A plugin without current packed capability must not select raw transport.
+// This stub changes only capability discovery; the real current raw endpoints
+// remain available, so the prior compatibility bridge makes these tests fail.
+mata: mata drop rdistnn_native_packed_api()
+mata:
+real scalar rdistnn_native_packed_api()
+{
+    return(0)
+}
+end
+capture mata: PT_A=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"plugin")
+local absent_rank_rc=_rc
+capture mata: PT_A=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"plugin",PT_DX)
+local absent_group_rc=_rc
+test_assert "forced rank native rejects absent current packed capability" `absent_rank_rc'==498
+test_assert "forced grouped native rejects absent current packed capability" `absent_group_rc'==498
+global rdistnn_use_plugin ""
+mata {
+    PT_A=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"auto")
+    st_numscalar("PT_ABSENT_RANK",st_global("rdistnn_last_jackknife_engine")=="mata" & all(PT_A:==PT_C))
+    PT_A=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"auto",PT_DX)
+    st_numscalar("PT_ABSENT_GROUP",st_global("rdistnn_last_jackknife_engine")=="mata" & all(PT_A:==PT_GROUP_MATA))
+}
+test_assert "auto rank uses Mata when current packed capability is absent" PT_ABSENT_RANK
+test_assert "auto grouped uses Mata when current packed capability is absent" PT_ABSENT_GROUP
+global rdistnn_use_plugin 1
+capture mata: PT_A=rdistnn_loo_from_table(PT_R,PT_S,PT_T,0,"auto")
+local absent_required_rc=_rc
+test_assert "required native rejects absent current packed capability" `absent_required_rc'==498
 global rdistnn_use_plugin "`packed_prior_use_plugin'"
 quietly do "src/_rdistnn_native_transport.ado"

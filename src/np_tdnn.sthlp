@@ -28,28 +28,29 @@ normalization safeguards. Outcomes and distance geometry remain frozen under
 common delete-one resamples. Joint covariance retains cross-target dependence.
 
 {pstd}
-The support formula describes the unaveraged rank table. Averaging across
-identical covariate rows can extend nonzero observation weights to the end of a
-block crossing that edge. Use the actual returned weights for realized support
-and concentration; rank-only tables do not contain the duplicate groups.
+The support formula describes the unaveraged rank table. Averaging assigned
+weights across exact-distance groups can extend nonzero observation weights to
+the end of a group crossing that edge. Use actual returned weights for realized
+support and concentration; rank-only tables do not contain target-specific groups.
 
 {p 4 4 2}
 Distances are {cmd:l2}, {cmd:l1}, {cmd:l2_scaled}, {cmd:l1_scaled}, and
 {cmd:mahalanobis}. For scaled metrics, {cmd:scalerule()} is {cmd:sd},
 {cmd:mad}, {cmd:iqr}, {cmd:range}, or {cmd:custom}; default is {cmd:sd}.
-{cmd:scalevec()} supplies positive scales with {cmd:scalerule(custom)}.
+{cmd:scalevec()} supplies finite scales with {cmd:scalerule(custom)};
+their absolute values are floored at {cmd:scaleeps()}, including zero scales.
 The default positive scale floor is 1e-12. Fitted geometry is saved for reuse.
 
 {title:Inference}
 
 {pstd}
 The documented sampling framework uses independent observations; cluster
-and survey-design inference are not supplied. Exactly identical raw covariate
-rows receive their block's average signed weight. Each deletion removes the
-actual observation before averaging the n-1 table within the remaining block.
-The resulting estimates and covariance are invariant to aligned permutations
-up to numerical precision. A warning identifies this modification as outside
-the paper's theory. Different vectors at equal distance are not grouped.
+and survey-design inference are not supplied. At each target, observations with
+exactly equal represented selected-metric distance share the mean of their
+assigned signed rank weights. Each deletion removes the actual observation
+before averaging the n-1 table within its surviving groups. Aligned permutations
+preserve estimates and covariance up to numerical precision. No tolerance
+groups nearby distances; inference with persistent distance ties is not established.
 
 
 {p 4 4 2}
@@ -70,7 +71,7 @@ none; {cmd:e(vcetype)} is Jackknife, or empty with {cmd:nose}.
 {cmd:e(targets)}, and {cmd:e(diagnostics)} retain all targets.
 {cmd:e(s1)}, {cmd:e(s2)}, {cmd:e(dim)}, {cmd:e(normalize)}, and the
 {cmd:e(model_*)} numeric state support saved-fit reuse.
-Compatibility fields {cmd:e(neff_targets)}, {cmd:e(neff_min)},
+Shared concentration fields {cmd:e(neff_targets)}, {cmd:e(neff_min)},
 {cmd:e(neff_max)} and single-target {cmd:e(neff)} retain inverse squared-weight
 concentration. With signed weights these fields do not measure a
 probability-based effective sample size.

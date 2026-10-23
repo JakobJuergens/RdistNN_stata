@@ -1,7 +1,7 @@
 version 17
 do "tests/test_framework.do"
 do "tests/helpers/finite-matrix.do"
-test_section "duplicate raw covariate block averaging and actual deletions"
+test_section "explicit equality-block primitives and public distance averaging"
 mata: st_numscalar("BLOCK_COMPARE_MATCH",rdistnn_test_finite_close((0\1),(0\1),0))
 mata: st_numscalar("BLOCK_COMPARE_PARTIAL",rdistnn_test_finite_close((0\.),(0\1),0))
 mata: st_numscalar("BLOCK_COMPARE_ALL",rdistnn_test_finite_close((.\.),(0\1),0))
@@ -58,24 +58,24 @@ foreach metric in l1 l2 l1_scaled l2_scaled mahalanobis {
             mata {
                 BG=rdistnn_fit_geometry(BX,"`metric'","sd",J(1,0,.),1e-12)
                 BD=rdistnn_distance_matrix(BX,BT,"`metric'",BG)
-                BR=rdistnn_localization_ranks(BD,BX)
-                BW=rdistnn_weights_from_rmat(BR,`k',5,"`method'",BX)
+                BR=rdistnn_localization_ranks(BD)
+                BW=rdistnn_block_weights(BR,rdistnn_weights_from_rmat(BR,`k',5,"`method'"),BX)
                 BF=rdistnn_weights_from_ranks((1::8),`k',5,"`method'")
                 BREF=rdistnn_test_block_weights(BX,BR,BF)
                 BERR=BERR & rdistnn_test_finite_close(BW,BREF,2e-15)
                 BDEL=rdistnn_weights_from_ranks((1::7),`k',5,"`method'")
                 BLREF=rdistnn_test_block_deletions(BX,BR,BS,BDEL)
                 BVREF=rdistnn_covariance(BLREF,7/8,1)
-                BPR=BR[BP,]; BPW=rdistnn_weights_from_rmat(BPR,`k',5,"`method'",BX[BP,])
+                BPR=BR[BP,]; BPW=rdistnn_block_weights(BPR,rdistnn_weights_from_rmat(BPR,`k',5,"`method'"),BX[BP,])
                 BPERM=BPERM & rdistnn_test_finite_close(BPW,BW[BP,],2e-13)
             }
             foreach engine in naive mata plugin {
                 mata {
-                    BL=rdistnn_loo_from_table(BR,BS,BDEL,0,"`engine'",BX)
+                    BL=rdistnn_block_loo(BR,BS,BDEL,0,"`engine'",BX)
                     BLERR=BLERR & rdistnn_test_finite_close(BL,BLREF,2e-13)
-                    BV=rdistnn_covariance(rdistnn_loo_from_table(BR,BS,BDEL,1,"`engine'",BX),7/8,1)
+                    BV=rdistnn_covariance(rdistnn_block_loo(BR,BS,BDEL,1,"`engine'",BX),7/8,1)
                     BCERR=BCERR & rdistnn_test_finite_close(BV,BVREF,5e-12)
-                    BPL=rdistnn_loo_from_table(BPR,BS[BP,],BDEL,0,"`engine'",BX[BP,])
+                    BPL=rdistnn_block_loo(BPR,BS[BP,],BDEL,0,"`engine'",BX[BP,])
                     BPERM=BPERM & rdistnn_test_finite_close(BPL,BL[BP,],2e-13)
                     BENGINE=BENGINE & st_global("rdistnn_last_jackknife_engine")=="`engine'"
                 }
@@ -103,7 +103,7 @@ mata {
     st_numscalar("BLOCK_INTERW",rdistnn_test_finite_close(rdistnn_block_weights(IR,IW,IX),IWR,1e-15))
 }
 foreach engine in naive mata plugin {
-    mata: st_numscalar("BLOCK_INTER",rdistnn_test_finite_close(rdistnn_loo_from_table(IR,IS,IT,0,"`engine'",IX),IL,1e-13))
+    mata: st_numscalar("BLOCK_INTER",rdistnn_test_finite_close(rdistnn_block_loo(IR,IS,IT,0,"`engine'",IX),IL,1e-13))
     test_assert "`engine': explicitly grouped interleaved ranks retain actual deletion shifts" BLOCK_INTER
 }
 test_assert "explicitly grouped interleaved rank weights preserve group mass" BLOCK_INTERW
@@ -115,7 +115,7 @@ foreach method in exact asymp {
     foreach normalize in 0 1 {
         mata {
             BF=rdistnn_tdnn_table(8,2,5,2,"`method'",`normalize')
-            BW=rdistnn_tdnn_weights(BR,2,5,2,"`method'",`normalize',BX)
+            BW=rdistnn_block_weights(BR,rdistnn_tdnn_weights(BR,2,5,2,"`method'",`normalize'),BX)
             BTERR=BTERR & rdistnn_test_finite_close(BW,rdistnn_test_block_weights(BX,BR,BF),2e-15)
             BDEL=rdistnn_tdnn_table(7,2,5,2,"`method'",`normalize')
             BLREF=rdistnn_test_block_deletions(BX,BR,BS,BDEL)
@@ -123,9 +123,9 @@ foreach method in exact asymp {
         foreach engine in naive mata plugin {
             global rdistnn_jackknife_engine `engine'
             mata {
-                BL=rdistnn_loo_from_table(BR,BS,BDEL,0,"`engine'",BX)
+                BL=rdistnn_block_loo(BR,BS,BDEL,0,"`engine'",BX)
                 BTLERR=BTLERR & rdistnn_test_finite_close(BL,BLREF,2e-13)
-                BV=rdistnn_tdnn_cov(BR,BS,2,5,2,"`method'",`normalize',BX)
+                BV=rdistnn_covariance(rdistnn_block_loo(BR,BS,BDEL,1,"`engine'",BX),7/8,1)
                 BTVERR=BTVERR & rdistnn_test_finite_close(BV,rdistnn_covariance(BLREF,7/8,1),5e-12)
             }
         }
@@ -142,13 +142,13 @@ macro drop rdistnn_jackknife_engine
 foreach engine in naive mata plugin {
     mata {
         RX=J(5,1,0); RY=(8e307\8e307\8e307\8e307\-8e307)
-        RL=rdistnn_loo_from_table((1::5),RY,rdistnn_exact_table(4,1,2),0,"`engine'",RX)
+        RL=rdistnn_block_loo((1::5),RY,rdistnn_exact_table(4,1,2),0,"`engine'",RX)
         st_numscalar("BLOCK_CORRECTION_RANGE",rdistnn_test_finite_close(RL:/(J(4,1,4e307)\8e307),J(5,1,1),2e-15))
     }
     test_assert "`engine': finite huge deletion survives overflowing unweighted correction" BLOCK_CORRECTION_RANGE
     mata {
         RX=(0\0\0\1\2); RY=(8e307\8e307\8e307\-1e307\0)
-        RL=rdistnn_loo_from_table((1::5),RY,rdistnn_exact_table(4,1,2),0,"`engine'",RX)
+        RL=rdistnn_block_loo((1::5),RY,rdistnn_exact_table(4,1,2),0,"`engine'",RX)
         st_numscalar("BLOCK_MERGE_RANGE",!hasmissing(RL) & rdistnn_test_finite_close(RL[1..3,1]:/6.5e307,J(3,1,1),2e-15))
     }
     test_assert "`engine': zero block correction merges without intermediate overflow" BLOCK_MERGE_RANGE
@@ -158,20 +158,20 @@ foreach engine in naive mata plugin {
 // sample-mean deletions even if exact support cuts through the block.
 mata {
     BA=J(8,2,0); R=1::8; S=(1::8)
-    W=rdistnn_weights_from_rmat(R,1,7,"exact",BA)
-    L=rdistnn_loo_from_table(R,S,rdistnn_exact_table(7,1,7),0,"plugin",BA)
+    W=rdistnn_block_weights(R,rdistnn_weights_from_rmat(R,1,7,"exact"),BA)
+    L=rdistnn_block_loo(R,S,rdistnn_exact_table(7,1,7),0,"plugin",BA)
     st_numscalar("BLOCK_ALL",rdistnn_test_finite_close(W,J(8,1,1/8),1e-15) & rdistnn_test_finite_close(L,(36:-S)/7,1e-14))
-    st_numscalar("BLOCK_ALLV",rdistnn_test_finite_close(rdistnn_jk_cov_multi_from_ranks(R,S,1,7,"exact",BA),variance(S)/8,1e-14))
+    st_numscalar("BLOCK_ALLV",rdistnn_test_finite_close(rdistnn_covariance(rdistnn_block_loo(R,S,rdistnn_exact_table(7,1,7),1,"plugin",BA),7/8,1),variance(S)/8,1e-14))
     // The support boundary enters the entire 3-row first block. The remaining
     // extreme group is unused and must not affect origin selection or zeros.
     XS=(0\0\0\1\1\2\3\4)
     SS=(1\5\-2\8e307\8e307\-8e307\8e307\-8e307)
     RS=(1::8); TS=rdistnn_exact_table(7,1,7)
-    LS=rdistnn_loo_from_table(RS,SS,TS,1,"plugin",XS)
+    LS=rdistnn_block_loo(RS,SS,TS,1,"plugin",XS)
     LF=rdistnn_test_block_deletions(XS,RS,SS,TS)
     st_numscalar("BLOCK_SUPPORT",!hasmissing(LS) & !hasmissing(LF) & rdistnn_test_finite_close(rdistnn_covariance(LS,7/8,1),rdistnn_covariance(LF,7/8,1),1e-14))
     Z=J(8,1,2^100)
-    st_numscalar("BLOCK_ZERO",rdistnn_test_finite_close(rdistnn_jk_cov_multi_from_ranks(RS,Z,1,7,"exact",XS),0,0))
+    st_numscalar("BLOCK_ZERO",rdistnn_test_finite_close(rdistnn_covariance(rdistnn_block_loo(RS,Z,rdistnn_exact_table(7,1,7),1,"plugin",XS),7/8,1),0,0))
     BLOCK_ETA=rdistnn_power2(-1074)
     TW=rdistnn_block_weights((1::3),(BLOCK_ETA\BLOCK_ETA\0),(0\0\1))
     st_numscalar("BLOCK_TINY",BLOCK_ETA>0 & rdistnn_test_finite_close(TW,(BLOCK_ETA\BLOCK_ETA\0),0))
@@ -185,7 +185,7 @@ test_assert "constant supported signal preserves exact zero-variance status" BLO
 test_assert "block averaging retains nonzero subnormal mass and exact unused zeros" BLOCK_TINY
 test_assert "block averaging recovers finite means from overflowing intermediate mass" BLOCK_HUGE
 global rdistnn_plugin_ok 0
-capture mata: rdistnn_loo_from_table((1::8),J(8,1,0),rdistnn_exact_table(7,1,7),1,"plugin",J(8,1,0))
+capture mata: rdistnn_block_loo((1::8),J(8,1,0),rdistnn_exact_table(7,1,7),1,"plugin",J(8,1,0))
 local zero_native_rc=_rc
 global rdistnn_plugin_ok 1
 test_assert "forced native zero-signal deletion cannot bypass an unavailable plugin" `zero_native_rc'==498
@@ -219,7 +219,7 @@ foreach family in np cate clate tdnn plqr {
     quietly `cmd' `input', `xopt' `targets' `extra'
     matrix BB=e(estimates)
     matrix BV=e(estimate_vcov)
-    test_assert "`family': public fit retained new tie policy and used native deletions" "`e(tie_rule)'"=="distance_then_covariates_with_duplicate_block_averaging" & e(model_version)==2 & "$rdistnn_last_jackknife_engine"=="plugin"
+    test_assert "`family': public fit retained new tie policy and used native deletions" "`e(tie_rule)'"=="exact_distance_block_averaging_v1" & e(model_version)==3 & "$rdistnn_last_jackknife_engine"=="plugin"
     quietly rdistnn_results, type(weights)
     matrix BWW=r(data)
     mata: st_numscalar("BLOCK_EXTRACT",rdistnn_test_finite_close(st_matrix("BWW")[1..3,5],J(3,1,st_matrix("BWW")[1,5]),1e-15))

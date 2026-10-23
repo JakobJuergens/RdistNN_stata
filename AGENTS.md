@@ -13,6 +13,30 @@ through a pull request and squash-merge after review and required checks.
 Do not push development commits directly to `master` without an explicit
 maintainer instruction. See `CONTRIBUTING.md` for the workflow.
 
+The first development commit after production `0.1.x` establishes
+`0.1.x.9000`. Each subsequent development commit increments the fourth version
+component, including small changes; uncommitted drafts do not advance this
+sequence. Each production merge advances `0.1.x` to `0.1.(x+1)` unless the
+maintainer chooses otherwise. Resume development by appending `.9000` to the
+selected production version for the first development commit.
+`rdistnn.pkg`'s `Version` and the current `RELEASE_NOTES.md` heading record the
+current version; keep them aligned. See
+`RELEASING.md` for the release transition and immutable-tag rules.
+
+## Current development compatibility policy
+
+Both packages are in early development. Support the current documented
+interfaces and complete current fitted-state schemas. Remove compatibility
+layers for earlier package versions, including retired aliases, wrappers,
+schema upgraders and migration shims, unless the maintainer explicitly requests
+an exception. Missing or inconsistent retained state must produce a clear refit
+error rather than reconstructing an older fit or silently repairing it.
+Current fits must still support their documented serialization and reuse paths.
+
+Keep historical changelogs, released tags/assets and frozen scientific evidence
+unchanged. Revisit compatibility and deprecation commitments when the packages
+stabilize; an earlier production release does not activate such a commitment.
+
 ## Project Shape
 
 - `RdistNN_stata` is the Stata companion package for the `RdistNN` R package
@@ -47,6 +71,11 @@ installed on one machine is not evidence that it is on another machine's PATH.
 
 ## Working Rules
 
+- Before changing validation, warnings/errors, reporting recovery or tests,
+  read [the implementation guidance](markdown_notes/implementation_guidance.md).
+  It records the intended message design, grouping reuse, native signaling and
+  unit/performance test requirements; do not infer migration completion from
+  the design alone.
 - Keep ado/Mata/plugin behavior aligned with the documented command contracts
   in `README.md`.
 - Maintain parity within C++/Mata engines as well as with shared R methods.

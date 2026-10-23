@@ -11,12 +11,13 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
     real scalar k, real scalar s, string scalar method,
     real scalar do_se, real scalar tol, real matrix components,
     real rowvector theta, real matrix V, real matrix componentV,
-    real matrix status, | real matrix X)
+    real matrix status, | real matrix DX, real matrix prepared_groups)
 {
     real scalar n, m, j, h, d, den_scale, scale, variance, corr, omega_quarter
     real colvector sd, good
     real matrix W, loo, centered, g, normalized, block
 
+    if(args()<14) prepared_groups=J(0,0,.)
     n=rows(ranks); m=cols(ranks)
     if (n<1 | m<1 | rows(signals)!=n | cols(signals)!=2 |
         hasmissing(ranks) | hasmissing(signals) | tol<0 | tol>=. |
@@ -25,7 +26,7 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
         errprintf("rdistnn_clate_fit: invalid ranks, signals, tuning, or tolerance.\n")
         exit(error(198))
     }
-    if(args()>=13 & rows(X)>0) W=rdistnn_weights_from_rmat(ranks,k,s,method,X)
+    if(args()>=13 & rows(DX)>0) W=rdistnn_weights_from_rmat(ranks,k,s,method,DX,prepared_groups)
     else W=rdistnn_weights_from_rmat(ranks,k,s,method)
     components=rdistnn_weighted_signals(signals,W)'
     theta=J(1,m,.)
@@ -49,9 +50,9 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
     }
     if(!do_se) return
 
-    if(args()>=13 & rows(X)>0) {
+    if(args()>=13 & rows(DX)>0) {
         loo=rdistnn_loo_from_ranks(ranks,signals,k,s,method,1,
-            rdistnn_weights_from_ranks((1::(n-1)),k,s,method),X)
+            rdistnn_weights_from_ranks((1::(n-1)),k,s,method),DX,prepared_groups)
     }
     else loo=rdistnn_loo_from_ranks(ranks,signals,k,s,method,1)
     centered=loo:-mean(loo)

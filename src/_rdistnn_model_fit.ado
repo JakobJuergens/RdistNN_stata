@@ -8,12 +8,12 @@ program define _rdistnn_model_fit, eclass
         di as error "Current CATE saved results require AIPW or supplied pseudo-outcomes; refit cate_dnn."
         exit 498
     }
-    if e(model_version)!=2 {
+    if e(model_version)!=3 {
         di as error "Active estimates have no supported saved model; refit with the current package version."
         exit 498
     }
     local matrices : e(matrices)
-    foreach field in model_X model_signals model_inputs model_ranks model_distances model_targets model_row_ids {
+    foreach field in model_X model_signals model_inputs model_ranks model_distances model_groups model_targets model_row_ids {
         if !`: list field in matrices' {
             di as error "Saved model is missing e(`field'); refit with the current package version."
             exit 498
@@ -31,11 +31,11 @@ program define _rdistnn_model_fit, eclass
         findfile "`file'"
         quietly run "`r(fn)'"
     }
-    tempname b V diagnostics components componentV status neff ranks DX W fit ses
-    mata: rdistnn_model_evaluate("`targets'",`s',`active',tokens("`b' `V' `diagnostics' `components' `componentV' `status' `neff' `ranks' `DX' `W' `fit'"))
+    tempname b V diagnostics components componentV status neff ranks DX W fit ses groups
+    mata: rdistnn_model_evaluate("`targets'",`s',`active',tokens("`b' `V' `diagnostics' `components' `componentV' `status' `neff' `ranks' `DX' `W' `fit' `groups'"))
     mata: st_matrix("`ses'",sqrt(diagonal(st_matrix("`V'")))')
     _rdistnn_model_post, targets(`targets') s(`s') active(`active') candidate(`candidate') ///
         b(`b') v(`V') diagnostics(`diagnostics') components(`components') componentv(`componentV') ///
-        status(`status') neff(`neff') ranks(`ranks') dx(`DX') w(`W') fit(`fit') ses(`ses') ///
+        status(`status') neff(`neff') ranks(`ranks') dx(`DX') groups(`groups') w(`W') fit(`fit') ses(`ses') ///
         lambda(`lambda') p(`p') m(`m')
 end

@@ -75,9 +75,9 @@ always contains the full selected table. `detail` changes only the display.
 
 | Diagnostic | What it answers |
 | --- | --- |
-| `ess` | With normalized weights, `1/sum(w_i^2)` uses final duplicate-block-averaged weights. It measures concentration, neither raw observation count nor complier count. |
+| `ess` | With normalized weights, `1/sum(w_i^2)` uses final exact-distance-averaged weights. It measures concentration, neither raw observation count nor complier count. |
 | `max_weight`, `top1_weight_share`, `top5_weight_share`, `top10_weight_share` | How much mass is carried by the largest weights? Top shares use at most n observations. |
-| `n_nonzero_weight` | Number of weights larger in absolute value than `sqrt(machine epsilon)`; tiny positive weights can be excluded numerically. |
+| `n_nonzero_weight` | Number of represented nonzero weights, including tiny positive weights. |
 | `radius_rank_k`, `radius_rank_s` | Distance to the k-th and s-th nearest observations under the fitted metric; these are rank radii, not support edges. |
 | `weighted_mean_distance`, `weighted_median_distance` | Typical distance of observations actually receiving weight. |
 | `physical_radius_90` (CATE/CLATE) | Ordinary Euclidean radius enclosing 90% of weight in the original covariate coordinates, even when ranks use Mahalanobis distance. Its units depend on covariate scaling. |
@@ -98,9 +98,9 @@ ESS, maximum absolute weight and top-five absolute-mass share, and a degenerate
 flag if any target reaches the threshold. Inspect target rows for each profile.
 See [weights and tuning](weights-and-tuning.md).
 
-The support formula refers to the unaveraged rank table. With duplicate
-covariate rows, block averaging can give observations beyond that edge nonzero
-weight. Calculate realized support and concentration from the final weights.
+The support formula refers to the unaveraged rank table. Exact-distance
+averaging can give observations beyond that edge nonzero weight when their
+group crosses it. Calculate realized support and concentration from the final weights.
 
 For CATE the score contributions are `w_i*(rho_i-tau_hat)`. For CLATE they
 are `w_i*(phi_y_i-theta_hat*phi_d_i)`. These are fitted score residuals,
@@ -176,8 +176,9 @@ conditions.
 
 ## Inspect tuning candidates
 
-After `tuningmode(grid)`, candidate diagnostics summarize the weight profile
-for each order, independently of targets:
+After `tuningmode(grid)`, candidate diagnostics summarize each order across
+targets: minimum ESS, maximum absolute weight and maximum top-five absolute-mass
+share. Use target diagnostics to inspect individual profiles:
 
 ```stata
 np_dnn_diagnostics, candidates(3 1) detail
@@ -233,3 +234,39 @@ absolute score-contribution concentration. CLATE uses instrument arms and
 retains its paired first-stage diagnostics. Distinguish these from weight
 concentration and from R's squared jackknife-contribution shares.
 Numerical clipping does not establish overlap.
+
+## Warnings and failures
+
+Ordinary `warning:` and `note:` output follows Stata's `quietly` control.
+Fatal errors remain visible under `quietly`; use `capture` to handle their
+return code, or `capture noisily` to retain their explanation while handling
+`_rc`. Save `_rc` before cleanup commands. Invalid options use code 198;
+incomplete or inconsistent saved models use 498 and identify the state that
+requires refitting. Resource and Break codes retain their original meanings.
+
+Exact-distance tie advisories retain the continuous-distance qualification.
+Weights, candidates, prediction and plots reuse the selected geometry's groups;
+these notices do not change the distance or introduce a tolerance. Independent
+calls can each display an advisory. A saved model must pass its current-state
+checks before its retained groups are reused.
+
+CLATE reports one bounded summary for each issue family, with at most five
+example target IDs and an omitted count. Inspect every row of `e(status)` and
+`e(components)` for details, including when all ratios are unavailable. Negative
+first stages are descriptive notes when signed ratios remain defined. `nose`
+does not warn about the uncertainty intentionally omitted.
+
+Automatic native dispatch may use Mata when a required capability is absent.
+An execution, resource or malformed-output failure stops with an explanation;
+it does not silently retry as a missing accelerator. Select
+`global rdistnn_distance_engine mata` or
+`global rdistnn_jackknife_engine mata` explicitly when needed. Allocation
+failure in the plugin returns 909; unexpected native failures return 498.
+
+Independent estimator replays and saved prediction/candidate calls report their
+own applicable notices. Near-uniform DNN weights trigger the existing
+`ESS >= .9*n` descriptive guide; inspect diagnostics and consider stronger
+localization. TDNN uses inverse squared-weight concentration with explicit
+signed-weight wording, rather than interpreting it as probability-weight ESS.
+Neither guide is a validity test. Infeasible optional grid candidates remain
+in `e(tuning_candidates)` with their reason codes and one bounded warning.

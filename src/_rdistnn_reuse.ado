@@ -21,12 +21,12 @@ program define _rdistnn_reuse, rclass
         if "`store'"!="" estimates store `store'
     }
     local rc=_rc
+    if !`rc' _rdistnn_report_notices
     _estimates unhold `original'
     if `rc' {
         capture estimates drop `derived'
         exit `rc'
     }
-    mata: rdistnn_duplicate_warning(st_matrix("e(model_X)"))
     if "`post'"!="" estimates restore `derived'
     estimates drop `derived'
     foreach field in fit se_fit vcov table summary index data {

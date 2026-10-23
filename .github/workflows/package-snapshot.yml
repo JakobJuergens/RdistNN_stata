@@ -61,6 +61,13 @@ jobs:
             exit 0
           fi
 
+          if [[ "$EVENT_NAME" == "release" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=release_publication" >> "$GITHUB_OUTPUT"
+            echo "- decision: allow release assets (release publication bypass)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
           if ! current_run="$(gh api "/repos/${{ github.repository }}/actions/runs/${CURRENT_RUN_ID}")"; then
             echo "::warning::Unable to inspect the current workflow run; allowing execution."
             echo "should_run=true" >> "$GITHUB_OUTPUT"
@@ -156,8 +163,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
 
       - name: Create validated source zip
         id: makezip
@@ -188,7 +193,7 @@ jobs:
           set -euo pipefail
           gh release upload "${{ github.event.release.tag_name }}" \
             "${{ steps.makezip.outputs.zip_path }}" _dist/SHA256SUMS-source.txt \
-            --repo "${{ github.repository }}" --clobber
+            --repo "${{ github.repository }}"
 
       - name: Upload debug artifact
         if: failure()

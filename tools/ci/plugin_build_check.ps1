@@ -52,6 +52,7 @@ try {
         "rdistnn_core.hpp",
         "rdistnn_distance.hpp",
         "compensated_arithmetic.hpp",
+        "distance_arithmetic.hpp",
         "rdistnn_plugin.cpp",
         "stplugin.c",
         "stplugin.h",

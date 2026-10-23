@@ -56,8 +56,7 @@ program define np_dnn, eclass
     else {
         local nx0 : word count `x0'
         if `nx0' != `kx' {
-            di as error "x0() must have `kx' elements (one per covariate in xcols())."
-            exit 198
+            _rdistnn_messages error, rc(198) message("x0() requires `kx' values; got `nx0'.") hint("Supply one value per covariate in xcols().")
         }
         local x0_matrix ""
         foreach v of local x0 {
@@ -100,8 +99,7 @@ program define np_dnn, eclass
     local n = r(N)
 
     if `k' < 1 {
-        di as error "k() must be >= 1."
-        exit 198
+        _rdistnn_messages error, rc(198) message("k() must be a positive integer; got `k'.") hint("Set k() to at least 1.")
     }
     if "`distance'" == "" local distance "l2"
     if !inlist("`distance'", "l2", "mahalanobis", "l1", "l1_scaled", "l2_scaled") {
@@ -143,11 +141,11 @@ program define np_dnn, eclass
     tempname b V
     mata {
         _np_X = st_data(., "`xvars'", "`touse'")
-        rdistnn_duplicate_warning(_np_X)
         _np_X0 = st_matrix("`targets_mat'")
         _np_geometry = _np_DX = _np_ranks = J(0,0,.)
         rdistnn_localization_geometry(_np_X,_np_X0,"`distance'","`scalerule'",
             strtoreal(tokens("`scalevec'")),`scaleeps',_np_geometry,_np_DX,_np_ranks)
+        _np_groups=rdistnn_distance_groups(_np_ranks,_np_DX,1)
         _np_y = st_data(., "`outcome'", "`touse'")
         _np_candidates = st_matrix("`candidate_mat'")
         _np_grid_est = J(`ncandidates', `ntargets', .)
@@ -174,12 +172,12 @@ program define np_dnn, eclass
             }
             else {
                 _np_sg = _np_candidates[_np_g, 8]
-                _np_Wg = rdistnn_weights_from_rmat(_np_ranks, `k', _np_sg, "`method'",_np_X)
+                _np_Wg = rdistnn_weights_from_rmat(_np_ranks, `k', _np_sg, "`method'",_np_DX,_np_groups)
                 _np_grid_est[_np_g,.] = rdistnn_weighted_signals(_np_y, _np_Wg)
                 _np_grid_diag[_np_g,.]=rdistnn_grid_weight_diagnostics(_np_Wg)
                 if ("`se'" == "") {
                     _np_Vg = rdistnn_jk_cov_multi_from_ranks(
-                        _np_ranks, _np_y, `k', _np_sg, "`method'",_np_X)
+                        _np_ranks, _np_y, `k', _np_sg, "`method'",_np_DX,_np_groups)
                     _np_grid_se[_np_g,.] = sqrt(diagonal(_np_Vg))'
                 }
                 // Save the default's first representative, including when the
@@ -296,14 +294,14 @@ program define np_dnn, eclass
     local signature_vars `xvars' `outcome'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
-    tempname model_signals model_ranks model_distances model_geometry
-    mata: st_matrix("`model_signals'",_np_y); st_matrix("`model_ranks'",_np_ranks); st_matrix("`model_distances'",_np_DX)
+    tempname model_groups model_signals model_ranks model_distances model_geometry
+    mata: st_matrix("`model_groups'",_np_groups); st_matrix("`model_signals'",_np_y); st_matrix("`model_ranks'",_np_ranks); st_matrix("`model_distances'",_np_DX)
     local geometry_option ""
     if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
         mata: st_matrix("`model_geometry'",_np_geometry)
         local geometry_option "geometry(`model_geometry')"
     }
-    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances') `geometry_option'
+    quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances') groups(`model_groups') `geometry_option'
     _np_dnn_Display, level(`level')
 end
 

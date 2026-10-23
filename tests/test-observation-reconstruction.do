@@ -77,7 +77,7 @@ foreach family in cate np clate {
         for (PMPE_j=1; PMPE_j<=2; PMPE_j++) {
             PMPE_t = (3-PMPE_j)
             PMPE_dist = sqrt(rowsum((PMPE_X:-PMPE_targets[PMPE_t,]):^2))
-            PMPE_order = order((PMPE_dist,PMPE_X,(1::rows(PMPE_X))),1..(cols(PMPE_X)+2))
+            PMPE_order = order((PMPE_dist,(1::rows(PMPE_X))),(1,2))
             PMPE_ranks = J(rows(PMPE_X),1,.)
             PMPE_ranks[PMPE_order] = (1::rows(PMPE_X))
             PMPE_weights = J(rows(PMPE_X),1,0)
@@ -95,7 +95,7 @@ foreach family in cate np clate {
         }
         st_numscalar("PMPE_geometry_ok", PMPE_derror<1e-12 & PMPE_rerror==0 & PMPE_werror<1e-12 & PMPE_cerror<1e-12)
     }
-    test_assert "[premerge `family'] kernel distances/ranks/weights/cumulative shares match independent raw-X lexicographic oracle" scalar(PMPE_geometry_ok)==1
+    test_assert "[premerge `family'] kernel distances/ranks/weights/cumulative shares match independent metric distance and observation-ID oracle" scalar(PMPE_geometry_ok)==1
     if "`family'"!="np" {
         quietly `family'_dnn_plot, type(influence) targets(2 1 2) nlabel(0) ///
             name(pmpe_influence) replace nodraw

@@ -46,17 +46,17 @@ real matrix rdistnn_model_plot_data(string scalar type, real rowvector targets)
 
 real matrix rdistnn_model_weights(real rowvector targets)
 {
-    real matrix R,D,W,out,X
+    real matrix R,D,G,W,out,X
     real scalar j,t,n
     rdistnn_model_validate()
     R=st_matrix("e(model_ranks)"); D=st_matrix("e(model_distances)")
+    G=st_matrix("e(model_groups)")
     X=st_matrix("e(model_X)")
-    rdistnn_duplicate_warning(X)
     if(st_global("e(cmd)")=="np_tdnn") {
         W=rdistnn_tdnn_weights(R,st_numscalar("e(s1)"),st_numscalar("e(s2)"),
-            st_numscalar("e(dim)"),st_global("e(method)"),st_numscalar("e(normalize)"),X)
+            st_numscalar("e(dim)"),st_global("e(method)"),st_numscalar("e(normalize)"),D,G)
     }
-    else W=rdistnn_weights_from_rmat(R,st_numscalar("e(k)"),st_numscalar("e(s)"),st_global("e(method)"),X)
+    else W=rdistnn_weights_from_rmat(R,st_numscalar("e(k)"),st_numscalar("e(s)"),st_global("e(method)"),D,G)
     n=rows(R); out=J(0,5,.)
     for(j=1;j<=cols(targets);j++) {
         t=targets[j]
@@ -72,32 +72,32 @@ void rdistnn_model_evaluate(string scalar target_name, real scalar s,
 {
     string scalar cmd,method
     real scalar n,m,q,k,tol
-    real matrix X,X0,signals,ranks,DX,W,diag,components,CV,status,V,fit,A,E,loo
+    real matrix X,X0,signals,ranks,DX,G,W,diag,components,CV,status,V,fit,A,E,loo
     real rowvector b,neff
-    rdistnn_model_decode(target_name,s,do_se,cmd,method,k,X,X0,signals,ranks,DX)
+    rdistnn_model_decode(target_name,s,do_se,cmd,method,k,X,X0,signals,ranks,DX,G)
     n=rows(X); m=rows(X0); q=cols(signals)
     if(cmd=="np_tdnn") {
         W=rdistnn_tdnn_weights(ranks,st_numscalar("e(s1)"),st_numscalar("e(s2)"),
-            st_numscalar("e(dim)"),method,st_numscalar("e(normalize)"),X)
+            st_numscalar("e(dim)"),method,st_numscalar("e(normalize)"),DX,G)
     }
-    else W=rdistnn_weights_from_rmat(ranks,k,s,method,X)
+    else W=rdistnn_weights_from_rmat(ranks,k,s,method,DX,G)
     fit=rdistnn_weighted_signals(signals,W); b=vec(fit)'; neff=1:/colsum(W:^2)
     V=J(m*q,m*q,.)
     components=CV=status=J(1,1,.)
     if(cmd=="clate_dnn") {
         tol=st_numscalar("e(denominator_tol)")
-        rdistnn_clate_fit(ranks,signals,k,s,method,do_se,tol,components,b,V,CV,status,X)
+        rdistnn_clate_fit(ranks,signals,k,s,method,do_se,tol,components,b,V,CV,status,DX,G)
         fit=b
     }
     else if(do_se & cmd=="np_tdnn") {
         V=rdistnn_tdnn_cov(ranks,signals,st_numscalar("e(s1)"),st_numscalar("e(s2)"),
-            st_numscalar("e(dim)"),method,st_numscalar("e(normalize)"),X)
+            st_numscalar("e(dim)"),method,st_numscalar("e(normalize)"),DX,G)
     }
     else if(do_se) {
-        if(q==1) V=rdistnn_jk_cov_multi_from_ranks(ranks,signals,k,s,method,X)
+        if(q==1) V=rdistnn_jk_cov_multi_from_ranks(ranks,signals,k,s,method,DX,G)
         else {
             loo=rdistnn_loo_from_ranks(ranks,signals,k,s,method,1,
-                rdistnn_weights_from_ranks((1::(n-1)),k,s,method),X)
+                rdistnn_weights_from_ranks((1::(n-1)),k,s,method),DX,G)
             V=rdistnn_covariance(loo,(n-1)/n,1)
         }
     }
@@ -107,6 +107,7 @@ void rdistnn_model_evaluate(string scalar target_name, real scalar s,
     st_matrix(names[1],b); st_matrix(names[2],V); st_matrix(names[3],diag)
     st_matrix(names[4],components); st_matrix(names[5],CV); st_matrix(names[6],status)
     st_matrix(names[7],neff); st_matrix(names[8],ranks); st_matrix(names[9],DX)
+    st_matrix(names[12],G)
     st_matrix(names[10],W); st_matrix(names[11],fit)
 }
 end

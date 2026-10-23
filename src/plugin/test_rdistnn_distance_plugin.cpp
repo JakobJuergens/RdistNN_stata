@@ -11,11 +11,15 @@ struct matrix { int n,p; std::vector<double> values; };
 std::map<std::string,matrix> matrices;
 std::string read_failure;
 std::string last_error;
+int injected_exception=0;
 int reads=0,writes=0;
 ST_int rowsof(char* name) { auto m=matrices.find(name); return m==matrices.end()?0:m->second.n; }
 ST_int colsof(char* name) { auto m=matrices.find(name); return m==matrices.end()?0:m->second.p; }
 ST_int readel(char* name,int i,int j,double* v) {
     ++reads;
+    if(injected_exception==1) throw std::bad_alloc();
+    if(injected_exception==2) throw std::runtime_error("injected execution failure");
+    if(injected_exception==3) throw 42;
     if (read_failure==name) return 111;
     const auto m=matrices.find(name);
     if (m==matrices.end() || i<1 || j<1 || i>m->second.n || j>m->second.p) return 503;
@@ -75,6 +79,13 @@ int main() {
         reset(); matrices["X0"]={1,2,{0,0}}; matrices["D"]={3,1,{17,17,17}};
         require(invoke({"distance_batch","l2","X","X0","none","D"})==0,"scalar target protocol failed");
         require(matrices["D"].values==std::vector<double>({0,5,5}),"scalar target protocol values");
+        for(int kind=1;kind<=3;++kind) {
+            reset(); injected_exception=kind;
+            require(invoke({"distance_batch","l2","X","X0","none","D"})==(kind==1?909:498),
+                    "native exception lost its resource/internal return code");
+            require(writes==0,"native exception published output");
+            injected_exception=0;
+        }
         reset(); read_failure="S";
         require(invoke({"distance_batch","l1","X","X0","S","D"})==111 && writes==0,
                 "inverse-scale read failure published output or lost return code");
@@ -102,6 +113,16 @@ int main() {
         reset(); matrices["D"]={2,3,std::vector<double>(6,17)};
         rejected({"distance_batch","l1","X","X0","none","D"});
         require(reads==0,"wrong output shape read inputs before validation");
+        reset(); matrices["X"]={1,2,{7e307,7e307}};
+        matrices["X0"]={1,2,{0,0}}; matrices["D"]={1,1,{17}};
+        require(invoke({"distance_batch","l1","X","X0","none","D"})==498,
+                "arithmetic range failure must use 498, not invalid syntax");
+        require(writes==0,"range failure published output");
+        reset(); matrices["X"]={1,3,{7e307,7e307,7e307}};
+        matrices["X0"]={1,3,{0,0,0}}; matrices["D"]={1,1,{17}};
+        require(invoke({"distance_batch","l1","X","X0","none","D"})==498,
+                "true double overflow must use 498 with finite input");
+        require(writes==0,"true double overflow published output");
         reset(); matrices["X"]={2,1,{0,7e307}}; matrices["X0"]={1,1,{-7e307}};
         matrices["D"]={2,1,{17,17}};
         rejected({"distance_batch","l1","X","X0","none","D"});

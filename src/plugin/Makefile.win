@@ -21,7 +21,7 @@ PROTOCOL_TEST = rdistnn_distance_plugin_test.exe
 ROUNDING_TEST = rdistnn_distance_rounding_test.exe
 BLOCK_TEST = rdistnn_blocks_test.exe
 LOO_PROTOCOL_TEST = rdistnn_loo_plugin_test.exe
-HEADERS  = rdistnn_core.hpp rdistnn_distance.hpp compensated_arithmetic.hpp
+HEADERS  = rdistnn_core.hpp rdistnn_distance.hpp compensated_arithmetic.hpp distance_arithmetic.hpp
 SRCS     = stplugin.c rdistnn_plugin.cpp
 
 $(TARGET): $(SRCS) $(HEADERS) stplugin.h

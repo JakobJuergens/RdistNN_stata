@@ -2,6 +2,33 @@
 do "tests/test_framework.do"
 quietly run "src/_rdistnn_mata.ado"
 quietly run "src/_rdistnn_tdnn_mata.ado"
+test_section "Weight stability: selecting every subset neighbor is uniform"
+mata {
+    WNS_uniform=1
+    for(WNS_n=1;WNS_n<=257;WNS_n=WNS_n*4+3) {
+        for(WNS_s=1;WNS_s<=WNS_n;WNS_s=WNS_s+max((1,floor(WNS_n/2)))) {
+            WNS_w=rdistnn_weights_asymp((WNS_n::1),WNS_s,WNS_s)
+            WNS_uniform=WNS_uniform & all(WNS_w:==WNS_w[1])
+        }
+        WNS_w=rdistnn_weights_asymp((WNS_n::1),WNS_n,WNS_n)
+        WNS_uniform=WNS_uniform & all(WNS_w:==WNS_w[1])
+    }
+    st_numscalar("WNS_uniform",WNS_uniform)
+    WNS_n=31; WNS_b=J(WNS_n,1,.)
+    for(WNS_r=1;WNS_r<=WNS_n;WNS_r++) {
+        WNS_b[WNS_r]=rdistnn_beta_interval(1,2,(WNS_r-1)/WNS_n,WNS_r/WNS_n)
+    }
+    st_numscalar("WNS_uniform_tdnn",all(rdistnn_tdnn_table(WNS_n,1,2,2,"asymp",0):==(-J(WNS_n,1,1/WNS_n)+2*WNS_b)))
+}
+test_assert "k=s gives equal represented weights for every rank" scalar(WNS_uniform)==1
+test_assert "TDNN s1=1 retains the uniform component before signed blending" scalar(WNS_uniform_tdnn)==1
+mata {
+    WNS_w=rdistnn_weights_asymp((1::49),1,1)
+    st_numscalar("WNS_uniform_mass",rdistnn_compensated_sum(WNS_w))
+    st_numscalar("WNS_uniform_value",WNS_w[1])
+}
+test_assert "uniform asymptotic public table retains normalization at n49" scalar(WNS_uniform_mass)==1
+test_assert "normalized uniform value matches the R public rank specification" scalar(WNS_uniform_value)==.020408163265306124
 test_section "Weight stability: analytic Beta(1,b) tiny tails"
 mata {
     WNS_w=rdistnn_weights_asymp((1::100),1,80)

@@ -35,7 +35,7 @@ static ST_retcode do_rank_loo(int argc, char *argv[])
         SF_error((char *)"rdistnn_plugin rank_loo: incompatible matrix dimensions.\n");
         return 198;
     }
-    try {
+    {
         std::vector<int> ranks(static_cast<std::size_t>(n)*m);
         std::vector<double> signal(static_cast<std::size_t>(n)*q), table(n-1);
         ST_double value;
@@ -61,14 +61,9 @@ static ST_retcode do_rank_loo(int argc, char *argv[])
         std::vector<double> out(static_cast<std::size_t>(n)*m*q);
         rdistnn::rank_loo(ranks.data(),signal.data(),table.data(),n,m,q,out.data());
         for (double v: out) if (!std::isfinite(v) || SF_is_missing(v))
-            throw std::invalid_argument("nonfinite prefix/suffix sum");
+            throw std::overflow_error("nonfinite prefix/suffix sum");
         for (int j=0; j<m*q; ++j) for (int i=0; i<n; ++i)
             if ((rc=SF_mat_store(argv[4],i+1,j+1,out[i+static_cast<std::size_t>(j)*n]))) return rc;
-    }
-    catch (const std::exception &error) {
-        std::string msg="rdistnn_plugin rank_loo: "+std::string(error.what())+".\n";
-        SF_error(const_cast<char *>(msg.c_str()));
-        return 198;
     }
     return 0;
 }
@@ -117,7 +112,7 @@ static ST_retcode do_block_rank_loo(int argc, char *argv[])
     rdistnn::block_rank_loo(ranks.data(),signal.data(),table.data(),groups.data(),n,m,q,out.data());
     for (double v:out)
         if (!std::isfinite(v) || SF_is_missing(v))
-            throw std::invalid_argument("nonfinite original-signal block deletion");
+            throw std::overflow_error("nonfinite original-signal block deletion");
     for (int j=0;j<m*q;++j) for (int i=0;i<n;++i)
         if ((rc=SF_mat_store(argv[5],i+1,j+1,out[i+static_cast<std::size_t>(j)*n]))) return rc;
     return 0;
@@ -232,7 +227,7 @@ static ST_retcode do_loo_packed(int argc,char* argv[])
     else rdistnn::rank_loo(ranks.data(),signal.data(),table.data(),n,m,q,out.data());
     for (double v:out)
         if (SF_is_missing(v) || !std::isfinite(v))
-            throw std::invalid_argument("packed deletion result is outside the numeric range");
+            throw std::overflow_error("packed deletion result is outside the numeric range");
     // Materializing every input first also makes conformable aliases safe.
     for (std::size_t k=0;k<output.capacity;++k) {
         rc=SF_mat_store(argv[2],static_cast<int>(k/output.cols)+1,
@@ -298,7 +293,7 @@ static ST_retcode do_distance_batch(int argc,char* argv[])
                                  scaled?inverse.data():nullptr,out.data(),metric);
     for (double v:out)
         if (SF_is_missing(v))
-            throw std::invalid_argument("distance result exceeds Stata's finite range");
+            throw std::overflow_error("distance result exceeds Stata's finite range");
     for (int j=0;j<m;++j) for (int i=0;i<n;++i) {
         rc=SF_mat_store(argv[5],i+1,j+1,out[i+static_cast<std::size_t>(j)*n]);
         if (rc) return rc;
@@ -334,13 +329,22 @@ STDLL stata_call(int argc, char *argv[])
         if (std::strcmp(argv[0],"distance_batch")==0) return do_distance_batch(argc,argv);
         if (std::strcmp(argv[0],"distance_api")==0) return do_distance_api(argc,argv);
         throw std::invalid_argument("unknown operation; supported: rank_loo block_rank_loo loo_packed loo_packed_api distance_batch distance_api");
-    } catch (const std::exception& error) {
+    } catch (const std::bad_alloc&) {
+        SF_error((char*)"rdistnn_plugin: insufficient memory; reduce the batch size.\n");
+        return 909;
+    } catch (const std::overflow_error&) {
+        SF_error((char*)"rdistnn_plugin: numerical range exceeded; rescale covariates or signals.\n");
+        return 498;
+    } catch (const std::invalid_argument& error) {
         char msg[768];
         std::snprintf(msg,sizeof(msg),"rdistnn_plugin: %s.\n",error.what());
         SF_error(msg);
         return 198;
+    } catch (const std::exception&) {
+        SF_error((char*)"rdistnn_plugin: unexpected native execution failure; report a reproducible example.\n");
+        return 498;
     } catch (...) {
-        SF_error((char*)"rdistnn_plugin: unexpected native failure.\n");
-        return 198;
+        SF_error((char*)"rdistnn_plugin: unexpected native failure; report a reproducible example.\n");
+        return 498;
     }
 }

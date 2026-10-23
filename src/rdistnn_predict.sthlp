@@ -10,11 +10,12 @@ frozen signals, k, s, weight method and metric are reused. New geometry is
 computed using that fixed training sample, including its Mahalanobis metric;
 no nuisance model is fitted. No original variables are needed in active data.
 {pstd}
-At every new target, exactly identical raw training-covariate rows share their
-block's average weight. With sefit, each deletion removes the actual member and
-divides the n-1 table's remaining block mass among the survivors. The command
-warns that this permutation-invariant modification is outside the paper's
-theory. Distinct vectors at equal distance remain separate; see {help weights_dnn}.
+At every new target, observations with exactly equal represented selected-metric
+distance share the mean of their assigned rank weights, including distinct
+covariate profiles. No tolerance groups nearby distances. With sefit, each
+deletion removes the actual member and divides the n-1 table's remaining group
+mass among its survivors. Inference with persistent distance ties is not
+established; see {help weights_dnn}.
 {pstd}
 By default uncertainty is not computed. sefit or interval(confidence) requests
 the same frozen-score delete-one covariance as estimation; this requires s<n.
@@ -39,9 +40,10 @@ posted or stored derived fit. Undefined ratios are preserved.
 PLQR returns evaluated moments, with r(theta_eval) separately retaining supplied
 coefficients. It performs no root solving, coefficient inference or density fitting.
 {pstd}
-Old saved fits without e(model_version)=2 must be refitted once. Current snapshots
+Old saved fits without e(model_version)=3 must be refitted once. Current snapshots
 are validated for consistent controls, dimensions, row identities, fitted
-geometry and cached ordering before prediction. Invalid snapshots request a
+geometry, selected tie policy, cached ranks, distances and per-target groups
+before prediction. Invalid snapshots request a
 refit while preserving the active data and e(). Model snapshots
 store fitted observations and signals in .ster files; storage grows with sample
 size and the number of targets. These files contain the fitted numeric inputs.

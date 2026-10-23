@@ -18,14 +18,17 @@ probability construction, averaging or signed-blending boundaries.
 | L2 and Mahalanobis distances, deterministic rank ties, translation/scale invariance, and singular covariance | `test-mata-distances.do`, `test-mata-rank-r-mirror.do` |
 | Exact DNN weights: normalization, closed forms, brute-force subsets, support boundaries, and permutation invariance | `test-mata-weights-exact.do`, `test-weights-dnn-r-invariants.do` |
 | Asymptotic DNN weights: normalization, monotonicity, exact approximation, permutation invariance, and `k = s` uniformity | `test-mata-weights-asymp.do`, `test-r-parity-priority.do` |
-| Tiny Beta interval masses and close-order TDNN coefficients against analytic/independent references | `test-weight-numerical-stability.do`, `src/plugin/test_rdistnn_weights.cpp`, `fixtures/r_stability_fixtures.do` |
+| Mata tiny Beta interval masses and close-order TDNN coefficients against analytic/independent references | `test-weight-numerical-stability.do`, `fixtures/r_stability_fixtures.do` |
 | Extreme L2 recovery and common exceptional boundaries, actual compiled/fallback ranks, full covariance and restored prediction | `test-distance-range-stability.do`, `test-stability-r-parity.do`, `fixtures/r_stability_fixtures.do` |
+| Scaled L1/L2 collectively represented subnormal norms and final rounding; R `test-distance-scaled-underflow.R` | `test-distance-range-stability.do`, `src/plugin/test_rdistnn_distance.cpp`; analytic references and actual Mata/native route assertions. |
 | L1, scaled L1/L2 with R sd/MAD/type-7 IQR/range/custom scales; batched weight exports and frozen saved geometry | `test-geometry-batch.do` |
 | R quantile near-tie ranks/estimates, analytic extreme fitted scales, failed-scale guards and scaled L1 recovery | `test-geometry-numerical-stability.do`, `fixtures/r_geometry_fixtures.do` |
 | Actual R C++ and forced fallback L1/L2/scaled distances/ranks, large offsets, double-accumulation ties, scalar/batch and duplicate targets | `test-native-distances.do`, `fixtures/r_native_distance_fixtures.do` |
 | Forced native/Mata geometry across all five estimators and both weight methods, fitted scales, grids/covariance, candidates and cold saved prediction | `test-native-distances-estimators.do` |
-| Canonical raw-covariate exact-distance ties across current estimators/engines, subsets and restored predictions | `test-canonical-ties.do` |
-| Exact-X block averaging, survivor-weight redistribution after actual deletion, full paired/cross-target covariance, permutation invariance, all forced engines, range guards, saved reuse and target-specific plots; R's `test-duplicate-block-averaging.R` | `test-duplicate-blocks.do`; independent explicit deletion and regrouping references cover every metric, both weight methods and signed TDNN. |
+| Exact-distance ranks across current estimators/engines, subsets and restored predictions | `test-canonical-ties.do` |
+| Exact-distance block averaging, survivor-weight redistribution after actual deletion, full paired/cross-target covariance, permutation invariance, all forced engines, range guards, saved reuse and target-specific plots; R's `test-duplicate-block-averaging.R` | `test-duplicate-blocks.do`; independent explicit deletion and regrouping references cover every metric, both weight methods and signed TDNN. |
+| Exact-distance group weights, signed/unnormalized mass, top-k boundary slots, actual deletions, target-specific reuse and legacy-policy rejection | `test-distance-ties.do`, `test-distance-tie-r-parity.do`, `fixtures/r_distance_tie_fixtures.do`; fixtures generated from sibling R with explicit subset/deletion references. |
+| Corrupted cached groups rejected before reporting-only consumers, covariance, diagnostics and plots, including empty active data/cold Mata and preserved state after rejection | `test-cached-model-guard.do`; complements R retained-state corruption/reuse tests. |
 | TDNN exact/asymptotic signed rank tables, support-aware covariance, scalar/batch equivalence and saved-state reuse | `test-tdnn.do`, `test-tdnn-saved.do` |
 | Mata/plugin equivalence and signed-target parsing | `test-weights-dnn-plugin.do` |
 | Scalar, vector, and multi-target rank-shift jackknife covariance against explicit deletion loops | `test-mata-jackknife.do`, `test-mata-jackknife-vector.do`, `test-mata-jackknife-golden.do` |
@@ -94,3 +97,10 @@ ported as superficial assertions:
 
 When one of these features is added to Stata, promote its corresponding R
 contract into the shared table and add deterministic behavioral tests.
+
+| Cross-cutting reporting behavior | R `test-error-reporting.R` | Stata `test-message-reporting.do` |
+| --- | --- | --- |
+| Host-native signaling, literal/bounded details and caller policy | Specific conditions/handlers and warning promotion | Standard codes and ordinary/quiet/capture channels |
+| Group reuse | Call-local preparation and validated retained groups | Public-grid preparation counters and saved prediction reuse |
+| Native failure classification | Missing capability versus execution/resource failure | Bridge host injection and standalone C++ exception controls |
+| Ratio batch reporting | Bounded issue summaries with retained statuses | 100-target summaries and explicit `nose` control |

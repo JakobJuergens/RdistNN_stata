@@ -3,10 +3,10 @@ version 17
 capture mata: mata drop rdistnn_localization_geometry()
 capture mata: mata drop rdistnn_localization_ranks()
 mata:
-// One covariate-aware rank boundary for fresh, restored and plotting routes.
-real matrix rdistnn_localization_ranks(real matrix DX, real matrix X)
+// One observation-ID rank boundary for fresh, restored and plotting routes.
+real matrix rdistnn_localization_ranks(real matrix DX)
 {
-    return(rdistnn_ranks_from_dmat(DX,X))
+    return(rdistnn_ranks_from_dmat(DX))
 }
 
 void rdistnn_localization_geometry(real matrix X, real matrix X0,
@@ -15,6 +15,6 @@ void rdistnn_localization_geometry(real matrix X, real matrix X0,
 {
     geometry=rdistnn_fit_geometry(X,distance,scalerule,scalevec,scaleeps)
     DX=rdistnn_distance_matrix(X,X0,distance,geometry)
-    ranks=rdistnn_localization_ranks(DX,X)
+    ranks=rdistnn_localization_ranks(DX)
 }
 end

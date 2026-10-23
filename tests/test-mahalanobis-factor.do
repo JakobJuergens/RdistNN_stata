@@ -36,7 +36,7 @@ foreach engine in mata plugin {
         test_assert "`engine' `metric': requested engine executed" "$rdistnn_last_distance_engine"=="`engine'"
         quietly np_dnn mneg_y, xcols(mneg_x mneg_zero) x0matrix(MNEG_T) k(1) s(3) distance(`metric') nose
         matrix MNEG_F=e(estimates)
-        test_assert "`engine' `metric': supported public NP selects known neighbors" MNEG_F[1,1]==2 & MNEG_F[1,2]==1
+        test_assert "`engine' `metric': supported public NP averages both exact zero-distance neighbors" MNEG_F[1,1]==2.5 & MNEG_F[1,2]==1
         tempfile mnegsaved
         estimates save `mnegsaved', replace
         preserve
@@ -44,7 +44,7 @@ foreach engine in mata plugin {
         estimates use `mnegsaved'
         quietly rdistnn_predict, x0matrix(MNEG_T)
         matrix MNEG_P=r(fit)
-        test_assert "`engine' `metric': current saved prediction retains finite geometry" MNEG_P[1,1]==2 & MNEG_P[1,2]==1
+        test_assert "`engine' `metric': current saved prediction retains finite geometry" MNEG_P[1,1]==2.5 & MNEG_P[1,2]==1
         restore
         mata {
             mneg_at=(3\1\2)

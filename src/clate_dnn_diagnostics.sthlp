@@ -29,14 +29,14 @@ for the package overview and {help clate_dnn_plot} for figures.
 ess=1/sum(w^2) measures concentration of normalized weights. max_weight and
 top-1/top-5/top-10 shares measure the largest raw weights. For exact top-k DNN,
 the unaveraged rank table has positive support through n-s+k (n-s+1 at k=1).
-n_nonzero_weight counts abs(w)>sqrt(machine epsilon), so extremely small
-positive weights can be excluded. Larger s tightens localization.
+n_nonzero_weight counts every represented nonzero weight, including tiny
+positive weights. Larger s tightens localization.
 
 {pstd}
-The support formula describes the unaveraged rank table. Averaging across
-identical covariate rows can extend nonzero observation weights to the end of a
-block crossing that edge. Use the actual returned weights for realized support
-and concentration; rank-only tables do not contain the duplicate groups.
+The support formula describes the unaveraged rank table. Averaging assigned
+weights across exact-distance groups can extend nonzero observation weights to
+the end of a group crossing that edge. Use actual returned weights for realized
+support and concentration; rank-only tables do not contain target-specific groups.
 
 {pstd}
 radius_rank_k and radius_rank_s are distances to those nearest ranks under
@@ -123,7 +123,9 @@ computed_id identifies duplicate resolved orders sharing computation;
 is_default marks the ordinary fit. status is 1 available or 0 infeasible.
 reason is 0 feasible, 1 s<k, 2 s>=n with inference, or 3 s>n with nose.
 lambda is missing for sgrid(); top_n=min(5,n).
-degenerate means ess>=.9*n, a near-uniform-weight guide, not a test.
+ess is the minimum across targets; max_weight and top5_weight_share are
+the corresponding maxima across targets. degenerate is one if any target
+has ESS>=.9*n, a near-uniform-weight guide, not a test.
 Skipped numerical fields remain missing. Candidate compact columns are
 {cmd:candidate_id is_default feasible status lambda s ess max_weight
  top5_weight_share degenerate}.
