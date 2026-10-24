@@ -39,7 +39,15 @@ program define _rdistnn_model_store, eclass
         exit 498
     }
     ereturn matrix model_groups=`groups', copy
-    ereturn scalar model_version=3
+    tempname target_notices notice_counts
+    local concentration_column=cond("`e(cmd)'"=="np_tdnn",5,1)
+    mata: st_matrix("`target_notices'",rdistnn_target_notices(st_matrix("e(model_groups)"),st_matrix("e(diagnostics)")[,`concentration_column']))
+    matrix colnames `target_notices'=distance_ties weak_localization
+    mata: st_matrix("`notice_counts'",colsum(st_matrix("`target_notices'")))
+    ereturn matrix target_notices=`target_notices', copy
+    ereturn scalar n_tied_targets=el(`notice_counts',1,1)
+    ereturn scalar n_weak_targets=el(`notice_counts',1,2)
+    ereturn scalar model_version=4
     ereturn local tie_rule "exact_distance_block_averaging_v1"
     ereturn local model_vars "`inputs'"
 end

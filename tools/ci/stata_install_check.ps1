@@ -386,7 +386,7 @@ if e(k) != 1 | e(s) != floor(.4*160^(3/4)) {
 // The CLATE example exercises only freshly installed files, including cold
 // paired evaluator loading, diagnostics and instrument/influence/tuning plots.
 do "__REPO_FROM__/examples/reusing-fits.do"
-if e(model_version)!=3 | e(m)!=3 {
+if e(model_version)!=4 | e(m)!=3 {
     di as error "installed saved-fit prediction example failed."
     exit 459
 }

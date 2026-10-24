@@ -1,0 +1,5 @@
+Checks: '-*,clang-analyzer-core.*,clang-analyzer-cplusplus.*,clang-analyzer-deadcode.*,openmp-exception-escape,bugprone-argument-comment,bugprone-assert-side-effect,bugprone-bool-pointer-implicit-conversion,bugprone-dangling-handle,bugprone-infinite-loop,bugprone-macro-parentheses,bugprone-misplaced-widening-cast,bugprone-move-forwarding-reference,bugprone-sizeof-expression,bugprone-string-constructor,bugprone-suspicious-memory-comparison,bugprone-undefined-memory-manipulation,bugprone-use-after-move'
+WarningsAsErrors: '*'
+# Handwritten plugin headers use .hpp; stplugin.h is the external Stata SDK.
+HeaderFilterRegex: 'src/plugin/.*[.]hpp$'
+SystemHeaders: false

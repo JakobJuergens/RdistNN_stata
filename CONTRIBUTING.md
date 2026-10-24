@@ -180,6 +180,78 @@ syntax/results, and the paper owns theory. Retain practical interpretation
 limits beside the outputs. Articles/examples are source-archive inputs;
 checkout-only tests/tools need production-branch URLs from those articles.
 
+## Developer analysis tools
+
+These optional checkout tools do not add installed-package dependencies. On
+Ubuntu/WSL, native profiles use Clang 18 (`clang++-18`, `clang-tidy-18`,
+`llvm-symbolizer-18`), Bear, ccache and Make. They work without a Stata license
+or the sibling R checkout. From this repository root:
+
+```sh
+python3 tools/dev/cpp_tooling.py doctor
+python3 tools/dev/cpp_tooling.py build
+python3 tools/dev/cpp_tooling.py compdb
+python3 tools/dev/cpp_tooling.py tidy
+python3 tools/dev/cpp_tooling.py sanitize --sanitizer-smoke
+```
+
+`build` compiles the plugin and all six standalone tests from a fresh source
+copy, then runs the tests. `compdb` captures a fresh uncached build with Bear
+and retains its source and `compile_commands.json` for `tidy`. Run `compdb`
+again after native inputs, tooling or compiler changes; an ordinary `build`
+invalidates the previous database. Analysis covers handwritten plugin/test
+translation units and headers; the Stata SDK is compiled and captured but
+excluded from owned-code findings. Use `--jobs 1` for one compiler job; the
+maximum is two. `--profile gcc` provides a GCC comparison. These Linux profiles
+complement the release build and licensed native/Mata tests; standalone checks
+do not establish ado/Mata or installed Stata behavior.
+
+`tidy` also verifies the retained native/configuration bytes and database against
+their successful capture. A changed retained copy, edited database or incomplete
+receipt requires a fresh `compdb`; analysis never silently repairs that proof.
+
+Outputs stay under ignored `build/cpp-tooling/PROFILE/`, including logs, source
+hashes, command provenance and private binaries. The compiler cache under
+`build/cpp-tooling/cache/` is bounded to 500 MB per compiler/profile key. Fresh
+builds may reuse compiler objects; every test still runs. No release Makefile,
+installed plugin or global compiler configuration is changed. Sanitized tests
+use AddressSanitizer, UndefinedBehaviorSanitizer and leak checking.
+`--sanitizer-smoke` proves detection using an intentionally invalid private
+fixture. LeakSanitizer requires a host permitting process inspection; a sandbox
+that denies it must be diagnosed rather than reported as a passing leak check.
+
+Python lint requires Ruff 0.17.2. Install it in the Python environment used for
+maintenance with `python3 -m pip install ruff==0.17.2`, then run:
+
+```sh
+python3 tools/ci/check_scripts.py
+python3 tools/ci/check_scripts.py tools/dev/cpp_tooling.py
+```
+
+The default checks correctness rules for maintained `tools/` and `tests/`
+Python files. `--format FILE.py` changes explicitly selected files; formatting
+and format-check reject directories. Generated, vendor and private output
+paths stay excluded, even if selected explicitly. The runner never installs
+tools or auto-fixes lint. Existing Python 3.10 maintenance requirements remain.
+
+PowerShell analysis runs under PowerShell 7 with PSScriptAnalyzer 1.25.0:
+
+```powershell
+Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser
+pwsh -NoProfile -File tools/ci/check_powershell.ps1
+```
+
+The default checks maintained PowerShell scripts against Windows PowerShell
+5.1 command/type/syntax profiles, except `plugin_build_check.ps1`, which targets
+PowerShell 7 on Windows and Linux. The bundled profiles are conservative
+compatibility checks, not proof of execution on every supported host. Use
+`-Paths tools/ci/FILE.ps1` for a selection and `-Compatibility Windows51` or
+`PowerShell7` for an explicit target. Selected errors and warnings fail the
+command; parser failures remain visible. The runner rejects selected symbolic
+links and linked ancestors. It does not execute Stata or edit shell profiles.
+Existing static CI runs both script analyzers; native profiles remain explicit
+developer commands, and `pkg_check.sh` remains usable without these extra tools.
+
 ## Reporting and review
 
 Report issues at [GitHub](https://github.com/JakobJuergens/RdistNN_stata/issues).

@@ -36,7 +36,7 @@ $(DISTANCE_TEST): test_rdistnn_distance.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) /Fe$(DISTANCE_TEST) test_rdistnn_distance.cpp
 	-del /f test_rdistnn_distance.obj 2>nul
 
-$(PROTOCOL_TEST): test_rdistnn_distance_plugin.cpp rdistnn_plugin.cpp $(HEADERS) stplugin.h
+$(PROTOCOL_TEST): test_rdistnn_distance_plugin.cpp test_stata_sdk.hpp rdistnn_plugin.cpp $(HEADERS) stplugin.h
 	$(CXX) $(CXXFLAGS) /Fe$(PROTOCOL_TEST) test_rdistnn_distance_plugin.cpp
 	-del /f test_rdistnn_distance_plugin.obj 2>nul
 
@@ -49,7 +49,7 @@ $(BLOCK_TEST): test_rdistnn_blocks.cpp $(HEADERS)
 	-del /f test_rdistnn_blocks.obj 2>nul
 
 
-$(LOO_PROTOCOL_TEST): test_rdistnn_loo_plugin.cpp rdistnn_plugin.cpp $(HEADERS) stplugin.h
+$(LOO_PROTOCOL_TEST): test_rdistnn_loo_plugin.cpp test_stata_sdk.hpp rdistnn_plugin.cpp $(HEADERS) stplugin.h
 	$(CXX) $(CXXFLAGS) /Fe$(LOO_PROTOCOL_TEST) test_rdistnn_loo_plugin.cpp
 	-del /f test_rdistnn_loo_plugin.obj 2>nul
 

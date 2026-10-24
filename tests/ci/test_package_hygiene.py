@@ -1,4 +1,6 @@
 import importlib.util
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -98,3 +100,83 @@ class PackageHygieneTests(unittest.TestCase):
 
     def test_current_installation_inventory_is_complete(self):
         self.assertEqual(self.checker.package_issues(ROOT), [])
+        self.assertEqual(self.checker.package_version_issues(ROOT), [])
+
+    def write_version_fixture(self, root):
+        (root / 'src').mkdir()
+        (root / 'docs').mkdir()
+        (root / 'rdistnn.pkg').write_text(
+            'v 3\nd Version: 0.1.3.9001\nf src/rdistnn.sthlp\n')
+        (root / 'README.md').write_text('Version **0.1.3.9001** (development).\n')
+        (root / 'RELEASE_NOTES.md').write_text(
+            '# Release notes\n\n## 0.1.3.9001 — development\n\n## 0.1.3 — historical\n')
+        (root / 'src/rdistnn.sthlp').write_text(
+            '{smcl}\n{* *! version 0.1.1  2026-10-21}{...}\n'
+            'Stata 17 or later. Package {bf:0.1.3.9001} provides commands.\n')
+
+    def run_hygiene(self, root):
+        return subprocess.run(
+            [sys.executable, str(ROOT / 'tools/ci/package_hygiene.py'),
+             '--repo-root', str(root)], capture_output=True, text=True,
+        )
+
+    def test_current_package_version_owners_must_agree(self):
+        for owner in ('rdistnn.pkg', 'README.md', 'RELEASE_NOTES.md', 'src/rdistnn.sthlp'):
+            with self.subTest(owner=owner), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.write_version_fixture(root)
+                path = root / owner
+                path.write_text(path.read_text().replace('0.1.3.9001', '0.1.3.9000', 1))
+                result = self.run_hygiene(root)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn('version', result.stderr.lower())
+
+    def test_stale_current_help_and_article_claims_are_reported(self):
+        for target, text in (
+            ('src/weights.sthlp', 'This help describes package {bf:0.1.3.9000}.\n'),
+            ('docs/guide.md', 'This article documents package **0.1.3**.\n'),
+            ('docs/crosswalk.md', 'This map covers the current **0.1.3.9000 development** interfaces.\n'),
+        ):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.write_version_fixture(root)
+                (root / target).write_text(text)
+                if target.startswith('src/'):
+                    with (root / 'rdistnn.pkg').open('a') as manifest:
+                        manifest.write('f ' + target + '\n')
+                result = self.run_hygiene(root)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn(target, result.stderr)
+                self.assertIn('0.1.3.9001', result.stderr)
+
+    def test_manifest_version_and_first_release_heading_are_unambiguous(self):
+        cases = (
+            ('rdistnn.pkg', 'd Version: 0.1.3.9001\nd Version: invalid\n'),
+            ('RELEASE_NOTES.md', '# Release notes\n\n## upcoming\n\n## 0.1.3.9001 — historical\n'),
+        )
+        for owner, text in cases:
+            with self.subTest(owner=owner), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.write_version_fixture(root)
+                if owner == 'rdistnn.pkg':
+                    text = 'v 3\n' + text + 'f src/rdistnn.sthlp\n'
+                (root / owner).write_text(text)
+                result = self.run_hygiene(root)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn(owner, result.stderr)
+
+    def test_version_hygiene_preserves_revision_history_and_production_pins(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_version_fixture(root)
+            (root / 'src/legacy_header.ado').write_text(
+                '*! version 0.0.9  2026-07-12\nversion 17.0\n')
+            with (root / 'rdistnn.pkg').open('a') as manifest:
+                manifest.write('f src/legacy_header.ado\n')
+            (root / 'docs/guide.md').write_text(
+                'Production version **0.1.3** remains pinned at v0.1.3.\n'
+                'Refit schema 3 from version 0.1.3 before reuse.\n')
+            (root / 'tests').mkdir()
+            (root / 'tests/provenance.do').write_text('// R source version: 0.1.2.9000\n')
+            result = self.run_hygiene(root)
+            self.assertEqual(result.returncode, 0, result.stderr)

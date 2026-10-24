@@ -34,6 +34,7 @@ quietly do "src/_rdistnn_mata.ado"
 local test_files ///
     test-plot-command-order ///
     test-module-loading     ///
+    test-optional-boundaries ///
     test-message-reporting ///
     test-canonical-ties     ///
     test-distance-ties      ///

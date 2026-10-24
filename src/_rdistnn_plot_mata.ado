@@ -113,9 +113,10 @@ real matrix rdistnn_plot_rank_weights(real matrix meta,
 {
     real scalar i, g, s, is_default,j,t
     real colvector w,ord
-    real matrix out,W,groups
-    out = J(0,7,.)
-    groups=st_matrix("e(model_groups)")
+    real matrix out,W,groups,R,D
+    out = J(rows(idx)*cols(targets)*n,7,.)
+    R=ranks[,targets]; D=DX[,targets]
+    groups=st_matrix("e(model_groups)")[,targets]
     for (i = 1; i <= rows(idx); i++) {
         g = idx[i]
         if (use_meta) {
@@ -126,15 +127,41 @@ real matrix rdistnn_plot_rank_weights(real matrix meta,
             s = default_s
             is_default = 1
         }
-        W=rdistnn_weights_from_rmat(ranks,k,s,method,DX,groups)
+        W=rdistnn_weights_from_rmat(R,k,s,method,D,groups)
         for(j=1;j<=cols(targets);j++) {
-            t=targets[j]; ord=J(n,1,.); ord[ranks[,t]]=(1::n)
-            w=W[ord,t]
-            out=out\((1::n),w,runningsum(w),J(n,1,g),
+            t=targets[j]; ord=J(n,1,.); ord[R[,j]]=(1::n)
+            w=W[ord,j]
+            out[((i-1)*cols(targets)+j-1)*n:+(1::n),]=((1::n),w,runningsum(w),J(n,1,g),
                 J(n,1,s),J(n,1,is_default),J(n,1,t))
         }
     }
     return(out)
 }
 
+end
+
+capture mata: mata drop rdistnn_plot_target_ids()
+capture mata: mata drop rdistnn_plot_wald_available()
+mata:
+void rdistnn_plot_target_ids(string scalar data, real scalar column,
+    string scalar destination)
+{
+    real colvector ids
+    ids=st_matrix(data)[,column]
+    st_local(destination,invtokens(strofreal(uniqrows(select(ids,ids:<.)))'))
+}
+
+real colvector rdistnn_plot_wald_available(real matrix work, real matrix status,
+    real scalar target, real scalar candidate)
+{
+    real colvector available
+    real scalar i,g,t,valid
+    if(candidate==0) return(status[work[,target],5])
+    available=J(rows(work),1,0)
+    for(i=1;i<=rows(status);i++) {
+        g=status[i,1]; t=status[i,2]; valid=status[i,7]==1
+        available=available:+(work[,candidate]:==g):*(work[,target]:==t):*valid
+    }
+    return(available)
+}
 end

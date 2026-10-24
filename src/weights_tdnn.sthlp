@@ -50,6 +50,11 @@ engines do not restore probability lost in table construction. See
 
 {title:Saved results}
 
+{pstd}
+r(n_tied_targets) and r(n_weak_targets) report target counts even under quietly.
+The weak flag uses signed inverse squared-weight concentration, not probability
+ESS. These descriptive notices do not change weights or the active e() results.
+
 {p 4 4 2}
 {cmd:r(weights)}, {cmd:r(ranks)}, {cmd:r(distances)} and {cmd:r(groups)} are
 n-by-m matrices in estimation-sample observation order. Groups are integer IDs

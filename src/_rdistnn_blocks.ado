@@ -2,7 +2,7 @@
 version 17
 // Exact equality blocks. Highlevel callers supply one metric-distance column
 // per target. Generic block primitives can also group explicit equality features.
-foreach fn in distance_groups group_ties distance_warning distance_weights distance_loo duplicate_rows block_ranges block_weights block_add block_table_mean block_loo_direct block_loo_prefix block_loo_plugin block_loo {
+foreach fn in distance_groups group_ties target_notices distance_warning distance_weights distance_loo duplicate_rows block_ranges block_weights block_add block_table_mean block_loo_direct block_loo_prefix block_loo_plugin block_loo {
     capture mata: mata drop rdistnn_`fn'()
 }
 mata:
@@ -38,6 +38,11 @@ real matrix rdistnn_distance_groups(real matrix ranks, real matrix DX, | real sc
 real rowvector rdistnn_group_ties(real matrix groups)
 {
     return(colmax(groups):<rows(groups))
+}
+
+real matrix rdistnn_target_notices(real matrix groups, real colvector concentration)
+{
+    return((rdistnn_group_ties(groups)',(rows(groups)>=2):&(concentration:>=.9*rows(groups))))
 }
 
 void rdistnn_distance_warning(real matrix groups)
@@ -334,8 +339,7 @@ real matrix rdistnn_block_loo(real matrix ranks, real matrix signal,
             else {
                 values=J(0,0,.)
                 if(engine=="plugin" | plugin_mode=="1") {
-                    errprintf("Compiled block deletion API is unavailable; install the current plugin or set rdistnn_jackknife_engine mata.\n")
-                    exit(error(498))
+                    rdistnn_fail(498,"Compiled block deletion API is unavailable; install the current plugin or set rdistnn_jackknife_engine mata.")
                 }
             }
         }
@@ -343,8 +347,7 @@ real matrix rdistnn_block_loo(real matrix ranks, real matrix signal,
             if(engine=="naive") values=rdistnn_block_loo_direct(z,table,groups[ord],ord)
             else values=rdistnn_block_loo_prefix(z,table,groups[ord],ord)
             if(hasmissing(values)) {
-                errprintf("Original-signal block deletions exceed the numeric range.\n")
-                exit(error(498))
+                rdistnn_fail(498,"Original-signal block deletions exceed the numeric range; rescale signals or request point estimates only.")
             }
             st_global("rdistnn_last_jackknife_engine",engine=="naive" ? "naive" : "mata")
         }

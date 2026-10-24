@@ -209,3 +209,131 @@ capture clate_dnn Y, xcols(x1 x2) x0matrix(CA_badtarget) ///
     dcol(D) acol(A) ecol(e) my0col(my0) my1col(my1) md0col(md0) md1col(md1) s(3)
 local target_rc = _rc
 test_assert "missing target coordinate rejected" `target_rc'==198
+
+
+test_section "premerge CLATE: relative denominator status at ordinary cutoffs"
+clear
+set obs 6
+gen double cr_x=_n
+gen double cr_num=1
+gen double cr_den=1
+replace cr_den=4 in 6
+// Exact s=n weights select row 1. The independently known relative magnitude
+// is cr_den[1]/4; neighboring represented values must straddle the same cutoff.
+foreach sign in 1 -1 {
+    foreach side in -1 0 1 {
+        replace cr_den=`sign'*(1+`side'*2^-50) in 1
+        quietly clate_dnn cr_num, denominator(cr_den) pseudooutcome ///
+            xcols(cr_x) x0(0) s(6) nose denominatortol(.25)
+        local cr_want=(`side'<=0)
+        test_assert "ordinary signed cutoff neighbor `sign' `side' preserves exact decision" ///
+            el(e(status),1,3)==`cr_want' & el(e(status),1,1)==0 & ///
+            el(e(status),1,2)==(`sign'<0) & ///
+            el(e(estimates),1,1)==1/cr_den[1]
+    }
+}
+replace cr_den=0 in 1
+quietly clate_dnn cr_num, denominator(cr_den) pseudooutcome ///
+    xcols(cr_x) x0(0) s(6) nose denominatortol(.25)
+test_assert "zero denominator remains undefined and is not a relative near-zero flag" ///
+    el(e(status),1,1)==1 & el(e(status),1,3)==0 & missing(el(e(estimates),1,1))
+
+// A positive binary common scale makes the independent reference safe without
+// taking abs() of the original large negative value. Row 6 has zero weight.
+test_section "premerge CLATE: finite negative denominator magnitudes"
+replace cr_den=1
+replace cr_den=-8e307-8e307 in 6
+scalar cr_small_relative=(1/4)/(4e307)
+test_assert "independent inactive-signal relative reference is positive and below tolerance" ///
+    cr_small_relative>0 & cr_small_relative<1e-8
+foreach common in 1 4 {
+    replace cr_num=1/`common'
+    replace cr_den=1/`common'
+    replace cr_den=(-8e307-8e307)/`common' in 6
+    quietly clate_dnn cr_num, denominator(cr_den) pseudooutcome ///
+        xcols(cr_x) x0(0) s(6) nose denominatortol(1e-8)
+    test_assert "inactive huge negative denominator defines all-input scale /`common'" ///
+        el(e(estimates),1,1)==1 & el(e(components),1,2)==1/`common' & ///
+        el(e(status),1,1)==0 & el(e(status),1,3)==1
+    quietly clate_dnn cr_num, denominator(cr_den) pseudooutcome ///
+        xcols(cr_x) x0(0) s(6) nose denominatortol(0)
+    test_assert "zero tolerance disables exceptional relative flag /`common'" ///
+        el(e(estimates),1,1)==1 & el(e(status),1,3)==0
+}
+// This time the fitted local denominator itself has unsafe positive magnitude.
+// Its magnitude relative to the all-input maximum is exactly one.
+replace cr_den=-8e307-8e307
+replace cr_num=cr_den
+foreach common in 1 4 {
+    foreach cutoff in .5 1 {
+        quietly clate_dnn cr_num, denominator(cr_den) pseudooutcome ///
+            xcols(cr_x) x0(0) s(6) nose denominatortol(`cutoff')
+        test_assert "huge negative local denominator compares relative one at `cutoff' /`common'" ///
+            el(e(estimates),1,1)==1 & el(e(status),1,1)==0 & ///
+            el(e(status),1,2)==1 & el(e(status),1,3)==(`cutoff'==1)
+    }
+    replace cr_num=cr_num/4
+    replace cr_den=cr_den/4
+}
+
+// Only the descriptive flag may change when tolerance changes. The existing
+// independent four-row oracle also protects finite paired component covariance.
+clear
+set obs 4
+gen double cr_x=_n
+gen double cr_num=cond(_n==1,2,cond(_n==2,1,cond(_n==3,4,3)))
+gen double cr_den=cond(_n==1,1,cond(_n==2,-1,cond(_n==3,2,1)))
+quietly clate_dnn cr_num, denominator(cr_den) pseudooutcome ///
+    xcols(cr_x) x0(0) s(2) denominatortol(0)
+matrix CR_B=e(estimates)
+matrix CR_C=e(components)
+matrix CR_V=e(theta_vcov)
+matrix CR_CV=e(component_vcov)
+quietly clate_dnn cr_num, denominator(cr_den) pseudooutcome ///
+    xcols(cr_x) x0(0) s(2) denominatortol(1)
+mata: st_numscalar("cr_same",all(st_matrix("CR_B"):==st_matrix("e(estimates)")) & all(st_matrix("CR_C"):==st_matrix("e(components)")) & all(st_matrix("CR_V"):==st_matrix("e(theta_vcov)")) & all(st_matrix("CR_CV"):==st_matrix("e(component_vcov)")))
+test_assert "relative flag preserves estimates and all paired component covariance bytes" ///
+    cr_same & el(e(status),1,3)==1 & el(CR_B,1,1)==4 & ///
+    abs(el(CR_V,1,1)-34)<1e-10 & abs(el(CR_CV,1,2)-.5)<1e-12
+
+// Each route evaluates the known relative magnitudes (tiny, one), with original
+// signals retained and duplicate/reordered target identities kept explicitly.
+test_section "premerge CLATE: relative status survives prediction candidates and cold restore"
+clear
+set obs 6
+gen double cr_x=_n
+gen double cr_den=1
+replace cr_den=-8e307-8e307 in 6
+gen double cr_num=cr_den
+matrix CR_TARGETS=(0\7\0)
+matrix CR_REORDER=(7\0\7\0)
+foreach common in 1 4 {
+    quietly clate_dnn cr_num, denominator(cr_den) pseudooutcome ///
+        xcols(cr_x) x0matrix(CR_TARGETS) tuningmode(grid) ///
+        sgrid(5 6 6) sdefault(6) nose denominatortol(1e-8)
+    mata: st_numscalar("cr_status_ok",all(st_matrix("e(status)")[,3]:==(1\0\1)) & all(st_matrix("e(estimates)"):==1) & all(st_matrix("e(tuning_target_status)")[,5]:==(1\0\1\1\0\1\1\0\1)))
+    test_assert "original and duplicate grid candidates use independent relative references /`common'" cr_status_ok
+    tempname cr_parent
+    estimates store `cr_parent'
+    quietly rdistnn_candidate, candidate(3) post
+    mata: st_numscalar("cr_status_ok",all(st_matrix("e(status)")[,3]:==(1\0\1)) & all(st_matrix("e(estimates)"):==1))
+    test_assert "duplicate candidate retains corrected denominator statuses /`common'" cr_status_ok
+    quietly estimates restore `cr_parent'
+    quietly rdistnn_predict, x0matrix(CR_REORDER) post
+    mata: st_numscalar("cr_status_ok",all(st_matrix("e(status)")[,3]:==(0\1\0\1)) & all(st_matrix("e(estimates)"):==1) & all(st_matrix("e(status)")[,2]:==(1\0\1\0)))
+    test_assert "prediction reorders and repeats relative statuses with target identities /`common'" cr_status_ok
+    quietly estimates restore `cr_parent'
+    tempfile cr_saved
+    quietly estimates save "`cr_saved'", replace
+    preserve
+    clear
+    mata: mata clear
+    quietly estimates use "`cr_saved'"
+    quietly rdistnn_predict, x0matrix(CR_REORDER) post
+    mata: st_numscalar("cr_status_ok",all(st_matrix("e(status)")[,3]:==(0\1\0\1)) & all(st_matrix("e(estimates)"):==1))
+    test_assert "cold restored prediction retains all original denominator signals /`common'" cr_status_ok & _N==0
+    restore
+    estimates drop `cr_parent'
+    replace cr_num=cr_num/4
+    replace cr_den=cr_den/4
+}

@@ -9,12 +9,14 @@ capture mata: mata drop rdistnn_model_evaluate()
 capture mata: mata drop rdistnn_model_weights()
 capture mata: mata drop rdistnn_model_plot_data()
 mata:
-real matrix rdistnn_model_plot_data(string scalar type, real rowvector targets)
+real matrix rdistnn_model_plot_data(string scalar type, real rowvector targets,
+    | real scalar validated)
 {
     real matrix data,out,signals,one
     real colvector w,cum,ord,score,contribution,active,right
     real scalar j,t,n,paired
-    data=rdistnn_model_weights(targets); n=rows(st_matrix("e(model_X)"))
+    if(args()<3) validated=0
+    data=rdistnn_model_weights(targets,validated); n=rows(st_matrix("e(model_X)"))
     signals=st_matrix("e(model_signals)"); paired=st_global("e(cmd)")=="clate_dnn"
     out=J(0, type=="kernel" ? 5 : (paired ? 9 : 7),.)
     for(j=1;j<=cols(targets);j++) {
@@ -25,8 +27,7 @@ real matrix rdistnn_model_plot_data(string scalar type, real rowvector targets)
         }
         else {
             if(missing(st_matrix("e(estimates)")[1,t])) {
-                errprintf("Influence is unavailable for undefined target %g.\n",t)
-                exit(error(498))
+                rdistnn_fail(498,"Influence is unavailable for undefined target "+strofreal(t)+". Inspect e(status) and e(components).")
             }
             score=signals[,1]
             if(paired) score=score-st_matrix("e(estimates)")[1,t]*signals[,2]
@@ -44,23 +45,25 @@ real matrix rdistnn_model_plot_data(string scalar type, real rowvector targets)
     return(out)
 }
 
-real matrix rdistnn_model_weights(real rowvector targets)
+real matrix rdistnn_model_weights(real rowvector targets, | real scalar validated)
 {
-    real matrix R,D,G,W,out,X
+    real matrix R,D,G,W,out,ids
     real scalar j,t,n
-    rdistnn_model_validate()
-    R=st_matrix("e(model_ranks)"); D=st_matrix("e(model_distances)")
-    G=st_matrix("e(model_groups)")
-    X=st_matrix("e(model_X)")
+    if(args()<2) validated=0
+    if(!validated) rdistnn_model_validate()
+    R=st_matrix("e(model_ranks)")[,targets]
+    D=st_matrix("e(model_distances)")[,targets]
+    G=st_matrix("e(model_groups)")[,targets]
+    ids=st_matrix("e(model_row_ids)")
     if(st_global("e(cmd)")=="np_tdnn") {
         W=rdistnn_tdnn_weights(R,st_numscalar("e(s1)"),st_numscalar("e(s2)"),
             st_numscalar("e(dim)"),st_global("e(method)"),st_numscalar("e(normalize)"),D,G)
     }
     else W=rdistnn_weights_from_rmat(R,st_numscalar("e(k)"),st_numscalar("e(s)"),st_global("e(method)"),D,G)
-    n=rows(R); out=J(0,5,.)
+    n=rows(R); out=J(n*cols(targets),5,.)
     for(j=1;j<=cols(targets);j++) {
         t=targets[j]
-        out=out\(st_matrix("e(model_row_ids)"),J(n,1,t),R[,t],D[,t],W[,t])
+        out[(j-1)*n:+(1::n),]=(ids,J(n,1,t),R[,j],D[,j],W[,j])
     }
     return(out)
 }
@@ -68,13 +71,14 @@ real matrix rdistnn_model_weights(real rowvector targets)
 // Output names: estimates, covariance, diagnostics, components, component V,
 // status, effective sample sizes, ranks, distances, weights and q-by-m fits.
 void rdistnn_model_evaluate(string scalar target_name, real scalar s,
-    real scalar do_se, string rowvector names)
+    real scalar do_se, string rowvector names, | real scalar validated)
 {
     string scalar cmd,method
     real scalar n,m,q,k,tol
     real matrix X,X0,signals,ranks,DX,G,W,diag,components,CV,status,V,fit,A,E,loo
     real rowvector b,neff
-    rdistnn_model_decode(target_name,s,do_se,cmd,method,k,X,X0,signals,ranks,DX,G)
+    if(args()<5) validated=0
+    rdistnn_model_decode(target_name,s,do_se,cmd,method,k,X,X0,signals,ranks,DX,G,validated)
     n=rows(X); m=rows(X0); q=cols(signals)
     if(cmd=="np_tdnn") {
         W=rdistnn_tdnn_weights(ranks,st_numscalar("e(s1)"),st_numscalar("e(s2)"),
@@ -109,5 +113,16 @@ void rdistnn_model_evaluate(string scalar target_name, real scalar s,
     st_matrix(names[7],neff); st_matrix(names[8],ranks); st_matrix(names[9],DX)
     st_matrix(names[12],G)
     st_matrix(names[10],W); st_matrix(names[11],fit)
+}
+end
+
+capture mata: mata drop rdistnn_model_tdnn_plot()
+mata:
+real matrix rdistnn_model_tdnn_plot(real rowvector targets)
+{
+    real matrix data
+    data=rdistnn_model_weights(targets,1)
+    data=data[order(data,(2,3)),]
+    return(data[,(3,5,2)])
 }
 end

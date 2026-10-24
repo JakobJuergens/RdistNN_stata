@@ -1,5 +1,6 @@
 // Exercise the real packed transport entry point with independent SDK storage.
 #include "rdistnn_plugin.cpp"
+#include "test_stata_sdk.hpp"
 #include <iostream>
 #include <map>
 
@@ -24,7 +25,7 @@ ST_int storeel(char* name,int r,int c,double value) {
     ++writes;x.values[(r-1)+static_cast<std::size_t>(c-1)*x.rows]=value;return 0;
 }
 ST_int error(char*) {return 0;}
-ST_boolean missing(double x) {return x>=8.9884656743115795e307;}
+ST_boolean missing(double x) {return rdistnn_test_sdk::is_missing(x);}
 void require(bool value,const char* message) {if(!value) throw std::runtime_error(message);}
 int invoke(std::initializer_list<const char*> args) {
     std::vector<std::string> strings;for(auto arg:args) strings.emplace_back(arg);
@@ -79,6 +80,44 @@ int main() {
             require((grouped?invoke({"block_rank_loo","R","S","T","G","RAW"}):invoke({"rank_loo","R","S","T","RAW"}))==0,"raw comparison failed");
             require(invoke({"loo_packed","F","D"})==0,"packed comparison failed");
             require(unpack(matrices["D"],3)==matrices["RAW"].values,"raw/packed arithmetic differs");
+        }
+        // Exercise both SDK transports at the calibrated signed boundary.
+        const double missing_boundary=0x1p1023;
+        const double predecessor=std::nextafter(missing_boundary,0.0);
+        for(bool grouped:{false,true}) for(double value:{predecessor,8.5e307,
+                -predecessor,-8.5e307,-std::numeric_limits<double>::max()}) {
+            baseline(grouped);
+            std::vector<double> payload={1,3,1,1,grouped?1.:0.,1,2,3,
+                value,value,value,.5,0};
+            if(grouped) payload.insert(payload.end(),{1,2,3});
+            matrices["F"]=packed(payload); matrices["D"]=packed({17,17,17});
+            matrices["R"]={3,1,{1,2,3}}; matrices["S"]={3,1,{value,value,value}};
+            matrices["T"]={2,1,{.5,0}}; matrices["G"]={3,1,{1,2,3}};
+            matrices["RAW"]={3,1,{17,17,17}};
+            require((grouped?invoke({"block_rank_loo","R","S","T","G","RAW"}):
+                invoke({"rank_loo","R","S","T","RAW"}))==0,
+                "valid high-magnitude raw deletion rejected");
+            require(invoke({"loo_packed","F","D"})==0,
+                "valid high-magnitude packed deletion rejected");
+            const std::vector<double> expected(3,value*.5);
+            require(matrices["RAW"].values==expected && unpack(matrices["D"],3)==expected,
+                "high-magnitude raw/packed deletion values differ");
+        }
+        for(bool grouped:{false,true}) for(double sentinel:{missing_boundary,
+                std::nextafter(missing_boundary,std::numeric_limits<double>::infinity())}) {
+            for(bool table:{false,true}) {
+                baseline(grouped); setcell(matrices["F"],table?11:8,sentinel); rejected();
+                matrices["R"]={3,1,{1,2,3}}; matrices["S"]={3,1,{1,2,3}};
+                matrices["T"]={2,1,{.5,0}}; matrices["G"]={3,1,{1,2,3}};
+                matrices["RAW"]={3,1,{17,17,17}};
+                matrices[table?"T":"S"].values[0]=sentinel;
+                const int before_writes=writes;
+                require((grouped?invoke({"block_rank_loo","R","S","T","G","RAW"}):
+                    invoke({"rank_loo","R","S","T","RAW"}))==198,
+                    "actual SDK missing input lost invalid-input return code");
+                require(writes==before_writes && matrices["RAW"].values==std::vector<double>(3,17),
+                    "missing raw input published output");
+            }
         }
         // Finite inputs may produce a result outside Stata's numeric range.
         // Raw/packed and strict/grouped transports share 498 and publish none.

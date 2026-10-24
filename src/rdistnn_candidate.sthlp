@@ -15,7 +15,7 @@ groups. At each target, equal represented selected-metric distances share the
 mean of their assigned rank weights. Each deletion redistributes the n-1
 table's group mass over actual survivors. Commands warn that inference with
 persistent distance ties is not established. Refit saved results from earlier
-policies, including e(model_version)=2; current schema 3 and
+policies or schemas, including e(model_version)=3; current schema 4 and
 exact_distance_block_averaging_v1 are required. See {help weights_dnn}.
 {pstd}
 The parent's covariance policy is retained, including nose. post replaces the
@@ -31,7 +31,8 @@ or inconsistent snapshot. Validation errors preserve the active data and e().
 {title:Returned results}
 {pstd}
 Returns r(candidate), r(s), and the reporting/prediction matrices documented
-in {help rdistnn_results}. r(stored) names an explicitly stored fit. level()
+in {help rdistnn_results}. r(stored) names an explicitly stored fit.
+r(n_tied_targets) and r(n_weak_targets) describe the derived fit. level()
 controls normal pointwise limits and uses percentages. A stored or posted fit
 can be replayed, diagnosed, plotted, saved and predicted independently of its
 parent; its e(candidate_id) identifies the requested original grid row.

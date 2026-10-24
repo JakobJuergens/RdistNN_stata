@@ -3,6 +3,7 @@ program define rdistnn_candidate, rclass
     version 17
     syntax, CANDIDATE(integer) [POST STORE(name) Level(cilevel)]
     if !inlist("`e(cmd)'","np_dnn","np_tdnn","cate_dnn","clate_dnn","plqr_dnn") error 301
+    _rdistnn_model_check
     local matrices : e(matrices)
     local field "tuning_candidates"
     if !`:list field in matrices' {
@@ -20,6 +21,6 @@ program define rdistnn_candidate, rclass
     tempname targets
     matrix `targets'=e(model_targets)
     if "`store'"!="" local storeopt "store(`store')"
-    _rdistnn_reuse, targets(`targets') s(`s') covariance(`covariance') candidate(`candidate') level(`level') `post' `storeopt'
+    _rdistnn_reuse, targets(`targets') s(`s') covariance(`covariance') candidate(`candidate') level(`level') `post' `storeopt' validated
     return add
 end

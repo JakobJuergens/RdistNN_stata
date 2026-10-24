@@ -2,8 +2,10 @@
 // Full-target reporting, independent of the estimable subset posted in e(b).
 program define _rdistnn_report, rclass
     version 17
-    syntax [, Level(cilevel)]
-    _rdistnn_model_check
+    syntax [, Level(cilevel) VALIDATED]
+    // Trusted public orchestration may forward its call-local verification.
+    // Standalone helpers still validate; no context survives a public call.
+    if "`validated'"=="" _rdistnn_model_check
     tempname estimates ses covariance table summary status b se crit
     matrix `estimates' = e(estimates)
     matrix `ses' = e(se_targets)
@@ -48,6 +50,10 @@ program define _rdistnn_report, rclass
     di as text "Pointwise confidence level: `level'%"
     matrix list `summary', noheader format(%12.6g)
     _rdistnn_report_notices
+    local n_tied_targets=r(n_tied_targets)
+    local n_weak_targets=r(n_weak_targets)
+    return scalar n_tied_targets=`n_tied_targets'
+    return scalar n_weak_targets=`n_weak_targets'
     return matrix table = `table'
     return matrix summary = `summary'
     return scalar level = `level'

@@ -47,3 +47,44 @@ foreach route in np cate_aipw cate_supplied clate_iv clate_paired {
         }
     }
 }
+
+
+test_section "CATE and CLATE retain singleton arm ESS through saved reuse"
+clear
+set obs 600
+gen double ess_x=_n
+gen double ess_y=0
+gen byte ess_arm=(_n==301)
+gen double ess_e=.5
+gen double ess_zero=0
+gen double ess_one=1
+foreach family in cate clate {
+    foreach flip in 0 1 {
+        replace ess_arm=cond(`flip',_n!=301,_n==301)
+        local opts "tcol(ess_arm) ecol(ess_e) m0col(ess_zero) m1col(ess_zero)"
+        if "`family'"=="clate" local opts "dcol(ess_arm) acol(ess_arm) ecol(ess_e) my0col(ess_zero) my1col(ess_zero) md0col(ess_zero) md1col(ess_one)"
+        quietly `family'_dnn ess_y, xcols(ess_x) x0(0) k(1) method(exact) ///
+            tuningmode(grid) sgrid(299 300) sdefault(300) nose `opts'
+        local masscol=13+`flip'
+        local esscol=22+`flip'
+        test_assert "`family' arm `flip': positive rank301 mass has ESS one" ///
+            el(e(diagnostics),1,`masscol')>0 & el(e(diagnostics),1,`esscol')==1
+        tempname ess_parent
+        estimates store `ess_parent'
+        quietly rdistnn_candidate, candidate(2) post
+        test_assert "`family' arm `flip': default candidate retains ESS one" ///
+            el(e(diagnostics),1,`esscol')==1
+        quietly estimates restore `ess_parent'
+        tempfile ess_saved
+        quietly estimates save "`ess_saved'", replace
+        preserve
+        clear
+        mata: mata clear
+        quietly estimates use "`ess_saved'"
+        quietly rdistnn_predict, x0(0) post
+        test_assert "`family' arm `flip': cold restored prediction retains ESS one" ///
+            el(e(diagnostics),1,`masscol')>0 & el(e(diagnostics),1,`esscol')==1 & _N==0
+        restore
+        estimates drop `ess_parent'
+    }
+}

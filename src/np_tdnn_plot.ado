@@ -45,20 +45,14 @@ program define np_tdnn_plot, rclass
                 findfile "`file'"
                 quietly run "`r(fn)'"
             }
-            if e(model_version)!=3 error 498
-            if "`targets'"=="" {
-                numlist "1/`=e(m)'"
-                local targets "`r(numlist)'"
-            }
-            noisily mata: _td_plot=rdistnn_model_weights(strtoreal(tokens("`targets'")))
-            mata: _td_plot=_td_plot[order(_td_plot,(2,3)),]
-            mata: st_matrix("`data'",_td_plot[,(3,5,2)])
+            if e(model_version)!=4 error 498
+            noisily mata: st_matrix("`data'",rdistnn_model_tdnn_plot(rdistnn_model_target_index(strtoreal(tokens("`targets'")),st_numscalar("e(m)"))))
             matrix colnames `data'=rank weight target_id
         }
         else {
             local targetopt ""
             if "`targets'"!="" local targetopt "targets(`targets')"
-            quietly np_tdnn_diagnostics, `targetopt'
+            quietly _rdistnn_diagnostics, command(np_tdnn) `targetopt' validated
             matrix `data'=r(compact)
         }
         preserve

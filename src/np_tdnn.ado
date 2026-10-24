@@ -51,13 +51,13 @@ program define np_tdnn, eclass
     matrix `diag'=r(diagnostics)
     local m=rowsof(`T')
     local geopt ""
-    capture matrix `geom'=r(geometry)
-    if !_rc local geopt "geometry(`geom')"
-    mata {
-        _td_y=st_data(.,"`outcome'","`touse'")
-        st_matrix("`signals'",_td_y)
-        st_matrix("`b'",rdistnn_weighted_signals(_td_y,st_matrix("`W'")))
+    local weight_matrices : r(matrices)
+    local geometry_present : list posof "geometry" in weight_matrices
+    if `geometry_present'>0 {
+        matrix `geom'=r(geometry)
+        local geopt "geometry(`geom')"
     }
+    mata: rdistnn_tdnn_signal_ado()
     local labels ""
     forvalues j=1/`m' {
         local labels "`labels' target`j'"
@@ -123,6 +123,7 @@ end
 
 program define _np_tdnn_Display, rclass
     version 17
-    _rdistnn_report `0'
+    syntax [, Level(cilevel)]
+    _rdistnn_report, level(`level')
     return add
 end

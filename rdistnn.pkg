@@ -1,7 +1,7 @@
 v 3
 d 'RDISTNN': Conditional effects and regression with DNN weights
-d Version: 0.1.3
-d Distribution-Date: 20261022
+d Version: 0.1.4
+d Distribution-Date: 20261023
 d
 d Conditional average treatment effects and
 d nonparametric regression with distributional nearest-neighbor weights,
@@ -64,6 +64,7 @@ f src/weights_tdnn.ado
 f src/weights_tdnn.sthlp
 f src/_rdistnn_tdnn_mata.ado
 f src/_rdistnn_mata.ado
+f src/_rdistnn_fit_mata.ado
 f src/_rdistnn_messages.ado
 f src/_rdistnn_plqr_mata.ado
 f src/_rdistnn_distance_mata.ado

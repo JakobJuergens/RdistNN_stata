@@ -19,6 +19,10 @@ foreach family in cate np clate {
     capture noisily `family'_dnn_plot, targets(2 4) level(90) name(plot_contract) replace nodraw
     local rc = _rc
     local nr = r(n_rows)
+    local scalars : r(scalars)
+    local retired "n_plotted"
+    local retained : list retired in scalars
+    test_assert "[plots `family'] exposes only current plot count fields" !`retained'
     capture matrix PD = r(plot_data)
     local drc = _rc
     test_assert "[plots `family'] selected estimate data exposed" `rc'==0 & `drc'==0 & `nr'==2
@@ -28,10 +32,9 @@ foreach family in cate np clate {
     }
     capture noisily `family'_dnn_plot, type(tuning) targets(2 4) candidates(1 3) name(plot_contract) replace nodraw
     local nr = r(n_rows)
-    local legacy_n = r(n_plotted)
     capture matrix PT = r(plot_data)
     local drc = _rc
-    test_assert "[plots `family'] tuning rows and legacy candidate count distinguished" `drc'==0 & `nr'==4 & `legacy_n'==2
+    test_assert "[plots `family'] tuning returns all selected candidate-target rows" `drc'==0 & `nr'==4
     if `drc'==0 test_assert "[plots `family'] tuning identities retained" PT[1,1]==1 & PT[3,1]==3 & PT[1,5]==2 & PT[2,5]==4
     capture noisily `family'_dnn_plot, type(diagnostics) targets(2 4) name(plot_contract) replace nodraw
     local nr = r(n_rows)
@@ -86,7 +89,7 @@ foreach family in cate np clate {
     local has_panel_info : list posof "panel_info" in returned
     capture matrix PAN = r(panel_info)
     local prc = _rc
-    test_assert "[plots `family'] dashboard returns panel metadata without single data table" `has_panel_info'>0 & `has_plot_data'==0 & `prc'==0 & colsof(PAN)>=3 & `npanels'>=4 & `nr'==. & "`panels'"!=""
+    test_assert "[plots `family'] dashboard returns panel metadata without single data table" `has_panel_info'>0 & `has_plot_data'==0 & `prc'==0 & colsof(PAN)==2 & `npanels'>=4 & `nr'==. & "`panels'"!=""
     quietly `family'_dnn_plot, style(profile) name(plot_contract) replace nodraw saving("build/coherence/`family'-profile.svg")
     quietly `family'_dnn_plot, style(profile) name(plot_contract) replace nodraw saving("build/coherence/`family'-profile.png")
     capture confirm file "build/coherence/`family'-profile.svg"
@@ -210,21 +213,19 @@ gen double sd = cond(_n<=2,0,1)
 matrix PPART = (0 \ 5)
 quietly clate_dnn sy, denominator(sd) pseudooutcome xcols(x) x0matrix(PPART) s(4) nose
 quietly clate_dnn_plot, style(forest) name(plot_partial) replace nodraw
-local np = r(n_plotted)
 local nr = r(n_rows)
 local omitted = r(n_omitted)
 matrix PP = r(plot_data)
-test_assert "[plots CLATE] partial plot keeps legacy count and returns actual defined rows" `np'==2 & `nr'==1 & `omitted'==1 & PP[1,5]==2
+test_assert "[plots CLATE] partial plot reports defined rows and omissions" `nr'==1 & `omitted'==1 & PP[1,5]==2
 replace sd = 0
 quietly clate_dnn sy, denominator(sd) pseudooutcome xcols(x) x0matrix(PPART) s(4) nose
 capture noisily clate_dnn_plot, name(plot_empty) replace nodraw
 local rc = _rc
 local nr = r(n_rows)
-local np = r(n_plotted)
 local omitted = r(n_omitted)
 local matrices : r(matrices)
 local hasdata : list posof "plot_data" in matrices
-test_assert "[plots CLATE] empty plot remains usable without fabricated data rows" `rc'==0 & `nr'==0 & `np'==2 & `omitted'==2 & `hasdata'==0
+test_assert "[plots CLATE] empty plot remains usable without fabricated data rows" `rc'==0 & `nr'==0 & `omitted'==2 & `hasdata'==0
 
 // Instrument overlap uses the same selections with instrument-specific names.
 rdnn_dgp_basic, n(50) seed(191)

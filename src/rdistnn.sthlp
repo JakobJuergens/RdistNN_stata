@@ -5,6 +5,7 @@
 {viewerjumpto "Workflow" "rdistnn##workflow"}{...}
 {viewerjumpto "Inference" "rdistnn##inference"}{...}
 {viewerjumpto "Articles" "rdistnn##articles"}{...}
+{viewerjumpto "Warnings and failures" "rdistnn##failures"}{...}
 
 {title:Title}
 
@@ -13,7 +14,7 @@
 weights, diagnostics and native plots
 
 {pstd}
-Stata 17 or later. Package {bf:0.1.3} provides conditional treatment
+Stata 17 or later. Package {bf:0.1.4} provides conditional treatment
 estimation, nonparametric and two-scale regression, and shared reporting.
 Shared methods follow the RdistNN contract and are checked against independent
 references and across engines. The Stata companion has its own documented
@@ -187,6 +188,7 @@ See {help weights_dnn##numerical:weights_dnn} and {help weights_tdnn##numerical:
 Quality assurance, testing and validation:
 {browse "https://github.com/Zakareya-Chehime":Zakareya Chehime}.
 
+{marker failures}{...}
 {title:Warnings and failures}
 
 {pstd}
@@ -194,6 +196,15 @@ Ordinary {cmd:warning:} and {cmd:note:} messages respect {cmd:quietly}.
 Fatal explanations remain visible under {cmd:quietly}; {cmd:capture} may
 suppress them. Use {cmd:capture noisily} to see the explanation while handling
 {cmd:_rc}, and save the code before cleanup commands.
+
+{pstd}
+Fits retain {cmd:e(target_notices)}, with distance_ties and weak_localization
+columns, and {cmd:e(n_tied_targets)} / {cmd:e(n_weak_targets)} totals, even under
+{cmd:quietly}. The weak flag uses the existing concentration guide, not a
+validity test. Reports, selected results, predictions, candidates and standalone
+weights return the corresponding {cmd:r()} counts; plots/diagnostics do not
+promise these counters. Current saved schema 4 validates these facts and
+requires refitting incomplete or older snapshots. Independent calls may warn again.
 
 {pstd}
 CLATE summaries show at most five example target IDs; inspect {cmd:e(status)}

@@ -81,3 +81,17 @@ local diff1w = abs(`neff1' - `neff_from_w')
 
 test_assert "[agree] neff same with and without generate()" `diff12' < 1e-8
 test_assert "[agree] r(neff) = 1/sum(w^2)"                  `diff1w' < 1e-6
+
+
+test_section "weights notice facts use target-specific exact distance groups"
+clear
+set obs 4
+gen double notice_x=_n
+matrix NOTICE_TARGETS=(0\2.5)
+quietly weights_dnn notice_x, x0matrix(NOTICE_TARGETS) s(1)
+matrix NOTICE_FACTS=r(target_notices)
+test_assert "quiet weights count tied targets and uniform concentration" r(n_tied_targets)==1 & r(n_weak_targets)==2
+test_assert "weights facts distinguish symmetric-distance ties from untied profiles" NOTICE_FACTS[1,1]==0 & NOTICE_FACTS[2,1]==1 & NOTICE_FACTS[1,2]==1 & NOTICE_FACTS[2,2]==1
+quietly weights_tdnn notice_x, x0matrix(NOTICE_TARGETS) s1(1) s2(2)
+matrix NOTICE_FACTS=r(target_notices)
+test_assert "quiet signed weights count only the actual tied target" r(n_tied_targets)==1 & r(n_weak_targets)==0 & NOTICE_FACTS[1,1]==0 & NOTICE_FACTS[2,1]==1

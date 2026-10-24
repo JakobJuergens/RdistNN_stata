@@ -100,24 +100,20 @@ real matrix rdistnn_fit_geometry(real matrix X, string scalar distance,
     real colvector x
     n=rows(X); p=cols(X)
     if(n<1 | p<1 | hasmissing(X) | missing(eps) | eps<=0) {
-        errprintf("Geometry requires finite training data and positive finite scaleeps().\n")
-        exit(error(198))
+        rdistnn_fail(198,"Geometry requires finite training data and positive finite scaleeps().")
     }
     if(rule=="") rule="sd"
     if(!any(("sd","mad","iqr","range","custom"):==rule)) {
-        errprintf("scalerule() must be sd, mad, iqr, range, or custom.\n")
-        exit(error(198))
+        rdistnn_fail(198,"scalerule() must be sd, mad, iqr, range, or custom.")
     }
     if((rule=="custom" & (cols(scalevec)!=p | hasmissing(scalevec))) |
         (rule!="custom" & cols(scalevec)>0)) {
-        errprintf("scalevec() requires scalerule(custom) and one finite scale per covariate.\n")
-        exit(error(198))
+        rdistnn_fail(198,"scalevec() requires scalerule(custom) and one finite scale per covariate.")
     }
     if(distance=="mahalanobis") return(rdistnn_mahal_geometry(X))
     if(distance=="l1" | distance=="l2" | distance=="") return(J(0,0,.))
     if(distance!="l1_scaled" & distance!="l2_scaled") {
-        errprintf("distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis.\n")
-        exit(error(198))
+        rdistnn_fail(198,"distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis.")
     }
     scales=J(1,p,.)
     for(j=1;j<=p;j++) {
@@ -125,8 +121,7 @@ real matrix rdistnn_fit_geometry(real matrix X, string scalar distance,
         if(rule=="custom") scales[j]=abs(scalevec[j])
         else if(rule=="sd") {
             if(n<2) {
-                errprintf("scalerule(sd) requires at least two training observations.\n")
-                exit(error(2001))
+                rdistnn_fail(2001,"scalerule(sd) requires at least two training observations.")
             }
             scales[j]=rdistnn_sample_sd(x)
         }
@@ -138,14 +133,12 @@ real matrix rdistnn_fit_geometry(real matrix X, string scalar distance,
         else scales[j]=max(x)-min(x)
         // Mata's max() skips missing values, so validate before clamping.
         if(missing(scales[j])) {
-            errprintf("Fitted scales are nonfinite; rescale covariates.\n")
-            exit(error(498))
+            rdistnn_fail(498,"Fitted scales are nonfinite; rescale covariates.")
         }
         scales[j]=max((scales[j],eps))
     }
     if(hasmissing(scales)) {
-        errprintf("Fitted scales are nonfinite; rescale covariates.\n")
-        exit(error(498))
+        rdistnn_fail(498,"Fitted scales are nonfinite; rescale covariates.")
     }
     return(scales)
 }
@@ -303,26 +296,22 @@ real matrix rdistnn_distance_matrix(real matrix X, real matrix X0,
     engine=st_global("rdistnn_distance_engine")
     if(engine=="") engine="auto"
     if(!any(engine:==("auto","plugin","mata"))) {
-        errprintf("rdistnn_distance_engine must be auto, plugin or mata.\n")
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_distance_engine must be auto, plugin or mata.")
     }
     if(rows(X)<1 | cols(X)<1 | cols(X0)!=cols(X) | rows(X0)<1 | hasmissing(X) | hasmissing(X0)) {
-        errprintf("Distances require finite aligned covariates and target rows.\n")
-        exit(error(198))
+        rdistnn_fail(198,"Distances require finite aligned covariates and target rows.")
     }
     if(args()<3 | distance=="") distance="l2"
     if(args()<4) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
     if(distance=="l1_scaled" | distance=="l2_scaled") {
         if(rows(geometry)!=1 | cols(geometry)!=cols(X) | hasmissing(geometry) | any(geometry:<=0)) {
-            errprintf("Frozen scale geometry must contain one positive scale per covariate.\n")
-            exit(error(498))
+            rdistnn_fail(498,"Frozen scale geometry must contain one positive scale per covariate; refit the model.")
         }
     }
     if(distance=="mahalanobis") {
         if(rows(geometry)!=cols(X)+2 | cols(geometry)!=cols(X) |
             hasmissing(geometry) | geometry[1,1]<=0) {
-            errprintf("Mahalanobis distance requires current fitted whitening geometry; refit the model.\n")
-            exit(error(498))
+            rdistnn_fail(498,"Mahalanobis distance requires current fitted whitening geometry; refit the model.")
         }
         return(rdistnn_distance_matrix(rdistnn_mahal_project(X,geometry),
             rdistnn_mahal_project(X0,geometry),"l2",J(0,0,.)))
@@ -342,8 +331,7 @@ real matrix rdistnn_distance_matrix(real matrix X, real matrix X0,
                 return(dmat)
             }
             if(engine=="plugin" | plugin_mode=="1") {
-                errprintf("Compiled distance API is unavailable; install the current plugin or set rdistnn_distance_engine mata.\n")
-                exit(error(498))
+                rdistnn_fail(498,"Compiled distance API is unavailable; install the current plugin or set rdistnn_distance_engine mata.")
             }
         }
     }
@@ -395,13 +383,11 @@ real matrix rdistnn_distance_matrix(real matrix X, real matrix X0,
             }
         }
         else {
-            errprintf("Unknown distance '%s'.\n",distance)
-            exit(error(198))
+            rdistnn_fail(198,"Unknown distance(): "+rdistnn_message_value(distance)+". Use l1, l2, l1_scaled, l2_scaled, or mahalanobis.")
         }
     }
     if(hasmissing(dmat)) {
-        errprintf("Distances overflowed; rescale covariates or increase scaleeps().\n")
-        exit(error(498))
+        rdistnn_fail(498,"Distances overflowed; rescale covariates or increase scaleeps().")
     }
     return(dmat)
 }

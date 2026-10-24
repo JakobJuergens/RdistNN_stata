@@ -219,7 +219,7 @@ foreach family in np cate clate tdnn plqr {
     quietly `cmd' `input', `xopt' `targets' `extra'
     matrix BB=e(estimates)
     matrix BV=e(estimate_vcov)
-    test_assert "`family': public fit retained new tie policy and used native deletions" "`e(tie_rule)'"=="exact_distance_block_averaging_v1" & e(model_version)==3 & "$rdistnn_last_jackknife_engine"=="plugin"
+    test_assert "`family': public fit retained new tie policy and used native deletions" "`e(tie_rule)'"=="exact_distance_block_averaging_v1" & e(model_version)==4 & "$rdistnn_last_jackknife_engine"=="plugin"
     quietly rdistnn_results, type(weights)
     matrix BWW=r(data)
     mata: st_numscalar("BLOCK_EXTRACT",rdistnn_test_finite_close(st_matrix("BWW")[1..3,5],J(3,1,st_matrix("BWW")[1,5]),1e-15))

@@ -5,6 +5,11 @@ cross-language golden checks, command validation, and postestimation tests
 remain separate. `tests.do` is the master runner; `test_framework.do` supplies
 assertions, counters, and deterministic DGP programs.
 
+The registered `test-optional-boundaries.do` suite covers optional plugin
+loading and TDNN returned-geometry presence. It checks observed unavailable,
+nonloadable and successful loader cases, propagated declaration/copy failures,
+caller-state preservation and temporary-matrix cleanup.
+
 ## Run a suite
 
 Change to the repository root in Stata. The master runner loads local commands,
@@ -56,9 +61,10 @@ assertions as the full suite.
 | CATE score paths, batch/grid results, diagnostics, plots, and validation | `test-cate-dnn-*.do` |
 | CLATE paired signals/deletions, binary IV, statuses, batch/grid results, R parity, and all CATE plot families | `test-clate-*.do` |
 | Seeded R CLATE edge fixtures, independent subset/integrated-weight deletions, singular metric and full paired covariance | `test-premerge-clate.do` |
-| Adversarial reporting/diagnostic/plot returns, complete caller state, cold restores and exported bands | `test-reporting-export-contracts.do` |
+| Adversarial reporting/diagnostic/plot returns, complete caller state, cold restores, exported bands, matrix-sized all-target reporting, selected-column work and one validation per unchanged snapshot | `test-reporting-export-contracts.do` |
+| Complete current snapshot/grid identities, dimensions, default anchors, aliases and availability; refit errors before slicing with preserved caller state | `test-saved-model-validation.do` |
 | Current frozen sample geometry, signal/nuisance snapshots and independent observation kernels | `test-observation-reconstruction.do` |
-| Complete e() comparison, independent caller-data snapshots and enumeration-order independence | `test-state-helpers.do`, `helpers/e-state.do`, `helpers/caller-data.do` |
+| Complete e() comparison, independent caller-data snapshots, enumeration-order independence, caller Mata bindings and no retained scratch arrays on success/failure | `test-state-helpers.do`, `helpers/e-state.do`, `helpers/caller-data.do` |
 | Saved-model snapshots, all-engine prediction, cold .ster restores, graph-free reports and independent R joint covariance | `test-saved-prediction.do` |
 | Reusable standalone candidates, duplicate orders and parent preservation | `test-candidates.do` |
 | Snapshot kernels and contributions after caller-data changes | `test-snapshot-observations.do` |

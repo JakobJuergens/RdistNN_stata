@@ -9,19 +9,24 @@ version 17
 
 // Declare the optional plugin without changing caller-selected engines.
 if ("$rdistnn_plugin_ok" == "") {
-    // _rc == 0   : declared for the first time
-    // _rc == 110 : already declared in this session
-    // anything else: rdistnn.plugin file not found on adopath
     capture program define rdistnn_plugin, plugin using(rdistnn.plugin)
-    if _rc == 0 | _rc == 110 {
+    local plugin_rc=_rc
+    // At this declaration boundary, 601 means the file is absent and 9999
+    // means the dynamic loader could not load it (for example, a host mismatch).
+    // Other failures, including Break and resource errors, are not capability.
+    if inlist(`plugin_rc',0,110) {
         global rdistnn_plugin_ok 1
     }
-    else {
+    else if inlist(`plugin_rc',601,9999) {
         global rdistnn_plugin_ok 0
+    }
+    else {
+        display as error "Native plugin declaration failed (return code `plugin_rc'). Resolve the execution or resource error and rerun the command."
+        exit `plugin_rc'
     }
 }
 
-foreach module in messages native_transport accumulation covariance blocks geometry distance_plugin distance_mata rank_weights rank_loo localization_mata diagnostic_mata plqr_mata plot_mata {
+foreach module in messages native_transport accumulation covariance blocks geometry distance_plugin distance_mata rank_weights rank_loo localization_mata diagnostic_mata plqr_mata plot_mata fit_mata {
     findfile "_rdistnn_`module'.ado"
     quietly run "`r(fn)'"
 }

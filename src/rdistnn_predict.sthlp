@@ -40,12 +40,16 @@ posted or stored derived fit. Undefined ratios are preserved.
 PLQR returns evaluated moments, with r(theta_eval) separately retaining supplied
 coefficients. It performs no root solving, coefficient inference or density fitting.
 {pstd}
-Old saved fits without e(model_version)=3 must be refitted once. Current snapshots
+Old saved fits without e(model_version)=4 must be refitted. Current snapshots
 are validated for consistent controls, dimensions, row identities, fitted
 geometry, selected tie policy, cached ranks, distances and per-target groups
 before prediction. Invalid snapshots request a
 refit while preserving the active data and e(). Model snapshots
 store fitted observations and signals in .ster files; storage grows with sample
 size and the number of targets. These files contain the fitted numeric inputs.
+{pstd}
+r(n_tied_targets) and r(n_weak_targets) describe the derived target batch,
+including under quietly. A posted or stored derived fit retains its own
+e(target_notices) and counts; a nonposting call preserves the active fit's e().
 {title:See also}
 {pstd}{help rdistnn}, {help rdistnn_results}, {help rdistnn_candidate}{p_end}

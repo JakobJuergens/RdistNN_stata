@@ -10,10 +10,11 @@ it into a coefficient estimator or add coefficient inference.
 
 Use a clean repository checkout with the tools in
 [CONTRIBUTING.md](CONTRIBUTING.md). Review the version/tag and release notes.
-Version `0.1.3` replaces the 0.1.2 identical-covariate rule with
+Production release `0.1.3` replaced the 0.1.2 identical-covariate rule with
 target-specific exact represented distance averaging and saved-model schema 3.
-Earlier saved fits require refitting. Preserve all historical tags, assets and
-scientific dependency pins when publishing this release.
+Earlier saved fits require refitting. Read the current release-note heading
+for development changes and refit requirements. Preserve all historical tags,
+assets and scientific dependency pins when publishing a release.
 
 The first development commit after production `0.1.x` establishes
 `0.1.x.9000`. Increment its fourth component in each subsequent development
@@ -27,8 +28,8 @@ than each local commit, and individual ado revision headers retain their own his
 For each production merge, default to `0.1.(x+1)` unless the maintainer
 explicitly selects another version. Prepare that production version in the
 reviewed candidate before merging, then start development by appending `.9000`
-to the selected production version. Thus this default cycle leads to production
-`0.1.3`, followed by development `0.1.3.9000`. Production merging, tagging and
+to the selected production version. For example, production `0.1.3` starts
+development at `0.1.3.9000`. Production merging, tagging and
 asset publication remain separate authorized steps. R and Stata development
 suffixes may advance independently when only one package changes.
 
@@ -67,6 +68,13 @@ Stata package-file format.
 The command-specific `*! version` headers have their own revision histories;
 do not rewrite all of them merely to match a package release tag.
 
+`rdistnn.pkg` owns the current package version. The README, first release-note
+heading and installed `help rdistnn` declare the same version; other articles
+and command help route readers to these common owners. The package hygiene
+check verifies current declarations. Keep production installation pins,
+historical release records, fixture provenance, saved-model schemas and Stata
+language `version` statements in their own roles when updating metadata.
+
 Keep the R and Stata package version families roughly aligned with shared
 functional milestones. Stata may trail the R reference as corresponding
 features are implemented and verified; patch and development revisions can
@@ -76,12 +84,12 @@ does not promise identical feature coverage. Review the
 version and retain its explicit R-only and experimental boundaries.
 
 The current version-pinned Stata release is
-[`v0.1.3`](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.3).
+[`v0.1.4`](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.4).
 The tag selects the verified production snapshot; its source ZIP, four
 platform plugins and checksum files are attached to the release. Install with:
 
 ```stata
-net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/v0.1.3/") replace
+net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/v0.1.4/") replace
 ```
 
 The tag fixes the installation source at the released commit. Keep the ordinary
@@ -183,6 +191,18 @@ separate, and avoid circular committed HEAD references.
    notices into PLUS rather than treating them as optional ancillary files.
    `net install rdistnn, from("path/to/extracted/archive") replace`
    installs its command payload; developer checks require a repository checkout.
+
+   Archive validation reads the ZIP's own `rdistnn.pkg` and member inventory,
+   independently of the checkout used to run the check. A different source
+   snapshot may have a different registered payload. Require every declared
+   input and register every ado/help module; reject duplicate, noncanonical,
+   generated and private members. The checker reads members without extracting
+   them and verifies their CRCs using Python's
+   [`zipfile` interface](https://docs.python.org/3/library/zipfile.html#zipfile.ZipFile.testzip).
+   It accepts an absolute archive path or a path relative to the caller's
+   working directory. These structural checks complement the separate archive
+   hash, executable installation, numerical and documentation checks; they do
+   not establish those results themselves.
 
 Establish the final content before expensive checks. Staging, committing,
 and pushing do not invalidate a verified content snapshot. Review the final

@@ -2,6 +2,7 @@ import hashlib
 import posixpath
 import re
 import shutil
+import struct
 import subprocess
 import tempfile
 import unittest
@@ -119,6 +120,80 @@ class PackageMaintenanceTests(unittest.TestCase):
                     self.assertFalse(name.endswith((".log", ".o", ".obj", ".mlib", ".mo")), name)
                     self.assertNotEqual(name, "src/plugin/rdistnn.plugin")
                     self.assertEqual(source.read(name), (ROOT / name).read_bytes())
+
+    def test_archive_checker_uses_archived_manifest_and_rejects_nonpublic_paths(self):
+        with tempfile.TemporaryDirectory(prefix="rdistnn-archive-validation-") as directory:
+            root = Path(directory)
+            baseline = root / "baseline.zip"
+            subprocess.run(
+                ["bash", "tools/ci/build_source_archive.sh", str(baseline)],
+                cwd=ROOT, check=True, capture_output=True, text=True,
+            )
+            with zipfile.ZipFile(baseline) as source:
+                contents = {info.filename: source.read(info) for info in source.infolist()}
+            with self.subTest(case="relative-archive-outside-checkout"):
+                result = subprocess.run(
+                    ["bash", str(ROOT / "tools/ci/archive_check.sh"), baseline.name],
+                    cwd=root, capture_output=True, text=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            manifest = contents["rdistnn.pkg"]
+            cases = (
+                ("unchanged", {}, True),
+                # An archive can legitimately have a different installation
+                # inventory from the checkout used to run the verifier.
+                ("archive-only-helper", {
+                    "rdistnn.pkg": manifest + b"f src/_rdistnn_archive_only.ado\n",
+                    "src/_rdistnn_archive_only.ado": b"version 17\n",
+                }, True),
+                ("missing-declared-input", {
+                    "rdistnn.pkg": manifest + b"f src/missing_required.ado\n",
+                }, False),
+                ("nonlocal-declaration", {
+                    "rdistnn.pkg": manifest + b"f ../unrelated.ado\n",
+                }, False),
+                ("unregistered-helper", {
+                    "src/_rdistnn_unregistered.ado": b"version 17\n",
+                }, False),
+                ("parent-path", {"../unrelated.ado": b"version 17\n"}, False),
+                ("absolute-path", {"/tmp/unrelated.ado": b"version 17\n"}, False),
+                ("backslash-path", {"src\\unrelated.ado": b"version 17\n"}, False),
+                ("aliased-path", {"src/./unrelated.ado": b"version 17\n"}, False),
+                ("private-notes", {".codex/private-note.md": b"private notes\n"}, False),
+                ("checkout-tests", {"tests/test-extra.do": b"version 17\n"}, False),
+                ("generated-object", {"src/plugin/temporary.o": b"native object"}, False),
+            )
+            for label, changes, should_pass in cases:
+                with self.subTest(case=label):
+                    archive = root / (label + ".zip")
+                    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as source:
+                        for name, content in (contents | changes).items():
+                            source.writestr(name, content)
+                    result = subprocess.run(
+                        ["bash", "tools/ci/archive_check.sh", str(archive)], cwd=ROOT,
+                        capture_output=True, text=True,
+                    )
+                    self.assertEqual(result.returncode == 0, should_pass,
+                                     result.stdout + result.stderr)
+            with self.subTest(case="corrupt-native-payload"):
+                archive = root / "corrupt-payload.zip"
+                with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as source:
+                    for name, content in contents.items():
+                        source.writestr(name, content)
+                with zipfile.ZipFile(archive) as source:
+                    info = source.getinfo("src/rdistnn.plugin")
+                payload = bytearray(archive.read_bytes())
+                name_length, extra_length = struct.unpack_from("<HH", payload, info.header_offset + 26)
+                data_offset = info.header_offset + 30 + name_length + extra_length
+                # Change file data, preserving the inventory and stored CRC.
+                payload[data_offset + 10] ^= 1
+                archive.write_bytes(payload)
+                result = subprocess.run(
+                    ["bash", "tools/ci/archive_check.sh", str(archive)], cwd=ROOT,
+                    capture_output=True, text=True,
+                )
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("corrupt archive input: src/rdistnn.plugin", result.stderr)
 
     def test_license_notices_are_installed_with_package_specific_names(self):
         manifest = (ROOT / "rdistnn.pkg").read_text()

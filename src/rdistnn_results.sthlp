@@ -16,7 +16,7 @@ exact represented selected-metric distance groups, separately for each target.
 These are reconstructed from validated saved ranks, distances and groups.
 Realized support and concentration can differ from the rank table. Weight
 reconstruction warns that inference with persistent distance ties is not
-established. Schema 3 and exact_distance_block_averaging_v1 are required;
+established. Schema 4 and exact_distance_block_averaging_v1 are required;
 refit older models. See {help weights_dnn} for survivor redistribution.
 {title:Returned results}
 {pstd}
@@ -35,6 +35,10 @@ Influence contains target, observation_id, rank, distance, weight, score and
 contribution; CLATE appends phi_y and phi_d. Observation IDs refer to fitted rows
 in the original dataset. saving() writes r(data) as a double-precision .dta file.
 No graph is created. Copy r() results before another command replaces them.
+{pstd}
+r(n_tied_targets) and r(n_weak_targets) count unique selected targets, including
+under quietly. e(target_notices) and its e(n_tied_targets)/e(n_weak_targets)
+totals describe the active fit and are preserved by nonposting extraction.
 {pstd}
 r(quantity) is moment for PLQR, with r(theta_eval) separately retaining the
 supplied coefficient vector. Its tests and intervals concern score moments,

@@ -8,6 +8,7 @@ program define rdistnn_predict, rclass
         exit 198
     }
     if "`interval'"!="" & "`interval'"!="confidence" error 198
+    _rdistnn_model_check
     tempname targets
     if "`x0matrix'"!="" {
         confirm matrix `x0matrix'
@@ -17,6 +18,6 @@ program define rdistnn_predict, rclass
     local covariance "none"
     if "`sefit'`interval'"!="" local covariance "compute"
     if "`store'"!="" local storeopt "store(`store')"
-    _rdistnn_reuse, targets(`targets') s(`=e(s)') covariance(`covariance') level(`level') `post' `storeopt'
+    _rdistnn_reuse, targets(`targets') s(`=e(s)') covariance(`covariance') level(`level') `post' `storeopt' validated
     return add
 end

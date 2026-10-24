@@ -1,5 +1,32 @@
 # Release Notes
 
+## 0.1.4 — 2026-10-23
+
+- Validate complete current saved state before reporting, prediction and
+  candidate extraction. Saved-model schema 4 retains consistent localization
+  facts and grid identities; refit snapshots from earlier schemas.
+- Preserve original native, resource and Break errors during plugin declaration,
+  capability probing and execution. Automatic Mata fallback applies to
+  unavailable acceleration, while unexpected failures stop with their code.
+- Preserve representable small paired cross-covariances, within-arm ESS at tiny
+  positive mass, and CLATE's relative near-zero-denominator criterion at large
+  negative signal magnitudes.
+- Reuse validated distance groups, selected weight profiles and typed local
+  computation scratch across estimation, saved-fit reuse and reporting,
+  preserving caller data, Mata bindings and fitted results.
+- Report tie and weak-localization counts under quiet execution; retain all
+  CLATE status/component rows and bounded issue summaries. Single plot views
+  return actual data-row counts; dashboards return panel counts and metadata.
+- Validate source archives from their own manifests and payloads, and keep
+  current package-version declarations distinct from Stata and saved-model
+  schema versions.
+- Add isolated native analysis, bounded compiler caching, sanitizers and script
+  linting. Analysis snapshots omit generated outputs while retaining public
+  Stata source documentation; native SDK tests use the exact missing boundary.
+- Update end-user guidance on native selection/failures and arm support. PLQR
+  remains experimental supplied-coefficient moment evaluation, with no
+  coefficient estimator or coefficient inference added.
+
 ## 0.1.3 — 2026-10-22
 
 - Remove retired raw-covariate tie-breaking arguments and unused block-mass

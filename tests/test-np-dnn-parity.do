@@ -89,7 +89,7 @@ test_assert "[nose] replay preserves estimate-only results" ///
     abs(B_np_nose_replay[1,1] - `nose_b_before') < 1e-12 & ///
     "`e(se_method)'" == "none" & "`e(jackknife)'" == "none"
 quietly np_dnn_plot, type(estimates) name(np_test_nose) replace nodraw
-test_assert "[nose] estimate plot works without e(V)" r(n_plotted) == 3
+test_assert "[nose] estimate plot works without e(V)" r(n_rows) == 3
 
 quietly np_dnn y_np, xcols(x1 x2) x0(0.2 -0.1) k(2) nose ///
     tuningmode(grid) sgrid(6 12) sdefault(12)
@@ -210,17 +210,18 @@ foreach p in estimates diagnostics tuning weights outcome dashboard {
     local extra ""
     if "`p'" == "weights" local extra "view(kernel)"
     quietly np_dnn_plot, type(`p') `extra' name(np_test_`p') replace nodraw
-    local plotted = r(n_plotted)
+    local plotted = r(n_rows)
+    if "`p'"=="dashboard" local plotted = r(n_panels)
     local plot_type "`r(type)'"
     test_assert "[plot] type(`p') builds without drawing" `plotted' > 0 & "`plot_type'" == "`p'"
 }
 
 quietly np_dnn_plot, type(estimates) allcandidates name(np_test_est_candidates) replace nodraw
-test_assert "[plot] candidate estimate paths are supported" r(n_plotted) == 9
+test_assert "[plot] candidate estimate paths are supported" r(n_rows) == 9
 quietly np_dnn_plot, type(diagnostics) allcandidates name(np_test_diag_candidates) replace nodraw
-test_assert "[plot] candidate diagnostic paths are supported" r(n_plotted) == 3
+test_assert "[plot] candidate diagnostic paths are supported" r(n_rows) == 3
 quietly np_dnn_plot, type(weights) allcandidates name(np_test_weight_candidates) replace nodraw
-test_assert "[plot] candidate weight profiles are supported" r(n_plotted) == 3
+test_assert "[plot] candidate weight profiles are supported" r(n_rows) == 3*e(N)*e(m)
 
 test_section "np_dnn: [errors] expanded interface validation"
 

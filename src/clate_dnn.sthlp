@@ -15,8 +15,8 @@
 
 {pstd}
 Stata 17 or later is required. Supplied-prediction CLATE and ordinary paired-signal
-ratios are supported workflows in the package version {bf:0.1.3} under the documented
-pointwise inference conditions. See {help rdistnn} for package navigation.
+ratios are supported workflows under the documented pointwise inference
+conditions. See {help rdistnn} for the package version and navigation.
 
 {marker syntax}{...}
 {title:Syntax}

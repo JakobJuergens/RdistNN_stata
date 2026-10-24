@@ -150,6 +150,14 @@ program define _rdistnn_model_post, eclass
     ereturn matrix model_distances=`DX', copy
     ereturn matrix model_groups=`groups', copy
     ereturn matrix model_targets=`targets', copy
+    tempname target_notices notice_counts
+    local concentration_column=cond("`cmd'"=="np_tdnn",5,1)
+    mata: st_matrix("`target_notices'",rdistnn_target_notices(st_matrix("e(model_groups)"),st_matrix("e(diagnostics)")[,`concentration_column']))
+    matrix colnames `target_notices'=distance_ties weak_localization
+    mata: st_matrix("`notice_counts'",colsum(st_matrix("`target_notices'")))
+    ereturn matrix target_notices=`target_notices', copy
+    ereturn scalar n_tied_targets=el(`notice_counts',1,1)
+    ereturn scalar n_weak_targets=el(`notice_counts',1,2)
     ereturn matrix fitted_values=`fit', copy
     if "`cmd'"=="clate_dnn" {
         matrix colnames `components'=reduced_form first_stage

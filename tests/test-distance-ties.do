@@ -157,7 +157,7 @@ quietly np_dnn y, xcols(x1 x2) x0matrix(DISTANCE_TARGETS) tuningmode(grid) sgrid
 matrix DT_FIT=e(estimates)
 matrix DT_V=e(estimate_vcov)
 matrix DT_GROUPS=e(model_groups)
-test_assert "new fits retain schema3 and exact distance averaging policy" e(model_version)==3 & "`e(tie_rule)'"=="exact_distance_block_averaging_v1" & rowsof(DT_GROUPS)==8 & colsof(DT_GROUPS)==3
+test_assert "new fits retain schema4 and exact distance averaging policy" e(model_version)==4 & "`e(tie_rule)'"=="exact_distance_block_averaging_v1" & rowsof(DT_GROUPS)==8 & colsof(DT_GROUPS)==3
 test_assert "different targets retain different exact distance groups" DT_GROUPS[1,1]==DT_GROUPS[2,1] & DT_GROUPS[1,2]!=DT_GROUPS[2,2]
 tempfile distance_cold
 quietly estimates save "`distance_cold'", replace

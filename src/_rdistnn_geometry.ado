@@ -16,12 +16,10 @@ real matrix rdistnn_mahal_geometry(real matrix X)
     real matrix Z,U,Vt,V,B
     n=rows(X); p=cols(X)
     if(n<2) {
-        errprintf("Mahalanobis distance requires at least two training observations.\n")
-        exit(error(2001))
+        rdistnn_fail(2001,"Mahalanobis distance requires at least two training observations.")
     }
     if(p<1) {
-        errprintf("Mahalanobis distance requires at least one covariate.\n")
-        exit(error(198))
+        rdistnn_fail(198,"Mahalanobis distance requires at least one covariate.")
     }
     // Retain an exact-subtraction-safe origin for projection and prediction;
     // keep the centered SVD arithmetic and numerical rank policy unchanged.
@@ -112,8 +110,7 @@ real matrix rdistnn_mahal_project(real matrix X, real matrix geometry)
         Z[i,]=value
     }
     if(hasmissing(Z)) {
-        errprintf("Mahalanobis projection is outside the numeric range; rescale covariates and targets.\n")
-        exit(error(498))
+        rdistnn_fail(498,"Mahalanobis projection is outside the numeric range; rescale covariates and targets.")
     }
     return(Z)
 }

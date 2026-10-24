@@ -1,120 +1,81 @@
 #!/usr/bin/env bash
-# archive_check.sh -- validate an RdistNN_stata source archive.
-#
-# Usage:
-#   bash tools/ci/archive_check.sh /tmp/rdistnn-source.zip
-
+# Validate the source ZIP's own installation inventory and public payload.
+# Usage: bash tools/ci/archive_check.sh /tmp/rdistnn-source.zip
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
-
 if [[ $# -ne 1 ]]; then
-	echo "usage: bash tools/ci/archive_check.sh <source.zip>" >&2
-	exit 2
+    echo "usage: bash tools/ci/archive_check.sh <source.zip>" >&2
+    exit 2
 fi
-
 ZIP_PATH="$1"
 if [[ ! -f "$ZIP_PATH" && -f "$REPO_ROOT/$ZIP_PATH" ]]; then
-	ZIP_PATH="$REPO_ROOT/$ZIP_PATH"
+    ZIP_PATH="$REPO_ROOT/$ZIP_PATH"
 fi
 if [[ ! -f "$ZIP_PATH" ]]; then
-	echo "MISSING  archive not found: $1" >&2
-	exit 1
+    echo "MISSING  archive not found: $1" >&2
+    exit 1
 fi
 
-cd "$REPO_ROOT"
-
-LIST_FILE="$(mktemp)"
-trap 'rm -f "$LIST_FILE"' EXIT
-
-if command -v unzip >/dev/null 2>&1; then
-	unzip -Z1 "$ZIP_PATH" >"$LIST_FILE"
-elif command -v python3 >/dev/null 2>&1; then
-	python3 - "$ZIP_PATH" >"$LIST_FILE" <<'PY'
+# Python3 is already required by the source builder and package hygiene gate.
+# Read the archive directly: no extraction or dependence on checkout contents.
+python3 - "$ZIP_PATH" "$SCRIPT_DIR" <<'PY'
+from collections import Counter
+from pathlib import PurePosixPath
+import stat
 import sys
 import zipfile
 
+sys.path.insert(0, sys.argv[2])
+from package_hygiene import installation_manifest, relative_path_issue
+
+errors = []
 with zipfile.ZipFile(sys.argv[1]) as archive:
-    for name in archive.namelist():
-        print(name)
+    entries = archive.infolist()
+    names = [entry.filename for entry in entries]
+    for name, count in Counter(names).items():
+        if count > 1:
+            errors.append('duplicate archive entry: ' + name)
+    files = {entry.filename for entry in entries if not entry.is_dir()}
+    for required in ('README.md', 'rdistnn.pkg', 'stata.toc'):
+        if required not in files:
+            errors.append('missing archive input: ' + required)
+    manifest_files = []
+    if 'rdistnn.pkg' in files:
+        installed = {name for name in files
+                     if PurePosixPath(name).parent == PurePosixPath('src')
+                     and PurePosixPath(name).suffix in ('.ado', '.sthlp')}
+        manifest_files, manifest_errors = installation_manifest(
+            archive.read('rdistnn.pkg').decode('utf-8'), files.__contains__, installed,
+        )
+        errors.extend(manifest_errors)
+    # The builder includes public source/docs/examples plus root installation
+    # inputs. Other checkout-only roots and generated output are not payload.
+    root_files = {'README.md', 'rdistnn.pkg', 'stata.toc'} | {
+        name for name in manifest_files if len(PurePosixPath(name).parts) == 1
+    }
+    generated_suffixes = {'.log', '.o', '.obj', '.so', '.dll', '.dylib', '.mlib', '.mo', '.pyc', '.pyo'}
+    for entry in entries:
+        name = entry.filename.rstrip('/') if entry.is_dir() else entry.filename
+        issue = relative_path_issue(name)
+        if issue:
+            errors.append(f'archive entry {issue}: {entry.filename}')
+            continue
+        path = PurePosixPath(name)
+        if path.parts[0] not in ('src', 'docs', 'examples') and name not in root_files:
+            errors.append('nonpublic archive input: ' + entry.filename)
+        if (any(part.startswith('.') or part == '__pycache__' for part in path.parts)
+                or path.suffix.lower() in generated_suffixes
+                or name == 'src/plugin/rdistnn.plugin'):
+            errors.append('generated/private archive input: ' + entry.filename)
+        kind = stat.S_IFMT(entry.external_attr >> 16)
+        if kind not in (0, stat.S_IFREG, stat.S_IFDIR):
+            errors.append('archive input must be an ordinary file/directory: ' + entry.filename)
+    corrupt = archive.testzip()
+    if corrupt:
+        errors.append('corrupt archive input: ' + corrupt)
+if errors:
+    raise SystemExit('archive-check FAILED:\n' + '\n'.join('- ' + error for error in errors))
+print(f'archive-check passed: {len(files)} public files, {len(manifest_files)} installation inputs.')
 PY
-elif command -v python >/dev/null 2>&1; then
-	python - "$ZIP_PATH" >"$LIST_FILE" <<'PY'
-import sys
-import zipfile
-
-with zipfile.ZipFile(sys.argv[1]) as archive:
-    for name in archive.namelist():
-        print(name)
-PY
-elif command -v powershell.exe >/dev/null 2>&1; then
-	ZIP_PATH_FOR_PS="$ZIP_PATH" powershell.exe -NoProfile -Command \
-		'Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $env:ZIP_PATH_FOR_PS).Path).Entries | ForEach-Object { $_.FullName }' \
-		>"$LIST_FILE"
-elif command -v powershell >/dev/null 2>&1; then
-	ZIP_PATH_FOR_PS="$ZIP_PATH" powershell -NoProfile -Command \
-		'Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $env:ZIP_PATH_FOR_PS).Path).Entries | ForEach-Object { $_.FullName }' \
-		>"$LIST_FILE"
-else
-	tar -tf "$ZIP_PATH" >"$LIST_FILE"
-fi
-
-mapfile -t entries < <(sed 's#^\./##' "$LIST_FILE")
-ERRORS=0
-
-if [[ ${#entries[@]} -eq 0 ]]; then
-	echo "archive-check FAILED: archive contains no readable entries."
-	exit 1
-fi
-
-contains_entry() {
-	local needle="$1"
-	printf '%s\n' "${entries[@]}" | grep -Fx -- "$needle" >/dev/null
-}
-
-echo "=== Checking archive required files ==="
-required=("README.md" "stata.toc" "rdistnn.pkg")
-while IFS= read -r file; do
-	required+=("$file")
-done < <(awk '/^[fF][[:space:]]+/ {sub(/\r$/, "", $2); print $2}' rdistnn.pkg)
-mapfile -t required < <(printf '%s\n' "${required[@]}" | awk '!seen[$0]++')
-
-for file in "${required[@]}"; do
-	if contains_entry "$file"; then
-		echo "  OK       $file"
-	else
-		echo "  MISSING  $file"
-		ERRORS=$((ERRORS + 1))
-	fi
-done
-
-echo ""
-echo "=== Checking archive forbidden paths ==="
-forbidden=(".git/" ".github/" "archives/" "GH_logs/" "_dist/" "tests.log")
-for pattern in "${forbidden[@]}"; do
-	if printf '%s\n' "${entries[@]}" | grep -F -- "$pattern" >/dev/null; then
-		echo "  FOUND    forbidden path pattern: $pattern"
-		ERRORS=$((ERRORS + 1))
-	else
-		echo "  OK       absent: $pattern"
-	fi
-done
-
-echo ""
-echo "=== Checking archive duplicate entries ==="
-duplicates="$(printf '%s\n' "${entries[@]}" | sort | uniq -d || true)"
-if [[ -n "$duplicates" ]]; then
-	echo "$duplicates" | sed 's/^/  DUP      /'
-	ERRORS=$((ERRORS + 1))
-else
-	echo "  OK       no duplicate entries"
-fi
-
-echo ""
-if [[ $ERRORS -gt 0 ]]; then
-	echo "archive-check FAILED with $ERRORS error(s)."
-	exit 1
-fi
-
-echo "archive-check passed."

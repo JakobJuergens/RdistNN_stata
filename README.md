@@ -1,6 +1,6 @@
 # RdistNN for Stata
 
-Version **0.1.3**. See [release notes](RELEASE_NOTES.md) for changes.
+Version **0.1.4**. See [release notes](RELEASE_NOTES.md) for changes.
 
 **RdistNN for Stata** estimates conditional treatment effects and regression
 functions using distributional nearest-neighbor (DNN) weights. Choose covariate
@@ -27,7 +27,7 @@ ado/Mata implementation runs on Windows, macOS and Linux without R, Python or
 a compiler. Native acceleration is optional; see the [plugin guide](src/plugin/README.md)
 for platform-specific binaries.
 
-For the version-pinned release, replace `master` with `v0.1.3` in the installation URL.
+For the version-pinned release, replace `master` with `v0.1.4` in the installation URL.
 
 For reproducible installation, retain the full source commit or checked archive
 identity; [RELEASING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/RELEASING.md)
@@ -164,6 +164,11 @@ accelerates distance and jackknife calculations; install the binary matching
 your platform using the [plugin guide](src/plugin/README.md). Its engine
 controls and the [numerical implementation reference](docs/numerical-stability.md)
 are intended for performance work and troubleshooting.
+Automatic fallback handles unavailable acceleration. A native execution,
+resource or Break failure stops with its reported code; choose Mata explicitly
+for a diagnostic rerun. The
+[reporting guide](docs/diagnostics-and-reporting.md#warnings-and-failures)
+explains how to inspect and handle failures.
 
 Asymptotic Beta tables retain a known rounding limitation at extremely small
 tail masses, including possible R/Stata support differences. See the

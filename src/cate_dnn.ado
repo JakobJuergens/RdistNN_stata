@@ -226,76 +226,9 @@ program define cate_dnn, eclass
 
     // ── compute ranks once, then evaluate unique candidate orders ─────
     tempname b V
-    mata {
-        _ct_X     = st_data(., "`xvars'", "`touse'")
-        _ct_X0    = st_matrix("`targets_mat'")
-        _ct_geometry = _ct_DX = _ct_ranks = J(0,0,.)
-        rdistnn_localization_geometry(_ct_X,_ct_X0,"`distance'","`scalerule'",
-            strtoreal(tokens("`scalevec'")),`scaleeps',_ct_geometry,_ct_DX,_ct_ranks)
-        _ct_groups=rdistnn_distance_groups(_ct_ranks,_ct_DX,1)
-        _ct_rho   = st_data(., "`rho_use'", "`touse'")
-        _ct_candidates = st_matrix("`candidate_mat'")
-        _ct_grid_est = J(`ncandidates', `ntargets', .)
-        _ct_grid_se = J(`ncandidates', `ntargets', .)
-        _ct_grid_diag = J(`ncandidates', 5, .)
+    tempname model_groups model_signals model_ranks model_distances model_geometry
+    mata: rdistnn_cate_fit_ado()
 
-        for (_ct_g = 1; _ct_g <= `ncandidates'; _ct_g++) {
-            _ct_grid_diag[_ct_g, 3] = min((5, `n'))
-            if (_ct_candidates[_ct_g, 4] == 0) continue
-            _ct_prior = 0
-            if (_ct_g > 1) {
-                for (_ct_h = 1; _ct_h < _ct_g; _ct_h++) {
-                    if (_ct_candidates[_ct_h, 4] == 1 &
-                        _ct_candidates[_ct_h, 2] == _ct_candidates[_ct_g, 2]) {
-                        _ct_prior = _ct_h
-                        break
-                    }
-                }
-            }
-            if (_ct_prior > 0) {
-                _ct_grid_est[_ct_g,.] = _ct_grid_est[_ct_prior,.]
-                _ct_grid_se[_ct_g,.] = _ct_grid_se[_ct_prior,.]
-                _ct_grid_diag[_ct_g,.] = _ct_grid_diag[_ct_prior,.]
-            }
-            else {
-                _ct_sg = _ct_candidates[_ct_g, 8]
-                _ct_Wg = rdistnn_weights_from_rmat(_ct_ranks, `k', _ct_sg, "`method'",_ct_DX,_ct_groups)
-                _ct_grid_est[_ct_g,.] = rdistnn_weighted_signals(_ct_rho, _ct_Wg)
-                _ct_grid_diag[_ct_g,.]=rdistnn_grid_weight_diagnostics(_ct_Wg)
-                if ("`se'" == "") {
-                    _ct_Vg = rdistnn_jk_cov_multi_from_ranks(
-                        _ct_ranks, _ct_rho, `k', _ct_sg, "`method'",_ct_DX,_ct_groups)
-                    _ct_grid_se[_ct_g,.] = sqrt(diagonal(_ct_Vg))'
-                }
-                // Save the default's first representative, including when the
-                // default row duplicates an earlier candidate after other orders.
-                if (_ct_candidates[_ct_g, 2] == _ct_candidates[`default_index', 2]) {
-                    _ct_W = _ct_Wg
-                    if ("`se'" == "") _ct_V = _ct_Vg
-                }
-            }
-        }
-
-        _ct_tau = _ct_grid_est[`default_index',.]
-        _ct_neff = 1 :/ colsum(_ct_W :^ 2)
-        _ct_T = _ct_E = J(0,1,.)
-        if ("`score_method'" != "pseudo_outcome") {
-            _ct_T = st_data(., "`treat_var'", "`touse'")
-            _ct_E = st_data(., "`eclip'", "`touse'")
-        }
-        _ct_target_diag = rdistnn_diagnostics("cate_dnn",_ct_X,_ct_X0,
-            _ct_rho,_ct_W,_ct_DX,`k',`s',_ct_tau,_ct_T,_ct_E)
-        st_matrix("`b'", _ct_tau)
-        st_matrix("`neff_mat'", _ct_neff)
-        st_matrix("`grid_est'", _ct_grid_est)
-        st_matrix("`grid_se'", _ct_grid_se)
-        st_matrix("`grid_diag'", _ct_grid_diag)
-        st_matrix("`target_diag'", _ct_target_diag)
-        st_numscalar("r(neff_min)", min(_ct_neff))
-        st_numscalar("r(neff_max)", max(_ct_neff))
-    }
-
-    if "`se'" == "" mata: st_matrix("`V'", _ct_V)
 
     // ── store eclass results ─────────────────────────────────────────
     local coef_names "tau"
@@ -398,11 +331,8 @@ program define cate_dnn, eclass
     local signature_vars `xvars' `input_var' `treat_var' `propensity_var' `m0_var' `m1_var'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
-    tempname model_groups model_signals model_ranks model_distances model_geometry
-    mata: st_matrix("`model_groups'",_ct_groups); st_matrix("`model_signals'",_ct_rho); st_matrix("`model_ranks'",_ct_ranks); st_matrix("`model_distances'",_ct_DX)
     local geometry_option ""
     if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
-        mata: st_matrix("`model_geometry'",_ct_geometry)
         local geometry_option "geometry(`model_geometry')"
     }
     quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances') groups(`model_groups') `geometry_option'
@@ -412,6 +342,7 @@ end
 // ── display subroutine ────────────────────────────────────────────────
 program define _cate_dnn_Display, rclass
     version 17
-    _rdistnn_report `0'
+    syntax [, Level(cilevel)]
+    _rdistnn_report, level(`level')
     return add
 end

@@ -107,45 +107,9 @@ program define plqr_dnn, eclass
     findfile "_rdistnn_mata.ado"
     quietly run "`r(fn)'"
 
-    local x0_mata ""
-    foreach v of local x0 {
-        local x0_mata `x0_mata' `v',
-    }
-    local x0_mata = substr("`x0_mata'", 1, length("`x0_mata'") - 1)
-
-    local theta_mata ""
-    foreach v of local theta {
-        local theta_mata `theta_mata' `v',
-    }
-    local theta_mata = substr("`theta_mata'", 1, length("`theta_mata'") - 1)
-
     tempname b V theta_mat moment_mat moment_vcov_mat
-    mata {
-        _pl_X      = st_data(., "`xvars'", "`touse'")
-        _pl_y      = st_data(., "`outcome'", "`touse'")
-        _pl_D      = st_data(., "`dvars'", "`touse'")
-        _pl_g0     = st_data(., "`gvar'", "`touse'")
-        _pl_md     = st_data(., "`mdvars'", "`touse'")
-        _pl_x0     = (`x0_mata')
-        _pl_theta  = (`theta_mata')'
-        // Match the R reference and the other estimators: rank the reported
-        // distance matrix, with original observation IDs ordering exact ties.
-        _pl_geometry = rdistnn_fit_geometry(_pl_X,"`distance'","`scalerule'",strtoreal(tokens("`scalevec'")),`scaleeps')
-        _pl_DX     = rdistnn_distance_matrix(_pl_X, _pl_x0, "`distance'", _pl_geometry)
-        _pl_ranks  = rdistnn_ranks_from_dmat(_pl_DX)
-        _pl_groups=rdistnn_distance_groups(_pl_ranks,_pl_DX,1)
-        _pl_w      = rdistnn_weights_from_rmat(_pl_ranks, `k', `s', "`method'",_pl_DX,_pl_groups)
-        _pl_below = rdistnn_plqr_indicator(_pl_D,_pl_theta,_pl_g0,_pl_y)
-        _pl_resid  = `tau' :- _pl_below
-        _pl_score  = (_pl_D :- _pl_md) :* (_pl_resid * J(1, cols(_pl_D), 1))
-        _pl_moment = rdistnn_weighted_signals(_pl_w, _pl_score)
-        _pl_V      = rdistnn_jk_cov_from_ranks(_pl_ranks, _pl_score, `k', `s', "`method'",_pl_DX,_pl_groups)
-        _pl_neff   = 1 / sum(_pl_w :^2)
-        st_matrix("`b'", _pl_moment)
-        st_matrix("`V'", _pl_V)
-        st_matrix("`theta_mat'", _pl_theta')
-        st_numscalar("r(neff)", _pl_neff)
-    }
+    tempname targets model_groups model_signals model_ranks model_distances model_geometry diagnostics
+    mata: rdistnn_plqr_fit_ado()
 
     matrix rownames `b' = moment
     matrix colnames `b' = `dvars'
@@ -188,36 +152,31 @@ program define plqr_dnn, eclass
     ereturn local  cmd      "plqr_dnn"
     ereturn local  cmdline  "plqr_dnn `0'"
 
-    tempname ses targets
-    mata: st_matrix("`targets'",_pl_x0)
+    tempname ses
     matrix colnames `targets'=`xvars'
     ereturn matrix targets=`targets', copy
-    tempname model_groups model_signals model_ranks model_distances model_geometry
-    mata: st_matrix("`model_groups'",_pl_groups); st_matrix("`model_signals'",_pl_score); st_matrix("`model_ranks'",_pl_ranks); st_matrix("`model_distances'",_pl_DX)
     local snapshot_vars `xvars' `outcome' `dvars' `gvar' `mdvars'
     local snapshot_vars : list uniq snapshot_vars
     local geometry_option ""
     if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
-        mata: st_matrix("`model_geometry'",_pl_geometry)
         local geometry_option "geometry(`model_geometry')"
     }
-    quietly _rdistnn_model_store `snapshot_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances') groups(`model_groups') `geometry_option'
     mata: st_matrix("`ses'",sqrt(diagonal(st_matrix("e(V)")))')
     matrix colnames `ses'=`dvars'
     ereturn matrix estimates=`moment_mat', copy
     ereturn matrix se_targets=`ses', copy
     ereturn matrix estimate_vcov=`moment_vcov_mat', copy
-    tempname bytarget diagnostics
+    tempname bytarget
     matrix `bytarget'=`moment_mat''
     ereturn matrix moment_by_target=`bytarget', copy
     foreach file in _rdistnn_clate_mata.ado _rdistnn_model_mata.ado {
         findfile "`file'"
         quietly run "`r(fn)'"
     }
-    mata: st_matrix("`diagnostics'",rdistnn_diagnostics("plqr_dnn",_pl_X,_pl_x0,_pl_score,_pl_w,st_matrix("`model_distances'"),`k',`s',_pl_moment,J(0,1,.),J(0,1,.)))
     matrix colnames `diagnostics'=ess max_weight top1_weight_share top5_weight_share top10_weight_share n_nonzero_weight distance_available radius_rank_k radius_rank_s weighted_mean_distance weighted_median_distance
     ereturn matrix diagnostics=`diagnostics', copy
     ereturn matrix target_diagnostics=`diagnostics', copy
+    quietly _rdistnn_model_store `snapshot_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances') groups(`model_groups') `geometry_option'
     quietly signestimationsample `snapshot_vars'
     quietly _rdistnn_sample_signature `snapshot_vars' if e(sample)
     ereturn local ordered_signature "`r(signature)'"

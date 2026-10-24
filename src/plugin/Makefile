@@ -40,7 +40,7 @@ $(CORE_TEST): test_rdistnn_core.cpp $(HEADERS)
 $(DISTANCE_TEST): test_rdistnn_distance.cpp $(HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ test_rdistnn_distance.cpp
 
-$(PROTOCOL_TEST): test_rdistnn_distance_plugin.cpp rdistnn_plugin.cpp $(HEADERS) stplugin.h
+$(PROTOCOL_TEST): test_rdistnn_distance_plugin.cpp test_stata_sdk.hpp rdistnn_plugin.cpp $(HEADERS) stplugin.h
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ test_rdistnn_distance_plugin.cpp
 
 $(ROUNDING_TEST): test_rdistnn_distance_rounding.cpp $(HEADERS)
@@ -50,7 +50,7 @@ $(BLOCK_TEST): test_rdistnn_blocks.cpp $(HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ test_rdistnn_blocks.cpp
 
 
-$(LOO_PROTOCOL_TEST): test_rdistnn_loo_plugin.cpp rdistnn_plugin.cpp $(HEADERS) stplugin.h
+$(LOO_PROTOCOL_TEST): test_rdistnn_loo_plugin.cpp test_stata_sdk.hpp rdistnn_plugin.cpp $(HEADERS) stplugin.h
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ test_rdistnn_loo_plugin.cpp
 
 check: $(CORE_TEST) $(DISTANCE_TEST) $(PROTOCOL_TEST) $(ROUNDING_TEST) $(BLOCK_TEST) $(LOO_PROTOCOL_TEST)

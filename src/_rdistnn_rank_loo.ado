@@ -103,8 +103,7 @@ real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
         }
     }
     if(!any(engine:==("auto","plugin","mata","naive"))) {
-        errprintf("rdistnn_jackknife_engine must be auto, plugin, mata or naive.\n")
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_jackknife_engine must be auto, plugin, mata or naive.")
     }
     if(args()>=6 & rows(DX)>0) return(rdistnn_distance_loo(ranks,signal,table,center,engine,DX,prepared_groups))
     plugin_mode=st_global("rdistnn_use_plugin")
@@ -135,8 +134,7 @@ real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
             return(loo)
         }
         if(engine=="plugin" | plugin_mode=="1") {
-            errprintf("Compiled rank deletion API is unavailable; install an updated plugin or allow Mata fallback.\n")
-            exit(error(498))
+            rdistnn_fail(498,"Compiled rank deletion API is unavailable; install an updated plugin or allow Mata fallback.")
         }
     }
     prefix=findexternal("rdistnn_loo_prefix()")
@@ -148,8 +146,7 @@ real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
         }
     }
     if(engine=="mata") {
-        errprintf("Mata prefix/suffix engine unavailable or produced nonfinite deletions.\n")
-        exit(error(498))
+        rdistnn_fail(498,"Mata prefix/suffix engine unavailable or produced nonfinite deletions; rescale signals or select another jackknife engine.")
     }
     st_global("rdistnn_last_jackknife_engine","naive")
     return(rdistnn_loo_naive_table(ranks,signal,table))

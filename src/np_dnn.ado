@@ -139,70 +139,8 @@ program define np_dnn, eclass
     quietly run "`r(fn)'"
 
     tempname b V
-    mata {
-        _np_X = st_data(., "`xvars'", "`touse'")
-        _np_X0 = st_matrix("`targets_mat'")
-        _np_geometry = _np_DX = _np_ranks = J(0,0,.)
-        rdistnn_localization_geometry(_np_X,_np_X0,"`distance'","`scalerule'",
-            strtoreal(tokens("`scalevec'")),`scaleeps',_np_geometry,_np_DX,_np_ranks)
-        _np_groups=rdistnn_distance_groups(_np_ranks,_np_DX,1)
-        _np_y = st_data(., "`outcome'", "`touse'")
-        _np_candidates = st_matrix("`candidate_mat'")
-        _np_grid_est = J(`ncandidates', `ntargets', .)
-        _np_grid_se = J(`ncandidates', `ntargets', .)
-        _np_grid_diag = J(`ncandidates', 5, .)
-
-        for (_np_g = 1; _np_g <= `ncandidates'; _np_g++) {
-            _np_grid_diag[_np_g, 3] = min((5, `n'))
-            if (_np_candidates[_np_g, 4] == 0) continue
-            _np_prior = 0
-            if (_np_g > 1) {
-                for (_np_h = 1; _np_h < _np_g; _np_h++) {
-                    if (_np_candidates[_np_h, 4] == 1 &
-                        _np_candidates[_np_h, 2] == _np_candidates[_np_g, 2]) {
-                        _np_prior = _np_h
-                        break
-                    }
-                }
-            }
-            if (_np_prior > 0) {
-                _np_grid_est[_np_g,.] = _np_grid_est[_np_prior,.]
-                _np_grid_se[_np_g,.] = _np_grid_se[_np_prior,.]
-                _np_grid_diag[_np_g,.] = _np_grid_diag[_np_prior,.]
-            }
-            else {
-                _np_sg = _np_candidates[_np_g, 8]
-                _np_Wg = rdistnn_weights_from_rmat(_np_ranks, `k', _np_sg, "`method'",_np_DX,_np_groups)
-                _np_grid_est[_np_g,.] = rdistnn_weighted_signals(_np_y, _np_Wg)
-                _np_grid_diag[_np_g,.]=rdistnn_grid_weight_diagnostics(_np_Wg)
-                if ("`se'" == "") {
-                    _np_Vg = rdistnn_jk_cov_multi_from_ranks(
-                        _np_ranks, _np_y, `k', _np_sg, "`method'",_np_DX,_np_groups)
-                    _np_grid_se[_np_g,.] = sqrt(diagonal(_np_Vg))'
-                }
-                // Save the default's first representative, including when the
-                // default row duplicates an earlier candidate after other orders.
-                if (_np_candidates[_np_g, 2] == _np_candidates[`default_index', 2]) {
-                    _np_W = _np_Wg
-                    if ("`se'" == "") _np_V = _np_Vg
-                }
-            }
-        }
-
-        _np_mu = _np_grid_est[`default_index',.]
-        _np_neff = 1 :/ colsum(_np_W :^ 2)
-        _np_target_diag = rdistnn_diagnostics("np_dnn",_np_X,_np_X0,
-            _np_y,_np_W,_np_DX,`k',`s',_np_mu,J(0,1,.),J(0,1,.))
-        st_matrix("`b'", _np_mu)
-        st_matrix("`neff_mat'", _np_neff)
-        st_matrix("`grid_est'", _np_grid_est)
-        st_matrix("`grid_se'", _np_grid_se)
-        st_matrix("`grid_diag'", _np_grid_diag)
-        st_matrix("`target_diag'", _np_target_diag)
-        st_numscalar("r(neff_min)", min(_np_neff))
-        st_numscalar("r(neff_max)", max(_np_neff))
-    }
-    if "`se'" == "" mata: st_matrix("`V'", _np_V)
+    tempname model_groups model_signals model_ranks model_distances model_geometry
+    mata: rdistnn_np_fit_ado()
 
     local coef_names "mu"
     if `ntargets' > 1 {
@@ -294,11 +232,8 @@ program define np_dnn, eclass
     local signature_vars `xvars' `outcome'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
-    tempname model_groups model_signals model_ranks model_distances model_geometry
-    mata: st_matrix("`model_groups'",_np_groups); st_matrix("`model_signals'",_np_y); st_matrix("`model_ranks'",_np_ranks); st_matrix("`model_distances'",_np_DX)
     local geometry_option ""
     if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
-        mata: st_matrix("`model_geometry'",_np_geometry)
         local geometry_option "geometry(`model_geometry')"
     }
     quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances') groups(`model_groups') `geometry_option'
@@ -307,6 +242,7 @@ end
 
 program define _np_dnn_Display, rclass
     version 17
-    _rdistnn_report `0'
+    syntax [, Level(cilevel)]
+    _rdistnn_report, level(`level')
     return add
 end

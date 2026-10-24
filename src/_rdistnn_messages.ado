@@ -36,8 +36,10 @@ string scalar rdistnn_message_examples(real colvector ids)
 }
 void rdistnn_fail(real scalar rc, string scalar message)
 {
+    real scalar i
+    for(i=0;i<32;i++) message=subinstr(message,char(i)," ")
     displayas("error")
-    display(message)
+    display(message,1)
     exit(rc)
 }
 end

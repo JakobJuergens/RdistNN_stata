@@ -19,7 +19,7 @@ program define weights_dnn, rclass
         di as error "Specify exactly one of x0() and x0matrix()."
         exit 198
     }
-    tempname targets weights ranks distances groups row_ids neff geometry
+    tempname targets weights ranks distances groups row_ids neff geometry target_notices notice_counts
     if "`x0matrix'"!="" {
         confirm matrix `x0matrix'
         matrix `targets'=`x0matrix'
@@ -61,32 +61,21 @@ program define weights_dnn, rclass
     }
     findfile "_rdistnn_mata.ado"
     quietly run "`r(fn)'"
-    mata {
-        _wd_X=st_data(.,tokens("`varlist'"),"`touse'")
-        _wd_X0=st_matrix("`targets'")
-        _wd_G=rdistnn_fit_geometry(_wd_X,"`distance'","`scalerule'",strtoreal(tokens("`scalevec'")),`scaleeps')
-        _wd_D=rdistnn_distance_matrix(_wd_X,_wd_X0,"`distance'",_wd_G)
-        _wd_R=rdistnn_ranks_from_dmat(_wd_D)
-        _wd_groups=rdistnn_distance_groups(_wd_R,_wd_D,1)
-        rdistnn_distance_warning(_wd_groups)
-        _wd_W=rdistnn_weights_from_rmat(_wd_R,`k',`s',"`method'",_wd_D,_wd_groups)
-    }
-    mata {
-        st_matrix("`weights'",_wd_W); st_matrix("`ranks'",_wd_R)
-        st_matrix("`distances'",_wd_D)
-        st_matrix("`groups'",_wd_groups)
-        st_matrix("`row_ids'",select((1::st_nobs()),st_data(.,"`touse'")))
-        st_matrix("`neff'",1:/colsum(_wd_W:^2))
-    }
+    mata: rdistnn_weights_fit_ado()
+    mata: st_matrix("`target_notices'",rdistnn_target_notices(st_matrix("`groups'"),(1:/colsum(st_matrix("`weights'"):^2))'))
+    matrix colnames `target_notices'=distance_ties weak_localization
+    mata: st_matrix("`notice_counts'",colsum(st_matrix("`target_notices'")))
     if "`generate'"!="" {
         quietly gen double `generate'=.
-        mata: st_store(.,"`generate'","`touse'",_wd_W)
+        mata: st_store(.,"`generate'","`touse'",st_matrix("`weights'"))
     }
     if inlist("`distance'","mahalanobis","l1_scaled","l2_scaled") {
-        mata: st_matrix("`geometry'",_wd_G)
         return matrix geometry=`geometry'
     }
     return matrix weights=`weights'
+    return matrix target_notices=`target_notices'
+    return scalar n_tied_targets=el(`notice_counts',1,1)
+    return scalar n_weak_targets=el(`notice_counts',1,2)
     return matrix ranks=`ranks'
     return matrix distances=`distances'
     return matrix groups=`groups'

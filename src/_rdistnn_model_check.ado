@@ -3,7 +3,7 @@ version 17
 // Cold report/diagnostic calls may have neither a dataset nor a Mata library.
 program define _rdistnn_model_check
     version 17
-    if e(model_version)!=3 | "`e(tie_rule)'"!="exact_distance_block_averaging_v1" {
+    if e(model_version)!=4 | "`e(tie_rule)'"!="exact_distance_block_averaging_v1" {
         di as error "Saved fits require the current exact-distance averaging policy; refit with the current package."
         exit 498
     }

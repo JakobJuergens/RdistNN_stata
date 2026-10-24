@@ -168,11 +168,12 @@ foreach family in cate np clate {
     local panels "`r(panels)'"
     local panels : list retokenize panels
     matrix PMPE_PANELS = r(panel_info)
+    local panel_columns : colnames PMPE_PANELS
     local expectedpanels "estimates diagnostics weights_cumulative tuning"
     if "`family'"=="np" local expectedpanels "estimates diagnostics outcome weights_cumulative tuning"
     local expectedn : word count `expectedpanels'
-    test_assert "[premerge `family'] dashboard proves plot-data absence and exact panel matrix" `hasdata'==0 & `haspanels'>0 & `nr'==. & `npanels'==`expectedn' & rowsof(PMPE_PANELS)==`expectedn' & colsof(PMPE_PANELS)==3 & "`panels'"=="`expectedpanels'"
-    test_assert "[premerge `family'] dashboard counts reflect rows vs legacy counts" PMPE_PANELS[1,2]==5 & PMPE_PANELS[1,3]==5 & PMPE_PANELS[`expectedn',2]==9 & PMPE_PANELS[`expectedn',3]==3
+    test_assert "[premerge `family'] dashboard proves plot-data absence and exact panel matrix" `hasdata'==0 & `haspanels'>0 & `nr'==. & `npanels'==`expectedn' & rowsof(PMPE_PANELS)==`expectedn' & colsof(PMPE_PANELS)==2 & "`panels'"=="`expectedpanels'"
+    test_assert "[premerge `family'] dashboard counts are actual panel rows" PMPE_PANELS[1,2]==5 & PMPE_PANELS[`expectedn',2]==9 & "`panel_columns'"=="panel_id n_rows"
 
     capture noisily `family'_dnn_diagnostics, targets(2) saving("build/premerge/postestimation-no-such-dir/report.dta")
     local save_rc = _rc
@@ -277,6 +278,147 @@ foreach kind in estimates tuning {
     local expectedselected "1 3"
     if "`kind'"=="tuning" local expectedselected "3 1"
     test_assert "[premerge CLATE] wholly undefined `kind' selection returns zero rows and no plot_data member" `hasdata'==0 & `nr'==0 & `omitted'==`expected' & "`selected'"=="`expectedselected'"
+}
+
+test_section "selected reporting weights only the requested targets"
+do "tests/helpers/reporting-instrument.do"
+capture program drop _pmpe_selected_weight_work
+program define _pmpe_selected_weight_work
+    tempfile root
+    local shadow "`root'_sources"
+    mkdir "`shadow'"
+    capture noisily {
+        // Count the columns actually supplied to the real weight primitives;
+        // source shadows keep production counters and test hooks out of core.
+        foreach module in model_mata plot_mata {
+            mata: rdistnn_test_instrument("src/_rdistnn_"+st_local("module")+".ado",st_local("shadow")+"/step.ado","rdistnn_weights_from_rmat(R,","rdistnn_weights_from_rmat(rdistnn_test_weight_columns(R),")
+            mata: rdistnn_test_instrument(st_local("shadow")+"/step.ado",st_local("shadow")+"/_rdistnn_"+st_local("module")+".ado","rdistnn_tdnn_weights(R,","rdistnn_tdnn_weights(rdistnn_test_weight_columns(R),")
+        }
+        mata: rdistnn_test_instrument("src/_rdistnn_model_decode.ado",st_local("shadow")+"/_rdistnn_model_decode.ado","X=st_matrix("+char(34)+"e(model_X)"+char(34)+"); T=st_matrix","st_numscalar("+char(34)+"rdistnn_test_model_validations"+char(34)+",st_numscalar("+char(34)+"rdistnn_test_model_validations"+char(34)+")+1); X=st_matrix("+char(34)+"e(model_X)"+char(34)+"); T=st_matrix")
+        adopath ++ "`shadow'"
+        scalar rdistnn_test_weighted_columns=0
+        scalar rdistnn_test_model_validations=0
+        clear
+        set obs 12
+        gen double pmpe_x=mod(_n,6)-3
+        gen double pmpe_y=_n^2
+        gen double pmpe_den=1+_n/20
+        matrix PMPE_WEIGHT_TARGETS=(0\1\-.5)
+        foreach family in np cate clate tdnn {
+            local command "`family'_dnn"
+            local opts "tuningmode(grid) sgrid(2 4 2) sdefault(4)"
+            if "`family'"=="cate" local opts "`opts' pseudooutcome"
+            if "`family'"=="clate" local opts "`opts' pseudooutcome denominator(pmpe_den)"
+            if "`family'"=="tdnn" {
+                local command "np_tdnn"
+                local opts "s1(2) s2(4)"
+            }
+            quietly `command' pmpe_y, xcols(pmpe_x) x0matrix(PMPE_WEIGHT_TARGETS) `opts'
+            foreach option in validated validated(1) {
+                capture quietly `command', `option'
+                local rejected=_rc
+                test_assert "`family': replay exposes no private verification option" `rejected'==198
+                capture quietly `command' pmpe_y, xcols(pmpe_x) x0matrix(PMPE_WEIGHT_TARGETS) `opts' `option'
+                local rejected=_rc
+                test_assert "`family': fresh estimation exposes no private verification option" `rejected'==198
+                capture quietly rdistnn_predict, x0(.25) post `option'
+                local rejected=_rc
+                test_assert "`family': public posting exposes no private verification option" `rejected'==198
+            }
+            scalar rdistnn_test_model_validations=0
+            quietly `command'
+            test_assert "`family': ordinary replay validates its current snapshot" scalar(rdistnn_test_model_validations)==1
+            quietly rdistnn_results, type(weights)
+            matrix PMPE_FULL_WEIGHTS=r(data)
+            _rdistnn_test_e_snapshot, name(PMPE_WEIGHT_STATE)
+            scalar rdistnn_test_weighted_columns=0
+            scalar rdistnn_test_model_validations=0
+            quietly rdistnn_results, type(weights) targets(3 1 3)
+            local weighted=scalar(rdistnn_test_weighted_columns)
+            local validations=scalar(rdistnn_test_model_validations)
+            matrix PMPE_SELECTED_WEIGHTS=r(data)
+            test_assert "`family': selected export weights two columns" `weighted'==2
+            test_assert "`family': selected export validates unchanged state once" `validations'==1
+            mata: st_numscalar("PMPE_WEIGHT_EQUAL",all(st_matrix("PMPE_SELECTED_WEIGHTS"):==st_matrix("PMPE_FULL_WEIGHTS")[(25::36)\(1::12),]))
+            test_assert "`family': selected weights retain original targets and exact values" scalar(PMPE_WEIGHT_EQUAL)
+            _rdistnn_test_e_compare, snapshot(PMPE_WEIGHT_STATE)
+            test_assert "`family': selected export preserves complete fitted state" r(equal)
+            scalar rdistnn_test_model_validations=0
+            quietly rdistnn_results, type(weights) targets(1)
+            test_assert "`family': independent calls validate independently" scalar(rdistnn_test_model_validations)==1
+            scalar rdistnn_test_weighted_columns=0
+            scalar rdistnn_test_model_validations=0
+            quietly `command'_plot, type(weights) targets(3 1) name(pmpe_selected) replace nodraw
+            local weighted=scalar(rdistnn_test_weighted_columns)
+            local validations=scalar(rdistnn_test_model_validations)
+            test_assert "`family': real selected plot weights two columns" `weighted'==2
+            test_assert "`family': real selected plot validates unchanged state once" `validations'==1
+            _rdistnn_test_e_compare, snapshot(PMPE_WEIGHT_STATE)
+            test_assert "`family': selected plot preserves complete fitted state" r(equal)
+            scalar rdistnn_test_model_validations=0
+            quietly `command'_plot, type(diagnostics) targets(3 1) name(pmpe_selected) replace nodraw
+            test_assert "`family': diagnostic plots reuse current validation" scalar(rdistnn_test_model_validations)==1
+            scalar rdistnn_test_model_validations=0
+            quietly rdistnn_predict, x0(.25) sefit
+            test_assert "`family': prediction validates source and newly posted state" scalar(rdistnn_test_model_validations)==2
+            if "`family'"!="tdnn" {
+                scalar rdistnn_test_model_validations=0
+                quietly rdistnn_candidate, candidate(3)
+                test_assert "`family': candidate validates source and newly posted state" scalar(rdistnn_test_model_validations)==2
+            }
+            scalar rdistnn_test_model_validations=0
+            mata: PMPE_PRIVATE_WEIGHTS=rdistnn_model_weights((3,1))
+            test_assert "`family': standalone model helper retains validation by default" scalar(rdistnn_test_model_validations)==1
+            _rdistnn_test_e_snapshot_drop, name(PMPE_WEIGHT_STATE)
+        }
+    }
+    local rc=_rc
+    capture adopath - "`shadow'"
+    quietly run "src/_rdistnn_model_mata.ado"
+    quietly run "src/_rdistnn_plot_mata.ado"
+    foreach file in step _rdistnn_model_mata _rdistnn_plot_mata _rdistnn_model_decode {
+        capture erase "`shadow'/`file'.ado"
+    }
+    rmdir "`shadow'"
+    capture scalar drop rdistnn_test_weighted_columns
+    capture scalar drop rdistnn_test_model_validations
+    _rdistnn_test_e_snapshot_drop, name(PMPE_WEIGHT_STATE)
+    if `rc' exit `rc'
+end
+_pmpe_selected_weight_work
+program drop _pmpe_selected_weight_work
+
+test_section "all-target reporting follows matrix capacity, not numlist capacity"
+mata: st_numscalar("PMPE_NUMERIC_ALL",all(rdistnn_model_target_index(J(1,0,.),2501):==(1..2501)))
+test_assert "numeric all-target selection exceeds the numlist limit" scalar(PMPE_NUMERIC_ALL)
+mata: st_numscalar("PMPE_NUMERIC_SELECTED",all(rdistnn_model_target_index((3,1),5):==(3,1)))
+test_assert "numeric target selection preserves requested order" scalar(PMPE_NUMERIC_SELECTED)
+// BE cannot represent this fitted result. SE/MP exercise the real public path
+// once; small selected-target/plot contracts above cover every shared consumer.
+if c(max_matsize)>=2501 {
+    local pmpe_matsize=c(matsize)
+    if c(matsize)<2501 set matsize 2501
+    clear
+    set obs 8
+    gen double pmpe_large_x=_n
+    gen double pmpe_large_y=_n^2
+    mata: st_matrix("PMPE_LARGE_TARGETS",100:+(1::2501):/1000)
+    quietly np_dnn pmpe_large_y, xcols(pmpe_large_x) ///
+        x0matrix(PMPE_LARGE_TARGETS) s(3) nose
+    capture quietly rdistnn_results
+    local pmpe_large_rc=_rc
+    test_assert "valid large fit reports all targets" `pmpe_large_rc'==0
+    if !`pmpe_large_rc' {
+        matrix PMPE_LARGE_INDEX=r(index)
+        matrix PMPE_LARGE_FIT=r(fit)
+        mata: st_numscalar("PMPE_LARGE_EQUAL",all(st_matrix("PMPE_LARGE_FIT"):==st_matrix("e(estimates)")) & all(st_matrix("PMPE_LARGE_INDEX")[,1]:==(1::2501)))
+        test_assert "large report preserves all target identities and estimates" scalar(PMPE_LARGE_EQUAL) & rowsof(PMPE_LARGE_INDEX)==2501
+    }
+    quietly rdistnn_results, targets(2501 1 2501)
+    matrix PMPE_LARGE_SELECTED=r(index)
+    test_assert "explicit large-target IDs retain ordered deduplication" rowsof(PMPE_LARGE_SELECTED)==2 & PMPE_LARGE_SELECTED[1,1]==2501 & PMPE_LARGE_SELECTED[2,1]==1
+    test_assert "large reporting preserves the fit and caller data" e(m)==2501 & "`e(cmd)'"=="np_dnn" & _N==8 & pmpe_large_y[8]==64
+    set matsize `pmpe_matsize'
 }
 
 // Remove audit-only programs/global snapshots; production e() remains active.
