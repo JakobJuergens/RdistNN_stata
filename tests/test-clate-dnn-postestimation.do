@@ -103,9 +103,9 @@ foreach kind in estimates diagnostics tuning weights {
 }
 capture noisily clate_dnn_plot, type(influence) targets(2 4) name(clinfluence) nlabel(0) replace nodraw
 local infrc = _rc
-local infn = r(n_plotted)
+local infn = r(n_rows)
 if `infrc'==0 matrix CLIF = r(plot_data)
-test_assert "[clate influence] selected targets retained" `infrc'==0 & `infn'==2
+test_assert "[clate influence] selected targets retained" `infrc'==0 & `infn'==2*e(N)
 if `infrc'==0 {
     mata {
         _cli = st_matrix("CLIF")
@@ -213,8 +213,8 @@ matrix CLPART = (0 \ 5)
 quietly clate_dnn sy, denominator(sd) pseudooutcome xcols(x) x0matrix(CLPART) s(4) nose
 capture noisily clate_dnn_plot, style(forest) name(clpartial) replace nodraw
 local partialrc = _rc
-local partialn = r(n_plotted)
-test_assert "[clate partial] full-target plot does not index reduced e(b)" `partialrc'==0 & `partialn'==2
+local partialn = r(n_rows)
+test_assert "[clate partial] full-target plot does not index reduced e(b)" `partialrc'==0 & `partialn'==1
 capture noisily clate_dnn_plot, type(influence) targets(2) name(clpartialinf) replace nodraw
 test_assert "[clate partial] defined target influence uses canonical identity" _rc==0
 capture noisily clate_dnn_plot, type(influence) targets(1)

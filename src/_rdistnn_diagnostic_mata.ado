@@ -5,6 +5,7 @@ capture mata: mata drop rdistnn_grid_weight_diagnostics()
 capture mata: mata drop rdistnn_score_share()
 capture mata: mata drop rdistnn_diagnostics()
 capture mata: mata drop rdistnn_clate_diagnostics()
+capture mata: mata drop rdistnn_probability_weight_ess()
 mata:
 // Retain the five-column candidate summary, taking concentration extrema
 // across actual target-specific weights after duplicate-block averaging.
@@ -134,6 +135,21 @@ real matrix rdistnn_diagnostics(string scalar cmd, real matrix X,
     return(out)
 }
 
+// Within-arm probability-weight ESS. A positive subnormal squared sum can
+// already have lost terms, so scale in that case as well as exact zero.
+real scalar rdistnn_probability_weight_ess(real colvector w)
+{
+    real scalar squares,scale
+    real colvector scaled
+    if(!rows(w)) return(.)
+    squares=quadsum(w:^2)
+    if(squares>=2.2250738585072014e-308) return(quadsum(w)^2/squares)
+    scale=max(w)
+    if(scale<=0) return(.)
+    scaled=w/scale
+    return(quadsum(scaled)^2/quadsum(scaled:^2))
+}
+
 // Preserve CATE localization columns. Replace overlap by instrument arms
 // and score concentration by |w*(phi_Y-theta*phi_D)|. Empty A/e mark the
 // supplied-signal route, where overlap information is unavailable.
@@ -163,13 +179,9 @@ real matrix rdistnn_clate_diagnostics(real matrix diag, real matrix W,
             out[j,12]=out[j,21]=1
             out[j,13..15]=(mass1,mass0,mass1/(mass1+mass0))
             armw=select(w,A:==1)
-            if(rows(armw)>0 & quadsum(armw:^2)>0) {
-                out[j,22]=quadsum(armw)^2/quadsum(armw:^2)
-            }
+            out[j,22]=rdistnn_probability_weight_ess(armw)
             armw=select(w,A:==0)
-            if(rows(armw)>0 & quadsum(armw:^2)>0) {
-                out[j,23]=quadsum(armw)^2/quadsum(armw:^2)
-            }
+            out[j,23]=rdistnn_probability_weight_ess(armw)
         }
         if(rows(e)>0) {
             out[j,16]=1

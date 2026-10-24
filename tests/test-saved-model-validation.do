@@ -1,4 +1,4 @@
-// Corrupt schema-3 snapshots must fail before reuse or observation reconstruction.
+// Corrupt current snapshots must fail before reuse or observation reconstruction.
 version 17
 do "tests/test_framework.do"
 do "tests/helpers/e-state.do"
@@ -164,12 +164,61 @@ program define _smv_corrupt, eclass
     if "`case'"=="large_clip" ereturn scalar clip=.9
     if "`case'"=="negative_tolerance" ereturn scalar denominator_tol=-1
     if "`case'"=="missing_tolerance" ereturn scalar denominator_tol=.
+    if "`case'"=="signature_vars_missing" ereturn local signature_vars ""
+    if "`case'"=="signature_vars_mismatch" ereturn local signature_vars "wrong retained signature variables"
+    if "`case'"=="ordered_signature_missing" ereturn local ordered_signature ""
+    if substr("`case'",1,5)=="grid_" {
+        local field "tuning_candidates"
+        if "`case'"=="grid_estimates_shape" local field "tuning_estimates"
+        if "`case'"=="grid_se_shape" local field "tuning_se"
+        if "`case'"=="grid_diag_shape" local field "tuning_diagnostics"
+        if "`case'"=="grid_status_shape" local field "tuning_target_status"
+        if "`case'"=="grid_y_shape" local field "tuning_reduced_form"
+        if "`case'"=="grid_d_shape" local field "tuning_first_stage"
+        if strpos("`case'","_shape") {
+            matrix `value'=(1)
+            ereturn matrix `field'=`value', copy
+            exit
+        }
+        if "`case'"=="grid_alias" {
+            matrix `value'=e(tuning_estimates)
+            matrix `value'[3,1]=el(`value',3,1)+1
+            ereturn matrix tuning_estimates=`value', copy
+            exit
+        }
+        if "`case'"=="grid_availability" {
+            matrix `value'=e(tuning_estimates)
+            matrix `value'[4,1]=1
+            ereturn matrix tuning_estimates=`value', copy
+            exit
+        }
+        if "`case'"=="grid_target_names" {
+            matrix `value'=e(tuning_estimates)
+            local names ""
+            forvalues j=1/`=e(m)' {
+                local names "`names' wrong`j'"
+            }
+            matrix colnames `value'=`names'
+            ereturn matrix tuning_estimates=`value', copy
+            exit
+        }
+        if "`case'"=="grid_count" {
+            ereturn scalar tuning_n_unique=e(tuning_n_unique)+1
+            exit
+        }
+        matrix `value'=e(tuning_candidates)
+        if "`case'"=="grid_default" matrix `value'[1,3]=1
+        if "`case'"=="grid_id" matrix `value'[1,1]=77
+        if "`case'"=="grid_computed" matrix `value'[1,2]=77
+        if "`case'"=="grid_feasible" matrix `value'[1,4]=0
+        ereturn matrix tuning_candidates=`value', copy
+    }
 end
 
 // Both retained-state fixtures exercise the same public routes and e() guard.
 capture program drop _smv_check_routes
 program define _smv_check_routes
-    syntax, ESTIMATES(name) SNAPSHOT(name) CASE(string) ROUTES(string) [FAMILY(name) QUERY]
+    syntax, ESTIMATES(name) SNAPSHOT(name) CASE(string) ROUTES(string) [FAMILY(name) QUERY CALLERTEST(string)]
     if "`family'"=="" local family "np"
     local label "`case'"
     local rejected "corrupt snapshot is rejected"
@@ -183,6 +232,7 @@ program define _smv_check_routes
         local caller `"_N==3 & caller[1]=="preserved" & smvc_x[1]==777"'
         local graph "smvc_invalid"
     }
+    if `"`callertest'"'!="" local caller `"`callertest'"'
     foreach route of local routes {
         quietly estimates restore `estimates'
         if "`route'"=="cached" capture quietly rdistnn_predict, x0matrix(SMV_TARGETS) post
@@ -211,6 +261,7 @@ end
 test_section "saved snapshot corruption: reject consistently and preserve caller state"
 foreach case in negative_distance missing_distance rank_order rank_tie duplicate_rank ///
     fractional_id duplicate_id missing_id short_ids input_rows input_names ///
+    signature_vars_missing signature_vars_mismatch ordered_signature_missing ///
     signal_columns signal_missing method distance count dimension target_count legacy old_policy group_mismatch group_missing {
     quietly estimates restore SMV_PARENT
     _smv_corrupt, case(`case')
@@ -258,9 +309,17 @@ foreach family in np tdnn cate clate plqr {
     quietly rdistnn_results, type(weights)
     local rows=rowsof(r(data))
     test_assert "`family': valid cold observation extraction keeps every ID" `rows'==e(N)*e(m)
-    quietly rdistnn_predict, x0(.25 0) sefit
+    quietly rdistnn_predict, x0(.25 0) sefit post
     local columns=colsof(r(fit))
-    test_assert "`family': valid cold prediction supports new targets" `columns'==1 & _N==0
+    test_assert "`family': valid cold posted prediction supports new targets" `columns'==1 & _N==0 & "`e(signature_vars)'"=="`e(model_vars)'" & "`e(ordered_signature)'"!=""
+    foreach case in signature_vars_missing signature_vars_mismatch ordered_signature_missing {
+        quietly estimates use "`cold'"
+        _smv_corrupt, case(`case')
+        capture quietly rdistnn_predict, x0(.25 0) post
+        local rc=_rc
+        test_assert "`family': missing or inconsistent `case' requests refitting" `rc'==498 & _N==0
+    }
+    quietly estimates use "`cold'"
     if inlist("`family'","cate","clate") {
         quietly rdistnn_results, type(influence)
         local rows=rowsof(r(data))
@@ -333,6 +392,39 @@ foreach family in np cate clate {
         estimates drop SMVC_INVALID
     }
     estimates drop SMVC_VALID
+}
+
+test_section "complete current candidate grids validate before slicing"
+foreach family in np cate clate {
+    local extra ""
+    if "`family'"=="cate" local extra "pseudooutcome"
+    if "`family'"=="clate" local extra "pseudooutcome denominator(smvc_den)"
+    quietly `family'_dnn smvc_y if !inlist(smvc_id,1,5,12), ///
+        xcols(smvc_x smvc_z) x0matrix(SMVC_TARGETS) ///
+        tuningmode(grid) sgrid(2 3 2 9) sdefault(3) `extra'
+    estimates store SMVC_GRID_VALID
+    local cases "grid_candidates_shape grid_estimates_shape grid_se_shape grid_diag_shape grid_default grid_id grid_computed grid_feasible grid_alias grid_availability grid_target_names grid_count"
+    if "`family'"=="clate" local cases "`cases' grid_status_shape grid_y_shape grid_d_shape"
+    foreach case of local cases {
+        quietly estimates restore SMVC_GRID_VALID
+        _smv_corrupt, case(`case')
+        estimates store SMVC_GRID_INVALID
+        _rdistnn_test_e_snapshot, name(SMVC_GRID_STATE)
+        _smv_check_routes, estimates(SMVC_GRID_INVALID) snapshot(SMVC_GRID_STATE) case(`case') ///
+            routes("replay results diagnostics plot predict candidate") family(`family') ///
+            callertest("_N==12 & smvc_y[1]<.")
+        _rdistnn_test_e_snapshot_drop, name(SMVC_GRID_STATE)
+        estimates drop SMVC_GRID_INVALID
+    }
+    quietly estimates restore SMVC_GRID_VALID
+    quietly rdistnn_candidate, candidate(3)
+    local selected_candidate=r(candidate)
+    local selected_order=r(s)
+    test_assert "`family': valid aliased candidates remain reusable" `selected_candidate'==3 & `selected_order'==2
+    estimates drop SMVC_GRID_VALID
+    quietly `family'_dnn smvc_y, xcols(smvc_x smvc_z) x0matrix(SMVC_TARGETS) ///
+        tuningmode(grid) lambdagrid(1e-20 .4 8e307) `extra'
+    test_assert "`family': numerical infeasible optional orders retain current grid status" e(tuning_n_skipped)==2 & e(tuning_n_feasible)==1
 }
 program drop _smv_corrupt
 program drop _smv_check_routes

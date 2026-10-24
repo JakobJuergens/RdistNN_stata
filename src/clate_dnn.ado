@@ -234,79 +234,8 @@ program define clate_dnn, eclass
 
     findfile "_rdistnn_clate_mata.ado"
     quietly run "`r(fn)'"
-    mata {
-        _cl_X = st_data(., "`xvars'", "`touse'")
-        _cl_X0 = st_matrix("`targets'")
-        _cl_geometry = _cl_DX = _cl_ranks = J(0,0,.)
-        rdistnn_localization_geometry(_cl_X,_cl_X0,"`resolved_distance'","`scalerule'",
-            strtoreal(tokens("`scalevec'")),`scaleeps',_cl_geometry,_cl_DX,_cl_ranks)
-        _cl_groups=rdistnn_distance_groups(_cl_ranks,_cl_DX,1)
-        _cl_signals = st_data(., "`phiy' `phid'", "`touse'")
-        _cl_meta = st_matrix("`meta'")
-        _cl_grid = _cl_gridse = _cl_gridy = _cl_gridd = J(`ng',`m',.)
-        _cl_gridstatus = J(`ng'*`m',7,.)
-        _cl_c = _cl_V = _cl_CV = _cl_status = J(0,0,.)
-        _cl_b = J(1,0,.)
-        for (_cl_g=1; _cl_g<=`ng'; _cl_g++) {
-            if (_cl_meta[_cl_g,4]==0) continue
-            _cl_prior=0
-            for (_cl_h=1; _cl_h<_cl_g; _cl_h++) {
-                if (_cl_meta[_cl_h,4] & _cl_meta[_cl_h,2]==_cl_meta[_cl_g,2]) {
-                    _cl_prior=_cl_h
-                    break
-                }
-            }
-            if (_cl_prior) {
-                _cl_grid[_cl_g,.]=_cl_grid[_cl_prior,.]
-                _cl_gridse[_cl_g,.]=_cl_gridse[_cl_prior,.]
-                _cl_gridy[_cl_g,.]=_cl_gridy[_cl_prior,.]
-                _cl_gridd[_cl_g,.]=_cl_gridd[_cl_prior,.]
-                _cl_gridstatus[((_cl_g-1)*`m'+1)..(_cl_g*`m'),.] =
-                    (J(`m',1,_cl_g),_cl_gridstatus[((_cl_prior-1)*`m'+1)..(_cl_prior*`m'),2..7])
-                continue
-            }
-            rdistnn_clate_fit(_cl_ranks,_cl_signals,`k',_cl_meta[_cl_g,8],
-                "`resolved_method'",`active',`denominatortol',
-                _cl_c,_cl_b,_cl_V,_cl_CV,_cl_status,_cl_DX,_cl_groups)
-            _cl_grid[_cl_g,.] = _cl_b
-            _cl_gridse[_cl_g,.] = sqrt(diagonal(_cl_V))'
-            _cl_gridy[_cl_g,.] = _cl_c[,1]'
-            _cl_gridd[_cl_g,.] = _cl_c[,2]'
-            _cl_gridstatus[((_cl_g-1)*`m'+1)..(_cl_g*`m'),.] =
-                (J(`m',1,_cl_g),(1::`m'),_cl_status)
-            if (_cl_meta[_cl_g,2]==_cl_meta[`default',2]) {
-                st_matrix("`components'",_cl_c)
-                st_matrix("`theta'",_cl_b)
-                st_matrix("`vcov'",_cl_V)
-                st_matrix("`componentV'",_cl_CV)
-                st_matrix("`status'",_cl_status)
-            }
-        }
-        _cl_b = st_matrix("`theta'")
-        _cl_W = rdistnn_weights_from_rmat(_cl_ranks,`k',`resolved_s',"`resolved_method'",_cl_DX,_cl_groups)
-        _cl_A = _cl_e = J(0,1,.)
-        if ("`route'"=="augmented_iv") {
-            _cl_A = st_data(.,"`acol'","`touse'")
-            _cl_e = st_data(.,"`eclip'","`touse'")
-        }
-        st_matrix("`diag'",rdistnn_diagnostics("clate_dnn",_cl_X,_cl_X0,
-            _cl_signals,_cl_W,_cl_DX,`k',`resolved_s',_cl_b,_cl_A,_cl_e))
-        st_matrix("`neff'",1:/colsum(_cl_W:^2))
-        _cl_grid_diag=J(`ng',5,.)
-        for(_cl_g=1;_cl_g<=`ng';_cl_g++) {
-            _cl_grid_diag[_cl_g,3]=min((5,`n'))
-            if(_cl_meta[_cl_g,4]==0) continue
-            _cl_grid_W=rdistnn_weights_from_rmat(_cl_ranks,`k',_cl_meta[_cl_g,8],"`resolved_method'",_cl_DX,_cl_groups)
-            _cl_grid_diag[_cl_g,.]=rdistnn_grid_weight_diagnostics(_cl_grid_W)
-        }
-        st_matrix("`grid_diag'",_cl_grid_diag)
-        st_matrix("`semat'",sqrt(diagonal(st_matrix("`vcov'")))')
-        st_matrix("`gridtheta'",_cl_grid)
-        st_matrix("`gridse'",_cl_gridse)
-        st_matrix("`gridy'",_cl_gridy)
-        st_matrix("`gridd'",_cl_gridd)
-        st_matrix("`gridstatus'",_cl_gridstatus)
-    }
+    tempname model_groups model_signals model_ranks model_distances model_geometry
+    mata: rdistnn_clate_fit_ado()
 
     // Post only the paired estimator's coefficients and uncertainty.
     local cnames ""
@@ -325,7 +254,7 @@ program define clate_dnn, eclass
     }
     if "`keep'"!="" {
         tempname postb postV
-        mata: _cl_keep=strtoreal(tokens("`keep'")); st_matrix("`postb'",st_matrix("`theta'")[,_cl_keep]); st_matrix("`postV'",st_matrix("`vcov'")[_cl_keep,_cl_keep]); st_local("postcov",strofreal(!hasmissing(st_matrix("`postV'"))))
+        mata: rdistnn_clate_post_ado()
         matrix colnames `postb' = `validnames'
         matrix colnames `postV' = `validnames'
         matrix rownames `postV' = `validnames'
@@ -459,11 +388,8 @@ program define clate_dnn, eclass
     local signature_vars `xvars' `input' `nuisance_vars' `denominator'
     local signature_vars : list uniq signature_vars
     quietly _rdistnn_estimation_state `signature_vars'
-    tempname model_groups model_signals model_ranks model_distances model_geometry
-    mata: st_matrix("`model_groups'",_cl_groups); st_matrix("`model_signals'",_cl_signals); st_matrix("`model_ranks'",_cl_ranks); st_matrix("`model_distances'",_cl_DX)
     local geometry_option ""
     if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
-        mata: st_matrix("`model_geometry'",_cl_geometry)
         local geometry_option "geometry(`model_geometry')"
     }
     quietly _rdistnn_model_store `signature_vars', signals(`model_signals') ranks(`model_ranks') distances(`model_distances') groups(`model_groups') `geometry_option'
@@ -472,6 +398,7 @@ end
 
 program define _clate_dnn_Display, rclass
     version 17
-    _rdistnn_report `0'
+    syntax [, Level(cilevel)]
+    _rdistnn_report, level(`level')
     return add
 end

@@ -190,17 +190,15 @@ follow requested order. Join using explicit IDs rather than row number.
 {synopt:{cmd:r(candidates)}}sorted unique candidate IDs in data, when applicable{p_end}
 {synopt:{cmd:r(n_omitted)}}estimate/tuning rows omitted for missing estimates{p_end}
 {synopt:{cmd:r(selected_targets)}}estimate/tuning target IDs, including unavailable estimates{p_end}
-{synopt:{cmd:r(n_plotted)}}historical count described below{p_end}
 {synopt:{cmd:r(n_panels)}}dashboard panel count{p_end}
 {synopt:{cmd:r(panels)}}dashboard panel names in composition order{p_end}
-{synopt:{cmd:r(panel_info)}}dashboard columns panel_id n_rows n_plotted{p_end}
+{synopt:{cmd:r(panel_info)}}dashboard columns panel_id n_rows{p_end}
 
 {pstd}
-r(n_plotted) counts estimate rows before missing estimates are dropped;
-candidates for tuning/rank weights; selected rows for diagnostics;
-outcome targets; targets for kernel; or dashboard panels.
-It can differ from r(n_rows): G candidates and T targets yield up to G*T
-estimate/tuning rows; rank weights yield n*G*T and kernels yield n*T.
+Use r(n_rows) for the actual single-view data-row count, and r(n_omitted)
+for estimate/tuning rows removed because their estimates are missing.
+Use r(n_panels) for dashboard panels; target and candidate IDs identify the
+selected content without a view-dependent count.
 An all-undefined estimate selection draws a blank graph, returns n_rows=0,
 and has no plot_data matrix. Partial selections retain original target IDs.
 

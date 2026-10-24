@@ -14,7 +14,7 @@ quietly np_dnn y, xcols(x1 x2) x0(0 0)
 matrix order_np_b = e(b)
 capture noisily np_dnn_plot, type(estimates) name(order_np_next) replace nodraw
 local np_next_rc = _rc
-local np_next_n = r(n_plotted)
+local np_next_n = r(n_rows)
 test_assert "[autoload] NP plot builds after CATE" `np_next_rc' == 0
 test_assert "[autoload] NP plot reports its target" `np_next_n' == 1
 test_assert "[autoload] NP plot preserves estimates" _b[mu] == order_np_b[1,1]

@@ -1,6 +1,7 @@
 // Execute the real entry point against a narrow host SDK callback fixture.
 // Real Stata integration remains covered by the package's runtime .do tests.
 #include "rdistnn_plugin.cpp"
+#include "test_stata_sdk.hpp"
 #include <iostream>
 #include <map>
 #include <stdexcept>
@@ -32,7 +33,7 @@ ST_int storeel(char* name,int i,int j,double v) {
     m->second.values.at((i-1)+static_cast<std::size_t>(j-1)*m->second.n)=v; return 0;
 }
 ST_int error(char* message) {last_error=message; return 0;}
-ST_boolean missing(double v) {return v>=8e307;}
+ST_boolean missing(double v) {return rdistnn_test_sdk::is_missing(v);}
 void require(bool ok,const char* msg) { if(!ok) throw std::runtime_error(msg); }
 int invoke(std::initializer_list<const char*> args) {
     std::vector<std::string> strings; for(auto a:args) strings.emplace_back(a);
@@ -79,6 +80,37 @@ int main() {
         reset(); matrices["X0"]={1,2,{0,0}}; matrices["D"]={3,1,{17,17,17}};
         require(invoke({"distance_batch","l2","X","X0","none","D"})==0,"scalar target protocol failed");
         require(matrices["D"].values==std::vector<double>({0,5,5}),"scalar target protocol values");
+        // Licensed-host calibration: 2^1023 is the first missing value.
+        // Its predecessor and 8.5e307 are valid positive inputs and outputs.
+        const double missing_boundary=0x1p1023;
+        const double predecessor=std::nextafter(missing_boundary,0.0);
+        for(double value:{predecessor,8.5e307,-predecessor,-8.5e307}) {
+            reset(); matrices["X"]={1,1,{value}};
+            matrices["X0"]={1,1,{0}}; matrices["D"]={1,1,{17}};
+            require(invoke({"distance_batch","l2","X","X0","none","D"})==0,
+                    "valid high-magnitude SDK distance rejected");
+            require(matrices["D"].values[0]==std::fabs(value),
+                    "high-magnitude SDK distance changed");
+        }
+        reset(); matrices["X"]={1,1,{-std::numeric_limits<double>::max()}};
+        matrices["X0"]=matrices["X"]; matrices["D"]={1,1,{17}};
+        require(invoke({"distance_batch","l2","X","X0","none","D"})==0 &&
+                matrices["D"].values[0]==0,"valid large-negative input rejected");
+        for(double value:{predecessor,8.5e307}) {
+            reset(); matrices["X"]={1,1,{1}};
+            matrices["X0"]={1,1,{0}}; matrices["S"]={1,1,{value}};
+            matrices["D"]={1,1,{17}};
+            require(invoke({"distance_batch","l2","X","X0","S","D"})==0 &&
+                    matrices["D"].values[0]==value,
+                    "valid high-positive inverse scale rejected");
+        }
+        for(double value:{missing_boundary,std::nextafter(missing_boundary,
+                std::numeric_limits<double>::infinity())}) {
+            for(const char* which:{"X","X0","S"}) {
+                reset(); matrices[which].values.back()=value;
+                rejected({"distance_batch","l2","X","X0","S","D"});
+            }
+        }
         for(int kind=1;kind<=3;++kind) {
             reset(); injected_exception=kind;
             require(invoke({"distance_batch","l2","X","X0","none","D"})==(kind==1?909:498),
@@ -97,13 +129,13 @@ int main() {
         rejected({"distance_batch","l2","X","X0","none","D"}); reset();
         matrices["S"]={2,1,{1,1}};
         rejected({"distance_batch","l2","X","X0","S","D"}); reset();
-        for(double bad:{0.0,-1.0,8.988e307,std::numeric_limits<double>::infinity(),
+        for(double bad:{0.0,-1.0,missing_boundary,std::numeric_limits<double>::infinity(),
                         std::numeric_limits<double>::quiet_NaN()}) {
             reset(); matrices["S"].values[1]=bad;
             rejected({"distance_batch","l2","X","X0","S","D"});
         }
         for(const char* which:{"X","X0"}) {
-            reset(); matrices[which].values.back()=8.988e307;
+            reset(); matrices[which].values.back()=missing_boundary;
             rejected({"distance_batch","l2","X","X0","none","D"});
             reset(); read_failure=which;
             require(invoke({"distance_batch","l2","X","X0","none","D"})==111,

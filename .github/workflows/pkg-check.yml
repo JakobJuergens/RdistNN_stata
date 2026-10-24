@@ -26,6 +26,20 @@ jobs:
         shell: bash
         run: bash tools/ci/pkg_check.sh
 
+      - name: Install pinned Python analyzer
+        run: python3 -m pip install ruff==0.17.2
+
+      - name: Install pinned PowerShell analyzer
+        shell: pwsh
+        run: Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser -Force -ErrorAction Stop
+
+      - name: Check maintained Python scripts
+        run: python3 tools/ci/check_scripts.py
+
+      - name: Check maintained PowerShell scripts
+        shell: pwsh
+        run: ./tools/ci/check_powershell.ps1
+
       - name: Run repository and package maintenance tests
         shell: bash
         run: python3 -m unittest discover -s tests/ci -v

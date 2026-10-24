@@ -113,3 +113,73 @@ real colvector rdistnn_plqr_indicator(real matrix D, real colvector theta,
     return(below)
 }
 end
+
+// Fresh-command IO with function-local scratch.
+capture mata: mata drop rdistnn_plqr_fit_ado()
+mata:
+void rdistnn_plqr_fit_ado()
+{
+    real scalar ado_k,ado_s,ado_scaleeps,ado_tau,_pl_neff
+    string scalar ado_V,ado_b,ado_diagnostics,ado_distance,ado_dvars,ado_gvar,ado_mdvars,ado_method
+    string scalar ado_model_distances,ado_model_geometry,ado_model_groups,ado_model_ranks
+    string scalar ado_model_signals,ado_outcome,ado_scalerule,ado_scalevec,ado_targets,ado_theta_mat
+    string scalar ado_thetaeval,ado_touse,ado_x0,ado_xvars
+    real matrix _pl_D,_pl_DX,_pl_V,_pl_X,_pl_below,_pl_g0,_pl_geometry,_pl_groups,_pl_md,_pl_moment,_pl_ranks,_pl_resid,_pl_score,_pl_theta,_pl_w,_pl_x0,_pl_y
+    ado_k=strtoreal(st_local("k"))
+    ado_s=strtoreal(st_local("s"))
+    ado_scaleeps=strtoreal(st_local("scaleeps"))
+    ado_tau=strtoreal(st_local("tau"))
+    ado_V=st_local("V")
+    ado_b=st_local("b")
+    ado_diagnostics=st_local("diagnostics")
+    ado_distance=st_local("distance")
+    ado_dvars=st_local("dvars")
+    ado_gvar=st_local("gvar")
+    ado_mdvars=st_local("mdvars")
+    ado_method=st_local("method")
+    ado_model_distances=st_local("model_distances")
+    ado_model_geometry=st_local("model_geometry")
+    ado_model_groups=st_local("model_groups")
+    ado_model_ranks=st_local("model_ranks")
+    ado_model_signals=st_local("model_signals")
+    ado_outcome=st_local("outcome")
+    ado_scalerule=st_local("scalerule")
+    ado_scalevec=st_local("scalevec")
+    ado_targets=st_local("targets")
+    ado_theta_mat=st_local("theta_mat")
+    ado_thetaeval=st_local("thetaeval")
+    ado_touse=st_local("touse")
+    ado_x0=st_local("x0")
+    ado_xvars=st_local("xvars")
+
+    _pl_X      = st_data(., ado_xvars, ado_touse)
+    _pl_y      = st_data(., ado_outcome, ado_touse)
+    _pl_D      = st_data(., ado_dvars, ado_touse)
+    _pl_g0     = st_data(., ado_gvar, ado_touse)
+    _pl_md     = st_data(., ado_mdvars, ado_touse)
+    _pl_x0     = strtoreal(tokens(ado_x0))
+    _pl_theta  = strtoreal(tokens(ado_thetaeval))'
+    // Match the R reference and the other estimators: rank the reported
+    // distance matrix, with original observation IDs ordering exact ties.
+    _pl_geometry = rdistnn_fit_geometry(_pl_X,ado_distance,ado_scalerule,strtoreal(tokens(ado_scalevec)),ado_scaleeps)
+    _pl_DX     = rdistnn_distance_matrix(_pl_X, _pl_x0, ado_distance, _pl_geometry)
+    _pl_ranks  = rdistnn_ranks_from_dmat(_pl_DX)
+    _pl_groups=rdistnn_distance_groups(_pl_ranks,_pl_DX,1)
+    _pl_w      = rdistnn_weights_from_rmat(_pl_ranks, ado_k, ado_s, ado_method,_pl_DX,_pl_groups)
+    _pl_below = rdistnn_plqr_indicator(_pl_D,_pl_theta,_pl_g0,_pl_y)
+    _pl_resid  = ado_tau :- _pl_below
+    _pl_score  = (_pl_D :- _pl_md) :* (_pl_resid * J(1, cols(_pl_D), 1))
+    _pl_moment = rdistnn_weighted_signals(_pl_w, _pl_score)
+    _pl_V      = rdistnn_jk_cov_from_ranks(_pl_ranks, _pl_score, ado_k, ado_s, ado_method,_pl_DX,_pl_groups)
+    _pl_neff   = 1 / sum(_pl_w :^2)
+    st_matrix(ado_b, _pl_moment)
+    st_matrix(ado_V, _pl_V)
+    st_matrix(ado_theta_mat, _pl_theta')
+    st_numscalar("r(neff)", _pl_neff)
+    st_matrix(ado_targets,_pl_x0)
+    st_matrix(ado_model_groups,_pl_groups); st_matrix(ado_model_signals,_pl_score); st_matrix(ado_model_ranks,_pl_ranks); st_matrix(ado_model_distances,_pl_DX)
+    if(any(ado_distance:==("mahalanobis","l1_scaled","l2_scaled"))) st_matrix(ado_model_geometry,_pl_geometry)
+    st_matrix(ado_diagnostics,rdistnn_diagnostics("plqr_dnn",_pl_X,_pl_x0,_pl_score,_pl_w,_pl_DX,ado_k,ado_s,_pl_moment,J(0,1,.),J(0,1,.)))
+
+}
+end

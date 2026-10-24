@@ -1,6 +1,7 @@
 # R documentation coverage and Stata equivalents
 
-This map covers version **0.1.3** of both packages. The reference inventory
+This map covers the **0.1.4** interfaces of both packages. The version-pinned
+release is **v0.1.4**. The reference inventory
 is R's [article source directory](https://github.com/JakobJuergens/RdistNN/tree/master/vignettes)
 and [pkgdown reference index](https://github.com/JakobJuergens/RdistNN/blob/master/_pkgdown.yml).
 The current map follows all 13 articles and 15 reference families, including
@@ -86,13 +87,20 @@ MSE improvement are not established.
 | `predict(fit, X0=...)` | `rdistnn_predict, x0matrix(NEW) sefit`; saved numeric model, no active data required |
 | `plot_data_*()` | `rdistnn_results` exports estimates, covariance, diagnostics, weights and contributions without graphs; `_plot` retains view-specific `r(plot_data)` |
 | `se=FALSE` / `jackknife="none"` | `nose` in CATE/CLATE/NP; standalone weights have no SE, PLQR always computes moment covariance |
+| `options(RdistNN.use_compiled = FALSE)` | Select `mata` separately with `rdistnn_distance_engine` and `rdistnn_jackknife_engine`; see the [plugin guide](../src/plugin/README.md#select-or-diagnose-an-engine) |
+
+R's `RdistNN.use_compiled = TRUE` permits automatic native dispatch for eligible
+primitives. Stata's explicit `plugin` selector requires that engine; its `auto`
+mode follows the availability and workload rules in the plugin guide. Both
+packages propagate native execution failures rather than retrying them through
+the portable engine.
 
 Removing underscores is a useful naming guide for CATE/NP options:
 PLQR uses `x()`, `d()`, `g()`, `md()` and `thetaeval()`, while CLATE has its
 own binary-IV and paired-signal grammar.
 
 R CATE exposes joint target covariance through
-[`vcov()`](https://JakobJuergens.github.io/RdistNN/reference/vcov.cate_result.html),
+[`vcov()`](https://JakobJuergens.github.io/RdistNN/reference/vcov.rdistnn_cate_result.html),
 alongside Stata's `e(V)`. This covariance supplies the arithmetic for prespecified
 contrasts; valid contrast inference requires the corresponding joint assumptions.
 It does not make default pointwise intervals simultaneous. A joint CLATE covariance
@@ -111,3 +119,7 @@ channels, not to a second numeric code system. Both implementations reuse
 validated exact-distance groups and provide bounded target-family summaries.
 Stata quiet/capture examples and statuses are documented in
 [diagnostics and reporting](diagnostics-and-reporting.md#warnings-and-failures).
+R retains target diagnostic notice facts/counts in `meta$target_notices` and
+`meta$n_tied_targets` / `meta$n_weak_targets`; Stata exposes the corresponding
+flags in `e(target_notices)` and counts in `e()` and documented selected/derived
+`r()` results. These facts remain accessible when console notices are suppressed.

@@ -15,8 +15,8 @@
 {bf:np_dnn} {hline 2} Nonparametric regression via distributional nearest neighbors
 
 {pstd}
-Stata 17 or later is required. See {help rdistnn} for the package overview.
-This help describes the interface in package {bf:0.1.3}.
+Stata 17 or later is required. See {help rdistnn} for the package version
+and overview.
 
 {marker syntax}{...}
 {title:Syntax}

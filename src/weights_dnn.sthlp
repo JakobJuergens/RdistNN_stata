@@ -13,8 +13,8 @@
 {bf:weights_dnn} {hline 2} Construct normalized DNN rank weights at one or more targets
 
 {pstd}
-Stata 17 or later. For the package overview and article collection, see
-{help rdistnn}. This help describes package {bf:0.1.3}.
+Stata 17 or later. For the package version, overview and article collection,
+see {help rdistnn}.
 
 {marker syntax}{...}
 {title:Syntax}
@@ -163,7 +163,11 @@ engine.
 For jackknife parity checks, {cmd:global rdistnn_jackknife_engine naive}
 selects explicit deletions; {cmd:mata} selects fast Mata and {cmd:plugin}
 requires compiled prefix/suffix sums. Drop that global for automatic compiled,
-fast Mata, then naive fallback. Native distance and jackknife matrices created
+fast Mata, then naive fallback when native capability is unavailable. A native
+execution failure stops even in auto mode; allocation failures retain code 909,
+Break retains code 1, and unexpected plugin failures use 498. See
+{help rdistnn##failures:Warnings and failures} for handling return codes.
+Native distance and jackknife matrices created
 through Mata may exceed {cmd:c(matsize)}; dispatch preserves that setting.
 
 {title:Distance scaling}
@@ -205,6 +209,9 @@ MSE improvement are not established; outcomes and nuisances do not define groups
 
 {pstd}
 Copy r-class results before running another command that overwrites them.
+{pstd}
+r(n_tied_targets) and r(n_weak_targets) report counts from prepared distance
+groups and actual weights, including under quietly; e() is preserved.
 {cmd:r(weights)}, {cmd:r(ranks)}, {cmd:r(distances)} and {cmd:r(groups)} retain
 n-by-m numeric matrices; groups are integer IDs for exact represented distance
 equality within each target. {cmd:r(row_ids)} maps rows to original observations.

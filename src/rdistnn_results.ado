@@ -10,26 +10,25 @@ program define rdistnn_results, rclass
             findfile "`file'"
             quietly run "`r(fn)'"
         }
-        mata: rdistnn_model_validate()
     }
+    _rdistnn_model_check
     local m=e(m)
     if missing(`m') | `m'<1 | `m'!=floor(`m') {
         di as error "Current fitted results require a positive integer e(m); refit `e(cmd)' with the current package."
         exit 498
     }
-    if "`targets'"=="" numlist "1/`m'"
-    if "`targets'"=="" local targets "`r(numlist)'"
     foreach t of local targets {
         if `t'>`m' error 198
     }
     local targets : list uniq targets
-    tempname table summary fit se V data index coordinates selection
-    quietly _rdistnn_report, level(`level')
+    tempname table summary fit se V data index coordinates selection target_index
+    quietly _rdistnn_report, level(`level') validated
     matrix `table'=r(table)
     matrix `summary'=r(summary)
     local q=1
     if "`e(cmd)'"=="plqr_dnn" local q=e(kd)
-    mata: st_matrix("`selection'",vec(J(`q',1,1)*((strtoreal(tokens("`targets'")):-1):*`q')+(1::`q')*J(1,cols(tokens("`targets'")),1))')
+    mata: st_matrix("`target_index'",rdistnn_model_target_index(strtoreal(tokens("`targets'")),`m'))
+    mata: st_matrix("`selection'",vec(J(`q',1,1)*((st_matrix("`target_index'"):-1):*`q')+(1::`q')*J(1,cols(st_matrix("`target_index'")),1))')
     mata: st_matrix("`table'",st_matrix("`table'")[,st_matrix("`selection'")]); st_matrix("`summary'",st_matrix("`summary'")[st_matrix("`selection'"),])
     matrix `fit'=`table'[1,1...]
     matrix `se'=`table'[2,1...]
@@ -57,22 +56,26 @@ program define rdistnn_results, rclass
             di as error "No `type' are stored for this fit."
             exit 498
         }
-        mata: st_matrix("`data'",(strtoreal(tokens("`targets'"))',st_matrix("e(`field')")[strtoreal(tokens("`targets'")),]))
+        mata: st_matrix("`data'",(st_matrix("`target_index'")',st_matrix("e(`field')")[st_matrix("`target_index'"),]))
         matrix colnames `data'=target `:colnames e(`field')'
     }
     if inlist("`type'","weights","influence") {
         if "`type'"=="influence" & !inlist("`e(cmd)'","cate_dnn","clate_dnn") error 198
         if "`type'"=="weights" {
-            noisily mata: st_matrix("`data'",rdistnn_model_weights(strtoreal(tokens("`targets'"))))
+            noisily mata: st_matrix("`data'",rdistnn_model_weights(st_matrix("`target_index'"),1))
             matrix colnames `data'=observation_id target rank distance weight
         }
         else {
-            noisily mata: st_matrix("`data'",rdistnn_model_plot_data("influence",strtoreal(tokens("`targets'"))))
+            noisily mata: st_matrix("`data'",rdistnn_model_plot_data("influence",st_matrix("`target_index'"),1))
             if "`e(cmd)'"=="clate_dnn" matrix colnames `data'=target observation_id rank distance weight score contribution phi_y phi_d
             else matrix colnames `data'=target observation_id rank distance weight score contribution
         }
     }
-    _rdistnn_report_notices, targets(`targets')
+    local targetopt ""
+    if "`targets'"!="" local targetopt "targets(`targets')"
+    _rdistnn_report_notices, `targetopt'
+    local n_tied_targets=r(n_tied_targets)
+    local n_weak_targets=r(n_weak_targets)
     quietly _rdistnn_diagnostics_save, matrix(`data') saving(`saving') `replace'
     if "`e(cmd)'"=="plqr_dnn" {
         tempname theta
@@ -89,5 +92,7 @@ program define rdistnn_results, rclass
     return matrix index=`index'
     return matrix data=`data'
     return scalar level=`level'
+    return scalar n_tied_targets=`n_tied_targets'
+    return scalar n_weak_targets=`n_weak_targets'
     return local type "`type'"
 end

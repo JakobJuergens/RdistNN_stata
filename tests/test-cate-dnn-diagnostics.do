@@ -139,3 +139,50 @@ test_assert "[diagnostics] top-five absolute score share detects concentration" 
     D_score_concentrated[1,25] > .85
 test_assert "[diagnostics] score share remains distinct from top-five raw-weight share" ///
     abs(D_score_concentrated[1,25] - D_score_concentrated[1,4]) > .01
+
+
+test_section "cate_dnn: [diagnostics] underflowed within-arm squares"
+// Literal powers of two give independent ESS (a+b)^2/(a^2+b^2)=9/5.
+// The positive subnormal square fixture also loses the smaller square entirely.
+mata {
+    _essA=(0\1\1)
+    _essSignals=J(3,2,0)
+    _essDiag=J(1,25,.)
+    _essDiag[1,1]=1
+    for(_essPow=537;_essPow<=600;_essPow=_essPow+63) {
+        _essW=(1\rdistnn_power2(-_essPow)\rdistnn_power2(-_essPow-1))
+        for(_essFlip=0;_essFlip<=1;_essFlip++) {
+            _essOut=rdistnn_clate_diagnostics(_essDiag,_essW,_essSignals,0,
+                abs(_essA:-_essFlip),J(0,0,.))
+            st_numscalar("_essLiteral"+strofreal(_essPow)+strofreal(_essFlip),
+                _essOut[1,22+_essFlip])
+            _essOut=rdistnn_clate_diagnostics(_essDiag,(1\.5\.25),_essSignals,0,
+                abs(_essA:-_essFlip),J(0,0,.))
+            st_numscalar("_essNormal"+strofreal(_essPow)+strofreal(_essFlip),
+                _essOut[1,22+_essFlip])
+            _essOut=rdistnn_clate_diagnostics(_essDiag,(1\_essW[2]\0),_essSignals,0,
+                abs(_essA:-_essFlip),J(0,0,.))
+            st_numscalar("_essSingleton"+strofreal(_essPow)+strofreal(_essFlip),
+                _essOut[1,22+_essFlip])
+        }
+    }
+    _essOut=rdistnn_clate_diagnostics(_essDiag,(1\0\0),_essSignals,0,
+        _essA,J(0,0,.))
+    st_numscalar("_essLiteralZero",_essOut[1,22])
+    _essW=(.5\.25\.125)
+    _essOut=rdistnn_clate_diagnostics(_essDiag,_essW,_essSignals,0,
+        _essA,J(0,0,.))
+    st_numscalar("_essOrdinarySame",_essOut[1,22]==quadsum(_essW[2..3])^2/quadsum(_essW[2..3]:^2))
+}
+foreach power in 537 600 {
+    foreach flip in 0 1 {
+        test_assert "[diagnostics] binary arm `flip' square exponent `power' recovers independent ESS 9/5" ///
+            abs(scalar(_essLiteral`power'`flip')-9/5)<1e-14
+        test_assert "[diagnostics] arm `flip' exponent `power' common scaling preserves ESS" ///
+            abs(scalar(_essLiteral`power'`flip')-scalar(_essNormal`power'`flip'))<1e-14
+        test_assert "[diagnostics] arm `flip' exponent `power' positive singleton has ESS one" ///
+            scalar(_essSingleton`power'`flip')==1
+    }
+}
+test_assert "[diagnostics] true zero-mass arm retains missing ESS" missing(scalar(_essLiteralZero))
+test_assert "[diagnostics] ordinary arm ESS preserves established expression exactly" scalar(_essOrdinarySame)

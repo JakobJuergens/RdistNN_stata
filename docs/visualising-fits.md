@@ -225,8 +225,8 @@ installed plotting help before reusing R's `plot_data_*()` examples.
 Single-view commands return `r(plot_data)` and the row count `r(n_rows)`.
 Copy the matrix before another r-class command replaces it. Use original
 target and candidate IDs when joining to fitted results. Estimate panels
-omit undefined ratios; full fit tables retain all target rows. Do not assume
-`r(n_plotted)` means the number of returned rows.
+omit undefined ratios; full fit tables retain all target rows. Estimate/tuning
+`r(n_omitted)` counts rows removed for missing estimates.
 
 The installed plotting help lists each view's column schema and metadata.
 For numeric reports without drawing a graph, use
@@ -248,8 +248,8 @@ for grid fits. Their graphs retain CATE, CLATE, instrument or conditional-mean
 labels as appropriate. Dashboards do not reconstruct kernels or influence.
 
 `r(panels)` lists composed panels in order, `r(n_panels)` counts them, and
-`r(panel_info)` has columns `panel_id n_rows n_plotted`. Its counts retain
-the definitions for each panel. A dashboard returns no common
+`r(panel_info)` has columns `panel_id n_rows`, with each panel's actual
+data-row count. A dashboard returns no common
 `r(plot_data)` matrix and has `r(n_rows)=.`. Select individual views when
 you need their data, target restrictions, or panel-specific options.
 

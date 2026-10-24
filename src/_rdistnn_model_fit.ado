@@ -2,13 +2,13 @@
 // Post a derived fit from frozen numeric state; callers control e() restoration.
 program define _rdistnn_model_fit, eclass
     version 17
-    syntax, TARGETS(name) S(integer) [COVariance(string) CANDIDATE(integer 0)]
+    syntax, TARGETS(name) S(integer) [COVariance(string) CANDIDATE(integer 0) VALIDATED]
     if !inlist("`e(cmd)'","np_dnn","np_tdnn","cate_dnn","clate_dnn","plqr_dnn") error 301
     if "`e(cmd)'"=="cate_dnn" & !inlist("`e(score_method)'","aipw","pseudo_outcome") {
         di as error "Current CATE saved results require AIPW or supplied pseudo-outcomes; refit cate_dnn."
         exit 498
     }
-    if e(model_version)!=3 {
+    if e(model_version)!=4 {
         di as error "Active estimates have no supported saved model; refit with the current package version."
         exit 498
     }
@@ -32,7 +32,8 @@ program define _rdistnn_model_fit, eclass
         quietly run "`r(fn)'"
     }
     tempname b V diagnostics components componentV status neff ranks DX W fit ses groups
-    mata: rdistnn_model_evaluate("`targets'",`s',`active',tokens("`b' `V' `diagnostics' `components' `componentV' `status' `neff' `ranks' `DX' `W' `fit' `groups'"))
+    local verified=("`validated'"!="")
+    mata: rdistnn_model_evaluate("`targets'",`s',`active',tokens("`b' `V' `diagnostics' `components' `componentV' `status' `neff' `ranks' `DX' `W' `fit' `groups'"),`verified')
     mata: st_matrix("`ses'",sqrt(diagonal(st_matrix("`V'")))')
     _rdistnn_model_post, targets(`targets') s(`s') active(`active') candidate(`candidate') ///
         b(`b') v(`V') diagnostics(`diagnostics') components(`components') componentv(`componentV') ///

@@ -2,11 +2,13 @@
 // Isolate all derived-fit changes, including failures, from the caller's e().
 program define _rdistnn_reuse, rclass
     version 17
-    syntax, TARGETS(name) S(integer) COVARIANCE(string) [POST STORE(name) Level(cilevel) CANDIDATE(integer 0)]
+    syntax, TARGETS(name) S(integer) COVARIANCE(string) [POST STORE(name) Level(cilevel) CANDIDATE(integer 0) VALIDATED]
+    local notice_noisily ""
+    if c(noisily) local notice_noisily "noisily"
     tempname original derived
     _estimates hold `original', copy restore
     capture noisily {
-        quietly _rdistnn_model_fit, targets(`targets') s(`s') covariance(`covariance') candidate(`candidate')
+        quietly _rdistnn_model_fit, targets(`targets') s(`s') covariance(`covariance') candidate(`candidate') `validated'
         estimates store `derived'
         quietly rdistnn_results, level(`level')
         local quantity "`r(quantity)'"
@@ -21,7 +23,14 @@ program define _rdistnn_reuse, rclass
         if "`store'"!="" estimates store `store'
     }
     local rc=_rc
-    if !`rc' _rdistnn_report_notices
+    if !`rc' {
+        capture `notice_noisily' _rdistnn_report_notices
+        local rc=_rc
+        if !`rc' {
+            local n_tied_targets=r(n_tied_targets)
+            local n_weak_targets=r(n_weak_targets)
+        }
+    }
     _estimates unhold `original'
     if `rc' {
         capture estimates drop `derived'
@@ -34,6 +43,8 @@ program define _rdistnn_reuse, rclass
     }
     if "`quantity'"=="moment" return matrix theta_eval=`theta'
     return local quantity "`quantity'"
+    return scalar n_tied_targets=`n_tied_targets'
+    return scalar n_weak_targets=`n_weak_targets'
     return scalar level=`level'
     return scalar s=`s'
     if `candidate'>0 return scalar candidate=`candidate'

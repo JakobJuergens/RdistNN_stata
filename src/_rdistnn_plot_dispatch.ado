@@ -134,15 +134,15 @@ program define _rdistnn_plot_dispatch, rclass
     else if "`type'"=="diagnostics" _cate_dnn_plot_diagnostics, `common' `topt' `copt'
     else if "`type'"=="tuning" _cate_dnn_plot_tuning, `common' level(`level') `topt' candidates(`selected_candidates')
     else if "`type'"=="overlap" _cate_dnn_plot_overlap, `common' xindex(`xindex') `topt' `vopt' `shareopt'
-    else if "`type'"=="weights" _cate_dnn_plot_weights, `common' `topt' `copt' `vopt' `logweights'
-    else if "`type'"=="influence" _cate_dnn_plot_influence, `common' `topt' nlabel(`nlabel')
+    else if "`type'"=="weights" _cate_dnn_plot_weights, `common' `topt' `copt' `vopt' `logweights' validated
+    else if "`type'"=="influence" _cate_dnn_plot_influence, `common' `topt' nlabel(`nlabel') validated
     else if "`type'"=="outcome" _np_dnn_plot_outcome, `common' xindex(`xindex') `topt'
-    else if "`family'"=="np" _np_dnn_plot_dashboard, `common' level(`level') xindex(`xindex') `sopt'
-    else _cate_dnn_plot_dashboard, `common' level(`level') xindex(`xindex') `sopt'
+    else if "`family'"=="np" _np_dnn_plot_dashboard, `common' level(`level') xindex(`xindex') `sopt' validated
+    else _cate_dnn_plot_dashboard, `common' level(`level') xindex(`xindex') `sopt' validated
 
     tempname plot_data panel_info
     local built_view "`r(view)'"
-    local built_n = r(n_plotted)
+    local built_panels = r(n_panels)
     local panels "`r(panels)'"
     local built_rows = r(n_rows)
     local omitted = r(n_omitted)
@@ -159,7 +159,7 @@ program define _rdistnn_plot_dispatch, rclass
         local tid : list posof "target_id" in columns
         local cid : list posof "candidate_id" in columns
         if `tid' {
-            mata: _rdnn_ids=st_matrix("`plot_data'")[,`tid']; st_local("plotted_targets", invtokens(strofreal(uniqrows(select(_rdnn_ids,_rdnn_ids:<.)))'))
+            mata: rdistnn_plot_target_ids("`plot_data'",`tid',"plotted_targets")
             if "`plotted_targets'"!="" return local targets "`plotted_targets'"
         }
         if `cid' {
@@ -173,7 +173,7 @@ program define _rdistnn_plot_dispatch, rclass
     else {
         return matrix panel_info = `panel_info'
         return scalar n_rows = .
-        return scalar n_panels = `built_n'
+        return scalar n_panels = `built_panels'
         return local panels "`panels'"
     }
     if inlist("`type'", "estimates", "tuning") {
@@ -183,7 +183,6 @@ program define _rdistnn_plot_dispatch, rclass
     return local type "`type'"
     return local view "`built_view'"
     return local graph "`name'"
-    return scalar n_plotted = `built_n'
     return local saved `saving'
 end
 
@@ -223,7 +222,7 @@ end
 
 program define _rdistnn_plot_sample_guard
     version 17
-    if e(model_version)!=3 {
+    if e(model_version)!=4 {
         di as error "Observation-level plots require current fitted model state; refit `e(cmd)' with the current package."
         exit 498
     }
@@ -253,14 +252,8 @@ end
 program define _rdistnn_plot_add_panel
     version 17
     syntax , MATRIX(name) ID(integer)
-    tempname data
-    local n = r(n_plotted)
     local nr = r(n_rows)
-    if `nr'!=0 {
-        matrix `data' = r(plot_data)
-        local nr = rowsof(`data')
-    }
-    if `id'==1 matrix `matrix' = (`id', `nr', `n')
-    else matrix `matrix' = `matrix' \ (`id', `nr', `n')
-    matrix colnames `matrix' = panel_id n_rows n_plotted
+    if `id'==1 matrix `matrix' = (`id', `nr')
+    else matrix `matrix' = `matrix' \ (`id', `nr')
+    matrix colnames `matrix' = panel_id n_rows
 end

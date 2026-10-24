@@ -1,15 +1,24 @@
 version 17
 // One public reporting boundary reads already validated fit facts. Numerical
 // kernels and quiet nested consumers do not own notice frequency.
-program define _rdistnn_report_notices
+program define _rdistnn_report_notices, rclass
     version 17
     syntax [, TARGETS(numlist integer >=1)]
-    if !c(noisily) exit
     local m=e(m)
     local targets : list uniq targets
-    if "`targets'"=="" mata: rdistnn_distance_warning(st_matrix("e(model_groups)"))
-    else mata: rdistnn_distance_warning(st_matrix("e(model_groups)")[,strtoreal(tokens("`targets'"))])
-    local concentration_column=cond("`e(cmd)'"=="np_tdnn",5,1)
+    tempname counts
+    if "`targets'"=="" {
+        mata: st_matrix("`counts'",colsum(st_matrix("e(target_notices)")))
+    }
+    else {
+        mata: st_matrix("`counts'",colsum(st_matrix("e(target_notices)")[strtoreal(tokens("`targets'")),]))
+    }
+    return scalar n_tied_targets=el(`counts',1,1)
+    return scalar n_weak_targets=el(`counts',1,2)
+    if !c(noisily) exit
+    if el(`counts',1,1)>0 {
+        _rdistnn_messages warning, message("Exact distance ties detected; weights are averaged within each target's equal-distance blocks, including jackknife deletions. The theory assumes a continuous distance distribution and does not establish inference for persistent ties.")
+    }
     // The established near-uniform guide is descriptive, not a validity test.
     local count 0
     local examples ""
@@ -18,7 +27,7 @@ program define _rdistnn_report_notices
             local included : list j in targets
             if !`included' continue
         }
-        if e(N)>=2 & el(e(diagnostics),`j',`concentration_column')>=.9*e(N) {
+        if el(e(target_notices),`j',2)==1 {
             local ++count
             if `count'<=5 local examples "`examples' `j'"
         }
@@ -85,4 +94,6 @@ program define _rdistnn_report_notices
             }
         }
     }
+    return scalar n_tied_targets=el(`counts',1,1)
+    return scalar n_weak_targets=el(`counts',1,2)
 end

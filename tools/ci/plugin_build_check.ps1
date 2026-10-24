@@ -56,6 +56,7 @@ try {
         "rdistnn_plugin.cpp",
         "stplugin.c",
         "stplugin.h",
+        "test_stata_sdk.hpp",
         "test_rdistnn_core.cpp",
         "test_rdistnn_blocks.cpp",
         "test_rdistnn_loo_plugin.cpp",

@@ -192,6 +192,23 @@ two steps, avoiding an overflowing or underflowing scale product. A shared
 diagonal reduction keeps marginal and joint variances aligned. Symmetric
 assembly preserves diagonal values and never doubles a large covariance.
 
+Binary column normalization can nevertheless erase a small original entry or
+cross-product. Sensitive off-diagonals involving normalized columns therefore
+retry original-scale centering and compensated high/residual products, caching
+each column once. Accept that value only when its products, sum and final
+scaled result are finite and every nonzero-operand product remains normal;
+otherwise keep the normalized answer. Separately rounded nonzero subnormal
+products can cancel to zero even when their normalized cross-entry remains
+representable, so a zero-only product check is insufficient. The common normal
+boundary is `2^-1022`, matching
+[R's `double.xmin`](https://stat.ethz.ch/R-manual/R-devel/library/base/html/zMachine.html).
+Ordinary covariance has no second product pass.
+Exceptional full covariance retains O(n*q) scratch; marginal variances keep
+their existing arithmetic. This repair is shared with R and does not promise
+correctly rounded covariance for every ill-conditioned input. See the
+[shared geometry/covariance design](https://github.com/JakobJuergens/RdistNN/blob/master/markdown_notes/design/18_geometry_and_covariance_arithmetic.md)
+for its source basis and independent regression contract.
+
 Exact constant columns have zero variance. Nonzero variation with a zero,
 negative or nonfinite final variance is unavailable. Ordinary estimators raise
 a rescaling error instead of reporting false-zero or infinite uncertainty;
@@ -371,8 +388,11 @@ the engine recorded by localization.
 
 `_rdistnn_model_fit.ado` coordinates current saved-model checks, numeric
 evaluation and derived-result posting. `_rdistnn_model_check.ado` validates the
-complete schema-3 snapshot before cached consumers, including ranks, distances,
-per-target groups, selected policy, frozen geometry and stored arm inputs.
+complete schema-4 snapshot before cached consumers, including ranks, distances,
+per-target groups, selected policy, frozen geometry, stored arm inputs and
+diagnostic notice facts/counts. Tie flags are checked during the existing
+rank/group validation pass; weak flags retain the established concentration
+criterion. These are diagnostic facts, not persisted warning-history flags.
 `_rdistnn_model_decode.ado` decodes that current state;
 `_rdistnn_model_mata.ado` evaluates the estimator. Posting, coefficient stripes,
 descriptive metadata and uncertainty labels belong to `_rdistnn_model_post.ado`.

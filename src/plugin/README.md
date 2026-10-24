@@ -5,6 +5,12 @@ plugin accelerates distances and frozen-rank jackknife deletions. These have
 separate dispatchers: a small, low-dimensional fit can use Mata distances and
 native jackknife calculations.
 
+Optional plugin declaration may select the portable engine when the binary is
+absent or cannot be dynamically loaded on the host. Unexpected declaration
+failures, Break and resource errors preserve their original Stata return code;
+they are not cached as unavailable acceleration. This loader policy is separate
+from the native execution and capability-probe contracts.
+
 ## Install a matching binary
 
 The bundled `src/rdistnn.plugin` is a **Windows x64** binary. Linux and macOS
@@ -48,11 +54,19 @@ global rdistnn_jackknife_engine plugin
 | Control | Values and automatic behavior |
 | --- | --- |
 | `rdistnn_distance_engine` | `auto`, `mata`, `plugin`. Auto considers native batches when `p >= 16`, `m >= 16` and `n*p*m >= 20000000`; otherwise it uses Mata. |
-| `rdistnn_jackknife_engine` | `auto`, `plugin`, `mata`, `naive`. Auto attempts native prefix/suffix deletions, then Mata prefix/suffix sums, then explicit deletions. The distance size thresholds do not apply. |
+| `rdistnn_jackknife_engine` | `auto`, `plugin`, `mata`, `naive`. Auto uses native prefix/suffix deletions when available; otherwise it tries Mata prefix/suffix sums, then explicit deletions. Native execution failures stop. The distance size thresholds do not apply. |
 | `rdistnn_use_plugin` | In auto mode, `0` skips native calls and `1` requires them, bypassing distance size thresholds. An explicit engine selector takes precedence. |
 
 Explicit `plugin` or `mata` selections surface failures rather than silently
-switching engines. `rdistnn_last_distance_engine` records the last distance
+switching engines. Automatic fallback applies to absent or unloadable binaries
+and missing native capabilities. A native execution failure stops the
+command, including in `auto` mode: allocation failures retain code 909, Break
+retains code 1, and unexpected plugin failures use 498. Inspect the explanation
+before choosing an explicit Mata rerun; the package does not retry that failure
+automatically. See the [error-handling guide](../../docs/diagnostics-and-reporting.md#warnings-and-failures)
+for `capture noisily` and saving `_rc`.
+
+`rdistnn_last_distance_engine` records the last distance
 calculation; a cached result may perform no new calculation. It does not report
 the jackknife engine. `rdistnn_last_jackknife_engine` separately records the
 actual deletion route. Remove diagnostic settings afterward:
@@ -63,11 +77,18 @@ macro drop rdistnn_distance_engine rdistnn_jackknife_engine rdistnn_use_plugin
 
 Distances cover L1/L2, fitted scaled variants and projected Mahalanobis norms.
 Mata owns scale fitting, Mahalanobis factorization, ranking and rank weights.
-Capability probing is cached in `rdistnn_distance_plugin_api`;
-restart Stata when changing binaries. Automatic thresholds account for transfer
+Capability probing runs on each dispatch. Restart Stata or reload the plugin
+when replacing a loaded binary. Automatic thresholds account for transfer
 costs and do not guarantee speed; benchmark the workload before forcing an engine.
 
 ## Build from source
+
+For isolated Clang builds, Bear compilation databases, clang-tidy and
+ASan/UBSan checks on Linux/WSL, use the
+[developer analysis profiles](https://github.com/JakobJuergens/RdistNN_stata/blob/master/CONTRIBUTING.md#developer-analysis-tools)
+from the repository root. They leave this directory's release build settings
+and installed binaries unchanged and run all six standalone native tests.
+Licensed Stata native/Mata checks remain necessary for the host integration.
 
 From this directory, use a C++17 compiler:
 
@@ -147,7 +168,8 @@ first. Raw and packed operations call the same numerical kernels.
 Balanced staging avoids Stata's expensive default stripe construction for tall
 matrices; the logical algorithm and its linear complexity are unchanged.
 Temporary Mata-created Stata matrices can exceed `c(matsize)`; the bridge removes
-them and leaves the dataset unchanged.
+them after successful transfer and before propagating a native error code.
+The dataset is unchanged.
 
 The [numerical reference](../../docs/numerical-stability.md) owns arithmetic,
 range recovery and support-aware covariance centering. Native tests cover the

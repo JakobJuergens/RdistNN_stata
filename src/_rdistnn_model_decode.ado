@@ -1,10 +1,20 @@
 version 17
-// Version-3 numeric snapshot decoding. No score reconstruction or posting.
+// Version-4 numeric snapshot decoding. No score reconstruction or posting.
 capture mata: mata drop rdistnn_model_invalid()
 capture mata: mata drop rdistnn_model_validate()
+capture mata: mata drop rdistnn_model_validate_grid()
 capture mata: mata drop rdistnn_model_decode()
 capture mata: mata drop rdistnn_model_arms()
+capture mata: mata drop rdistnn_model_target_index()
 mata:
+// An empty public selection means every target. Keep that sequence numeric:
+// Stata numlists have a lower size limit than supported result matrices.
+real rowvector rdistnn_model_target_index(real rowvector targets, real scalar m)
+{
+    if(cols(targets)==0) return(1..m)
+    return(targets)
+}
+
 // The numeric snapshot is authoritative only when its pieces agree. Validate
 // cached geometry without refitting distances or modifying any e() value.
 void rdistnn_model_invalid(string scalar reason)
@@ -12,16 +22,149 @@ void rdistnn_model_invalid(string scalar reason)
     rdistnn_fail(498,"Saved model is invalid ("+rdistnn_message_value(reason)+"); refit with the current package.")
 }
 
+// Grid payloads are part of the current snapshot, not alternate fitted models.
+// Check their identities and availability without reconstructing any weights.
+void rdistnn_model_validate_grid(string scalar cmd, real scalar n,
+    real scalar m, real scalar k, real scalar s, string scalar se_method)
+{
+    string scalar mode,source
+    real scalar g,h,ng,default_id,reason,cid,nu,nuf
+    real matrix C,E,H,D,S,Y,A,one
+    real colvector seen,representative
+    mode=st_global("e(tuning_mode)")
+    if(cmd=="plqr_dnn" & mode=="") return
+    if(!any(mode:==("default","grid"))) rdistnn_model_invalid("tuning mode")
+    if(mode!="grid") return
+    if(!any(cmd:==("np_dnn","cate_dnn","clate_dnn"))) rdistnn_model_invalid("candidate command")
+    C=st_matrix("e(tuning_candidates)"); ng=rows(C)
+    E=st_matrix("e(tuning_estimates)"); H=st_matrix("e(tuning_se)")
+    D=st_matrix("e(tuning_diagnostics)")
+    if(ng<1 | cols(C)!=8 | rows(E)!=ng | cols(E)!=m |
+        rows(H)!=ng | cols(H)!=m | rows(D)!=ng | cols(D)!=5) {
+        rdistnn_model_invalid("candidate table dimensions")
+    }
+    if(hasmissing(C[,1..6]) | any(C[,1]:!=(1::ng)) |
+        any(C[,2]:<1) | any(C[,2]:!=floor(C[,2])) |
+        any((C[,3]:!=0):&(C[,3]:!=1)) | sum(C[,3])!=1 |
+        any(C[,7]:>.) | any((C[,7]:<.):&(C[,7]:<=0)) |
+        any(C[,8]:>.) | any(C[,8]:<0) |
+        any((C[,8]:<.):&(C[,8]:!=floor(C[,8])))) {
+        rdistnn_model_invalid("candidate identities, flags or orders")
+    }
+    default_id=selectindex(C[,3])[1]
+    if(st_numscalar("e(tuning_default_candidate)")!=default_id |
+        C[default_id,8]!=s | C[default_id,4]!=1) rdistnn_model_invalid("candidate default anchor")
+    source=st_global("e(tuning_source)")
+    if(!any(source:==("sgrid","lambda_grid"))) rdistnn_model_invalid("candidate source")
+    if(source=="sgrid") {
+        if(any(C[,7]:!=.) | hasmissing(C[,8]) | any(C[,8]:<1) |
+            st_numscalar("e(lambda)")!=.) rdistnn_model_invalid("direct candidate controls")
+    }
+    else if(missing(st_numscalar("e(lambda)")) | st_numscalar("e(lambda)")<=0) {
+        rdistnn_model_invalid("candidate lambda control")
+    }
+    if(any(H:<0) | any(E[default_id,]:!=st_matrix("e(estimates)")) |
+        any(H[default_id,]:!=st_matrix("e(se_targets)"))) rdistnn_model_invalid("candidate default estimates or uncertainty")
+    if(any(st_matrixcolstripe("e(tuning_estimates)"):!=st_matrixcolstripe("e(estimates)")) |
+        any(st_matrixcolstripe("e(tuning_se)"):!=st_matrixcolstripe("e(estimates)"))) {
+        rdistnn_model_invalid("candidate target identities")
+    }
+    if(cmd=="clate_dnn") {
+        Y=st_matrix("e(tuning_reduced_form)"); A=st_matrix("e(tuning_first_stage)")
+        S=st_matrix("e(tuning_target_status)")
+        if(rows(Y)!=ng | cols(Y)!=m | rows(A)!=ng | cols(A)!=m |
+            rows(S)!=ng*m | cols(S)!=7) rdistnn_model_invalid("paired candidate dimensions")
+        if(any(Y[default_id,]:!=st_matrix("e(components)")[,1]') |
+            any(A[default_id,]:!=st_matrix("e(components)")[,2]') |
+            any(S[(default_id-1)*m:+(1::m),3..7]:!=st_matrix("e(status)"))) {
+            rdistnn_model_invalid("paired candidate default anchor")
+        }
+    }
+    seen=representative=J(0,1,.); nu=nuf=0
+    for(g=1;g<=ng;g++) {
+        reason=0
+        if(k>C[g,8]) reason=1
+        else if(se_method!="none" & C[g,8]>=n) reason=2
+        else if(se_method=="none" & C[g,8]>n) reason=3
+        if(C[g,4]!=(reason==0) | C[g,5]!=reason | C[g,6]!=C[g,4]) {
+            rdistnn_model_invalid("candidate feasibility or status")
+        }
+        cid=C[g,2]
+        if(cid>nu+1) rdistnn_model_invalid("candidate computed-order identities")
+        if(cid==nu+1) {
+            if(any(seen:==C[g,8])) rdistnn_model_invalid("candidate duplicate-order identity")
+            seen=seen\C[g,8]; representative=representative\g
+            nu++; nuf=nuf+C[g,4]
+        }
+        else {
+            h=representative[cid]
+            if(C[g,8]!=seen[cid] | any(E[g,]:!=E[h,]) |
+                any(H[g,]:!=H[h,]) | any(D[g,]:!=D[h,])) rdistnn_model_invalid("candidate alias payload")
+            if(cmd=="clate_dnn") {
+                if(any(Y[g,]:!=Y[h,]) | any(A[g,]:!=A[h,]) |
+                    any(S[(g-1)*m:+(1::m),2..7]:!=S[(h-1)*m:+(1::m),2..7])) {
+                    rdistnn_model_invalid("paired candidate alias payload")
+                }
+            }
+        }
+        if(D[g,3]!=min((5,n))) rdistnn_model_invalid("candidate diagnostic support count")
+        if(C[g,4]==0) {
+            if(any(E[g,]:<.) | any(H[g,]:<.) | any(D[g,(1,2,4,5)]:<.)) {
+                rdistnn_model_invalid("infeasible candidate availability")
+            }
+            if(cmd=="clate_dnn") {
+                if(any(Y[g,]:<.) | any(A[g,]:<.) | any(S[(g-1)*m:+(1::m),]:<.)) {
+                    rdistnn_model_invalid("infeasible paired candidate availability")
+                }
+            }
+            continue
+        }
+        if(hasmissing(D[g,]) | D[g,1]<=0 | D[g,2]<0 |
+            D[g,4]<0 | D[g,4]>1+8*epsilon(1) | (D[g,5]!=0 & D[g,5]!=1)) {
+            rdistnn_model_invalid("candidate diagnostic values")
+        }
+        if(cmd!="clate_dnn" & hasmissing(E[g,])) rdistnn_model_invalid("candidate estimate availability")
+        if(se_method=="none") {
+            if(any(H[g,]:<.)) rdistnn_model_invalid("disabled candidate uncertainty")
+        }
+        else if(cmd!="clate_dnn" & hasmissing(H[g,])) rdistnn_model_invalid("candidate uncertainty availability")
+        if(cmd=="clate_dnn") {
+            one=S[(g-1)*m:+(1::m),]
+            if(hasmissing(one) |
+                any(one[,1]:!=g) | any(one[,2]:!=(1::m)) |
+                any(one[,3..7]:!=floor(one[,3..7])) | any(one[,3..7]:<0) |
+                any(one[,3]:>2) | any(one[,6]:>3) | any(one[,(4,5,7)]:>1) |
+                any((E[g,]':>=.):!=(one[,3]:!=0)) |
+                any(((Y[g,]':>=.):|(A[g,]':>=.)):&(one[,3]:!=2))) rdistnn_model_invalid("paired candidate status identities or availability")
+            if(se_method=="none") {
+                if(any(one[,6]:!=1) | any(one[,7]:!=0)) rdistnn_model_invalid("disabled paired candidate status")
+            }
+            else if(any(one[,6]:==1) |
+                any((one[,3]:==0):&(one[,6]:==0):&((H[g,]':<=0):|(H[g,]':>=.))) |
+                any((one[,6]:==2):&((one[,3]:!=0):|(H[g,]':!=0))) |
+                any(((one[,6]:==3):|(one[,3]:!=0)):&(H[g,]':<.)) |
+                any(one[,7]:!=((one[,3]:==0):&(one[,6]:==0)))) {
+                rdistnn_model_invalid("paired candidate uncertainty status")
+            }
+        }
+    }
+    if(st_numscalar("e(tuning_n_candidates)")!=ng |
+        st_numscalar("e(tuning_n_feasible)")!=sum(C[,4]) |
+        st_numscalar("e(tuning_n_skipped)")!=ng-sum(C[,4]) |
+        st_numscalar("e(tuning_n_failed)")!=0 |
+        st_numscalar("e(tuning_n_unique)")!=nuf) rdistnn_model_invalid("candidate counts")
+}
+
 void rdistnn_model_validate()
 {
     string scalar cmd,method,distance,field,se_method,expected_se
-    string rowvector vars,xvars,required
+    string rowvector vars,xvars,required,signature_vars
     real scalar n,p,m,q,k,s,j,i,r,a,b,c,first,group,columns,clip,tol
-    real matrix X,T,S,R,D,I,G,ids,groups,B,H,V,C
-    real colvector ord,variance
+    real matrix X,T,S,R,D,I,G,ids,groups,B,H,V,C,notices
+    real colvector ord,variance,ties,weak
     cmd=st_global("e(cmd)"); method=st_global("e(method)")
     distance=st_global("e(distance)")
-    if(st_numscalar("e(model_version)")!=3 |
+    if(st_numscalar("e(model_version)")!=4 |
         st_global("e(tie_rule)")!="exact_distance_block_averaging_v1" |
         !any(cmd:==("np_dnn","np_tdnn","cate_dnn","clate_dnn","plqr_dnn")) |
         !any(method:==("exact","asymp")) |
@@ -40,6 +183,10 @@ void rdistnn_model_validate()
     ids=st_matrix("e(model_row_ids)")
     n=rows(X); p=cols(X); m=rows(T); q=cols(S)
     vars=tokens(st_global("e(model_vars)")); xvars=tokens(st_global("e(xvars)"))
+    signature_vars=tokens(st_global("e(signature_vars)"))
+    if(cols(signature_vars)!=cols(vars) | cols(signature_vars)<1 |
+        st_global("e(ordered_signature)")=="") rdistnn_model_invalid("retained input signature metadata")
+    if(any(signature_vars:!=vars)) rdistnn_model_invalid("retained signature variable identities")
     if(n<1 | p<1 | m<1 | st_numscalar("e(N)")!=n |
         st_numscalar("e(p)")!=p | st_numscalar("e(kx)")!=p |
         st_numscalar("e(m)")!=m | cols(T)!=p | rows(S)!=n |
@@ -87,10 +234,18 @@ void rdistnn_model_validate()
     columns=(cmd=="np_tdnn") ? 8 : ((cmd=="np_dnn") ? 17 :
         ((cmd=="cate_dnn" | cmd=="clate_dnn") ? 25 : 11))
     if(rows(G)!=m | cols(G)!=columns) rdistnn_model_invalid("diagnostic dimensions")
+    notices=st_matrix("e(target_notices)")
+    if(rows(notices)!=m | cols(notices)!=2) rdistnn_model_invalid("target notice dimensions")
+    if(hasmissing(notices) | any((notices:!=0):&(notices:!=1))) rdistnn_model_invalid("target notice flags")
+    ties=J(m,1,0)
     first=(cmd=="np_tdnn") ? 5 : 1
     if(hasmissing(G[,first]) | any(G[,first]:<=0)) {
         rdistnn_model_invalid("diagnostic localization concentration")
     }
+    weak=(n>=2):&(G[,first]:>=.9*n)
+    if(any(notices[,2]:!=weak)) rdistnn_model_invalid("weak-localization notice facts")
+    if(st_numscalar("e(n_tied_targets)")!=sum(notices[,1]) |
+        st_numscalar("e(n_weak_targets)")!=sum(weak)) rdistnn_model_invalid("target notice counts")
     if((cmd=="cate_dnn" & st_global("e(score_method)")=="aipw") |
         (cmd=="clate_dnn" & st_global("e(score_method)")=="augmented_iv")) {
         clip=st_numscalar("e(clip)")
@@ -149,6 +304,7 @@ void rdistnn_model_validate()
             b!=floor(b) | b>n | b!=s | k!=1 | c<1 | c!=floor(c) |
             (first!=0 & first!=1)) rdistnn_model_invalid("two-scale controls")
     }
+    rdistnn_model_validate_grid(cmd,n,m,k,s,se_method)
     if(distance=="l1_scaled" | distance=="l2_scaled") {
         G=st_matrix("e(model_geometry)")
         if(rows(G)!=1 | cols(G)!=p | hasmissing(G) | any(G:<=0)) {
@@ -181,19 +337,22 @@ void rdistnn_model_validate()
             else group++
             if(groups[b,j]!=group) rdistnn_model_invalid("cached distance groups")
         }
+        ties[j]=(group<n)
     }
+    if(any(notices[,1]:!=ties)) rdistnn_model_invalid("distance-tie notice facts")
 }
 
 void rdistnn_model_decode(string scalar target_name, real scalar s,
     real scalar do_se, string scalar cmd, string scalar method,
     real scalar k, real matrix X, real matrix X0, real matrix signals,
-    real matrix ranks, real matrix DX, real matrix groups)
+    real matrix ranks, real matrix DX, real matrix groups, | real scalar validated)
 {
     string scalar distance
     real scalar n,m,q,j,t
     real rowvector cached_columns
     real matrix old_targets,geometry
-    rdistnn_model_validate()
+    if(args()<13) validated=0
+    if(!validated) rdistnn_model_validate()
     cmd=st_global("e(cmd)"); method=st_global("e(method)")
     distance=st_global("e(distance)"); k=st_numscalar("e(k)")
     X=st_matrix("e(model_X)"); signals=st_matrix("e(model_signals)")
@@ -201,8 +360,7 @@ void rdistnn_model_decode(string scalar target_name, real scalar s,
     if(n<1 | m<1 | cols(X0)!=cols(X) | rows(signals)!=n |
         hasmissing(X) | hasmissing(X0) | hasmissing(signals) |
         s<k | s>n | s!=floor(s) | (do_se & s>=n)) {
-        errprintf("Saved model and targets require finite aligned matrices and k <= s <= n (s < n for covariance).\n")
-        exit(error(198))
+        rdistnn_fail(198,"Saved model and targets require finite aligned matrices and k <= s <= n (s < n for covariance).")
     }
     ranks=DX=J(0,0,.)
     old_targets=st_matrix("e(model_targets)")
@@ -232,8 +390,7 @@ void rdistnn_model_decode(string scalar target_name, real scalar s,
         groups=rdistnn_distance_groups(ranks,DX,1)
     }
     if(rows(ranks)!=n | cols(ranks)!=m | rows(DX)!=n | cols(DX)!=m | hasmissing(DX)) {
-        errprintf("Saved geometry is incompatible with the fitted observations and targets.\n")
-        exit(error(498))
+        rdistnn_fail(498,"Saved geometry is incompatible with the fitted observations and targets; refit the model.")
     }
 }
 void rdistnn_model_arms(string scalar cmd, real matrix A, real matrix E)

@@ -225,7 +225,6 @@ program define _cate_dnn_plot_estimates, rclass
     return scalar n_omitted = `nplot'-`nrows'
     return local selected_targets "`target_levels'"
     if `nrows'>0 return matrix plot_data = `plotmat'
-    return scalar n_plotted = `nplot'
     return local view "`style'"
 end
 
@@ -324,7 +323,6 @@ program define _cate_dnn_plot_tuning, rclass
     return scalar n_omitted = `ng'*`nt'-`nrows'
     return local selected_targets "`target_list'"
     if `nrows'>0 return matrix plot_data = `plot'
-    return scalar n_plotted = `ng'
     return local view "tuning"
 end
 
@@ -363,7 +361,6 @@ program define _cate_dnn_plot_diagnostics, rclass
         }
         local xvar "plot_id"
         local xlabel "Target"
-        local nplot = `m'
         local guide = .9 * e(N)
     }
     else {
@@ -391,7 +388,6 @@ program define _cate_dnn_plot_diagnostics, rclass
         matrix colnames `plot' = plot_id ess max_weight top5_weight_share is_default
         local xvar "plot_id"
         local xlabel "Kernel order s"
-        local nplot : word count `selected'
         local guide = .9 * e(N)
     }
 
@@ -437,8 +433,9 @@ program define _cate_dnn_plot_diagnostics, rclass
             as result %6.3f r(min) as text " to " as result %6.3f r(max)
     }
     restore
+    local nrows = rowsof(`plot')
     return matrix plot_data = `plot'
-    return scalar n_plotted = `nplot'
+    return scalar n_rows = `nrows'
     if `candidate_mode' return local view "candidates"
     else return local view "targets"
 end
@@ -609,8 +606,9 @@ program define _cate_dnn_plot_overlap, rclass
         matrix colnames `plot' = `cols'
     }
     restore
+    local nrows = rowsof(`plot')
     return matrix plot_data = `plot'
-    return scalar n_plotted = `nplot'
+    return scalar n_rows = `nrows'
     return local view "`view'"
 end
 
@@ -618,7 +616,7 @@ program define _cate_dnn_plot_weights, rclass
     version 17
     syntax , NAME(name) [VIEW(string) TARGETS(numlist integer >=1) ///
         CANDIDATES(numlist integer >=1) ALLCandidates LOGWeights ///
-        REPLACE NODRAW]
+        REPLACE NODRAW VALIDATED]
 
     if "`view'" == "" local view "profile"
     local view = lower("`view'")
@@ -644,18 +642,14 @@ program define _cate_dnn_plot_weights, rclass
     local method "`e(method)'"
     local candidate_mode = ("`candidates'`allcandidates'" != "")
 
-    if e(model_version)!=3 {
+    if e(model_version)!=4 {
         di as error "Weight reconstruction requires a current saved model; refit with the current package."
         exit 498
     }
     findfile "_rdistnn_model_decode.ado"
     quietly run "`r(fn)'"
-    mata: rdistnn_model_validate()
+    if "`validated'"=="" mata: rdistnn_model_validate()
     if "`view'" != "kernel" {
-        if "`targets'"=="" {
-            numlist "1/`=e(m)'"
-            local targets "`r(numlist)'"
-        }
         local selected "0"
         if `candidate_mode' {
             if "`e(tuning_mode)'" != "grid" {
@@ -678,9 +672,8 @@ program define _cate_dnn_plot_weights, rclass
                 }
             }
         }
-        if `candidate_mode' noisily mata: st_matrix("`plot'", rdistnn_plot_rank_weights(st_matrix("`meta'"), strtoreal(tokens("`selected'"))', `n', `k', `s', "`method'", 1,st_matrix("e(model_ranks)"),strtoreal(tokens("`targets'")),st_matrix("e(model_distances)")))
-        else noisily mata: st_matrix("`plot'", rdistnn_plot_rank_weights(J(1,8,.), strtoreal(tokens("`selected'"))', `n', `k', `s', "`method'", 0,st_matrix("e(model_ranks)"),strtoreal(tokens("`targets'")),st_matrix("e(model_distances)")))
-        local nselected : word count `selected'
+        if `candidate_mode' noisily mata: st_matrix("`plot'", rdistnn_plot_rank_weights(st_matrix("`meta'"), strtoreal(tokens("`selected'"))', `n', `k', `s', "`method'", 1,st_matrix("e(model_ranks)"),rdistnn_model_target_index(strtoreal(tokens("`targets'")),st_numscalar("e(m)")),st_matrix("e(model_distances)")))
+        else noisily mata: st_matrix("`plot'", rdistnn_plot_rank_weights(J(1,8,.), strtoreal(tokens("`selected'"))', `n', `k', `s', "`method'", 0,st_matrix("e(model_ranks)"),rdistnn_model_target_index(strtoreal(tokens("`targets'")),st_numscalar("e(m)")),st_matrix("e(model_distances)")))
         matrix colnames `plot' = rank weight cum_share candidate_id s is_default target_id
         preserve
         clear
@@ -720,30 +713,32 @@ program define _cate_dnn_plot_weights, rclass
         }
         quietly mkmat rank weight cum_share candidate_id s is_default target_id, matrix(`plot')
         restore
+        local nrows = rowsof(`plot')
         return matrix plot_data = `plot'
-        return scalar n_plotted = `nselected'
+        return scalar n_rows = `nrows'
         return local view "`view'"
         exit
     }
 
     _rdistnn_plot_sample_guard
-    _rdistnn_model_plot, type(kernel) name(`name') `replace' `nodraw' targets(`targets')
+    _rdistnn_model_plot, type(kernel) name(`name') `replace' `nodraw' targets(`targets') validated
     return add
 end
 
 program define _cate_dnn_plot_influence, rclass
     version 17
     syntax , NAME(name) NLABEL(integer) [TARGETS(numlist integer >=1) ///
-        REPLACE NODRAW]
+        REPLACE NODRAW VALIDATED]
     _rdistnn_plot_sample_guard
-    _rdistnn_model_plot, type(influence) name(`name') nlabel(`nlabel') `replace' `nodraw' targets(`targets')
+    _rdistnn_model_plot, type(influence) name(`name') nlabel(`nlabel') `replace' `nodraw' targets(`targets') `validated'
     return add
 end
 
 program define _cate_dnn_plot_dashboard, rclass
     version 17
     syntax , NAME(name) Level(cilevel) XINDEX(integer) ///
-        [STYLE(string) REPLACE NODRAW]
+        [STYLE(string) REPLACE NODRAW VALIDATED]
+    if "`validated'"=="" _rdistnn_model_check
 
     local nameopt "name(`name')"
     if "`replace'" != "" local nameopt "name(`name', replace)"
@@ -801,7 +796,7 @@ program define _cate_dnn_plot_dashboard, rclass
         }
     }
     quietly _cate_dnn_plot_weights, name(`gweight') replace nodraw ///
-        view(cumulative)
+        view(cumulative) validated
     if !_rc {
         _rdistnn_plot_add_panel, matrix(`panel_info') id(`=`npanels'+1')
                 local panels "`panels' weights_cumulative"
@@ -829,7 +824,7 @@ program define _cate_dnn_plot_dashboard, rclass
         `nameopt' `drawopt'
     return matrix panel_info = `panel_info'
     return local panels "`panels'"
-    return scalar n_plotted = `npanels'
+    return scalar n_panels = `npanels'
     return local view "dashboard"
 end
 
@@ -911,15 +906,17 @@ program define _np_dnn_plot_outcome, rclass
     quietly mkmat `xnames' target_id weighted_mean_y weighted_sd_y ///
         weighted_y_q10 weighted_y_q50 weighted_y_q90, matrix(`plot')
     restore
+    local nrows = rowsof(`plot')
     return matrix plot_data = `plot'
-    return scalar n_plotted = `nplot'
+    return scalar n_rows = `nrows'
     return local view "`view'"
 end
 
 program define _np_dnn_plot_dashboard, rclass
     version 17
     syntax , NAME(name) Level(cilevel) XINDEX(integer) ///
-        [STYLE(string) REPLACE NODRAW]
+        [STYLE(string) REPLACE NODRAW VALIDATED]
+    if "`validated'"=="" _rdistnn_model_check
 
     local nameopt "name(`name')"
     if "`replace'" != "" local nameopt "name(`name', replace)"
@@ -936,7 +933,7 @@ program define _np_dnn_plot_dashboard, rclass
     _rdistnn_plot_add_panel, matrix(`panel_info') id(2)
     quietly _np_dnn_plot_outcome, name(`gout') replace nodraw xindex(`xindex')
     _rdistnn_plot_add_panel, matrix(`panel_info') id(3)
-    quietly _cate_dnn_plot_weights, name(`gweights') replace nodraw view(cumulative)
+    quietly _cate_dnn_plot_weights, name(`gweights') replace nodraw view(cumulative) validated
     _rdistnn_plot_add_panel, matrix(`panel_info') id(4)
     local graphs "`gest' `gdiag' `gout' `gweights'"
     local panels "estimates diagnostics outcome weights_cumulative"
@@ -952,7 +949,7 @@ program define _np_dnn_plot_dashboard, rclass
         `nameopt' `drawopt'
     return matrix panel_info = `panel_info'
     return local panels "`panels'"
-    return scalar n_plotted = `npanels'
+    return scalar n_panels = `npanels'
     return local view "dashboard"
 end
 
@@ -964,20 +961,7 @@ program define _rdistnn_plot_wald_bounds
     tempname work statuses available
     matrix `work' = `matrix'
     matrix `statuses' = `status'
-    if `candidate'==0 {
-        mata: st_matrix("`available'", st_matrix("`statuses'")[st_matrix("`work'")[,`target'],5])
-    }
-    else {
-        mata: _rdnn_pp=st_matrix("`work'"); _rdnn_ss=st_matrix("`statuses'"); _rdnn_av=J(rows(_rdnn_pp),1,0)
-        forvalues i=1/`=rowsof(`statuses')' {
-            local g = el(`statuses',`i',1)
-            local t = el(`statuses',`i',2)
-            // Missing statuses belong to skipped candidates, never to a valid Wald row.
-            local valid = (el(`statuses',`i',7)==1)
-            mata: _rdnn_av = _rdnn_av :+ (_rdnn_pp[,`candidate']:==`g') :* (_rdnn_pp[,`target']:==`t') :* `valid'
-        }
-        mata: st_matrix("`available'",_rdnn_av)
-    }
+    mata: st_matrix("`available'",rdistnn_plot_wald_available(st_matrix("`work'"),st_matrix("`statuses'"),`target',`candidate'))
     forvalues i=1/`=rowsof(`work')' {
         if el(`available',`i',1)!=1 {
             matrix `matrix'[`i',`lower'] = .

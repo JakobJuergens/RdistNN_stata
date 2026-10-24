@@ -9,7 +9,6 @@ in --evidence-root (default: build/premerge).
 import argparse
 import csv
 import json
-import math
 import re
 from pathlib import Path
 import xml.etree.ElementTree as ET

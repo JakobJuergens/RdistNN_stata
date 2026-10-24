@@ -92,14 +92,14 @@ test_assert "[plot] candidate weight profiles run" _rc == 0
 capture noisily cate_dnn_plot, type(influence) targets(1 3 5) nlabel(2) ///
     name(cate_post_influence) replace nodraw
 test_assert "[plot] influence view runs" _rc == 0
-if !_rc local influence_n = r(n_plotted)
+if !_rc local influence_n = r(n_rows)
 else local influence_n = .
-test_assert "[plot] influence view records selected targets" `influence_n' == 3
+test_assert "[plot] influence view returns rows for selected targets" `influence_n' == 3*e(N)
 
 capture noisily cate_dnn_plot, type(dashboard) name(cate_post_dashboard) ///
     replace nodraw
 test_assert "[plot] dashboard composition runs" _rc == 0
-if !_rc local dashboard_n = r(n_plotted)
+if !_rc local dashboard_n = r(n_panels)
 else local dashboard_n = .
 test_assert "[plot] dashboard contains multiple panels" `dashboard_n' >= 4
 

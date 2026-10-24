@@ -15,7 +15,9 @@ foreach family in np cate clate plqr {
     if "`family'"=="cate" quietly cate_dnn fr_y, pseudooutcome xcols(fr_x) x0(0) s(3)
     if "`family'"=="clate" quietly clate_dnn fr_y, pseudooutcome denominator(fr_den) xcols(fr_x) x0(0) s(3)
     if "`family'"=="plqr" quietly plqr_dnn fr_positive, x(fr_x) x0(0) d(fr_d) md(fr_zero) g(fr_zero) thetaeval(0) s(3)
-    test_assert "`family': snapshot format is versioned" e(model_version)==3
+    test_assert "`family': snapshot format is versioned" e(model_version)==4
+    test_assert "`family': untied localized fit records zero notice counts" e(n_tied_targets)==0 & e(n_weak_targets)==0 & r(n_tied_targets)==0 & r(n_weak_targets)==0
+    matrix FR_NOTICES=e(target_notices)
     foreach field in inputs X signals ranks distances groups row_ids {
         local model_matrices : e(matrices)
         local required "model_`field'"
@@ -26,7 +28,7 @@ foreach family in np cate clate plqr {
             test_assert "`family': e(model_`field') retains the full fitted sample" rowsof(FR_SNAPSHOT)==e(N)
         }
     }
-    if e(model_version)==3 {
+    if e(model_version)==4 {
         matrix FR_X=e(model_X)
         matrix FR_SIGNALS=e(model_signals)
         tempfile serialized
@@ -36,6 +38,8 @@ foreach family in np cate clate plqr {
         quietly estimates use `serialized'
         mata: st_numscalar("_fr_cold",max((max(abs(st_matrix("FR_X")-st_matrix("e(model_X)"))),max(abs(st_matrix("FR_SIGNALS")-st_matrix("e(model_signals)"))))))
         test_assert "`family': .ster restore retains numeric model state without data" scalar(_fr_cold)==0
+        mata: st_numscalar("_fr_notices",all(st_matrix("FR_NOTICES"):==st_matrix("e(target_notices)")))
+        test_assert "`family': .ster restore retains notice facts without data" scalar(_fr_notices) & e(n_tied_targets)==0 & e(n_weak_targets)==0
         restore
     }
 }
@@ -80,6 +84,7 @@ foreach method in exact asymp {
             local targetopt "x0matrix(FR_NEW)"
             if "`family'"=="plqr" local targetopt "x0(.25)"
             quietly rdistnn_predict, `targetopt' sefit
+            test_assert "`family' `method' `engine': derived batch returns its retained tie count" r(n_tied_targets)==e(n_tied_targets) & r(n_weak_targets)==e(n_weak_targets)
             matrix FR_GOT=r(fit)
             matrix FR_GOTV=r(vcov)
             mata: st_numscalar("_fr_error",max((max(abs(vec(st_matrix("FR_GOT"))'-st_matrix("FR_REF"))),max(abs(st_matrix("FR_GOTV")-st_matrix("FR_REFV"))))))
@@ -114,7 +119,7 @@ foreach method in exact asymp {
         mata: st_numscalar("_fr_error",max(abs(st_matrix("FR_AFTER")-st_matrix("FR_REF"))))
         test_assert "`family' `method': prediction error preserves caller and active fit" `badrc'==198 & _N==0 & scalar(_fr_error)==0
         quietly estimates restore fr_derived
-        test_assert "`family' `method': stored derived fit retains its numeric model" e(model_version)==3
+        test_assert "`family' `method': stored derived fit retains its numeric model" e(model_version)==4
         estimates drop fr_derived
         restore
         quietly estimates restore `saved'

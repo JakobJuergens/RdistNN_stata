@@ -32,3 +32,6 @@ Thumbs.db
 
 /src/plugin/rdistnn_loo_plugin_test
 /src/plugin/rdistnn_loo_plugin_test.exe
+
+# Developer analysis cache
+.ruff_cache/

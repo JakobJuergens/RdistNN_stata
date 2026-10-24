@@ -1,19 +1,19 @@
 *! version 0.1.0  2026-10-18
 program define _rdistnn_model_plot, rclass
     version 17
-    syntax, TYPE(string) NAME(name) [TARGETS(numlist integer >=1) NLABEL(integer 3) REPLACE NODRAW]
+    syntax, TYPE(string) NAME(name) [TARGETS(numlist integer >=1) NLABEL(integer 3) REPLACE NODRAW VALIDATED]
+    if "`validated'"=="" _rdistnn_model_check
     if "`targets'"=="" {
         if e(m)<=8 numlist "1/`=e(m)'"
         else numlist "1 `=ceil(e(m)/2)' `=e(m)'"
         local targets "`r(numlist)'"
     }
-    local ntargets : word count `targets'
     foreach file in _rdistnn_mata.ado _rdistnn_clate_mata.ado _rdistnn_model_mata.ado {
         findfile "`file'"
         quietly run "`r(fn)'"
     }
     tempname plot
-    noisily mata: st_matrix("`plot'",rdistnn_model_plot_data("`type'",strtoreal(tokens("`targets'"))))
+    noisily mata: st_matrix("`plot'",rdistnn_model_plot_data("`type'",strtoreal(tokens("`targets'")),1))
     local nameopt "name(`name')"
     if "`replace'"!="" local nameopt "name(`name', replace)"
     if "`type'"=="kernel" matrix colnames `plot'=target_id rank distance weight cum_share
@@ -38,7 +38,8 @@ program define _rdistnn_model_plot, rclass
             ytitle("Weighted centered score") `nameopt' `nodraw'
     }
     restore
+    local nrows=rowsof(`plot')
     return matrix plot_data=`plot'
-    return scalar n_plotted=`ntargets'
+    return scalar n_rows=`nrows'
     return local view "`type'"
 end

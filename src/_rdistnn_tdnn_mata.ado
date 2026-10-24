@@ -25,8 +25,7 @@ real colvector rdistnn_tdnn_table(real scalar n, real scalar s1,
         s1<1 | s1!=floor(s1) | s2<=s1 | s2!=floor(s2) | s2>n |
         dim<1 | dim!=floor(dim) | (normalize!=0 & normalize!=1) |
         (method!="exact" & method!="asymp")) {
-        errprintf("TDNN requires integer 1 <= s1 < s2 <= n, positive dim, exact/asymp and logical normalization.\n")
-        exit(error(198))
+        rdistnn_fail(198,"TDNN requires integer 1 <= s1 < s2 <= n, positive dim, exact/asymp and logical normalization.")
     }
     a=b=J(n,1,0)
     if(method=="exact") {
@@ -45,8 +44,7 @@ real colvector rdistnn_tdnn_table(real scalar n, real scalar s1,
     coefficients=rdistnn_tdnn_coefficients(s1,s2,dim)
     w=coefficients[1]*a+coefficients[2]*b
     if(hasmissing(w)) {
-        errprintf("TDNN scale combination produced nonfinite weights.\n")
-        exit(error(498))
+        rdistnn_fail(498,"TDNN scale combination produced nonfinite weights; choose less extreme localization orders.")
     }
     if(method=="exact" | normalize) {
         total=rdistnn_sum(w)
@@ -111,5 +109,71 @@ real matrix rdistnn_tdnn_diagnostics(real matrix W, real matrix DX)
             sum(w:!=0),cross(abs(w),DX[,j])/total)
     }
     return(out)
+}
+end
+
+// Fresh-command IO with function-local scratch.
+capture mata: mata drop rdistnn_tdnn_weights_ado()
+capture mata: mata drop rdistnn_tdnn_signal_ado()
+mata:
+void rdistnn_tdnn_weights_ado()
+{
+    real scalar ado_dim,ado_n,ado_normalize,ado_s1,ado_s2,ado_scaleeps
+    string scalar ado_DX,ado_R,ado_W,ado_diag,ado_distance,ado_geom,ado_groups,ado_method,ado_row_ids
+    string scalar ado_scalerule,ado_scalevec,ado_table,ado_targets,ado_touse,ado_varlist
+    real matrix _td_DX,_td_R,_td_W,_td_X,_td_X0,_td_geom,_td_groups,_td_table
+    ado_dim=strtoreal(st_local("dim"))
+    ado_n=strtoreal(st_local("n"))
+    ado_normalize=strtoreal(st_local("normalize"))
+    ado_s1=strtoreal(st_local("s1"))
+    ado_s2=strtoreal(st_local("s2"))
+    ado_scaleeps=strtoreal(st_local("scaleeps"))
+    ado_DX=st_local("DX")
+    ado_R=st_local("R")
+    ado_W=st_local("W")
+    ado_diag=st_local("diag")
+    ado_distance=st_local("distance")
+    ado_geom=st_local("geom")
+    ado_groups=st_local("groups")
+    ado_method=st_local("method")
+    ado_row_ids=st_local("row_ids")
+    ado_scalerule=st_local("scalerule")
+    ado_scalevec=st_local("scalevec")
+    ado_table=st_local("table")
+    ado_targets=st_local("targets")
+    ado_touse=st_local("touse")
+    ado_varlist=st_local("varlist")
+
+    _td_X=st_data(.,tokens(ado_varlist),ado_touse)
+    _td_X0=st_matrix(ado_targets)
+    if(hasmissing(_td_X0)) rdistnn_fail(198,"x0matrix() must contain only finite target values; supply one target per row.")
+    _td_geom=rdistnn_fit_geometry(_td_X,ado_distance,ado_scalerule,strtoreal(tokens(ado_scalevec)),ado_scaleeps)
+    _td_DX=rdistnn_distance_matrix(_td_X,_td_X0,ado_distance,_td_geom)
+    _td_R=rdistnn_ranks_from_dmat(_td_DX)
+    _td_groups=rdistnn_distance_groups(_td_R,_td_DX,1)
+    rdistnn_distance_warning(_td_groups)
+    _td_table=rdistnn_tdnn_table(ado_n,ado_s1,ado_s2,ado_dim,ado_method,ado_normalize)
+    _td_W=rdistnn_tdnn_weights(_td_R,ado_s1,ado_s2,ado_dim,ado_method,ado_normalize,_td_DX,_td_groups)
+    st_matrix(ado_geom,_td_geom)
+    st_matrix(ado_row_ids,select((1::st_nobs()),st_data(.,ado_touse)))
+    st_matrix(ado_W,_td_W); st_matrix(ado_R,_td_R); st_matrix(ado_DX,_td_DX)
+    st_matrix(ado_groups,_td_groups)
+    st_matrix(ado_table,_td_table)
+    st_matrix(ado_diag,rdistnn_tdnn_diagnostics(_td_W,_td_DX))
+}
+
+void rdistnn_tdnn_signal_ado()
+{
+    string scalar ado_W,ado_b,ado_outcome,ado_signals,ado_touse
+    real matrix _td_y
+    ado_W=st_local("W")
+    ado_b=st_local("b")
+    ado_outcome=st_local("outcome")
+    ado_signals=st_local("signals")
+    ado_touse=st_local("touse")
+
+    _td_y=st_data(.,ado_outcome,ado_touse)
+    st_matrix(ado_signals,_td_y)
+    st_matrix(ado_b,rdistnn_weighted_signals(_td_y,st_matrix(ado_W)))
 }
 end

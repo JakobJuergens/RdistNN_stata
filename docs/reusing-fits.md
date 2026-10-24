@@ -1,6 +1,6 @@
 # Save, report and reuse fitted results
 
-Version 0.1.3 provides three common commands for DNN/TDNN
+RdistNN provides three common commands for DNN/TDNN
 regression, CATE, CLATE and PLQR. They use the R result methods as the reference for shared behavior.
 PLQR retains its supplied-coefficient **moment-only** scope.
 
@@ -76,15 +76,16 @@ uses the saved geometry. No nuisance predictions are refitted.
 Fits use represented selected-metric distance followed by original row index
 for bookkeeping. At each target, exactly equal distances share the mean of their
 assigned rank weights, including each deletion's surviving group. Saved-model
-schema 3 records `e(tie_rule)="exact_distance_block_averaging_v1"`,
+schema 4 records `e(tie_rule)="exact_distance_block_averaging_v1"`,
 `e(model_groups)` as an `n x m` matrix of target-specific integer groups,
 `e(model_distances)` and `e(model_ranks)`, together with frozen fitted geometry.
 Reconstruction validates dimensions, controls, observation/target identities,
-policy and agreement among distances, groups and cached ranks. Reporting-only
-replay, diagnostics and estimate plots validate current state without repeating
-a tie warning; constructing or reconstructing weights warns once per public call.
+policy and agreement among distances, groups and cached ranks. Validated
+`e(target_notices)` and its aggregate counts retain tie and weak-localization
+facts. Independent reports or reconstructions can each issue one qualified tie
+advisory; quiet execution suppresses text while preserving those facts.
 
-Refit older saved objects, including schema 2 from version 0.1.2, before reuse.
+Refit older saved objects, including schema 3 from version 0.1.3, before reuse.
 All retained-state operations, including reporting-only replay, diagnostics,
 plots, prediction and observation-level extraction, require complete current
 state. Invalid snapshots request refitting and preserve active data and fitted

@@ -86,6 +86,12 @@ always contains the full selected table. `detail` changes only the display.
 | `top5_score_share` (CATE/CLATE) | Top-five share of absolute weighted centered score contributions, which can concentrate much more than the raw weights. |
 | Weighted outcome summaries (NP) | Mean, dispersion and quantiles of the local outcome distribution, rather than sampling uncertainty of its mean. |
 
+Within-arm ESS describes concentration after normalizing that arm's weights.
+One positive-weight observation gives arm ESS one even when its arm's total
+weight is tiny; zero arm weight gives missing ESS. Inspect arm mass alongside
+arm ESS when judging local treatment support for CATE or instrument support
+for CLATE. A large arm ESS alone does not establish substantial local arm mass.
+
 For the unaveraged exact top-k DNN rank table, mathematical positive support is
 `n-s+k`, and for k=1 it is `n-s+1`. Increasing s tightens localization;
 it is opposite in direction to an ordinary bandwidth. A low ESS can reveal
@@ -249,6 +255,22 @@ Weights, candidates, prediction and plots reuse the selected geometry's groups;
 these notices do not change the distance or introduce a tolerance. Independent
 calls can each display an advisory. A saved model must pass its current-state
 checks before its retained groups are reused.
+
+Notice facts remain accessible under `quietly`. Fits retain
+`e(target_notices)`, with one row per original target and columns
+`distance_ties` and `weak_localization`, plus `e(n_tied_targets)` and
+`e(n_weak_targets)`. The weak flag uses the same concentration guide as the
+notice: at least `.9*n` with `n>=2`, using signed concentration for TDNN.
+Current saved-state validation checks flags and counts against the retained
+groups and diagnostics. Missing or inconsistent fields require refitting.
+
+Fit/replay, `rdistnn_results`, `rdistnn_predict`, `rdistnn_candidate` and standalone
+weights return `r(n_tied_targets)` and `r(n_weak_targets)`. Result extraction
+counts unique selected targets; prediction/candidate counts describe the
+derived batch. Nonposting operations preserve the original `e()` totals.
+Copy `r()` results before another command overwrites them. Plot and diagnostic
+commands do not promise these two `r()` counters; use the fit's `e()` facts or
+selected result extraction. No session-level notice suppression is applied.
 
 CLATE reports one bounded summary for each issue family, with at most five
 example target IDs and an omitted count. Inspect every row of `e(status)` and

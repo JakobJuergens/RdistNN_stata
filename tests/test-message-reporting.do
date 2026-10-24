@@ -24,6 +24,7 @@ program MR_outputs
     capture _rdistnn_messages error, rc(498) message("capture-hidden")
     capture noisily _rdistnn_messages error, rc(909) message("capture-noisily-visible")
     c_local message_rc=_rc
+    capture noisily mata: rdistnn_fail(198,"mata-literal {browse bad} 50%"+char(9)+"control")
     capture noisily MR_quiet_error
 end
 capture program drop MR_quiet_error
@@ -44,6 +45,8 @@ while r(eof)==0 {
 file close MR_FILE
 mata: MR_LOG=st_local("MR_LOG"); st_numscalar("MR_CHANNELS",strpos(MR_LOG,"ordinary-visible {browse bad} 50%")>0 & strpos(MR_LOG,"quiet-hidden")==0 & strpos(MR_LOG,"capture-hidden")==0 & strpos(MR_LOG,"capture-noisily-visible")>0 & strpos(MR_LOG,"quiet-error-visible")>0)
 test_assert "ordinary quiet capture and fatal channels respect Stata controls" MR_CHANNELS
+mata: st_numscalar("MR_LITERAL",strpos(MR_LOG,"mata-literal {browse bad} 50% control")>0)
+test_assert "Mata fatal messages render dynamic SMCL and percent literally" MR_LITERAL
 
 
 test_section "bounded dynamic details"
@@ -59,76 +62,96 @@ test_assert "control characters normalize while Unicode and literal markup survi
 
 test_section "group preparation is reused by public grids and cached consumers"
 do "tests/helpers/reporting-instrument.do"
-local MR_ROOT : pwd
-local MR_ROOT = subinstr("`MR_ROOT'", "\", "/", .)
-local MR_SHADOW "`MR_ROOT'/build/reporting-implementation-20261022/instrument"
-capture mkdir "build"
-capture mkdir "build/reporting-implementation-20261022"
-capture mkdir "`MR_SHADOW'"
-mata: rdistnn_test_instrument("src/_rdistnn_blocks.ado",st_local("MR_SHADOW")+"/group_count.ado","n=rows(ranks); m=cols(ranks)","st_numscalar("+char(34)+"MR_GROUP_COUNT"+char(34)+",st_numscalar("+char(34)+"MR_GROUP_COUNT"+char(34)+")+1); n=rows(ranks); m=cols(ranks)")
-mata: rdistnn_test_instrument(st_local("MR_SHADOW")+"/group_count.ado",st_local("MR_SHADOW")+"/_rdistnn_blocks.ado","sorted=X[order", "st_numscalar("+char(34)+"MR_DUP_COUNT"+char(34)+",st_numscalar("+char(34)+"MR_DUP_COUNT"+char(34)+")+1); sorted=X[order")
-adopath ++ "`MR_SHADOW'"
+capture program drop _MR_group_reuse_fixture
+program define _MR_group_reuse_fixture
+    tempfile root
+    local MR_SHADOW "`root'_sources"
+    mkdir "`MR_SHADOW'"
+    capture noisily {
+        mata: rdistnn_test_instrument("src/_rdistnn_blocks.ado",st_local("MR_SHADOW")+"/group_count.ado","n=rows(ranks); m=cols(ranks)","st_numscalar("+char(34)+"MR_GROUP_COUNT"+char(34)+",st_numscalar("+char(34)+"MR_GROUP_COUNT"+char(34)+")+1); n=rows(ranks); m=cols(ranks)")
+        mata: rdistnn_test_instrument(st_local("MR_SHADOW")+"/group_count.ado",st_local("MR_SHADOW")+"/_rdistnn_blocks.ado","sorted=X[order", "st_numscalar("+char(34)+"MR_DUP_COUNT"+char(34)+",st_numscalar("+char(34)+"MR_DUP_COUNT"+char(34)+")+1); sorted=X[order")
+        adopath ++ "`MR_SHADOW'"
 
-clear
-set obs 24
-gen double x=mod(_n,6)-3
-gen double y=_n^2
-gen double den=1+_n/20
-matrix MR_TARGETS=(0\1\0)
-foreach command in np_dnn cate_dnn clate_dnn {
-    local opts ""
-    if "`command'"=="cate_dnn" local opts "pseudooutcome"
-    if "`command'"=="clate_dnn" local opts "pseudooutcome denominator(den)"
-    scalar MR_GROUP_COUNT=0
-    scalar MR_DUP_COUNT=0
-    quietly `command' y, xcols(x) x0matrix(MR_TARGETS) tuningmode(grid) sgrid(3 4 3 5) sdefault(4) `opts'
-    test_assert "`command': one preparation across grid aliases kernels and posting" MR_GROUP_COUNT==1
-    test_assert "`command': prepared fitting performs no duplicate-detection sorts" MR_DUP_COUNT==0
-    scalar MR_GROUP_COUNT=0
-    quietly rdistnn_predict, x0matrix(MR_TARGETS) sefit
-    test_assert "`command': identical saved geometry reuses validated groups" MR_GROUP_COUNT==0
-    scalar MR_GROUP_COUNT=0
-    quietly rdistnn_predict, x0(0.5) sefit
-    test_assert "`command': new geometry prepares its own groups once" MR_GROUP_COUNT==1
-}
-gen double mr_d=1
-gen double mr_zero=0
-foreach command in np_tdnn plqr_dnn {
-    scalar MR_GROUP_COUNT=0
-    scalar MR_DUP_COUNT=0
-    if "`command'"=="np_tdnn" quietly np_tdnn y, xcols(x) x0matrix(MR_TARGETS) s1(2) s2(4)
-    if "`command'"=="plqr_dnn" quietly plqr_dnn y, x(x) x0(0) d(mr_d) g(mr_zero) md(mr_zero) thetaeval(0) s(4)
-    test_assert "`command': weights and covariance reuse one prepared geometry" MR_GROUP_COUNT==1 & MR_DUP_COUNT==0
-}
-scalar MR_GROUP_COUNT=0
-quietly weights_tdnn x, x0matrix(MR_TARGETS) s1(3) s2(5) dim(1)
-test_assert "TDNN weights prepare groups once" MR_GROUP_COUNT==1
-scalar MR_GROUP_COUNT=0
-quietly np_tdnn y, xcols(x) x0matrix(MR_TARGETS) s1(3) s2(5) dim(1)
-test_assert "TDNN estimation reuses weight groups in covariance and posting" MR_GROUP_COUNT==1
-adopath - "`MR_SHADOW'"
-quietly do "src/_rdistnn_mata.ado"
+        clear
+        set obs 24
+        gen double x=mod(_n,6)-3
+        gen double y=_n^2
+        gen double den=1+_n/20
+        matrix MR_TARGETS=(0\1\0)
+        foreach command in np_dnn cate_dnn clate_dnn {
+            local opts ""
+            if "`command'"=="cate_dnn" local opts "pseudooutcome"
+            if "`command'"=="clate_dnn" local opts "pseudooutcome denominator(den)"
+            scalar MR_GROUP_COUNT=0
+            scalar MR_DUP_COUNT=0
+            quietly `command' y, xcols(x) x0matrix(MR_TARGETS) tuningmode(grid) sgrid(3 4 3 5) sdefault(4) `opts'
+            test_assert "`command': one preparation across grid aliases kernels and posting" MR_GROUP_COUNT==1
+            test_assert "`command': prepared fitting performs no duplicate-detection sorts" MR_DUP_COUNT==0
+            scalar MR_GROUP_COUNT=0
+            quietly rdistnn_predict, x0matrix(MR_TARGETS) sefit
+            test_assert "`command': identical saved geometry reuses validated groups" MR_GROUP_COUNT==0
+            scalar MR_GROUP_COUNT=0
+            quietly rdistnn_predict, x0(0.5) sefit
+            test_assert "`command': new geometry prepares its own groups once" MR_GROUP_COUNT==1
+        }
+        gen double mr_d=1
+        gen double mr_zero=0
+        foreach command in np_tdnn plqr_dnn {
+            scalar MR_GROUP_COUNT=0
+            scalar MR_DUP_COUNT=0
+            if "`command'"=="np_tdnn" quietly np_tdnn y, xcols(x) x0matrix(MR_TARGETS) s1(2) s2(4)
+            if "`command'"=="plqr_dnn" quietly plqr_dnn y, x(x) x0(0) d(mr_d) g(mr_zero) md(mr_zero) thetaeval(0) s(4)
+            test_assert "`command': weights and covariance reuse one prepared geometry" MR_GROUP_COUNT==1 & MR_DUP_COUNT==0
+        }
+        scalar MR_GROUP_COUNT=0
+        quietly weights_tdnn x, x0matrix(MR_TARGETS) s1(3) s2(5) dim(1)
+        test_assert "TDNN weights prepare groups once" MR_GROUP_COUNT==1
+        scalar MR_GROUP_COUNT=0
+        quietly np_tdnn y, xcols(x) x0matrix(MR_TARGETS) s1(3) s2(5) dim(1)
+        test_assert "TDNN estimation reuses weight groups in covariance and posting" MR_GROUP_COUNT==1
+    }
+    local rc=_rc
+    capture adopath - "`MR_SHADOW'"
+    quietly do "src/_rdistnn_mata.ado"
+    foreach file in group_count _rdistnn_blocks {
+        capture erase "`MR_SHADOW'/`file'.ado"
+    }
+    rmdir "`MR_SHADOW'"
+    if `rc' exit `rc'
+end
+_MR_group_reuse_fixture
+program drop _MR_group_reuse_fixture
 
 // Rebind only the host command of the real distance bridge for failures that
 // cannot be safely induced in licensed Stata (memory exhaustion and Break).
 test_section "native capability absence differs from execution failure"
-mata: rdistnn_test_instrument("src/_rdistnn_distance_plugin.ado",st_local("MR_SHADOW")+"/distance-host.ado","plugin call rdistnn_plugin, ","_MR_native_host ")
+tempfile MR_DISTANCE_HOST
+mata: rdistnn_test_instrument("src/_rdistnn_distance_plugin.ado",st_local("MR_DISTANCE_HOST"),"plugin call rdistnn_plugin, ","_MR_native_host ")
 capture program drop _MR_native_host
 program _MR_native_host
     version 17
     gettoken operation args : 0
+    if inlist("`operation'","distance_api","loo_packed_api") global MR_PROBE_MATRIX `args'
     if "$MR_NATIVE_MODE"=="probe_resource" exit 909
+    if "$MR_NATIVE_MODE"=="probe_break" exit 1
+    if "$MR_NATIVE_MODE"=="probe_unexpected" exit 498
     if "$MR_NATIVE_MODE"=="absent" exit 198
-    if "`operation'"=="distance_api" {
+    if inlist("`operation'","distance_api","loo_packed_api") {
         matrix `args'=(1)
         exit
     }
+    gettoken metric args : args
+    gettoken X args : args
+    gettoken X0 args : args
+    gettoken inverse output : args
+    global MR_NATIVE_MATRICES `X' `X0' `inverse' `output'
     if "$MR_NATIVE_MODE"=="resource" exit 909
     if "$MR_NATIVE_MODE"=="break" exit 1
     if "$MR_NATIVE_MODE"=="unexpected" exit 498
     // A success code with unchanged missing output is a malformed host result.
+    if "$MR_NATIVE_MODE"=="success" matrix `output'=(1\2\3)
 end
-quietly run "`MR_SHADOW'/distance-host.ado"
+quietly run "`MR_DISTANCE_HOST'"
 global rdistnn_plugin_ok 1
 global rdistnn_distance_engine auto
 global rdistnn_use_plugin 1
@@ -149,7 +172,138 @@ foreach mode in resource probe_resource break unexpected malformed {
     test_assert "`mode': actual bridge preserves fatal execution code" `original_rc'==`expected'
     test_assert "`mode': failed native call does not claim Mata execution" "$rdistnn_last_distance_engine"!="mata"
 }
-macro drop MR_NATIVE_MODE
+// Intercept the real output-copy boundary as well as the host command. The
+// production bridge body remains authoritative; no mock bridge is installed.
+test_section "native failure skips output retrieval and clears owned matrices"
+capture mata: mata drop rdistnn_test_native_copy()
+mata:
+real matrix rdistnn_test_native_copy(string scalar name, real scalar probe)
+{
+    string scalar counter
+    counter=probe ? "MR_PROBE_COPIES" : "MR_OUTPUT_COPIES"
+    st_numscalar(counter,st_numscalar(counter)+1)
+    if(st_global("MR_COPY_FAIL")=="1") _error(3900)
+    return(st_matrix(name))
+}
+end
+capture program drop _MR_native_copy_fixture
+program define _MR_native_copy_fixture
+    tempfile host probe output transport_host transport_copy
+    do "tests/helpers/e-state.do"
+    _rdistnn_test_e_snapshot, name(MR_NATIVE_STATE)
+    quietly datasignature
+    local caller_data "`r(datasignature)'"
+    matrix MR_CALLER_MATRIX=(23,42)
+    capture noisily {
+        mata: rdistnn_test_instrument("src/_rdistnn_distance_plugin.ado",st_local("host"),"plugin call rdistnn_plugin, ","_MR_native_host ")
+        mata: rdistnn_test_instrument(st_local("host"),st_local("probe"),"out=st_matrix(names[1])","out=rdistnn_test_native_copy(names[1],1)")
+        // Batch tests leave capability retrieval intact to reach execution.
+        mata: rdistnn_test_instrument(st_local("host"),st_local("output"),"out=st_matrix(names[4])","out=rdistnn_test_native_copy(names[4],0)")
+        quietly run "`output'"
+        foreach mode in success resource break unexpected {
+            global MR_NATIVE_MODE `mode'
+            foreach copy_fail in 0 1 {
+                global MR_COPY_FAIL `copy_fail'
+                scalar MR_OUTPUT_COPIES=0
+                capture mata: MR_D=rdistnn_distance_plugin((1\2\3),0,"l2_scaled",1)
+                local result=_rc
+                local expected=498
+                if "`mode'"=="resource" local expected=909
+                if "`mode'"=="break" local expected=1
+                if "`mode'"=="success" local expected=cond(`copy_fail',3900,0)
+                test_assert "`mode'/copy`copy_fail': original code survives the output-copy boundary" `result'==`expected'
+                test_assert "`mode'/copy`copy_fail': output retrieval runs only on native success" MR_OUTPUT_COPIES==("`mode'"=="success")
+                if "`mode'"=="success" & !`copy_fail' {
+                    mata: st_numscalar("MR_DISTANCE_VALUES",all(MR_D:==(1\2\3)) & rows(MR_D)==3 & cols(MR_D)==1)
+                    test_assert "successful batch keeps exact distances and shape" MR_DISTANCE_VALUES
+                }
+                // A genuine retrieval failure propagates before this bridge's
+                // ordinary cleanup; only native failure/success promise cleanup.
+                if "`mode'"!="success" | !`copy_fail' {
+                    foreach owned in $MR_PROBE_MATRIX $MR_NATIVE_MATRICES {
+                        capture confirm matrix `owned'
+                        local exists=_rc==0
+                        test_assert "`mode'/copy`copy_fail': owned temporary matrix is cleared" !`exists'
+                    }
+                }
+                foreach owned in $MR_PROBE_MATRIX $MR_NATIVE_MATRICES {
+                    capture matrix drop `owned'
+                }
+                test_assert "native bridge preserves caller matrix" MR_CALLER_MATRIX[1,1]==23 & MR_CALLER_MATRIX[1,2]==42
+                quietly datasignature
+                local unchanged "`r(datasignature)'"
+                test_assert "native bridge preserves caller data" "`unchanged'"=="`caller_data'"
+                _rdistnn_test_e_compare, snapshot(MR_NATIVE_STATE)
+                local same_e=r(equal)
+                test_assert "native bridge preserves complete caller e()" `same_e'
+            }
+        }
+        mata: rdistnn_test_instrument(st_local("probe"),st_local("output"),"out=st_matrix(names[4])","out=rdistnn_test_native_copy(names[4],0)")
+        quietly run "`output'"
+        foreach mode in absent probe_resource probe_break probe_unexpected {
+            global MR_NATIVE_MODE `mode'
+            global MR_COPY_FAIL 1
+            scalar MR_PROBE_COPIES=0
+            scalar MR_OUTPUT_COPIES=0
+            capture mata: MR_D=rdistnn_distance_plugin((1\2\3),0,"l2",J(0,0,.))
+            local result=_rc
+            local expected=498
+            if "`mode'"=="absent" local expected=0
+            if "`mode'"=="probe_resource" local expected=909
+            if "`mode'"=="probe_break" local expected=1
+            test_assert "`mode': capability failure/absence skips both copies" MR_PROBE_COPIES==0 & MR_OUTPUT_COPIES==0
+            test_assert "`mode': capability preserves its original protocol code" `result'==`expected'
+        }
+        // The packed-deletion capability bridge has the same host boundary.
+        // Arm a failing output read while exercising its actual source body.
+        mata: rdistnn_test_instrument("src/_rdistnn_native_transport.ado",st_local("transport_host"),"plugin call rdistnn_plugin, ","_MR_native_host ")
+        mata: rdistnn_test_instrument(st_local("transport_host"),st_local("transport_copy"),"result=st_matrix(name)","result=rdistnn_test_native_copy(name,1)")
+        quietly run "`transport_copy'"
+        foreach mode in absent probe_resource probe_break probe_unexpected success {
+            global MR_NATIVE_MODE `mode'
+            foreach copy_fail in 0 1 {
+                global MR_COPY_FAIL `copy_fail'
+                scalar MR_PROBE_COPIES=0
+                capture mata: st_numscalar("MR_PACKED_CAPABILITY",rdistnn_native_packed_api())
+                local result=_rc
+                local expected=498
+                if "`mode'"=="absent" local expected=0
+                if "`mode'"=="probe_resource" local expected=909
+                if "`mode'"=="probe_break" local expected=1
+                if "`mode'"=="success" local expected=cond(`copy_fail',3900,0)
+                test_assert "packed `mode'/copy`copy_fail': original capability code survives output retrieval" `result'==`expected'
+                test_assert "packed `mode'/copy`copy_fail': retrieval runs only after native success" MR_PROBE_COPIES==("`mode'"=="success")
+                if !`result' {
+                    test_assert "packed `mode': capability value preserves absence/success protocol" MR_PACKED_CAPABILITY==("`mode'"=="success")
+                }
+                if "`mode'"!="success" | !`copy_fail' {
+                    capture confirm matrix $MR_PROBE_MATRIX
+                    local exists=_rc==0
+                    test_assert "packed `mode'/copy`copy_fail': owned capability matrix is cleared" !`exists'
+                }
+                capture matrix drop $MR_PROBE_MATRIX
+                test_assert "packed capability preserves caller matrix" MR_CALLER_MATRIX[1,1]==23 & MR_CALLER_MATRIX[1,2]==42
+                quietly datasignature
+                local unchanged "`r(datasignature)'"
+                test_assert "packed capability preserves caller data" "`unchanged'"=="`caller_data'"
+                _rdistnn_test_e_compare, snapshot(MR_NATIVE_STATE)
+                local same_e=r(equal)
+                test_assert "packed capability preserves complete caller e()" `same_e'
+            }
+        }
+    }
+    local fixture_rc=_rc
+    foreach owned in $MR_PROBE_MATRIX $MR_NATIVE_MATRICES {
+        capture matrix drop `owned'
+    }
+    _rdistnn_test_e_snapshot_drop, name(MR_NATIVE_STATE)
+    quietly do "src/_rdistnn_mata.ado"
+    if `fixture_rc' exit `fixture_rc'
+end
+_MR_native_copy_fixture
+program drop _MR_native_copy_fixture
+capture mata: mata drop rdistnn_test_native_copy()
+macro drop MR_NATIVE_MODE MR_COPY_FAIL MR_PROBE_MATRIX MR_NATIVE_MATRICES
 macro drop rdistnn_use_plugin
 macro drop rdistnn_distance_engine
 program drop _MR_native_host
@@ -274,16 +428,14 @@ quietly run "src/_rdistnn_plot_helpers.ado"
 
 test_section "packed native probe rejects malformed capability output"
 do "tests/helpers/reporting-instrument.do"
-local MR_ROOT : pwd
-local MR_ROOT=subinstr("`MR_ROOT'","\","/",.)
-local MR_SHADOW "`MR_ROOT'/build/reporting-implementation-20261022/instrument"
-mata: rdistnn_test_instrument("src/_rdistnn_native_transport.ado",st_local("MR_SHADOW")+"/packed-host.ado","plugin call rdistnn_plugin, ","_MR_packed_host ")
+tempfile MR_PACKED_HOST
+mata: rdistnn_test_instrument("src/_rdistnn_native_transport.ado",st_local("MR_PACKED_HOST"),"plugin call rdistnn_plugin, ","_MR_packed_host ")
 capture program drop _MR_packed_host
 program _MR_packed_host
     gettoken operation output : 0
     matrix `output'=(1\1)
 end
-quietly run "`MR_SHADOW'/packed-host.ado"
+quietly run "`MR_PACKED_HOST'"
 capture mata: MR_PACKED_API=rdistnn_native_packed_api()
 local MR_PACKED_RC=_rc
 test_assert "successful malformed packed capability shape is fatal" `MR_PACKED_RC'==498
@@ -345,7 +497,9 @@ end
 tempfile tdnn_log
 quietly log using "`tdnn_log'", text replace name(tdnn_notice)
 MR_tdnn_notice
+local MR_TDNN_WEAK_COUNT=r(n_weak_targets)
 quietly log close tdnn_notice
+test_assert "TDNN replay returns its existing near-uniform signed concentration count" e(n_weak_targets)==1 & `MR_TDNN_WEAK_COUNT'==1
 _rdistnn_test_notice_count using "`tdnn_log'", pattern("signed-weight concentration")
 test_assert "TDNN near-uniform concentration uses signed-weight terminology" r(count)==1
 
@@ -409,8 +563,134 @@ foreach engine in mata plugin {
     tempfile singleton_log
     quietly log using "`singleton_log'", text replace name(singleton_notice)
     MR_singleton `engine'
+    local MR_SINGLETON_TIE_COUNT=r(n_tied_targets)
+    local MR_SINGLETON_WEAK_COUNT=r(n_weak_targets)
     quietly log close singleton_notice
+    test_assert "`engine': singleton notice flags and counts stay zero" e(n_tied_targets)==0 & e(n_weak_targets)==0 & `MR_SINGLETON_TIE_COUNT'==0 & `MR_SINGLETON_WEAK_COUNT'==0
     _rdistnn_test_notice_count using "`singleton_log'", pattern("weak localization")
     test_assert "`engine': singleton nose skips near-uniform localization warning" r(count)==0
 }
 macro drop rdistnn_distance_engine
+
+
+test_section "quiet notice facts are machine-readable"
+clear
+set obs 12
+gen double x=mod(_n,3)
+gen double y=_n
+matrix MR_FACT_TARGETS=(0\1\0)
+quietly np_dnn y, xcols(x) x0matrix(MR_FACT_TARGETS) s(1) nose
+local MR_FIELDS : e(matrices)
+local MR_HAS_FACTS : list posof "target_notices" in MR_FIELDS
+test_assert "fresh quiet fits retain per-target notice facts" `MR_HAS_FACTS'>0
+test_assert "fresh quiet fits retain complete notice counts" e(n_tied_targets)==3 & e(n_weak_targets)==3
+test_assert "fresh fit returns notice counts" r(n_tied_targets)==3 & r(n_weak_targets)==3
+quietly rdistnn_results, targets(3 1 3)
+test_assert "selected result counts deduplicate target IDs" r(n_tied_targets)==2 & r(n_weak_targets)==2
+quietly rdistnn_predict, x0matrix(MR_FACT_TARGETS)
+test_assert "derived predictions return their batch counts" r(n_tied_targets)==3 & r(n_weak_targets)==3
+quietly weights_dnn x, x0matrix(MR_FACT_TARGETS) s(1)
+test_assert "standalone weights return tie and concentration counts" r(n_tied_targets)==3 & r(n_weak_targets)==3
+
+
+test_section "derived notice failures restore the original estimation state"
+do "tests/helpers/e-state.do"
+quietly np_dnn y, xcols(x) x0(0) s(2)
+_rdistnn_test_e_snapshot, name(MR_NOTICE_STATE)
+findfile "_rdistnn_report_notices.ado"
+local MR_NOTICE_SOURCE "`r(fn)'"
+program drop _rdistnn_report_notices
+program define _rdistnn_report_notices, rclass
+    syntax [, TARGETS(numlist integer >=1)]
+    if c(noisily) exit $MR_NOTICE_RC
+    return scalar n_tied_targets=e(n_tied_targets)
+    return scalar n_weak_targets=e(n_weak_targets)
+end
+foreach fail_rc in 1 909 498 {
+    global MR_NOTICE_RC `fail_rc'
+    capture noisily rdistnn_predict, x0(0.5)
+    local MR_NOTICE_RESULT=_rc
+    test_assert "notice failure `fail_rc' preserves its return code" `MR_NOTICE_RESULT'==`fail_rc'
+    _rdistnn_test_e_compare, snapshot(MR_NOTICE_STATE)
+    test_assert "notice failure `fail_rc' restores complete original e()" r(equal)
+}
+macro drop MR_NOTICE_RC
+program drop _rdistnn_report_notices
+quietly run "`MR_NOTICE_SOURCE'"
+_rdistnn_test_e_snapshot_drop, name(MR_NOTICE_STATE)
+
+test_section "fatal geometry messages stay clean and literal"
+capture program drop MR_geometry_error
+program define MR_geometry_error
+    capture noisily mata: MR_BAD=rdistnn_fit_geometry((1\2),"l2_scaled","unknown",J(1,0,.),1e-12)
+    c_local MR_GEOMETRY_RC=_rc
+end
+tempfile geometry_log
+quietly log using "`geometry_log'", text replace name(geometry_messages)
+MR_geometry_error
+quietly log close geometry_messages
+file open MR_G_FILE using "`geometry_log'", read text
+local MR_GEOMETRY_TRACE=0
+local MR_GEOMETRY_MESSAGE=0
+file read MR_G_FILE MR_LINE
+while r(eof)==0 {
+    if strpos(`"`MR_LINE'"',"<istmt>") | strpos(`"`MR_LINE'"',"r(198)") | strpos(`"`MR_LINE'"',"invalid syntax") local MR_GEOMETRY_TRACE=1
+    if strpos(`"`MR_LINE'"',"scalerule() must be sd, mad, iqr, range, or custom.") local MR_GEOMETRY_MESSAGE=1
+    file read MR_G_FILE MR_LINE
+}
+file close MR_G_FILE
+test_assert "geometry option error preserves standard syntax code" `MR_GEOMETRY_RC'==198
+test_assert "geometry fatal has problem text without duplicate generic error or traceback" `MR_GEOMETRY_MESSAGE' & !`MR_GEOMETRY_TRACE'
+program drop MR_geometry_error
+
+test_section "all-target notice counts avoid numlist expansion limits"
+_rdistnn_test_e_snapshot, name(MR_LARGE_NOTICE_STATE)
+tempname MR_LARGE_ORIGINAL
+_estimates hold `MR_LARGE_ORIGINAL', copy restore
+capture program drop MR_large_notice_state
+program define MR_large_notice_state, eclass
+    tempname facts
+    matrix `facts'=J(3000,2,0)
+    matrix `facts'[3000,1]=1
+    matrix `facts'[1,2]=1
+    ereturn clear
+    ereturn matrix target_notices=`facts', copy
+    ereturn scalar m=3000
+    ereturn scalar N=12
+    ereturn local cmd "np_dnn"
+end
+MR_large_notice_state
+capture quietly _rdistnn_report_notices
+local MR_LARGE_RC=_rc
+local MR_LARGE_TIES=.
+local MR_LARGE_WEAK=.
+if !`MR_LARGE_RC' {
+    local MR_LARGE_TIES=r(n_tied_targets)
+    local MR_LARGE_WEAK=r(n_weak_targets)
+}
+_estimates unhold `MR_LARGE_ORIGINAL'
+test_assert "all-target notices accept batches above the numlist limit" `MR_LARGE_RC'==0
+test_assert "large-batch notices count the whole retained matrix" `MR_LARGE_TIES'==1 & `MR_LARGE_WEAK'==1
+_rdistnn_test_e_compare, snapshot(MR_LARGE_NOTICE_STATE)
+test_assert "large-batch notice fixture restores complete caller e()" r(equal)
+_rdistnn_test_e_snapshot_drop, name(MR_LARGE_NOTICE_STATE)
+program drop MR_large_notice_state
+
+test_section "notice log counter treats captured output as literal data"
+capture program drop MR_literal_logged_lines
+program define MR_literal_logged_lines
+    // Log wrapping can separate opening and closing compound quotes.
+    mata: display("notice-literal "+char(34)+"double"+char(34)+" "+char(96)+char(34)+"compound {browse bad} 50%",1)
+    mata: display("notice-literal compound"+char(34)+char(39)+" {browse bad} 50%",1)
+end
+tempfile MR_LITERAL_NOTICE_LOG
+quietly log using "`MR_LITERAL_NOTICE_LOG'", text replace name(literal_notice_log)
+MR_literal_logged_lines
+quietly log close literal_notice_log
+capture noisily _rdistnn_test_notice_count using "`MR_LITERAL_NOTICE_LOG'", pattern("notice-literal")
+local MR_LITERAL_COUNT_RC=_rc
+local MR_LITERAL_COUNT=.
+if !`MR_LITERAL_COUNT_RC' local MR_LITERAL_COUNT=r(count)
+test_assert "log counter accepts double compound quotes SMCL and percent" `MR_LITERAL_COUNT_RC'==0
+test_assert "literal log counter retains the exact occurrence count" `MR_LITERAL_COUNT'==2
+program drop MR_literal_logged_lines
