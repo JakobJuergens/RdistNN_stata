@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 version 17
 // Signed two-scale rank tables and generic, frozen-rank deletion inference.
 foreach fn in coefficients table weights cov diagnostics {
@@ -48,7 +48,7 @@ real colvector rdistnn_tdnn_table(real scalar n, real scalar s1,
     }
     if(method=="exact" | normalize) {
         total=rdistnn_sum(w)
-        if(missing(total) | abs(total)<100*epsilon(1)) exit(error(498))
+        if(missing(total) | abs(total)<100*epsilon(1)) rdistnn_fail(498,"TDNN normalization is unavailable; choose less extreme localization orders.")
         if(abs(total-1)>1e-10) w=w/total
     }
     return(w)
@@ -64,12 +64,11 @@ real matrix rdistnn_tdnn_weights(real matrix ranks, real scalar s1,
     if(args()<8) prepared_groups=J(0,0,.)
     n=rows(ranks)
     table=rdistnn_tdnn_table(n,s1,s2,dim,method,normalize)
-    if(cols(ranks)<1 | hasmissing(ranks)) exit(error(198))
+    if(cols(ranks)<1 | hasmissing(ranks)) rdistnn_fail(198,"TDNN requires at least one target column with finite ranks.")
     W=J(n,cols(ranks),.)
     for(j=1;j<=cols(ranks);j++) {
         if(any(sort(ranks[,j],1):!=(1::n))) {
-            errprintf("TDNN ranks must be permutations of 1..n.\n")
-            exit(error(198))
+            rdistnn_fail(198,"TDNN ranks must be permutations of 1..n.")
         }
         W[,j]=table[ranks[,j]]
     }
@@ -100,7 +99,7 @@ real matrix rdistnn_tdnn_diagnostics(real matrix W, real matrix DX)
     real scalar j,total
     real colvector w
     real matrix out
-    if(rows(W)!=rows(DX) | cols(W)!=cols(DX)) exit(error(198))
+    if(rows(W)!=rows(DX) | cols(W)!=cols(DX)) rdistnn_fail(503,"TDNN weights and distances must have the same dimensions.")
     out=J(cols(W),8,.)
     for(j=1;j<=cols(W);j++) {
         w=W[,j]; total=quadsum(abs(w))

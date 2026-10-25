@@ -1,33 +1,14 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Numeric plotting adapters; estimator and weight policy stay in core modules.
-capture mata: mata drop rdistnn_plot_target_diag()
-capture mata: mata drop rdistnn_plot_candidate_diag()
 capture mata: mata drop rdistnn_plot_est_default()
 capture mata: mata drop rdistnn_plot_est_grid()
 capture mata: mata drop rdistnn_plot_tuning()
 capture mata: mata drop rdistnn_plot_overlap()
 capture mata: mata drop rdistnn_plot_rank_weights()
 mata:
-real matrix rdistnn_plot_target_diag(real matrix diagnostics,
-                                              real matrix targets)
-{
-    if (rows(diagnostics) != rows(targets)) {
-        errprintf("rdistnn_plot_target_diagnostics: row counts must match.\n")
-        exit(error(503))
-    }
-    return(((1::rows(diagnostics)), targets, diagnostics))
-}
 
-real matrix rdistnn_plot_candidate_diag(real matrix meta,
-                                                 real matrix diagnostics,
-                                                 real colvector idx)
-{
-    if (rows(meta) != rows(diagnostics)) {
-        errprintf("rdistnn_plot_candidate_diagnostics: row counts must match.\n")
-        exit(error(503))
-    }
-    return((meta[idx,], diagnostics[idx,]))
-}
+
 
 real matrix rdistnn_plot_est_default(real matrix targets,
                                             real colvector estimate,
@@ -38,8 +19,7 @@ real matrix rdistnn_plot_est_default(real matrix targets,
     real scalar m
     m = rows(targets)
     if (rows(estimate) != m | rows(se) != m) {
-        errprintf("rdistnn_plot_estimates_default: estimate and se must match targets.\n")
-        exit(error(503))
+        rdistnn_fail(503,"rdistnn_plot_estimates_default: estimate and se must match targets.")
     }
     return((targets, J(m, 1, 0), J(m, 1, s), J(m, 1, 1),
         (1::m), estimate, se, estimate :- z :* se, estimate :+ z :* se))
@@ -97,8 +77,7 @@ real matrix rdistnn_plot_overlap(real matrix diagnostics,
                                        real rowvector cols_use)
 {
     if (rows(diagnostics) != rows(targets)) {
-        errprintf("rdistnn_plot_overlap_data: row counts must match.\n")
-        exit(error(503))
+        rdistnn_fail(503,"rdistnn_plot_overlap_data: row counts must match.")
     }
     return((targets, (1::rows(diagnostics)), diagnostics[,cols_use]))
 }

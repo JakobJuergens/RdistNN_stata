@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0  2026-10-18}{...}
+{* *! version 0.1.5  2026-10-25}{...}
 {title:rdistnn_candidate — Extract a reusable candidate fit}
 {p 8 12 2}{cmd:rdistnn_candidate, candidate(}{it:#}{cmd:)}
 [{cmd:level(}{it:#}{cmd:) post store(}{it:name}{cmd:)}]{p_end}
@@ -14,14 +14,13 @@ Weights are reconstructed from saved ranks and target-specific exact-distance
 groups. At each target, equal represented selected-metric distances share the
 mean of their assigned rank weights. Each deletion redistributes the n-1
 table's group mass over actual survivors. Commands warn that inference with
-persistent distance ties is not established. Refit saved results from earlier
-policies or schemas, including e(model_version)=3; current schema 4 and
-exact_distance_block_averaging_v1 are required. See {help weights_dnn}.
+persistent distance ties is not established; see {help weights_dnn##geometry}.
+During experimental development, refit saved models after package updates.
 {pstd}
 The parent's covariance policy is retained, including nose. post replaces the
 active fit; store(name) retains a named standalone fit. By default e() and the
-active data are preserved. Errors preserve the active fit. Old results without
-a numeric model snapshot require a refit. PLQR has no integrated Stata candidate
+active data are preserved. Errors preserve the active fit. Incomplete current
+model snapshots require refitting. PLQR has no integrated Stata candidate
 grid and therefore cannot supply a candidate view.
 {pstd}
 Current snapshots are validated before reconstruction, including dimensions,

@@ -1,3 +1,4 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Paired CLATE evaluator. The caller loads _rdistnn_mata first; reloading
 // this extension drops only its own functions and preserves the base library.
@@ -23,8 +24,7 @@ void rdistnn_clate_fit(real matrix ranks, real matrix signals,
         hasmissing(ranks) | hasmissing(signals) | tol<0 | tol>=. |
         k<1 | k!=floor(k) | s<k | s!=floor(s) | s>n |
         (do_se & s>=n)) {
-        errprintf("rdistnn_clate_fit: invalid ranks, signals, tuning, or tolerance.\n")
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_clate_fit: invalid ranks, signals, tuning, or tolerance.")
     }
     if(args()>=13 & rows(DX)>0) W=rdistnn_weights_from_rmat(ranks,k,s,method,DX,prepared_groups)
     else W=rdistnn_weights_from_rmat(ranks,k,s,method)
@@ -142,6 +142,7 @@ void rdistnn_clate_fit_ado()
     string scalar ado_model_geometry,ado_model_groups,ado_model_ranks,ado_model_signals,ado_neff,ado_phid
     string scalar ado_phiy,ado_resolved_distance,ado_resolved_method,ado_route,ado_scalerule,ado_scalevec
     string scalar ado_semat,ado_status,ado_targets,ado_theta,ado_touse,ado_vcov,ado_xvars
+    real rowvector _cl_diag_representative
     real matrix _cl_A,_cl_CV,_cl_DX,_cl_V,_cl_W,_cl_X,_cl_X0,_cl_b,_cl_c,_cl_e,_cl_geometry,_cl_grid,_cl_grid_W,_cl_grid_diag,_cl_gridd,_cl_gridse,_cl_gridstatus,_cl_gridy,_cl_groups,_cl_meta,_cl_ranks,_cl_signals,_cl_status
     ado_active=strtoreal(st_local("active"))
     ado_default=strtoreal(st_local("default"))
@@ -243,11 +244,25 @@ void rdistnn_clate_fit_ado()
         _cl_signals,_cl_W,_cl_DX,ado_k,ado_resolved_s,_cl_b,_cl_A,_cl_e))
     st_matrix(ado_neff,1:/colsum(_cl_W:^2))
     _cl_grid_diag=J(ado_ng,5,.)
+    _cl_diag_representative=J(1,ado_ng,0)
     for(_cl_g=1;_cl_g<=ado_ng;_cl_g++) {
         _cl_grid_diag[_cl_g,3]=min((5,ado_n))
         if(_cl_meta[_cl_g,4]==0) continue
-        _cl_grid_W=rdistnn_weights_from_rmat(_cl_ranks,ado_k,_cl_meta[_cl_g,8],ado_resolved_method,_cl_DX,_cl_groups)
-        _cl_grid_diag[_cl_g,.]=rdistnn_grid_weight_diagnostics(_cl_grid_W)
+        _cl_h=_cl_meta[_cl_g,2]
+        _cl_prior=_cl_diag_representative[_cl_h]
+        if(_cl_prior) _cl_grid_diag[_cl_g,.]=_cl_grid_diag[_cl_prior,.]
+        else {
+            // Aliases share diagnostics and the default already has its W.
+            // Retain only one scratch matrix for other distinct orders.
+            if(_cl_h==_cl_meta[ado_default,2]) {
+                _cl_grid_diag[_cl_g,.]=rdistnn_grid_weight_diagnostics(_cl_W)
+            }
+            else {
+                _cl_grid_W=rdistnn_weights_from_rmat(_cl_ranks,ado_k,_cl_meta[_cl_g,8],ado_resolved_method,_cl_DX,_cl_groups)
+                _cl_grid_diag[_cl_g,.]=rdistnn_grid_weight_diagnostics(_cl_grid_W)
+            }
+            _cl_diag_representative[_cl_h]=_cl_g
+        }
     }
     st_matrix(ado_grid_diag,_cl_grid_diag)
     st_matrix(ado_semat,sqrt(diagonal(st_matrix(ado_vcov)))')

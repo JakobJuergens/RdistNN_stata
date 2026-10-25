@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 // Numeric snapshots survive estimates save/use and do not depend on Mata globals.
 program define _rdistnn_model_store, eclass
     version 17
@@ -18,8 +18,7 @@ program define _rdistnn_model_store, eclass
     local n=e(N)
     foreach value in `data' `X' `row_ids' `signals' `ranks' `distances' {
         if rowsof(`value')!=`n' {
-            di as error "Cannot save fitted model: snapshot rows do not match e(N)."
-            exit 498
+            _rdistnn_messages error, rc(498) message(`"Cannot save fitted model: snapshot rows do not match e(N)."')
         }
     }
     ereturn matrix model_inputs=`data', copy
@@ -35,8 +34,7 @@ program define _rdistnn_model_store, eclass
         }
     }
     else if inlist("`e(distance)'","mahalanobis","l1_scaled","l2_scaled") {
-        di as error "Fitted scaled/Mahalanobis models require explicit frozen geometry()."
-        exit 498
+        _rdistnn_messages error, rc(498) message(`"Fitted scaled/Mahalanobis models require explicit frozen geometry()."')
     }
     ereturn matrix model_groups=`groups', copy
     tempname target_notices notice_counts

@@ -36,7 +36,10 @@ local test_files ///
     test-module-loading     ///
     test-optional-boundaries ///
     test-message-reporting ///
-    test-canonical-ties     ///
+    test-group-reuse ///
+    test-native-failure-contracts ///
+    test-plot-failure-contracts ///
+    test-distance-tie-invariance     ///
     test-distance-ties      ///
     test-distance-tie-r-parity ///
     test-duplicate-blocks   ///
@@ -112,7 +115,7 @@ local test_files ///
     test-snapshot-observations ///
     test-estimator-diagnostics ///
     test-estimator-plots      ///
-    test-premerge-clate       ///
+    test-clate-edge-contracts       ///
     test-reporting-export-contracts ///
     test-observation-reconstruction ///
     test-plqr-dnn-core       ///

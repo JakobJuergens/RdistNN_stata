@@ -73,7 +73,7 @@ matrix OB_TARGETS=(.2,.1 \ 8.7,.3)
 quietly np_tdnn ob_y, xcols(ob_x1 ob_x2) x0matrix(OB_TARGETS) s1(3) s2(6) nose
 matrix OB_EXPECTED=e(estimates)
 // Omit only the optional return from the real weights implementation.
-mata: rdistnn_test_instrument("src/weights_tdnn.ado",st_local("shadow")+"/weights-without-geometry.ado","if !_rc return matrix geometry=","if 0 return matrix geometry=")
+mata: rdistnn_test_instrument("src/weights_tdnn.ado",st_local("shadow")+"/weights-without-geometry.ado","if "+char(96)+"geometry_rc"+char(39)+"==0 return matrix geometry=","if 0 return matrix geometry=")
 program drop weights_tdnn
 quietly run "`shadow'/weights-without-geometry.ado"
 capture noisily quietly np_tdnn ob_y, xcols(ob_x1 ob_x2) x0matrix(OB_TARGETS) s1(3) s2(6) nose
@@ -127,6 +127,96 @@ foreach fail_rc in 1 909 498 198 601 {
     quietly run "src/np_tdnn.ado"
 }
 program drop _OB_geometry_copy
+
+test_section "optional matrix and program probes preserve nonabsence failures"
+capture program drop _OB_probe
+program define _OB_probe
+    exit $OB_PROBE_RC
+end
+capture program drop _OB_probe_fixture
+program define _OB_probe_fixture
+    tempfile injected caller_data graph_file
+    quietly save "`caller_data'", replace
+    _rdistnn_test_data_snapshot
+    capture noisily {
+        foreach code in 1 909 498 {
+            quietly np_dnn ob_y, xcols(ob_x1 ob_x2) x0matrix(OB_TARGETS) s(3)
+            _rdistnn_test_e_snapshot, name(OB_PROBE_STATE)
+            global OB_PROBE_RC `code'
+            mata: rdistnn_test_instrument("src/weights_tdnn.ado",st_local("injected"),"capture confirm matrix "+char(96)+"geom"+char(39),"capture _OB_probe")
+            program drop weights_tdnn
+            quietly run "`injected'"
+            capture quietly weights_tdnn ob_x1 ob_x2, x0(.2 .1) s1(3) s2(6) generate(ob_probe_output)
+            local result=_rc
+            test_assert "optional matrix probe preserves native`code'" `result'==`code'
+            capture confirm variable ob_probe_output
+            local output_rc=_rc
+            test_assert "failed geometry probe creates no output variable" `output_rc'==111
+            program drop weights_tdnn
+            quietly run "src/weights_tdnn.ado"
+
+            foreach family in np cate clate {
+                mata: rdistnn_test_instrument("src/"+st_local("family")+"_dnn_plot.ado",st_local("injected"),"capture program list _rdistnn_plot_dispatch","capture _OB_probe")
+                capture program drop `family'_dnn_plot
+                quietly run "`injected'"
+                capture quietly `family'_dnn_plot, nodraw
+                local result=_rc
+                test_assert "`family': dispatcher probe preserves native`code'" `result'==`code'
+                program drop `family'_dnn_plot
+                quietly run "src/`family'_dnn_plot.ado"
+            }
+            mata: rdistnn_test_instrument("src/_rdistnn_plot_dispatch.ado",st_local("injected"),"capture program list _cate_dnn_plot_estimates","capture _OB_probe")
+            foreach helper in _rdistnn_plot_dispatch _rdistnn_plot_level _rdistnn_plot_candidates _rdistnn_plot_sample_guard _rdistnn_plot_export _rdistnn_plot_add_panel {
+                capture program drop `helper'
+            }
+            quietly run "`injected'"
+            capture quietly np_dnn_plot, nodraw
+            local result=_rc
+            test_assert "plot helper probe preserves native`code'" `result'==`code'
+            program drop _rdistnn_plot_dispatch _rdistnn_plot_level _rdistnn_plot_candidates _rdistnn_plot_sample_guard _rdistnn_plot_export _rdistnn_plot_add_panel
+            quietly run "src/_rdistnn_plot_dispatch.ado"
+            _rdistnn_test_e_compare, snapshot(OB_PROBE_STATE)
+            test_assert "optional probe failures preserve complete estimates" r(equal)
+            _rdistnn_test_data_compare, data("`caller_data'")
+            test_assert "optional probe failures preserve caller data" r(equal)
+            _rdistnn_test_e_snapshot_drop, name(OB_PROBE_STATE)
+
+            quietly np_tdnn ob_y, xcols(ob_x1 ob_x2) x0matrix(OB_TARGETS) s1(3) s2(6)
+            _rdistnn_test_e_snapshot, name(OB_PROBE_STATE)
+            mata: rdistnn_test_instrument("src/np_tdnn_plot.ado",st_local("injected"),"capture program list ","capture _OB_probe ")
+            capture program drop np_tdnn_plot
+            quietly run "`injected'"
+            foreach view in estimates weights {
+                local saving ""
+                if "`view'"=="weights" local saving `"saving(`graph_file'.gph)"'
+                capture quietly np_tdnn_plot, type(`view') name(ob_probe) replace nodraw `saving'
+                local result=_rc
+                test_assert "TDNN `view': helper probe preserves native`code'" `result'==`code'
+                _rdistnn_test_e_compare, snapshot(OB_PROBE_STATE)
+                test_assert "TDNN probe failure preserves complete estimates" r(equal)
+                _rdistnn_test_data_compare, data("`caller_data'")
+                test_assert "TDNN probe failure preserves caller data" r(equal)
+            }
+            program drop np_tdnn_plot
+            quietly run "src/np_tdnn_plot.ado"
+            _rdistnn_test_e_snapshot_drop, name(OB_PROBE_STATE)
+        }
+    }
+    local fixture_rc=_rc
+    foreach command in weights_tdnn np_dnn_plot cate_dnn_plot clate_dnn_plot np_tdnn_plot {
+        capture program drop `command'
+        quietly run "src/`command'.ado"
+    }
+    foreach helper in _rdistnn_plot_dispatch _rdistnn_plot_level _rdistnn_plot_candidates _rdistnn_plot_sample_guard _rdistnn_plot_export _rdistnn_plot_add_panel {
+        capture program drop `helper'
+    }
+    quietly run "src/_rdistnn_plot_dispatch.ado"
+    _rdistnn_test_e_snapshot_drop, name(OB_PROBE_STATE)
+    macro drop OB_PROBE_RC
+    if `fixture_rc' exit `fixture_rc'
+end
+_OB_probe_fixture
+program drop _OB_probe_fixture _OB_probe
 matrix drop OB_TARGETS OB_EXPECTED OB_GEOMETRY
 global rdistnn_distance_engine "`old_distance'"
 global rdistnn_jackknife_engine "`old_jackknife'"

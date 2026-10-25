@@ -1,3 +1,4 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Frozen geometry, ordered distances and ranks. Estimator scores remain separate.
 capture mata: mata drop rdistnn_localization_geometry()

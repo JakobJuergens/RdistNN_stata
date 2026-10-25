@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.2.1  2026-10-17}{...}
+{* *! version 0.1.5  2026-10-25}{...}
 {viewerjumpto "Syntax" "np_dnn_plot##syntax"}{...}
 {viewerjumpto "Plot types" "np_dnn_plot##types"}{...}
 {viewerjumpto "Applicable options" "np_dnn_plot##options"}{...}
@@ -63,10 +63,9 @@ are target-specific and use saved numeric observations in current fits. Kernel g
 rank-s radius marker. Candidate comparison applies only to profiles.{p_end}
 
 {pstd}
-The support formula describes the unaveraged rank table. Averaging assigned
-weights across exact-distance groups can extend nonzero observation weights to
-the end of a group crossing that edge. Use actual returned weights for realized
-support and concentration; rank-only tables do not contain target-specific groups.
+Exact-distance averaging can extend support beyond the nominal rank cutoff.
+Final observation weights determine realized support and concentration; see
+{help weights_dnn##geometry:distance ties}.
 
 {phang}{cmd:type(outcome)} shows the local weighted outcome mean and weighted
 10th-90th percentiles. These are outcome-distribution ranges, not confidence

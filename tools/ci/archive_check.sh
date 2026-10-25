@@ -28,7 +28,9 @@ import sys
 import zipfile
 
 sys.path.insert(0, sys.argv[2])
-from package_hygiene import installation_manifest, relative_path_issue
+from package_hygiene import (
+    installation_manifest, package_version, relative_path_issue, source_version_stamp_issues,
+)
 
 errors = []
 with zipfile.ZipFile(sys.argv[1]) as archive:
@@ -46,10 +48,20 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
         installed = {name for name in files
                      if PurePosixPath(name).parent == PurePosixPath('src')
                      and PurePosixPath(name).suffix in ('.ado', '.sthlp')}
+        manifest_text = archive.read('rdistnn.pkg').decode('utf-8')
         manifest_files, manifest_errors = installation_manifest(
-            archive.read('rdistnn.pkg').decode('utf-8'), files.__contains__, installed,
+            manifest_text, files.__contains__, installed,
         )
         errors.extend(manifest_errors)
+        try:
+            version = package_version(manifest_text)
+        except ValueError as error:
+            errors.append(str(error))
+        else:
+            for name in sorted(installed):
+                errors.extend(source_version_stamp_issues(
+                    name, archive.read(name).decode('utf-8'), version,
+                ))
     # The builder includes public source/docs/examples plus root installation
     # inputs. Other checkout-only roots and generated output are not payload.
     root_files = {'README.md', 'rdistnn.pkg', 'stata.toc'} | {

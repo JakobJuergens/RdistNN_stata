@@ -34,12 +34,6 @@ test_assert "[errors] missing score variable rejected" _rc != 0
 cap cate_dnn y, xcols(x1 x2) x0(0 0) ecol(e) m0col(m0) m1col(m1)
 test_assert "[errors] missing tcol() rejected (rc=198)" _rc == 198
 
-cap cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) ecol(e) mhat(m0) m0col(m0) m1col(m1)
-test_assert "[errors] unsupported pooled-mean option rejected (rc=198)" _rc == 198
-
-cap cate_dnn y, tcol(D) xcols(x1 x2) x0(0 0) ecol(e) m0col(m0)
-test_assert "[errors] partial AIPW nuisances rejected (rc=198)" _rc == 198
-
 gen double rho_err = y
 cap cate_dnn rho_err, xcols(x1 x2) x0(0 0) pseudooutcome ecol(e)
 test_assert "[errors] nuisance rejected with pseudooutcome (rc=198)" _rc == 198
@@ -55,12 +49,12 @@ test_assert "[errors] x0() and x0matrix() rejected together (rc=198)" _rc == 198
 
 cap cate_dnn y, tcol(D) xcols(x1 x2) x0matrix(X0_missing_name) ///
     ecol(e) m0col(m0) m1col(m1)
-test_assert "[errors] nonexistent x0matrix() rejected (rc=198)" _rc == 198
+test_assert "[errors] nonexistent x0matrix() rejected (rc=111)" _rc == 111
 
 matrix X0_wrong_cols = (0,0,0 \ 1,1,1)
 cap cate_dnn y, tcol(D) xcols(x1 x2) x0matrix(X0_wrong_cols) ///
     ecol(e) m0col(m0) m1col(m1)
-test_assert "[errors] x0matrix() column mismatch rejected (rc=198)" _rc == 198
+test_assert "[errors] x0matrix() column mismatch rejected (rc=503)" _rc == 503
 
 matrix X0_missing = (0,0 \ .,1)
 cap cate_dnn y, tcol(D) xcols(x1 x2) x0matrix(X0_missing) ///

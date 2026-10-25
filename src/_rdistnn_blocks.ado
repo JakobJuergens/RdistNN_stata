@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-21
+*! version 0.1.5  2026-10-25
 version 17
 // Exact equality blocks. Highlevel callers supply one metric-distance column
 // per target. Generic block primitives can also group explicit equality features.
@@ -15,7 +15,8 @@ real matrix rdistnn_distance_groups(real matrix ranks, real matrix DX, | real sc
     real colvector ord
     real matrix groups
     n=rows(ranks); m=cols(ranks)
-    if(rows(DX)!=n | cols(DX)!=m | hasmissing(DX)) exit(error(198))
+    if(rows(DX)!=n | cols(DX)!=m) rdistnn_fail(503,"Rank and distance matrices must have the same dimensions.")
+    if(hasmissing(DX)) rdistnn_fail(198,"Distance matrices must contain only finite values.")
     if(args()<3) ordered=0
     groups=J(n,m,.)
     for(j=1;j<=m;j++) {
@@ -57,7 +58,8 @@ real matrix rdistnn_distance_weights(real matrix ranks, real matrix W, real matr
 {
     real scalar j
     real matrix out
-    if(rows(DX)!=rows(ranks) | cols(DX)!=cols(ranks) | hasmissing(DX)) exit(error(198))
+    if(rows(DX)!=rows(ranks) | cols(DX)!=cols(ranks)) rdistnn_fail(503,"Rank and distance matrices must have the same dimensions.")
+    if(hasmissing(DX)) rdistnn_fail(198,"Distance matrices must contain only finite values.")
     out=W
     if(args()<4) prepared_groups=J(0,0,.)
     for(j=1;j<=cols(ranks);j++) out[,j]=rdistnn_block_weights(ranks[,j],W[,j],DX[,j],rows(prepared_groups) ? prepared_groups[,j] : J(0,1,.))
@@ -71,7 +73,8 @@ real matrix rdistnn_distance_loo(real matrix ranks, real matrix signal,
 {
     real scalar j,q
     real matrix out
-    if(rows(DX)!=rows(ranks) | cols(DX)!=cols(ranks) | hasmissing(DX)) exit(error(198))
+    if(rows(DX)!=rows(ranks) | cols(DX)!=cols(ranks)) rdistnn_fail(503,"Rank and distance matrices must have the same dimensions.")
+    if(hasmissing(DX)) rdistnn_fail(198,"Distance matrices must contain only finite values.")
     if(args()<7) prepared_groups=J(0,0,.)
     q=cols(signal); out=J(rows(ranks),cols(ranks)*q,.)
     for(j=1;j<=cols(ranks);j++) {
@@ -101,7 +104,8 @@ real matrix rdistnn_block_ranges(real colvector ranks, real matrix X)
     real scalar n,a,b,g
     real matrix out
     n=rows(ranks)
-    if(rows(X)!=n | cols(X)<1 | hasmissing(X)) exit(error(198))
+    if(rows(X)!=n) rdistnn_fail(503,"Block features and ranks must have aligned observation rows.")
+    if(cols(X)<1 | hasmissing(X)) rdistnn_fail(198,"Block features require at least one finite column.")
     ord=J(n,1,.); ord[ranks]=(1::n)
     out=J(n,2,.); a=1; g=0
     while(a<=n) {
@@ -122,7 +126,8 @@ real matrix rdistnn_block_weights(real matrix ranks, real matrix W, real matrix 
     real colvector ord,ix,rawranks
     real matrix blocks,out
     out=W
-    if(rows(X)!=rows(ranks) | cols(X)<1 | hasmissing(X)) exit(error(198))
+    if(rows(X)!=rows(ranks)) rdistnn_fail(503,"Block features and ranks must have aligned observation rows.")
+    if(cols(X)<1 | hasmissing(X)) rdistnn_fail(198,"Block features require at least one finite column.")
     if(args()<4) prepared_groups=J(0,1,.)
     if(rows(prepared_groups)) {
         if(max(prepared_groups)==rows(ranks)) return(out)
@@ -303,7 +308,8 @@ real matrix rdistnn_block_loo(real matrix ranks, real matrix signal,
     real matrix out,blocks,z,values
     string scalar plugin_mode
     n=rows(ranks); q=cols(signal)
-    if(rows(X)!=n | cols(X)<1 | hasmissing(X)) exit(error(198))
+    if(rows(X)!=n) rdistnn_fail(503,"Block features and ranks must have aligned observation rows.")
+    if(cols(X)<1 | hasmissing(X)) rdistnn_fail(198,"Block features require at least one finite column.")
     if(args()<7) prepared_groups=J(0,1,.)
     if(rows(prepared_groups)) {
         raword=J(n,1,.); raword[ranks[,1]]=(1::n)

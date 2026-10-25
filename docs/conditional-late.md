@@ -20,7 +20,7 @@ distance share the mean of their assigned rank weights, using the same groups
 for numerator and denominator. Each deletion removes the actual observation
 before averaging the remaining group's `n-1` weights. Treatment, instrument and
 nuisance values do not define the groups. The paper assumes a continuous
-distance distribution, under which old and new rules agree almost surely;
+distance distribution;
 inference with persistent distance ties is not established.
 
 ## Inputs and the augmented signals

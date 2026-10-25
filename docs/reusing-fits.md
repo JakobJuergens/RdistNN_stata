@@ -73,27 +73,14 @@ and frozen signals. Mahalanobis geometry always uses that training sample.
 New-target distances are computed once. A candidate at existing targets
 uses the saved geometry. No nuisance predictions are refitted.
 
-Fits use represented selected-metric distance followed by original row index
-for bookkeeping. At each target, exactly equal distances share the mean of their
-assigned rank weights, including each deletion's surviving group. Saved-model
-schema 4 records `e(tie_rule)="exact_distance_block_averaging_v1"`,
-`e(model_groups)` as an `n x m` matrix of target-specific integer groups,
-`e(model_distances)` and `e(model_ranks)`, together with frozen fitted geometry.
-Reconstruction validates dimensions, controls, observation/target identities,
-policy and agreement among distances, groups and cached ranks. Validated
-`e(target_notices)` and its aggregate counts retain tie and weak-localization
-facts. Independent reports or reconstructions can each issue one qualified tie
-advisory; quiet execution suppresses text while preserving those facts.
+Exactly equal represented distances share averaged rank weights, including
+survivor redistribution in each deletion. The [weight guide](weights-and-tuning.md#exact-distance-ties)
+explains the rule and its persistent-tie inference qualification.
 
-Refit older saved objects, including schema 3 from version 0.1.3, before reuse.
-All retained-state operations, including reporting-only replay, diagnostics,
-plots, prediction and observation-level extraction, require complete current
-state. Invalid snapshots request refitting and preserve active data and fitted
-results. The early development package does not upgrade or repair snapshots
-from older versions; no migration reader is provided.
-The paper assumes a continuous distance distribution, under which old and new
-rules agree almost surely; inference with persistent distance ties is not
-established.
+Reporting, diagnostics and reconstruction validate complete current fitted
+state. Invalid state requires refitting and leaves active data and fitted
+results unchanged. During active experimental development, refit saved models
+after package updates.
 
 `rdistnn_predict` preserves active data and estimates by default. `post`
 explicitly activates the derived fit; `store(name)` saves it independently.
@@ -108,28 +95,6 @@ unchanged. `e(vce)` and `e(vcetype)` describe the requested
 covariance calculation, with `none` and an empty label for point-only results.
 For CLATE, `e(status)` still determines whether ratio inference is available.
 
-## Migrating saved CATE fits after Robinson removal
-
-Fresh nuisance-based CATE uses AIPW and requires a propensity and both
-arm-specific outcome means. A pooled outcome mean is not a substitute.
-Alternatively, `pseudooutcome` localizes a supplied signal unchanged; its
-construction, causal interpretation and inferential justification remain
-the caller's responsibility. The former `mcol()` and `mhat()` options remain
-rejected. The paper's residualized-slope estimating equation is distinct from
-the removed normalized Robinson pseudo-outcome; this migration adds no
-residualized-slope estimator.
-
-Refit objects created by older development versions. Postestimation uses the
-current numeric snapshot and does not reconstruct retired score methods from
-live inputs. Current supplied signals are reused unchanged and keep their
-recorded provenance.
-
-The R companion additionally reports descriptive signal provenance and the
-original fit's creation version. In either interface, provenance does not certify same-sample
-nuisance accuracy or stability, identification, or localization conditions.
-Localization bias and the pointwise scope of inference remain relevant; see
-the [CATE uncertainty guide](cate-and-regression.md#what-the-uncertainty-measures).
-
 ## Storage and experimental boundaries
 
 Current fits store a versioned numeric snapshot in `e(model_*)`: fitted
@@ -137,7 +102,7 @@ inputs and covariates, frozen signals, targets, ranks, distances and original
 observation IDs. `estimates save` writes this state into the `.ster` file.
 No live Mata globals, original dataset, sidecar files or R installation are
 needed after restoration. Storage grows with sample size and target count;
-`.ster` files now contain the fitted numeric observations and signals.
+`.ster` files contain the fitted numeric observations and signals.
 
 Kernel and influence plots use the current snapshot after data edits,
 reordering or `clear`. Fits without the current required snapshot need refitting.
@@ -146,7 +111,7 @@ PLQR reporting and prediction concern localized score moments at the supplied
 `theta_eval`. `r(quantity)` is `moment`, and `r(theta_eval)` reports the supplied
 coefficients separately. Coefficient uncertainty, density-backed Jacobians,
 root solving and R's PLQR conditioning/calibration plots remain outside this
-upgrade. R-only estimators, custom metrics and ratio confidence sets also
+interface. R-only estimators, custom metrics and ratio confidence sets also
 remain outside the shared surface; see the [crosswalk](r-documentation-crosswalk.md).
 
 ## Two-scale regression

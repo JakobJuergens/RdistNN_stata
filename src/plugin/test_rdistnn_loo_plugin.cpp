@@ -46,6 +46,20 @@ std::vector<double> unpack(const matrix& value,std::size_t length) {
     return out;
 }
 void setcell(matrix& x,std::size_t k,double value) {x.values[k/x.cols+(k%x.cols)*x.rows]=value;}
+// Transport layout is checked against direct kernel output; independent
+// numerical/explicit-deletion references live in the core and package suites.
+std::vector<double> kernel_reference(const std::vector<double>& ranks,
+    const std::vector<double>& signal,const std::vector<double>& table,
+    const std::vector<double>& groups,int n,int m,int q,bool grouped) {
+    std::vector<int> rank_ids,group_ids;
+    for(double value:ranks) rank_ids.push_back(static_cast<int>(value));
+    for(double value:groups) group_ids.push_back(static_cast<int>(value));
+    std::vector<double> result(static_cast<std::size_t>(n)*m*q);
+    if(grouped) rdistnn::block_rank_loo(rank_ids.data(),signal.data(),table.data(),
+        group_ids.data(),n,m,q,result.data());
+    else rdistnn::rank_loo(rank_ids.data(),signal.data(),table.data(),n,m,q,result.data());
+    return result;
+}
 void baseline(bool grouped=true) {
     matrices.clear();failed_read.clear();writes=0;
     const double large=std::ldexp(1.,54);
@@ -53,9 +67,10 @@ void baseline(bool grouped=true) {
     if(grouped) input.insert(input.end(),{1,1,2});
     matrices["F"]=packed(input);matrices["D"]=packed({17,17,17});
 }
-void rejected() {
+void rejected(int expected=0) {
     const auto before=matrices.at("D").values;const int count=writes;
-    require(invoke({"loo_packed","F","D"})!=0,"invalid packed request accepted");
+    const int result=invoke({"loo_packed","F","D"});
+    require(expected ? result==expected : result!=0,"invalid packed request code");
     require(writes==count && matrices.at("D").values==before,"invalid packed request modified output");
 }
 }
@@ -71,17 +86,15 @@ int main() {
         require(invoke({"loo_packed","F","D"})==0,"packed grouped deletion failed");
         require(unpack(matrices["D"],3)==std::vector<double>({1,std::ldexp(1.,54),std::ldexp(1.,53)}),"packed grouped deletion values/layout");
         require(unpack(matrices["D"],4)[3]==0,"packed output padding not zeroed");
-        // Existing raw operations and packed frames must agree bit for bit.
+        // Packed framing must preserve the actual kernel values bit for bit.
         for(bool grouped:{false,true}) {
             baseline(grouped);
-            matrices["R"]={3,1,{1,2,3}};matrices["S"]={3,1,{std::ldexp(1.,54),1,0}};
-            matrices["T"]={2,1,{1,0}};matrices["G"]={3,1,{1,1,2}};
-            matrices["RAW"]={3,1,{17,17,17}};
-            require((grouped?invoke({"block_rank_loo","R","S","T","G","RAW"}):invoke({"rank_loo","R","S","T","RAW"}))==0,"raw comparison failed");
+            const auto expected=kernel_reference({1,2,3},{std::ldexp(1.,54),1,0},
+                {1,0},{1,1,2},3,1,1,grouped);
             require(invoke({"loo_packed","F","D"})==0,"packed comparison failed");
-            require(unpack(matrices["D"],3)==matrices["RAW"].values,"raw/packed arithmetic differs");
+            require(unpack(matrices["D"],3)==expected,"packed/kernel arithmetic differs");
         }
-        // Exercise both SDK transports at the calibrated signed boundary.
+        // Exercise the calibrated signed SDK boundary on the current transport.
         const double missing_boundary=0x1p1023;
         const double predecessor=std::nextafter(missing_boundary,0.0);
         for(bool grouped:{false,true}) for(double value:{predecessor,8.5e307,
@@ -91,57 +104,27 @@ int main() {
                 value,value,value,.5,0};
             if(grouped) payload.insert(payload.end(),{1,2,3});
             matrices["F"]=packed(payload); matrices["D"]=packed({17,17,17});
-            matrices["R"]={3,1,{1,2,3}}; matrices["S"]={3,1,{value,value,value}};
-            matrices["T"]={2,1,{.5,0}}; matrices["G"]={3,1,{1,2,3}};
-            matrices["RAW"]={3,1,{17,17,17}};
-            require((grouped?invoke({"block_rank_loo","R","S","T","G","RAW"}):
-                invoke({"rank_loo","R","S","T","RAW"}))==0,
-                "valid high-magnitude raw deletion rejected");
             require(invoke({"loo_packed","F","D"})==0,
                 "valid high-magnitude packed deletion rejected");
-            const std::vector<double> expected(3,value*.5);
-            require(matrices["RAW"].values==expected && unpack(matrices["D"],3)==expected,
-                "high-magnitude raw/packed deletion values differ");
+            require(unpack(matrices["D"],3)==std::vector<double>(3,value*.5),
+                "high-magnitude packed deletion values differ");
         }
         for(bool grouped:{false,true}) for(double sentinel:{missing_boundary,
                 std::nextafter(missing_boundary,std::numeric_limits<double>::infinity())}) {
             for(bool table:{false,true}) {
-                baseline(grouped); setcell(matrices["F"],table?11:8,sentinel); rejected();
-                matrices["R"]={3,1,{1,2,3}}; matrices["S"]={3,1,{1,2,3}};
-                matrices["T"]={2,1,{.5,0}}; matrices["G"]={3,1,{1,2,3}};
-                matrices["RAW"]={3,1,{17,17,17}};
-                matrices[table?"T":"S"].values[0]=sentinel;
-                const int before_writes=writes;
-                require((grouped?invoke({"block_rank_loo","R","S","T","G","RAW"}):
-                    invoke({"rank_loo","R","S","T","RAW"}))==198,
-                    "actual SDK missing input lost invalid-input return code");
-                require(writes==before_writes && matrices["RAW"].values==std::vector<double>(3,17),
-                    "missing raw input published output");
+                baseline(grouped);setcell(matrices["F"],table?11:8,sentinel);rejected(198);
             }
         }
-        // Finite inputs may produce a result outside Stata's numeric range.
-        // Raw/packed and strict/grouped transports share 498 and publish none.
+        // Genuine output range failures retain498 and publish no output.
         for(bool grouped:{false,true}) {
             baseline(grouped);
             std::vector<double> payload={1,3,1,1,grouped?1.:0.,1,2,3,
                 7e307,7e307,7e307,1,1};
             if(grouped) payload.insert(payload.end(),{1,2,3});
-            matrices["F"]=packed(payload); matrices["D"]=packed({17,17,17});
-            const auto before=matrices["D"].values;
-            require(invoke({"loo_packed","F","D"})==498,
-                    "packed arithmetic range failure lost 498");
-            require(writes==0 && matrices["D"].values==before,
-                    "packed range failure published output");
-            matrices["R"]={3,1,{1,2,3}}; matrices["S"]={3,1,{7e307,7e307,7e307}};
-            matrices["T"]={2,1,{1,1}}; matrices["G"]={3,1,{1,2,3}};
-            matrices["RAW"]={3,1,{17,17,17}};
-            require((grouped?invoke({"block_rank_loo","R","S","T","G","RAW"}):
-                invoke({"rank_loo","R","S","T","RAW"}))==498,
-                "raw arithmetic range failure lost 498");
-            require(writes==0 && matrices["RAW"].values==std::vector<double>({17,17,17}),
-                    "raw range failure published output");
+            matrices["F"]=packed(payload);matrices["D"]=packed({17,17,17});
+            rejected(498);
         }
-        // Multiple targets and components retain the raw column layout.
+        // Multiple targets and components retain the logical column layout.
         for(bool grouped:{false,true}) for(int n:{6,17}) {
             baseline(grouped);
             const int m=2,q=3;
@@ -156,11 +139,9 @@ int main() {
             input.insert(input.end(),table.begin(),table.end());
             if(grouped) input.insert(input.end(),groups.begin(),groups.end());
             matrices["F"]=packed(input);matrices["D"]=packed(std::vector<double>(n*m*q,17));
-            matrices["R"]={n,m,ranks};matrices["S"]={n,q,signal};matrices["T"]={n-1,1,table};
-            matrices["G"]={n,1,groups};matrices["RAW"]={n,m*q,std::vector<double>(n*m*q,17)};
-            require((grouped?invoke({"block_rank_loo","R","S","T","G","RAW"}):invoke({"rank_loo","R","S","T","RAW"}))==0,"raw multi-dimensional comparison failed");
+            const auto expected=kernel_reference(ranks,signal,table,groups,n,m,q,grouped);
             require(invoke({"loo_packed","F","D"})==0,"packed multi-dimensional comparison failed");
-            require(unpack(matrices["D"],n*m*q)==matrices["RAW"].values,"raw/packed multi-dimensional layout differs");
+            require(unpack(matrices["D"],n*m*q)==expected,"packed/kernel multi-dimensional layout differs");
         }
         baseline();
         matrices["F"]=packed({1,4,1,1,1,1,2,3,4,1,2,3,4,1,0,0,1,2,1,2});

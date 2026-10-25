@@ -1,3 +1,4 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Re-evaluate a saved model without reading the caller's dataset or retraining.
 // Mata resolves all referenced adapters when compiling the model functions.

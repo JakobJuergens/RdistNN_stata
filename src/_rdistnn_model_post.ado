@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 // Derived-result posting and current numeric snapshot metadata.
 program define _rdistnn_model_post, eclass
     version 17

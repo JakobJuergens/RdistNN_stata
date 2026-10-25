@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-22
+*! version 0.1.5  2026-10-25
 version 17
 // Empty output means known absent capability only. Execution failures propagate.
 capture mata: mata drop rdistnn_distance_plugin()

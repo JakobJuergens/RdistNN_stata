@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 program define rdistnn_candidate, rclass
     version 17
     syntax, CANDIDATE(integer) [POST STORE(name) Level(cilevel)]
@@ -7,13 +7,11 @@ program define rdistnn_candidate, rclass
     local matrices : e(matrices)
     local field "tuning_candidates"
     if !`:list field in matrices' {
-        di as error "This fit has no retained candidate grid."
-        exit 498
+        _rdistnn_messages error, rc(498) message(`"This fit has no retained candidate grid."')
     }
     if `candidate'<1 | `candidate'>rowsof(e(tuning_candidates)) error 198
     if el(e(tuning_candidates),`candidate',4)!=1 {
-        di as error "Requested candidate is infeasible."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Requested candidate is infeasible."')
     }
     local s=el(e(tuning_candidates),`candidate',8)
     local covariance "compute"

@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-07-12  Jakob Juergens
+*! version 0.1.5  2026-10-25  Jakob Juergens
 *! Experimental PLQR localized-moment evaluation at supplied theta
 
 program define plqr_dnn, eclass
@@ -45,63 +45,52 @@ program define plqr_dnn, eclass
 
     quietly count if `touse'
     if r(N) == 0 {
-        di as error "No observations."
-        exit 2000
+        error 2000
     }
     local n = r(N)
 
     local nx0 : word count `x0'
     if `nx0' != `kx' {
-        di as error "x0() must have `kx' elements (one per covariate in x())."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"x0() must have `kx' elements (one per covariate in x())."')
     }
 
     if `kd' != `kmd' {
-        di as error "d() and md() must contain the same number of variables."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"d() and md() must contain the same number of variables."')
     }
 
     if `ntheta' != `kd' {
-        di as error "thetaeval() must have `kd' elements (one per variable in d())."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"thetaeval() must have `kd' elements (one per variable in d())."')
     }
 
     if `tau' <= 0 | `tau' >= 1 {
-        di as error "tau() must lie in (0,1)."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"tau() must lie in (0,1)."')
     }
 
     if `k' < 1 {
-        di as error "k() must be >= 1."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"k() must be >= 1."')
     }
 
     if "`distance'" == "" local distance "l2"
     if !inlist("`distance'", "l2", "mahalanobis", "l1", "l1_scaled", "l2_scaled") {
-        di as error "distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis."')
     }
     if "`distance'" == "mahalanobis" & `kx' < 2 {
-        di as error "distance(mahalanobis) requires at least 2 covariates."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"distance(mahalanobis) requires at least 2 covariates."')
     }
 
     if "`method'" == "" local method "exact"
     if !inlist("`method'", "exact", "asymp") {
-        di as error "method() must be exact or asymp."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"method() must be exact or asymp."')
     }
 
     if `s' == 0 {
         local s = floor(.4 * `n'^((`kx' + 1) / (`kx' + 2)))
     }
     if `s' < `k' {
-        di as error "s(`s') < k(`k')."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"s(`s') < k(`k')."')
     }
     if `s' >= `n' {
-        di as error "s(`s') must be less than n(`n') for jackknife SE."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"s(`s') must be less than n(`n') for jackknife SE."')
     }
 
     findfile "_rdistnn_mata.ado"

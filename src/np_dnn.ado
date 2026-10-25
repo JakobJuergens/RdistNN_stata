@@ -1,4 +1,4 @@
-*! version 0.1.2  2026-07-12  Jakob Juergens
+*! version 0.1.5  2026-10-25  Jakob Juergens
 *! Nonparametric regression via distributional nearest neighbors
 
 program define np_dnn, eclass
@@ -32,24 +32,18 @@ program define np_dnn, eclass
     local outcome `varlist'
     local xvars `xcols'
     if "`xvars'" == "" {
-        di as error "xcols() is required."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"xcols() is required."')
     }
     local kx : word count `xvars'
 
     if ("`x0'" == "") == ("`x0matrix'" == "") {
-        di as error "Specify exactly one of x0() or x0matrix()."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Specify exactly one of x0() or x0matrix()."')
     }
 
     tempname targets_mat neff_mat
     local target_source "x0"
     if "`x0matrix'" != "" {
-        capture confirm matrix `x0matrix'
-        if _rc {
-            di as error "x0matrix() must name an existing numeric Stata matrix."
-            exit 198
-        }
+        confirm matrix `x0matrix'
         matrix `targets_mat' = `x0matrix'
         local target_source "X0"
     }
@@ -69,17 +63,14 @@ program define np_dnn, eclass
     local ntargets = rowsof(`targets_mat')
     local ntarget_cols = colsof(`targets_mat')
     if `ntargets' < 1 {
-        di as error "x0matrix() must contain at least one target row."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"x0matrix() must contain at least one target row."')
     }
     if `ntarget_cols' != `kx' {
-        di as error "Target matrix must have `kx' columns (one per covariate in xcols()); got `ntarget_cols'."
-        exit 198
+        _rdistnn_messages error, rc(503) message(`"Target matrix must have `kx' columns (one per covariate in xcols()); got `ntarget_cols'."')
     }
     mata: st_numscalar("r(target_missing)", hasmissing(st_matrix("`targets_mat'")))
     if scalar(r(target_missing)) {
-        di as error "Evaluation targets may not contain missing values."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Evaluation targets may not contain missing values."')
     }
 
     local target_names ""
@@ -93,8 +84,7 @@ program define np_dnn, eclass
     markout `touse' `xvars' `outcome'
     quietly count if `touse'
     if r(N) == 0 {
-        di as error "No observations."
-        exit 2000
+        error 2000
     }
     local n = r(N)
 
@@ -103,24 +93,20 @@ program define np_dnn, eclass
     }
     if "`distance'" == "" local distance "l2"
     if !inlist("`distance'", "l2", "mahalanobis", "l1", "l1_scaled", "l2_scaled") {
-        di as error "distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis."')
     }
     if "`distance'" == "mahalanobis" & `n' < 2 {
-        di as error "distance(mahalanobis) requires at least two complete estimation observations."
-        exit 2001
+        _rdistnn_messages error, rc(2001) message(`"distance(mahalanobis) requires at least two complete estimation observations."')
     }
     if "`method'" == "" local method "exact"
     if !inlist("`method'", "exact", "asymp") {
-        di as error "method() must be exact or asymp."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"method() must be exact or asymp."')
     }
 
     local tuning_mode = lower("`tuningmode'")
     if "`tuning_mode'" == "" local tuning_mode "default"
     if !inlist("`tuning_mode'", "default", "grid") {
-        di as error "tuningmode() must be default or grid."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"tuningmode() must be default or grid."')
     }
     tempname candidate_mat grid_est grid_se grid_diag target_diag
     quietly _rdistnn_tuning_plan, n(`n') kx(`kx') k(`k') s(`s') lambda(`lambda') ///

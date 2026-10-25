@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 program define np_tdnn_plot, rclass
     version 17
     syntax [, TYPE(string) STYLE(string) XINDEX(integer 0) ///
@@ -8,8 +8,7 @@ program define np_tdnn_plot, rclass
     _rdistnn_model_check
     if "`type'"=="" local type "estimates"
     if !inlist("`type'","estimates","weights","diagnostics") {
-        di as error "type() must be estimates, weights or diagnostics for signed TDNN."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"type() must be estimates, weights or diagnostics for signed TDNN."')
     }
     if "`type'"!="estimates" & ("`style'"!="" | `xindex'!=0) error 198
     if `xindex'<0 | `xindex'>e(p) error 198
@@ -25,7 +24,9 @@ program define np_tdnn_plot, rclass
     tempname data
     if "`type'"=="estimates" {
         capture program list _cate_dnn_plot_estimates
-        if _rc {
+        local helper_rc=_rc
+        if !inlist(`helper_rc',0,111) exit `helper_rc'
+        if `helper_rc'==111 {
             findfile "_rdistnn_plot_helpers.ado"
             quietly run "`r(fn)'"
         }
@@ -45,7 +46,6 @@ program define np_tdnn_plot, rclass
                 findfile "`file'"
                 quietly run "`r(fn)'"
             }
-            if e(model_version)!=4 error 498
             noisily mata: st_matrix("`data'",rdistnn_model_tdnn_plot(rdistnn_model_target_index(strtoreal(tokens("`targets'")),st_numscalar("e(m)"))))
             matrix colnames `data'=rank weight target_id
         }
@@ -71,7 +71,9 @@ program define np_tdnn_plot, rclass
     }
     if `"`saving'"'!="" {
         capture program list _rdistnn_plot_export
-        if _rc {
+        local helper_rc=_rc
+        if !inlist(`helper_rc',0,111) exit `helper_rc'
+        if `helper_rc'==111 {
             findfile "_rdistnn_plot_dispatch.ado"
             quietly run "`r(fn)'"
         }

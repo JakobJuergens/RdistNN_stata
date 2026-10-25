@@ -104,7 +104,7 @@ mata {
     _y     = st_data(., "y")
     _beta  = (1 \ -0.5)
     _x0    = (0.2, -0.1)
-    _ranks = rdistnn_ranks(_X, _x0, "l2")
+    _ranks = rdistnn_localization_ranks(rdistnn_distance_matrix(_X,_x0,"l2"))
     _resid = 0.5 :- (_y :<= (_D * _beta :+ _q))
     _g     = (_D :- _md) :* (_resid * J(1, cols(_D), 1))
     _V_dir = rdistnn_jk_cov_from_ranks(_ranks, _g, 3, 8, "exact")

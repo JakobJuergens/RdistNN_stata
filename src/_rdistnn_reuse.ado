@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 // Isolate all derived-fit changes, including failures, from the caller's e().
 program define _rdistnn_reuse, rclass
     version 17

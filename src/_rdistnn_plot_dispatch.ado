@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-17  Jakob Juergens
+*! version 0.1.5  2026-10-25  Jakob Juergens
 // One public option, sample-guard, graph export and return policy for scalar fits.
 program define _rdistnn_plot_dispatch, rclass
     version 17
@@ -9,8 +9,7 @@ program define _rdistnn_plot_dispatch, rclass
         NAME(name) REPLACE NODRAW SAVING(string asis)]
 
     if "`e(cmd)'" != "`family'_dnn" {
-        di as error "`family'_dnn_plot requires active `family'_dnn estimates."
-        exit 301
+        _rdistnn_messages error, rc(301) message(`"`family'_dnn_plot requires active `family'_dnn estimates."')
     }
     _rdistnn_model_check
     if "`type'" == "" local type "estimates"
@@ -18,86 +17,68 @@ program define _rdistnn_plot_dispatch, rclass
     local view = lower("`view'")
     local style = lower("`style'")
     if "`style'"!="" & !inlist("`style'", "auto", "profile", "pointrange", "forest") {
-        di as error "style() must be auto, profile, pointrange, or forest."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"style() must be auto, profile, pointrange, or forest."')
     }
     if !inlist("`type'", "estimates", "diagnostics", "tuning", "weights", "dashboard") & ///
         !("`family'"=="np" & "`type'"=="outcome") & ///
         !("`family'"!="np" & inlist("`type'", "overlap", "influence")) {
-        di as error "Unsupported plot type() for `family'_dnn_plot."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Unsupported plot type() for `family'_dnn_plot."')
     }
     if "`candidates'"!="" & "`allcandidates'"!="" {
-        di as error "Specify either candidates() or allcandidates, not both."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Specify either candidates() or allcandidates, not both."')
     }
     local candidate_mode = ("`candidates'`allcandidates'"!="")
     if `candidate_mode' & !inlist("`type'", "estimates", "diagnostics", "tuning", "weights") {
-        di as error "Candidate selection is not available for type(`type')."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Candidate selection is not available for type(`type')."')
     }
     if "`targets'"!="" & "`type'"=="dashboard" {
-        di as error "targets() is not available for type(dashboard); select a single plot type."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"targets() is not available for type(dashboard); select a single plot type."')
     }
     if "`targets'"!="" & `candidate_mode' & "`type'"=="diagnostics" {
-        di as error "Specify targets() or candidate selection for diagnostics, not both."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Specify targets() or candidate selection for diagnostics, not both."')
     }
     if "`style'"!="" & !inlist("`type'", "estimates", "dashboard") {
-        di as error "style() applies only to estimates and dashboard estimate panels."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"style() applies only to estimates and dashboard estimate panels."')
     }
     if "`view'"!="" & !inlist("`type'", "weights", "overlap") {
-        di as error "view() applies only to weights and overlap plots."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"view() applies only to weights and overlap plots."')
     }
     if "`xindex'"!="" & (!inlist("`type'", "estimates", "overlap", "outcome", "dashboard") | ///
         ("`type'"=="overlap" & "`view'"=="armess")) {
-        di as error "xindex() does not apply to this plot."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"xindex() does not apply to this plot."')
     }
     if "`xindex'"=="" local xindex 0
-    capture confirm integer number `xindex'
-    if _rc error 198
+    confirm integer number `xindex'
     if `xindex'<0 | `xindex'>e(p) {
-        di as error "xindex() must be 0 or a target-coordinate index in 1..`=e(p)'."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"xindex() must be 0 or a target-coordinate index in 1..`=e(p)'."')
     }
     if "`level'"!="" & !inlist("`type'", "estimates", "tuning", "dashboard") {
-        di as error "level() applies only to estimates, tuning, or dashboard."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"level() applies only to estimates, tuning, or dashboard."')
     }
     if "`level'"=="" local level = c(level)
     quietly _rdistnn_plot_level, level(`level')
     if "`nlabel'"!="" & "`type'"!="influence" {
-        di as error "nlabel() applies only to influence plots."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"nlabel() applies only to influence plots."')
     }
     if "`nlabel'"=="" local nlabel 3
-    capture confirm integer number `nlabel'
-    if _rc error 198
+    confirm integer number `nlabel'
     if `nlabel'<0 error 198
     if "`sharelimits'"!="" & !("`type'"=="overlap" & inlist("`view'", "", "mass")) {
-        di as error "sharelimits() applies only to overlap view(mass)."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"sharelimits() applies only to overlap view(mass)."')
     }
     if "`type'"=="weights" {
         if "`view'"=="" local view "profile"
 
         if `candidate_mode' & "`view'"!="profile" {
-            di as error "Candidate weights require view(profile)."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"Candidate weights require view(profile)."')
         }
     }
     if "`logweights'"!="" & !("`type'"=="weights" & "`view'"=="profile") {
-        di as error "logweights applies only to weight view(profile)."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"logweights applies only to weight view(profile)."')
     }
     foreach t of local targets {
         if `t'>e(m) {
-            di as error "targets() entries must be in 1..`=e(m)'."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"targets() entries must be in 1..`=e(m)'."')
         }
     }
     local targets : list uniq targets
@@ -111,7 +92,9 @@ program define _rdistnn_plot_dispatch, rclass
     }
 
     capture program list _cate_dnn_plot_estimates
-    if _rc {
+    local helper_rc=_rc
+    if !inlist(`helper_rc',0,111) exit `helper_rc'
+    if `helper_rc'==111 {
         findfile "_rdistnn_plot_helpers.ado"
         quietly run "`r(fn)'"
     }
@@ -195,8 +178,7 @@ program define _rdistnn_plot_candidates, rclass
     version 17
     syntax [, CANDIDATES(numlist integer >=1) ALLCandidates]
     if "`e(tuning_mode)'"!="grid" {
-        di as error "Candidate plots require tuningmode(grid)."
-        exit 498
+        _rdistnn_messages error, rc(498) message(`"Candidate plots require tuningmode(grid)."')
     }
     tempname meta
     matrix `meta' = e(tuning_candidates)
@@ -208,23 +190,20 @@ program define _rdistnn_plot_candidates, rclass
     }
     foreach g of local selected {
         if `g'>rowsof(`meta') {
-            di as error "candidates() entries must identify rows of e(tuning_candidates)."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"candidates() entries must identify rows of e(tuning_candidates)."')
         }
         if el(`meta',`g',6)!=1 {
-            di as error "Candidate `g' is unavailable; select status=1 candidates."
-            exit 498
+            _rdistnn_messages error, rc(498) message(`"Candidate `g' is unavailable; select status=1 candidates."')
         }
     }
-    if "`selected'"=="" error 498
+    if "`selected'"=="" _rdistnn_messages error, rc(498) message("No usable tuning candidate is available; inspect the retained candidate status.")
     return local candidates "`selected'"
 end
 
 program define _rdistnn_plot_sample_guard
     version 17
     if e(model_version)!=4 {
-        di as error "Observation-level plots require current fitted model state; refit `e(cmd)' with the current package."
-        exit 498
+        _rdistnn_messages error, rc(498) message(`"Observation-level plots require current fitted model state; refit `e(cmd)' with the current package."')
     }
 end
 
@@ -240,8 +219,7 @@ program define _rdistnn_plot_export
             if regexm(`"`path'"', "[.]`ext'$") local asopt "as(`ext')"
         }
         if "`asopt'"=="" {
-            di as error "saving() requires .gph, .png, .pdf, .svg, .tif, .jpg, or .eps."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"saving() requires .gph, .png, .pdf, .svg, .tif, .jpg, or .eps."')
         }
         graph display `name'
         graph export `saving', `asopt' `replace'

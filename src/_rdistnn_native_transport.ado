@@ -1,6 +1,7 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Balanced private matrix frames avoid expensive default stripes on tall
-// native inputs and outputs. Raw plugin operations remain separately available.
+// native inputs and outputs. All native deletions use this current transport.
 foreach fn in frame unframe packed_api loo {
     capture mata: mata drop rdistnn_native_`fn'()
 }
@@ -10,7 +11,7 @@ real matrix rdistnn_native_frame(real colvector payload)
 {
     real scalar length,r,c
     length=rows(payload)
-    if(length<1 | length>9007199254740991) exit(error(198))
+    if(length<1 | length>9007199254740991) rdistnn_fail(198,"Native transport requires a nonempty payload with a representable cell count.")
     r=ceil(sqrt(length)); c=ceil(length/r)
     return(rowshape(payload\J(r*c-length,1,0),r))
 }

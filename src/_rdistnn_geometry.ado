@@ -1,3 +1,4 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Fitted Mahalanobis whitening from the centered training design, not its Gram.
 capture mata: mata drop rdistnn_mahal_geometry()

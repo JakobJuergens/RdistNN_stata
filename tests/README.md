@@ -24,13 +24,17 @@ do "tests/tests.do" "test-plqr-dnn-*"
 do "tests/tests.do" "test-weights-dnn-*"
 do "tests/tests.do" "test-mata-*"
 do "tests/tests.do" "test-r-parity-priority"
-do "tests/tests.do" "test-premerge-clate"
+do "tests/tests.do" "test-clate-edge-contracts"
 do "tests/tests.do" "test-saved-prediction"
 do "tests/tests.do" "test-candidates"
 do "tests/tests.do" "test-observation-reconstruction"
 do "tests/tests.do" "test-reporting-export-contracts"
-do "tests/tests.do" "test-canonical-ties"
+do "tests/tests.do" "test-distance-tie-invariance"
 do "tests/tests.do" "test-duplicate-blocks"
+do "tests/tests.do" "test-message-reporting"
+do "tests/tests.do" "test-group-reuse"
+do "tests/tests.do" "test-native-failure-contracts"
+do "tests/tests.do" "test-plot-failure-contracts"
 ```
 
 The optional argument is a Stata `strmatch()` wildcard matched against the
@@ -41,10 +45,16 @@ assertions as the full suite.
 | Area | Test files |
 | --- | --- |
 | Translation-safe covariance/SD and local jackknife origins | `test-centering-translation.do` |
+| Compensated sums/cross-products, retained deletion corrections and actual native/portable reductions | `test-compensated-accumulation.do` |
+| Printed localization fractions, literal nonuniform tied-distance mean/deletion covariance and permutation invariance | `test-localization-reporting.do` |
+| Public error/notice channels, standard codes, literal/bounded details, batch summaries and caller state | `test-message-reporting.do` |
+| Actual group-preparation counts, grid/covariance reuse and reordered cached prediction targets | `test-group-reuse.do` |
+| Native capability versus execution failure, original codes, output-copy ordering and temporary-matrix cleanup | `test-native-failure-contracts.do` |
+| Plot-bound probe and required-panel failures, original codes and preserved caller estimates/data | `test-plot-failure-contracts.do` |
 | Exact represented rank tables, CDF decisions and near-full subsets | `test-exact-rank-portability.do`, `fixtures/exact_rank_tables.csv` |
 | CATE population signal behavior | `test-cate-signal-contract.do` |
 | Derived coefficient stripes and verified estimation samples | `test-derived-fit-contract.do` |
-| Exact-distance ranks, subset/permutation invariance and current saved prediction | `test-canonical-ties.do` |
+| Exact-distance ranks, subset/permutation invariance and current saved prediction | `test-distance-tie-invariance.do` |
 | Exact-distance block averaging, actual-observation deletion and survivor weights, naive/Mata/native parity, signed TDNN, paired covariance, extreme ranges, reuse and target-specific plots | `test-duplicate-blocks.do` |
 | Target-specific exact-distance groups, symmetric/boundary/zero-rank ties, signed tables, survivor deletion, saved-policy validation and native/Mata parity | `test-distance-ties.do` |
 | Cached-state guard rejects corrupted groups in reporting, covariance, diagnostics and estimate/diagnostic plots after clearing active data and Mata; rejection preserves fitted state | `test-cached-model-guard.do` |
@@ -60,7 +70,7 @@ assertions as the full suite.
 | NP estimation, validation, and R parity | `test-np-dnn-*.do` |
 | CATE score paths, batch/grid results, diagnostics, plots, and validation | `test-cate-dnn-*.do` |
 | CLATE paired signals/deletions, binary IV, statuses, batch/grid results, R parity, and all CATE plot families | `test-clate-*.do` |
-| Seeded R CLATE edge fixtures, independent subset/integrated-weight deletions, singular metric and full paired covariance | `test-premerge-clate.do` |
+| Seeded R CLATE edge fixtures, independent subset/integrated-weight deletions, singular metric and full paired covariance | `test-clate-edge-contracts.do` |
 | Adversarial reporting/diagnostic/plot returns, complete caller state, cold restores, exported bands, matrix-sized all-target reporting, selected-column work and one validation per unchanged snapshot | `test-reporting-export-contracts.do` |
 | Complete current snapshot/grid identities, dimensions, default anchors, aliases and availability; refit errors before slicing with preserved caller state | `test-saved-model-validation.do` |
 | Current frozen sample geometry, signal/nuisance snapshots and independent observation kernels | `test-observation-reconstruction.do` |
@@ -69,6 +79,8 @@ assertions as the full suite.
 | Reusable standalone candidates, duplicate orders and parent preservation | `test-candidates.do` |
 | Snapshot kernels and contributions after caller-data changes | `test-snapshot-observations.do` |
 | Fresh/restored/candidate diagnostic equality across supplied/AIPW/IV routes, methods and geometries | `test-diagnostic-route-contracts.do` |
+| Shared diagnostic fields/target selection, full nonzero support and caller-data preservation | `test-estimator-diagnostics.do` |
+| Shared plot selections/data, confidence bounds/status masks, coordinate-name collisions and exact/asymptotic support annotations | `test-estimator-plots.do` |
 | Recoverable contribution ranges, zero support, overflowing totals and matching fresh/restored concentration | `test-diagnostic-contribution-range.do` |
 | Current-result descriptive metadata and representable propensity clipping | `test-stored-result-metadata.do`, `test-clipping-validation.do` |
 | Experimental PLQR moment semantics and covariance | `test-plqr-dnn-*.do` |
@@ -92,6 +104,12 @@ assertions as the full suite.
 The plot-command-order test runs first to exercise cold ado autoloading and
 also runs through its exact filename filter. Shared data generators and
 assertions live in `test_framework.do`.
+
+`test-distance-tie-invariance.do` owns order/permutation and saved-fit behavior;
+`test-distance-ties.do` owns target-specific groups and independent subset
+references. `test-duplicate-blocks.do` deliberately tests raw duplicates as a
+special case at the low-level block-kernel boundary. Its raw-row oracle is
+independent of production grouping and is not the general distance-tie policy.
 
 ## Fixtures and controls
 
@@ -121,7 +139,7 @@ contract change; each output records its reference identity where applicable:
 | Covariance/geometry | `generate_r_covariance_geometry_fixtures.R` | `test-covariance-geometry-r-parity` |
 | Compensated reductions/deletions | `generate_r_accumulation_fixtures.R` | `test-accumulation-r-parity` |
 | Exact rank tables | `generate_exact_rank_fixtures.R` | `test-exact-rank-portability` |
-| CLATE and audit edge cases | `generate_r_clate_fixtures.R`, `generate_r_clate_audit_fixtures.R` | `test-clate-r-parity`, `test-premerge-clate` |
+| CLATE and audit edge cases | `generate_r_clate_fixtures.R`, `generate_r_clate_audit_fixtures.R` | `test-clate-r-parity`, `test-clate-edge-contracts` |
 | Shared defaults/estimators | `generate_r_priority_fixtures.R` | `test-r-parity-priority` |
 | Reporting and reusable fits | `generate_r_reporting_fixtures.R`, `generate_r_reuse_fixtures.R` | `test-estimator-reporting`, `test-saved-prediction`, `test-candidates` |
 | Weighted CDF boundaries (both packages) | `generate_weighted_cdf_fixtures.py` | `test-weighted-distribution-range` |
@@ -162,7 +180,7 @@ distinct evidence. Save their receipts in ignored working directories.
 The core loading gateway is `_rdistnn_mata.ado`; source modules own definitions
 and reload guards. The [numerical reference](../docs/numerical-stability.md)
 records helper ownership. Tests protect caller functions: the combinatorial
-reference is `rdistnn_log_binomial()` and must not occupy or drop `lncomb()`.
+references use native log-factorials and must not occupy or drop caller functions.
 
 ## Shared test ownership
 
@@ -194,9 +212,9 @@ logical multi-target/component reconstruction, actual packed native execution,
 and forced versus automatic behavior after a recognized packed failure. The
 standalone `rdistnn_loo_plugin_test` exercises the real entry point with malformed
 metadata, overflow, invalid ranks/groups, nonfinite values, padding/shape errors,
-read failures, aliases and bitwise raw/packed comparisons. The Mata bridge
+read failures, aliases and bitwise transport/kernel comparisons. The Mata bridge
 requires current packed capability: forced native calls error when it is absent,
-and automatic calls use Mata. Neither route retries a raw operation.
+and automatic calls use Mata. The plugin exposes only this deletion transport.
 
 `test-weighted-underflow-origin.do` checks zero survivors, constant signals,
 signed/unnormalized subnormal table mass, amplified rounded tied weights,
@@ -205,14 +223,27 @@ ordinary tiny-tail and exact zero-mass origin behavior.
 
 `test-message-reporting.do` owns cross-cutting message contracts: standard
 return codes, literal text, bounded examples/values, ordinary/quiet/capture
-channels, caller `e()`/`r()` preservation, batch CLATE summaries and `nose`,
-public geometry preparation counters, validated cached-group reuse and native
-capability versus execution-failure injection. Instrumentation lives in
+channels, caller `e()`/`r()` preservation, batch CLATE summaries and `nose`.
+`test-group-reuse.do` owns geometry preparation counters and reordered cached
+targets. `test-native-failure-contracts.do` owns native capability, execution
+and output-copy failures; `test-plot-failure-contracts.do` owns plot-bound
+probes and unexpected required-panel failures. Each suite creates its own
+inputs and loads its helpers, so each can run through its exact filename
+filter. Shared instrumentation lives in
 `helpers/reporting-instrument.do`, outside installed code. Run it with:
 
 ```stata
 do "tests/tests.do" "test-message-reporting"
 ```
+
+The message suite covers cold custom errors, native matrix/integer confirmation,
+pure conformability codes and literal quoted/control text.
+`test-optional-boundaries.do` covers actual optional absence and propagating
+program/matrix probe failures, including injected resource and Break codes,
+with complete caller-state comparisons. Source-policy tests in the existing
+package-hygiene suite reject custom renderer bypasses while accepting native
+validation, standard errors and literal examples. Code-propagation injection
+does not establish live interruption responsiveness.
 
 `tools/bench/bench_reporting.do` takes explicit before/after installation and
 receipt directories. It exercises n=64/2,000/32,000, scalar/batch NP fits,
@@ -221,7 +252,9 @@ forced engines. It retains timings, call counters and complete numerical
 matrices; the Windows launcher can record process peak working-set memory.
 Base fits cover all three sizes; grids and multipanel reuse use the middle
 size. At n*m above Stata/SE's 11,000-row plot transport limit, the benchmark
-uses the real Mata panel preparation rather than claiming full graph rendering.
+uses the public numeric diagnostics and kernel/influence preparation. It does
+not render full graphs in that case. Distance/group/duplicate-sort counters
+include positive controls before measurement.
 These measurements are evidence, not CI timing thresholds.
 
 The reporting suite also checks independent estimator replay, near-uniform

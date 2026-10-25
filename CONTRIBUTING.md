@@ -35,6 +35,13 @@ version. After that release, append `.9000` to the selected production version
 to start development. For example, the cycle after production `0.1.2` starts at
 `0.1.2.9000`, then `0.1.2.9001`; its next default production version is `0.1.3`.
 
+After changing the package version, run
+`python3 tools/ci/package_hygiene.py --sync-version-stamps` to update every
+installed ado/help comment stamp from `rdistnn.pkg`. See the
+[version identity contract](markdown_notes/implementation_guidance.md#package-version-identity)
+and [release procedure](RELEASING.md). CI validates these stamps separately from
+Stata interpreter settings and saved-model schema numbers.
+
 ## Current development compatibility
 
 Use the current documented interfaces and complete current fit schemas.
@@ -140,8 +147,12 @@ python3 tools/ci/documentation_check.py
 ```
 
 `pkg_check.sh` includes manifest/source hygiene: public and private ado/help
-inputs, version declarations, the `rdistnn_` Mata prefix and unique typed
-function ownership. With sibling R available, also run
+inputs, package declarations and source stamps, the `rdistnn_` Mata prefix and unique typed
+function ownership, and shared custom-error renderer adoption. Native validation
+and standard errors remain supported. The message and optional-boundary suites
+test native codes, cold loading, literal output and failure cleanup; use the
+[signaling contract](markdown_notes/implementation_guidance.md#stata-mata-and-plugin-signaling)
+when choosing a return code. With sibling R available, also run
 `python3 tools/ci/package_hygiene.py --r-root ../RdistNN` for byte-identical
 shared headers. Optional `--r-root ../RdistNN` on the documentation checker
 compares the [documentation crosswalk](docs/r-documentation-crosswalk.md)

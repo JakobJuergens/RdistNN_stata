@@ -1,22 +1,19 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 // Post a derived fit from frozen numeric state; callers control e() restoration.
 program define _rdistnn_model_fit, eclass
     version 17
     syntax, TARGETS(name) S(integer) [COVariance(string) CANDIDATE(integer 0) VALIDATED]
     if !inlist("`e(cmd)'","np_dnn","np_tdnn","cate_dnn","clate_dnn","plqr_dnn") error 301
     if "`e(cmd)'"=="cate_dnn" & !inlist("`e(score_method)'","aipw","pseudo_outcome") {
-        di as error "Current CATE saved results require AIPW or supplied pseudo-outcomes; refit cate_dnn."
-        exit 498
+        _rdistnn_messages error, rc(498) message(`"Current CATE saved results require AIPW or supplied pseudo-outcomes; refit cate_dnn."')
     }
     if e(model_version)!=4 {
-        di as error "Active estimates have no supported saved model; refit with the current package version."
-        exit 498
+        _rdistnn_messages error, rc(498) message(`"Active estimates have no supported saved model; refit with the current package version."')
     }
     local matrices : e(matrices)
     foreach field in model_X model_signals model_inputs model_ranks model_distances model_groups model_targets model_row_ids {
         if !`: list field in matrices' {
-            di as error "Saved model is missing e(`field'); refit with the current package version."
-            exit 498
+            _rdistnn_messages error, rc(498) message(`"Saved model is missing e(`field'); refit with the current package version."')
         }
     }
     if "`covariance'"=="" local covariance "compute"

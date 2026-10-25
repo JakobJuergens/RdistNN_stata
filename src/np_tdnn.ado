@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 program define np_tdnn, eclass
     version 17
     if replay() {
@@ -12,8 +12,7 @@ program define np_tdnn, eclass
         SCALEVec(numlist) SCALEEPS(real 1e-12) noSE Level(cilevel)]
     local xvars `xcols'
     if "`xvars'"=="" {
-        di as error "xcols() is required."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"xcols() is required."')
     }
     local outcome `varlist'
     marksample touse
@@ -22,13 +21,11 @@ program define np_tdnn, eclass
     local n=r(N)
     if `n'==0 error 2000
     if "`se'"=="" & `s2'>=`n' {
-        di as error "Delete-one jackknife requires s2 < n; reduce s2() or specify nose."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Delete-one jackknife requires s2 < n; reduce s2() or specify nose."')
     }
     local p : word count `xvars'
     if "`dim'"=="" local dim=`p'
-    capture confirm integer number `dim'
-    if _rc error 198
+    confirm integer number `dim'
     if "`method'"=="" local method "exact"
     if "`distance'"=="" local distance "l2"
     if "`scalerule'"=="" local scalerule "sd"

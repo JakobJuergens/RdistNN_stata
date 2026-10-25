@@ -20,7 +20,14 @@ sequence. Each production merge advances `0.1.x` to `0.1.(x+1)` unless the
 maintainer chooses otherwise. Resume development by appending `.9000` to the
 selected production version for the first development commit.
 `rdistnn.pkg`'s `Version` and the current `RELEASE_NOTES.md` heading record the
-current version; keep them aligned. See
+current version; keep them aligned with the README, overview help and every
+installed ado/help `*! version` stamp, including private Mata helpers. Run
+`python3 tools/ci/package_hygiene.py --sync-version-stamps` after changing the
+package version. These comment stamps use the complete package version,
+including development suffixes; interpreter and saved-model versions remain
+independent. Follow the
+[version identity contract](markdown_notes/implementation_guidance.md#package-version-identity)
+and see
 `RELEASING.md` for the release transition and immutable-tag rules.
 
 ## Current development compatibility policy
@@ -76,6 +83,11 @@ installed on one machine is not evidence that it is on another machine's PATH.
   It records the intended message design, grouping reuse, native signaling and
   unit/performance test requirements; do not infer migration completion from
   the design alone.
+- Send custom ado errors through `_rdistnn_messages error` and custom Mata
+  errors through `rdistnn_fail()`. Preserve native `syntax`, `confirm`, `error`
+  and runtime codes. The message owner and pre-helper core-loader failure are
+  the two documented direct ado-rendering roles; package hygiene enforces this
+  boundary. Do not add a one-off validator exemption or a package code registry.
 - Keep ado/Mata/plugin behavior aligned with the documented command contracts
   in `README.md`.
 - Maintain parity within C++/Mata engines as well as with shared R methods.

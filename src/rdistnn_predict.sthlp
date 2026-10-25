@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0  2026-10-18}{...}
+{* *! version 0.1.5  2026-10-25}{...}
 {title:rdistnn_predict — Evaluate a saved fit at new targets}
 {p 8 12 2}{cmd:rdistnn_predict,} {cmd:x0(}{it:numlist}{cmd:)} | {cmd:x0matrix(}{it:name}{cmd:)}
 [{cmd:sefit interval(confidence) level(}{it:#}{cmd:) post store(}{it:name}{cmd:)}]{p_end}

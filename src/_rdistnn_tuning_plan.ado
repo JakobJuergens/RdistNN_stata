@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 // Private scalar/grid plan. No score, covariance, estimation post or data access.
 program define _rdistnn_tuning_plan, rclass
     version 17
@@ -6,29 +6,23 @@ program define _rdistnn_tuning_plan, rclass
         MODE(string) SDEFAULT(integer) [SGRID(numlist) LAMBDAGRID(numlist) noSE]
     local tuning_mode "`mode'"
     if `lambda' <= 0 | missing(`lambda') {
-        di as error "lambda() must be a positive finite number."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"lambda() must be a positive finite number."')
     }
     if "`lambdagrid'" != "" & "`sgrid'" != "" {
-        di as error "Specify either lambdagrid() or sgrid(), not both."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Specify either lambdagrid() or sgrid(), not both."')
     }
     if "`tuning_mode'" == "default" & ///
        ("`lambdagrid'" != "" | "`sgrid'" != "" | `sdefault' != 0) {
-        di as error "lambdagrid(), sgrid(), and sdefault() require tuningmode(grid)."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"lambdagrid(), sgrid(), and sdefault() require tuningmode(grid)."')
     }
     if "`tuning_mode'" == "grid" & `s' != 0 {
-        di as error "s() cannot be combined with tuningmode(grid)."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"s() cannot be combined with tuningmode(grid)."')
     }
     if `sdefault' < 0 {
-        di as error "sdefault() must be a positive integer when specified."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"sdefault() must be a positive integer when specified."')
     }
     if `sdefault' > 0 & "`sgrid'" == "" {
-        di as error "sdefault() requires sgrid()."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"sdefault() requires sgrid()."')
     }
 
     local paper_base = `n'^((`kx' + 1) / (`kx' + 2))
@@ -49,8 +43,7 @@ program define _rdistnn_tuning_plan, rclass
         local tuning_source "sgrid"
         foreach sg of local sgrid {
             if `sg' < 1 | `sg' != floor(`sg') | missing(`sg') {
-                di as error "sgrid() must contain positive integers."
-                exit 198
+                _rdistnn_messages error, rc(198) message(`"sgrid() must contain positive integers."')
             }
             local candidate_s "`candidate_s' `sg'"
             local candidate_lambda "`candidate_lambda' ."
@@ -78,8 +71,7 @@ program define _rdistnn_tuning_plan, rclass
         if "`lambdagrid'" == "" local lambdagrid ".3 .4 .5 .75"
         foreach lg of local lambdagrid {
             if `lg' <= 0 | missing(`lg') {
-                di as error "lambdagrid() must contain positive finite numbers."
-                exit 198
+                _rdistnn_messages error, rc(198) message(`"lambdagrid() must contain positive finite numbers."')
             }
             local sg = floor(`lg' * `paper_base')
             local candidate_s "`candidate_s' `sg'"
@@ -169,15 +161,14 @@ program define _rdistnn_tuning_plan, rclass
     if el(`candidate_mat', `default_index', 4) == 0 {
         local default_reason = el(`candidate_mat', `default_index', 5)
         if `default_reason' == 1 {
-            di as error "Default s(`s') < k(`k'). Increase n or lambda(), or decrease k()."
+            _rdistnn_messages error, rc(198) message(`"Default s(`s') < k(`k'). Increase n or lambda(), or decrease k()."')
         }
         else if `default_reason' == 2 {
-            di as error "Delete-one inference requires s() < the estimation sample size; got s = `s' and n = `n'. Reduce s() or lambda(), or specify nose."
+            _rdistnn_messages error, rc(198) message(`"Delete-one inference requires s() < the estimation sample size; got s = `s' and n = `n'. Reduce s() or lambda(), or specify nose."')
         }
         else {
-            di as error "Default s(`s') must be no greater than n(`n') when nose is specified."
+            _rdistnn_messages error, rc(198) message(`"Default s(`s') must be no greater than n(`n') when nose is specified."')
         }
-        exit 198
     }
 
     return scalar s=`s'

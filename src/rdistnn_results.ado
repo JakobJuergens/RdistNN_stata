@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 program define rdistnn_results, rclass
     version 17
     syntax [, TYPE(string) TARGETS(numlist integer >=1) Level(cilevel) SAVING(string asis) REPLACE]
@@ -14,8 +14,7 @@ program define rdistnn_results, rclass
     _rdistnn_model_check
     local m=e(m)
     if missing(`m') | `m'<1 | `m'!=floor(`m') {
-        di as error "Current fitted results require a positive integer e(m); refit `e(cmd)' with the current package."
-        exit 498
+        _rdistnn_messages error, rc(498) message(`"Current fitted results require a positive integer e(m); refit `e(cmd)' with the current package."')
     }
     foreach t of local targets {
         if `t'>`m' error 198
@@ -53,8 +52,7 @@ program define rdistnn_results, rclass
     if inlist("`type'","components","status","diagnostics") {
         local field "`type'"
         if !`:list field in fields' {
-            di as error "No `type' are stored for this fit."
-            exit 498
+            _rdistnn_messages error, rc(498) message(`"No `type' are stored for this fit."')
         }
         mata: st_matrix("`data'",(st_matrix("`target_index'")',st_matrix("e(`field')")[st_matrix("`target_index'"),]))
         matrix colnames `data'=target `:colnames e(`field')'

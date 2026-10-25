@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-19
+*! version 0.1.5  2026-10-25
 version 17
 // Shared finite double-precision arithmetic; estimators own statistical policy.
 foreach fn in signal_level sum compensated_sum weighted_cdf_index weighted_sd weighted_signals accumulation_add accumulation_merge accumulation_deletions {
@@ -136,8 +136,7 @@ real matrix rdistnn_weighted_signals(real matrix signal, real matrix weights)
     real matrix out
     real scalar component,target
     if(rows(signal)!=rows(weights)) {
-        errprintf("Weighted signals require aligned rows.\n")
-        exit(error(198))
+        rdistnn_fail(503,"Weighted signals require aligned rows.")
     }
     // Materialize each double product before reduction. Unlike quadcross,
     // quadsum(...,1) propagates input and product-overflow missing values.
@@ -285,7 +284,7 @@ real scalar rdistnn_binary_scale(real scalar amplitude)
 real rowvector rdistnn_binary_parts(real scalar value)
 {
     real scalar amplitude,half,power,normalized
-    if(missing(value)) exit(error(198))
+    if(missing(value)) rdistnn_fail(198,"Binary-scale decomposition requires a finite numeric value.")
     if(value==0) return((0,0))
     amplitude=abs(value); half=0
     if(amplitude>=.) {
@@ -312,27 +311,25 @@ real scalar rdistnn_weighted_quantile(real colvector x,
     real scalar index
     real colvector ord
 
-    if (rows(x) != rows(w) | rows(x) < 1) {
-        errprintf("rdistnn_weighted_quantile: x and w must have the same positive length.\n")
-        exit(error(198))
+    if (rows(x) != rows(w)) {
+        rdistnn_fail(503,"rdistnn_weighted_quantile: x and w must have the same length.")
+    }
+    if (rows(x) < 1) {
+        rdistnn_fail(2000,"Weighted quantiles require at least one observation.")
     }
     if (any(missing(x))) {
-        errprintf("rdistnn_weighted_quantile: x must contain only finite, nonmissing values.\n")
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_weighted_quantile: x must contain only finite, nonmissing values.")
     }
     if (missing(prob) | prob < 0 | prob > 1) {
-        errprintf("rdistnn_weighted_quantile: probability must be finite and lie in [0,1].\n")
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_weighted_quantile: probability must be finite and lie in [0,1].")
     }
     if (any(missing(w)) | any(w :< 0)) {
-        errprintf("rdistnn_weighted_quantile: weights must be finite and nonnegative.\n")
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_weighted_quantile: weights must be finite and nonnegative.")
     }
     ord = order((x, (1::rows(x))), (1, 2))
     index=rdistnn_weighted_cdf_index(w[ord],prob)
     if(missing(index)) {
-        errprintf("rdistnn_weighted_quantile: total weight must be finite and strictly positive.\n")
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_weighted_quantile: total weight must be finite and strictly positive.")
     }
     return(x[ord[index]])
 }

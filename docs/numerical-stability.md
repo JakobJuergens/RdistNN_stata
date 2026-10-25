@@ -18,8 +18,8 @@ Mata share this rule; the Stata plugin consumes Mata's ranks and per-target
 group IDs.
 Bare supplied low-level ranks/orders retain strict-order semantics unless
 distances accompany them. Current snapshots validate and reuse cached groups,
-distances, ranks and `exact_distance_block_averaging_v1`; older policies require
-refitting.
+distances, ranks and `exact_distance_block_averaging_v1`; invalid current state
+requires refitting.
 
 `_rdistnn_blocks.ado` owns block identification, mass averaging and original-signal
 block deletions. Existing shared weight/deletion paths call it, so estimator adapters
@@ -44,8 +44,7 @@ original identities even when signals are centered in rank order.
 Mata and native-plugin routes are checked against explicit deletion references.
 Public commands
 warn that inference with persistent distance ties is not established. The paper
-assumes a continuous distance distribution, under which the old and new rules
-agree almost surely; no uniform MSE improvement is established.
+assumes a continuous distance distribution; no uniform MSE improvement is established.
 
 ## Stable elementary calculations
 
@@ -357,9 +356,10 @@ still overflow during normalization even when raw sums are finite; finite
 double arithmetic does not guarantee partial recovery of every aggregate.
 
 Numerical module ownership is separate from numeric plot-data assembly in
-`_rdistnn_plot_mata.ado`. Private Mata names use the package prefix, including
-`rdistnn_log_binomial()` for the existing combinatorial reference formula.
-Reloading core modules therefore preserves unrelated Mata functions.
+`_rdistnn_plot_mata.ado`. Private Mata names use the package prefix; native
+Mata functions retain their own names. Numerical tests use independent
+log-factorial references where needed. Reloading core modules preserves
+unrelated Mata functions.
 
 The shared `_rdistnn_mata.ado` entry point loads arithmetic, covariance and
 whitening helpers before distance/rank evaluation, weight maps and deletion
@@ -397,7 +397,7 @@ criterion. These are diagnostic facts, not persisted warning-history flags.
 `_rdistnn_model_mata.ado` evaluates the estimator. Posting, coefficient stripes,
 descriptive metadata and uncertainty labels belong to `_rdistnn_model_post.ado`.
 `_rdistnn_reuse.ado` owns the caller's estimation-state transaction, including
-failures. Saved score provenance is retained; older or incomplete snapshots
+failures. Saved score provenance is retained; incomplete or inconsistent snapshots
 require refitting.
 
 Plot builders own rendering and delegate numeric reconstruction to the current
@@ -410,8 +410,8 @@ matrices to avoid default stripe creation on tall matrices. The dispatcher
 requires packed capability. Missing capability permits automatic Mata dispatch
 or a forced-native error. A failed packed execution or malformed output stops
 with its reported return code; it does not trigger automatic fallback or retry
-raw operations. The current directly tested raw C++ ABI operations share
-the same kernels and preserve every represented payload value.
+another transport. Only the current packed ABI is exposed; it calls the
+directly tested numerical kernels and preserves every represented payload value.
 The [native protocol](../src/plugin/README.md#developer-protocol-and-verification)
 describes capability and layout validation; transport does not change arithmetic
 or engine requirements.

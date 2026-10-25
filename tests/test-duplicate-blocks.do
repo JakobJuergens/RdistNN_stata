@@ -1,3 +1,7 @@
+// Low-level raw-duplicate grouping, original-signal deletions and kernel parity.
+// Independent raw-row oracles test this special case of distance averaging.
+// General target-specific distance ties and subset references belong to
+// test-distance-ties.do and test-distance-tie-invariance.do.
 version 17
 do "tests/test_framework.do"
 do "tests/helpers/finite-matrix.do"

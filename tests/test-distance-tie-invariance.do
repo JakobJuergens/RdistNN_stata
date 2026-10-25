@@ -1,3 +1,5 @@
+// Observation/subset order, equal-distance weights and serialized predictions.
+// Input index orders ranks within ties; it does not determine localization mass.
 version 17
 do "tests/test_framework.do"
 test_section "exact-distance averaging with observation-order ranks"
@@ -35,9 +37,9 @@ mata {
     TX=st_data(.,"tx1 tx2")
     // Reflection changes projected coordinate order, but every distance ties.
     TG=(1,2\0,0\-1,0\0,-1)
-    st_numscalar("TIE_RAW",all(rdistnn_ranks_matrix(TX,(0,0),"mahalanobis",TG):==st_matrix("TR")))
-    st_numscalar("TIE_SUB",all(rdistnn_ranks(TX[(1\2\3),],(0,0)):==(1::3)))
-    st_numscalar("TIE_DUP",all(rdistnn_ranks_matrix(TX\TX[1,],(0,0)):==(1::5)))
+    st_numscalar("TIE_RAW",all(rdistnn_localization_ranks(rdistnn_distance_matrix(TX,(0,0),"mahalanobis",TG)):==st_matrix("TR")))
+    st_numscalar("TIE_SUB",all(rdistnn_localization_ranks(rdistnn_distance_matrix(TX[(1\2\3),],(0,0))):==(1::3)))
+    st_numscalar("TIE_DUP",all(rdistnn_localization_ranks(rdistnn_distance_matrix(TX\TX[1,],(0,0))):==(1::5)))
     st_numscalar("TIE_EXPLICIT",all(rdistnn_weights_from_ranks((1::4),1,4,"exact"):==(1\0\0\0)))
 }
 test_assert "Mahalanobis ties use original rows after whitening reflections" TIE_RAW

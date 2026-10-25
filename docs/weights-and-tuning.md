@@ -45,14 +45,12 @@ See the [numerical reference](numerical-stability.md#asymptotic-tail-limits).
 
 Euclidean `distance(l2)` is the default. Its ranking is sensitive to the
 units of the coordinates; standardization can be a substantive choice.
-`distance(mahalanobis)` uses the full estimation sample covariance and a
-centered-design SVD whitening factor. Retain singular values greater than
-`max(n,p) * 2^-52 * largest_singular_value`; null directions contribute zero.
-This avoids explicitly forming or inverting covariance. The metric is fixed
-through deletion covariance calculations. High-level ranks use represented
-distance then original row index; observations sharing a distance receive the
-same averaged rank weight. Changing a metric changes the neighborhood and its
-target-specific groups; it is not a cosmetic plot option.
+`distance(mahalanobis)` adjusts proximity using covariance geometry fitted on
+the estimation sample and held fixed during jackknife deletions. High-level
+ranks use represented distance then original row index; equal distances share
+averaged rank weights. Changing the metric changes neighborhoods and their
+per-target groups. See the [numerical reference](numerical-stability.md#fitted-mahalanobis-factorization)
+for whitening, singular designs and factorization details.
 
 ### Exact distance ties
 
@@ -94,16 +92,15 @@ cannot distinguish group members. Groups can differ across targets and metrics.
 Moving covariate rows requires moving their aligned outcomes and nuisances too;
 estimates and covariance are then invariant up to numerical precision.
 
-The paper assumes a continuous distance distribution, under which the earlier
-and current rules agree almost surely. Commands warn because inference with
+The paper assumes a continuous distance distribution. Commands warn because inference with
 persistent distance ties is not established. Averaging does not supply a
 uniform mean-squared-error improvement.
 
 A rank table alone cannot reconstruct the weights without the target-specific
 groups. Bare low-level ranks/orders retain strict-order semantics unless
 supplied distances accompany them. Saved fits cache ranks, distances, groups
-and the selected policy; refit objects created under an earlier policy,
-including version 0.1.2.
+and the selected policy. During experimental development, refit saved models
+after package updates.
 
 ## Generate weights at one target
 

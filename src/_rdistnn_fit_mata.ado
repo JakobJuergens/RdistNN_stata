@@ -1,3 +1,4 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Fresh-command IO adapters. Capture validated ado locals at entry, keep all
 // numeric work local, and publish only the caller's temporary Stata outputs.

@@ -1,11 +1,10 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 program define rdistnn_predict, rclass
     version 17
     syntax [, X0(numlist) X0Matrix(name) SEFIT INTERVAL(string) Level(cilevel) POST STORE(name)]
     if !inlist("`e(cmd)'","np_dnn","np_tdnn","cate_dnn","clate_dnn","plqr_dnn") error 301
     if ("`x0'"=="")==("`x0matrix'"=="") {
-        di as error "Specify exactly one of x0() and x0matrix()."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Specify exactly one of x0() and x0matrix()."')
     }
     if "`interval'"!="" & "`interval'"!="confidence" error 198
     _rdistnn_model_check

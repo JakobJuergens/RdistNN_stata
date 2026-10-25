@@ -1,9 +1,10 @@
 {smcl}
-{* *! version 0.1.1  2026-10-17}{...}
+{* *! version 0.1.5  2026-10-25}{...}
 {viewerjumpto "Syntax" "weights_dnn##syntax"}{...}
 {viewerjumpto "Description" "weights_dnn##description"}{...}
 {viewerjumpto "Options" "weights_dnn##options"}{...}
 {viewerjumpto "Numerical limits" "weights_dnn##numerical"}{...}
+{viewerjumpto "Distance scaling and ties" "weights_dnn##geometry"}{...}
 {viewerjumpto "Stored results" "weights_dnn##results"}{...}
 {viewerjumpto "Examples" "weights_dnn##examples"}{...}
 
@@ -63,8 +64,7 @@ At each target, observations with exactly equal distance receive the mean of
 their assigned rank weights, including distinct profiles and zero-weight ranks
 beyond nominal support. No tolerance or rounding groups nearby distances.
 Signed and unnormalized group mass is preserved; individual weights, support
-and ESS can change. The paper assumes a continuous distance distribution, under
-which old and new rules agree almost surely. Inference with persistent distance
+and ESS can change. The paper assumes a continuous distance distribution. Inference with persistent distance
 ties and a uniform MSE improvement are not established.
 
 {pstd}
@@ -170,6 +170,7 @@ Break retains code 1, and unexpected plugin failures use 498. See
 Native distance and jackknife matrices created
 through Mata may exceed {cmd:c(matsize)}; dispatch preserves that setting.
 
+{marker geometry}{...}
 {title:Distance scaling}
 
 {pstd}
@@ -185,7 +186,10 @@ are absolute scales, not inverse scales. Each scale is floored at the positive
 finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
 custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
 The fitted scales or Mahalanobis whitening factor remain fixed across
-jackknife deletions and saved-model predictions. Ranks use represented selected-metric distance then original row index.
+jackknife deletions and saved-model predictions.
+
+{pstd}
+Ranks use represented selected-metric distance then original row index.
 At each target, observations with exactly equal distance share the mean of their
 assigned rank weights, including different covariate profiles and zero-weight
 ranks beyond nominal support. No tolerance or rounding groups nearby distances.
@@ -193,9 +197,11 @@ Each deletion removes the actual observation before averaging the n-1 table
 over each remaining group using its survivor count. Signed and unnormalized
 mass is preserved; individual weights, support and ESS can change. Aligned row
 permutations preserve estimates and covariance up to numerical precision.
-The paper assumes a continuous distance distribution, under which old and new
-rules agree almost surely. Inference with persistent distance ties and a uniform
-MSE improvement are not established; outcomes and nuisances do not define groups.
+
+{pstd}
+The paper assumes a continuous distance distribution; inference with persistent
+distance ties is not established. Averaging does not establish a uniform MSE
+improvement. Outcomes and nuisances do not define groups.
 
 {marker results}{...}
 {title:Stored results}

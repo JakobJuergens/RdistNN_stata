@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.1  2026-10-21}{...}
+{* *! version 0.1.5  2026-10-25}{...}
 {viewerjumpto "Commands" "rdistnn##commands"}{...}
 {viewerjumpto "Conventions" "rdistnn##conventions"}{...}
 {viewerjumpto "Workflow" "rdistnn##workflow"}{...}
@@ -14,7 +14,7 @@
 weights, diagnostics and native plots
 
 {pstd}
-Stata 17 or later. Package {bf:0.1.4} provides conditional treatment
+Stata 17 or later. Package {bf:0.1.5} provides conditional treatment
 estimation, nonparametric and two-scale regression, and shared reporting.
 Shared methods follow the RdistNN contract and are checked against independent
 references and across engines. The Stata companion has its own documented
@@ -63,10 +63,9 @@ weight concentration. Exact/asymptotic methods and L1/L2, scaled L1/L2 and Mahal
 available subject to each command's sample/dimension checks.
 
 {pstd}
-The support formula describes the unaveraged rank table. Averaging assigned
-weights across exact-distance groups can extend nonzero observation weights to
-the end of a group crossing that edge. Use actual returned weights for realized
-support and concentration; rank-only tables do not contain target-specific groups.
+Exact-distance averaging can extend support beyond the nominal rank cutoff.
+Final observation weights determine realized support and concentration; see
+{help weights_dnn##geometry:distance ties}.
 
 {pstd}
 {help np_tdnn} combines two orders s1<s2 for conditional mean regression.
@@ -132,9 +131,8 @@ groups nearby distances. Each deletion removes the actual observation before
 averaging the n-1 table within surviving groups. Signed and unnormalized group
 mass is preserved; individual weights, support and ESS can change. Aligned row
 permutations preserve estimates and covariance up to numerical precision.
-The paper assumes a continuous distance distribution, under which old and new
-rules agree almost surely. Inference with persistent distance ties and a uniform
-MSE improvement are not established. Refit objects from earlier policies.
+The paper assumes a continuous distance distribution. Inference with persistent distance ties and a uniform
+MSE improvement are not established. Refit saved models after package updates.
 
 {pstd}
 CLATE additionally needs the documented binary-IV causal assumptions for a
@@ -204,7 +202,7 @@ columns, and {cmd:e(n_tied_targets)} / {cmd:e(n_weak_targets)} totals, even unde
 validity test. Reports, selected results, predictions, candidates and standalone
 weights return the corresponding {cmd:r()} counts; plots/diagnostics do not
 promise these counters. Current saved schema 4 validates these facts and
-requires refitting incomplete or older snapshots. Independent calls may warn again.
+requires complete current snapshots; refit invalid state. Independent calls may warn again.
 
 {pstd}
 CLATE summaries show at most five example target IDs; inspect {cmd:e(status)}

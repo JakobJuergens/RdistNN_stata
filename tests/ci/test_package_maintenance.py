@@ -138,14 +138,34 @@ class PackageMaintenanceTests(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             manifest = contents["rdistnn.pkg"]
+            version = re.search(rb'^d Version:\s*(\S+)', manifest, re.M)[1]
+            archive_version = {
+                name: content.replace(b'*! version ' + version, b'*! version 9.8.7')
+                for name, content in contents.items() if name.endswith(('.ado', '.sthlp'))
+            }
+            archive_version['rdistnn.pkg'] = manifest.replace(b'd Version: ' + version,
+                                                             b'd Version: 9.8.7')
             cases = (
                 ("unchanged", {}, True),
+                ("own-archive-version", archive_version, True),
                 # An archive can legitimately have a different installation
                 # inventory from the checkout used to run the verifier.
                 ("archive-only-helper", {
                     "rdistnn.pkg": manifest + b"f src/_rdistnn_archive_only.ado\n",
-                    "src/_rdistnn_archive_only.ado": b"version 17\n",
+                    "src/_rdistnn_archive_only.ado":
+                        b'*! version ' + version + b'  2026-10-23\nversion 17\n',
                 }, True),
+                ("stale-ado-stamp", {
+                    "src/cate_dnn.ado": contents["src/cate_dnn.ado"].replace(
+                        b'*! version ' + version, b'*! version 0.0.9', 1),
+                }, False),
+                ("stale-help-stamp", {
+                    "src/cate_dnn.sthlp": contents["src/cate_dnn.sthlp"].replace(
+                        b'*! version ' + version, b'*! version 0.2.1', 1),
+                }, False),
+                ("missing-helper-stamp", {
+                    "src/_rdistnn_mata.ado": b'version 17\nmata:\nend\n',
+                }, False),
                 ("missing-declared-input", {
                     "rdistnn.pkg": manifest + b"f src/missing_required.ado\n",
                 }, False),

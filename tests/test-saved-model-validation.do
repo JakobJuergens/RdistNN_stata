@@ -109,6 +109,37 @@ program define _smv_corrupt, eclass
         matrix `value'=(1)
         ereturn matrix `field'=`value', copy
     }
+    if inlist("`case'","components_missing","components_zero_denominator") {
+        matrix `value'=e(components)
+        if "`case'"=="components_missing" matrix `value'[1,1]=.
+        else matrix `value'[1,2]=0
+        ereturn matrix components=`value', copy
+    }
+    if "`case'"=="component_sign_flag" {
+        matrix `value'=e(status)
+        matrix `value'[1,2]=1-el(`value',1,2)
+        ereturn matrix status=`value', copy
+    }
+    if substr("`case'",1,13)=="componentcov_" {
+        matrix `value'=e(component_vcov)
+        if "`case'"=="componentcov_negative" matrix `value'[1,1]=-1
+        if "`case'"=="componentcov_asymmetric" matrix `value'[1,2]=el(`value',1,2)+1
+        if "`case'"=="componentcov_partial" matrix `value'[1,1]=.
+        if "`case'"=="componentcov_cross_missing" {
+            matrix `value'[1,3]=.
+            matrix `value'[3,1]=.
+        }
+        if "`case'"=="componentcov_false_success" {
+            forvalues j=1/`=colsof(`value')' {
+                forvalues h=1/2 {
+                    matrix `value'[`h',`j']=.
+                    matrix `value'[`j',`h']=.
+                }
+            }
+        }
+        if "`case'"=="componentcov_nose_finite" matrix `value'[1,1]=0
+        ereturn matrix component_vcov=`value', copy
+    }
     if "`case'"=="negative_se" {
         matrix `value'=e(se_targets)
         matrix `value'[1,1]=-2
@@ -240,6 +271,7 @@ program define _smv_check_routes
         if "`route'"=="replay" capture quietly `family'_dnn
         if inlist("`route'","estimates","results") capture quietly rdistnn_results
         if "`route'"=="vcov" capture quietly rdistnn_results, type(vcov)
+        if "`route'"=="components" capture quietly rdistnn_results, type(components)
         if "`route'"=="resultdiag" capture quietly rdistnn_results, type(diagnostics)
         if "`route'"=="diagnostics" capture quietly `family'_dnn_diagnostics
         if "`route'"=="weights" capture quietly rdistnn_results, type(weights)
@@ -426,6 +458,24 @@ foreach family in np cate clate {
         tuningmode(grid) lambdagrid(1e-20 .4 8e307) `extra'
     test_assert "`family': numerical infeasible optional orders retain current grid status" e(tuning_n_skipped)==2 & e(tuning_n_feasible)==1
 }
+
+test_section "paired component arrays validate at their shared retained-state owner"
+foreach case in components_missing components_zero_denominator component_sign_flag ///
+    componentcov_negative componentcov_asymmetric componentcov_partial ///
+    componentcov_cross_missing componentcov_false_success componentcov_nose_finite {
+    local seoption ""
+    if "`case'"=="componentcov_nose_finite" local seoption "nose"
+    quietly clate_dnn smvc_y, pseudooutcome denominator(smvc_den) ///
+        xcols(smvc_x smvc_z) x0matrix(SMVC_TARGETS) s(3) `seoption'
+    _smv_corrupt, case(`case')
+    estimates store SMVC_COMPONENT_INVALID
+    _rdistnn_test_e_snapshot, name(SMVC_COMPONENT_STATE)
+    _smv_check_routes, estimates(SMVC_COMPONENT_INVALID) snapshot(SMVC_COMPONENT_STATE) ///
+        case(`case') routes("components predict") family(clate) ///
+        callertest("_N==12 & smvc_y[1]<.")
+    _rdistnn_test_e_snapshot_drop, name(SMVC_COMPONENT_STATE)
+    estimates drop SMVC_COMPONENT_INVALID
+}
 program drop _smv_corrupt
 program drop _smv_check_routes
 
@@ -455,3 +505,22 @@ quietly clate_dnn state_y, pseudooutcome denominator(state_den) xcols(state_x) x
 capture quietly rdistnn_results
 local rc=_rc
 test_assert "numerical covariance failure retains a finite defined ratio" `rc'==0 & e(status)[1,1]==0 & e(status)[1,4]==3 & missing(e(estimate_vcov)[1,1])
+
+replace state_y=2^900
+replace state_den=2^-900
+quietly clate_dnn state_y, pseudooutcome denominator(state_den) xcols(state_x) x0(0) s(3)
+capture quietly rdistnn_results, type(components)
+local rc=_rc
+test_assert "finite constant components retain ratio-overflow and successful component covariance" `rc'==0 & e(status)[1,1]==2 & e(status)[1,4]==0 & !missing(e(components)[1,1],e(components)[1,2]) & e(component_vcov)[1,1]==0
+replace state_y=(_n^2)*1e200
+replace state_den=1
+quietly clate_dnn state_y, pseudooutcome denominator(state_den) xcols(state_x) x0(0) s(3)
+capture quietly rdistnn_results, type(components)
+local rc=_rc
+test_assert "component covariance range failure retains finite component means" `rc'==0 & e(status)[1,1]==0 & e(status)[1,4]==3 & !missing(e(components)[1,1],e(components)[1,2]) & missing(e(component_vcov)[1,1],e(component_vcov)[2,2])
+replace state_y=cond(mod(_n,2),-1,1)*2^-450
+replace state_den=2^-1000
+quietly clate_dnn state_y, pseudooutcome denominator(state_den) xcols(state_x) x0(0) s(3)
+capture quietly rdistnn_results, type(components)
+local rc=_rc
+test_assert "ratio variance range failure preserves finite component covariance" `rc'==0 & e(status)[1,1]==0 & e(status)[1,4]==3 & !missing(e(component_vcov)[1,1],e(component_vcov)[2,2]) & missing(e(estimate_vcov)[1,1])

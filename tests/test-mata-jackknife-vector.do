@@ -15,7 +15,7 @@ mata {
     rseed(302)
     n = 28; k = 2; s = 6
     _X   = rnormal(n, 2, 0, 1)
-    _rnk = rdistnn_ranks(_X, (0, 0), "l2")
+    _rnk = rdistnn_localization_ranks(rdistnn_distance_matrix(_X,(0, 0),"l2"))
     _sig = J(n, 1, 1) * (2.5, -1.25)
     _V   = rdistnn_jk_cov_from_ranks(_rnk, _sig, k, s, "exact")
     st_numscalar("_r_const", max(abs(_V)))
@@ -30,7 +30,7 @@ mata {
     rseed(303)
     n = 14; q = 3; k = 2; s = 5
     _X   = rnormal(n, 2, 0, 1)
-    _rnk = rdistnn_ranks(_X, (0.2, -0.4), "l2")
+    _rnk = rdistnn_localization_ranks(rdistnn_distance_matrix(_X,(0.2, -0.4),"l2"))
     _sig = rnormal(n, q, 0, 1)
 
     _V_fast = rdistnn_jk_cov_from_ranks(_rnk, _sig, k, s, "exact")
@@ -56,7 +56,7 @@ mata {
     rseed(304)
     n = 14; q = 3; k = 2; s = 5
     _X   = rnormal(n, 2, 0, 1)
-    _rnk = rdistnn_ranks(_X, (0, 0), "l2")
+    _rnk = rdistnn_localization_ranks(rdistnn_distance_matrix(_X,(0, 0),"l2"))
     _sig = rnormal(n, q, 0, 1)
 
     _V_fast = rdistnn_jk_cov_from_ranks(_rnk, _sig, k, s, "asymp")
@@ -86,7 +86,7 @@ mata {
     rseed(305)
     n = 18; q = 3; k = 2; s = 6
     _X   = rnormal(n, 2, 0, 1)
-    _rnk = rdistnn_ranks(_X, (0.3, 0.1), "l2")
+    _rnk = rdistnn_localization_ranks(rdistnn_distance_matrix(_X,(0.3, 0.1),"l2"))
     _sig = rnormal(n, q, 0, 1)
     _V   = rdistnn_jk_cov_from_ranks(_rnk, _sig, k, s, "exact")
 
@@ -114,7 +114,7 @@ mata {
     n = 16; m = 3; k = 2; s = 5
     _X = rnormal(n, 2, 0, 1)
     _X0 = (0,0 \ 0.5,-0.25 \ -0.4,0.3)
-    _R = rdistnn_ranks_matrix(_X, _X0, "l2")
+    _R = rdistnn_localization_ranks(rdistnn_distance_matrix(_X,_X0,"l2"))
     _W = rdistnn_weights_from_rmat(_R, k, s, "exact")
     _sig = rnormal(n, 1, 0, 1)
     _V_fast = rdistnn_jk_cov_multi_from_ranks(_R, _sig, k, s, "exact")

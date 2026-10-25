@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 program define weights_tdnn, rclass
     version 17
     syntax varlist(numeric) [if] [in], [X0(numlist) X0MATRIX(name) ///
@@ -12,24 +12,20 @@ program define weights_tdnn, rclass
     if `n'==0 error 2000
     local p : word count `varlist'
     if "`dim'"=="" local dim=`p'
-    capture confirm integer number `dim'
-    if _rc error 198
+    confirm integer number `dim'
     if `s1'<1 | `s1'>=`s2' | `s2'>`n' | `dim'<1 {
-        di as error "Require 1 <= s1 < s2 <= n and positive dim()."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Require 1 <= s1 < s2 <= n and positive dim()."')
     }
     if "`method'"=="" local method "exact"
     if !inlist("`method'","exact","asymp") error 198
     if "`distance'"=="" local distance "l2"
     if "`scalerule'"=="" local scalerule "sd"
     if ("`x0'"=="")==("`x0matrix'"=="") {
-        di as error "Specify exactly one of x0() or x0matrix()."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Specify exactly one of x0() or x0matrix()."')
     }
     tempname targets W R DX groups table diag geom row_ids target_notices notice_counts
     if "`x0matrix'"!="" {
-        capture confirm matrix `x0matrix'
-        if _rc error 198
+        confirm matrix `x0matrix'
         matrix `targets'=`x0matrix'
     }
     else {
@@ -38,14 +34,13 @@ program define weights_tdnn, rclass
     }
     local m=rowsof(`targets')
     if `m'<1 | colsof(`targets')!=`p' {
-        di as error "Targets must have one column per localization covariate."
-        exit 198
+        local target_rc = cond("`x0matrix'"=="",198,503)
+        _rdistnn_messages error, rc(`target_rc') message(`"Targets must have one column per localization covariate."')
     }
     if "`generate'"!="" {
         confirm new variable `generate'
         if `m'!=1 {
-            di as error "generate() requires a single target; use r(weights) for batches."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"generate() requires a single target; use r(weights) for batches."')
         }
     }
     local normalize=("`normalize'"=="")
@@ -54,6 +49,9 @@ program define weights_tdnn, rclass
         quietly run "`r(fn)'"
     }
     mata: rdistnn_tdnn_weights_ado()
+    capture confirm matrix `geom'
+    local geometry_rc=_rc
+    if !inlist(`geometry_rc',0,111) exit `geometry_rc'
     mata: st_matrix("`target_notices'",rdistnn_target_notices(st_matrix("`groups'"),st_matrix("`diag'")[,5]))
     matrix colnames `target_notices'=distance_ties weak_localization
     mata: st_matrix("`notice_counts'",colsum(st_matrix("`target_notices'")))
@@ -75,8 +73,7 @@ program define weights_tdnn, rclass
     return matrix targets=`targets'
     return matrix diagnostics=`diag'
     return matrix row_ids=`row_ids'
-    capture confirm matrix `geom'
-    if !_rc return matrix geometry=`geom'
+    if `geometry_rc'==0 return matrix geometry=`geom'
     return scalar n=`n'
     return scalar m=`m'
     return scalar p=`p'

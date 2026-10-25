@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.3  2026-10-17}{...}
+{* *! version 0.1.5  2026-10-25}{...}
 {viewerjumpto "Syntax" "np_dnn##syntax"}{...}
 {viewerjumpto "Description" "np_dnn##description"}{...}
 {viewerjumpto "Sample and targets" "np_dnn##sample"}{...}
@@ -64,7 +64,7 @@ exactly equal represented selected-metric distance share the mean of their
 assigned rank weights, including each deletion's surviving group. No tolerance
 groups nearby distances. Aligned row permutations preserve estimates and
 covariance up to numerical precision. The paper assumes a continuous distance
-distribution, under which old and new rules agree almost surely; inference with
+distribution; inference with
 persistent distance ties is not established. Reported order fractions
 are descriptive and do not establish inference conditions.
 
@@ -176,10 +176,9 @@ inference, s must be less than n; with {opt nose}, s may equal n.  Omitting
 k=s give no localization. An infeasible default order raises an error.
 
 {pstd}
-The support formula describes the unaveraged rank table. Averaging assigned
-weights across exact-distance groups can extend nonzero observation weights to
-the end of a group crossing that edge. Use actual returned weights for realized
-support and concentration; rank-only tables do not contain target-specific groups.
+Exact-distance averaging can extend support beyond the nominal rank cutoff.
+Final observation weights determine realized support and concentration; see
+{help weights_dnn##geometry:distance ties}.
 
 {phang}{opt tuningmode(grid)} evaluates a tuning grid after computing target
 ranks once.  The primary {cmd:e(b)}, {cmd:e(V)}, {cmd:e(s)}, and ESS results
@@ -229,29 +228,11 @@ bounds are missing. {cmd:e(se_method)} and {cmd:e(jackknife)} are {cmd:none}.
 {title:Distance scaling}
 
 {pstd}
-{cmd:distance(l1)} uses Manhattan distance. {cmd:distance(l2)} uses Euclidean
-distance (default). {cmd:l1_scaled} and {cmd:l2_scaled} divide each coordinate
-by a scale fitted on the complete estimation sample before computing the
-corresponding distance. {cmd:scalerule(sd)} is the default; alternatives are
-{cmd:mad} (median absolute deviation, constant 1.4826), {cmd:iqr} (R type-7
-quartiles), {cmd:range}, and {cmd:custom}. Sample SD uses the n-1 divisor and
-requires two observations. Supply {cmd:scalevec(numlist)} only with
-{cmd:scalerule(custom)}, with one finite scale per covariate. Custom values
-are absolute scales, not inverse scales. Each scale is floored at the positive
-finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
-custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
-The fitted scales or Mahalanobis whitening factor remain fixed across
-jackknife deletions and saved-model predictions. Ranks use represented selected-metric distance then original row index.
-At each target, observations with exactly equal distance share the mean of their
-assigned rank weights, including different covariate profiles and zero-weight
-ranks beyond nominal support. No tolerance or rounding groups nearby distances.
-Each deletion removes the actual observation before averaging the n-1 table
-over each remaining group using its survivor count. Signed and unnormalized
-mass is preserved; individual weights, support and ESS can change. Aligned row
-permutations preserve estimates and covariance up to numerical precision.
-The paper assumes a continuous distance distribution, under which old and new
-rules agree almost surely. Inference with persistent distance ties and a uniform
-MSE improvement are not established; outcomes and nuisances do not define groups.
+Scaled L1/L2 distances use scales fitted on the estimation sample; scales and
+Mahalanobis geometry remain fixed during jackknife deletion and saved prediction.
+See {help weights_dnn##geometry:distance geometry and tie averaging} for scale
+choices, numerical floors and survivor weights. Inference with persistent
+distance ties is not established.
 
 {marker results}{...}
 {title:Stored results}

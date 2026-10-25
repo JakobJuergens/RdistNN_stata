@@ -1,6 +1,6 @@
 # RdistNN for Stata
 
-Version **0.1.4**. See [release notes](RELEASE_NOTES.md) for changes.
+Version **0.1.5**. See [release notes](RELEASE_NOTES.md) for changes.
 
 **RdistNN for Stata** estimates conditional treatment effects and regression
 functions using distributional nearest-neighbor (DNN) weights. Choose covariate
@@ -27,13 +27,10 @@ ado/Mata implementation runs on Windows, macOS and Linux without R, Python or
 a compiler. Native acceleration is optional; see the [plugin guide](src/plugin/README.md)
 for platform-specific binaries.
 
-For the version-pinned release, replace `master` with `v0.1.4` in the installation URL.
+For the version-pinned release, replace `master` with `v0.1.5` in the installation URL.
 
 For reproducible installation, retain the full source commit or checked archive
-identity; [RELEASING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/RELEASING.md)
-explains candidate installation and historical pins. The historical `v0.1.0` tag predates CLATE and
-the current shared reporting interface. Retain the source commit or archive
-identity alongside your results.
+identity; see [RELEASING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/RELEASING.md).
 
 ## Choose a workflow
 
@@ -82,10 +79,8 @@ cate_dnn_plot, type(estimates) style(profile) replace
 Each row reports an effect, standard error and pointwise confidence bounds.
 Copy `r()` results before another command replaces them; `estimates store`
 keeps the fitted model for later use. The [quick start](docs/getting-started.md)
-explains supplied-score inputs and saved results. Earlier `mcol()`/`mhat()`
-calls should use both arm means for AIPW or a supplied `pseudooutcome`.
-Refit objects from older development versions; see
-[saved-fit migration](docs/reusing-fits.md#migrating-saved-cate-fits-after-robinson-removal).
+explains supplied-score inputs and saved results. During active experimental
+development, refit saved models after package updates.
 
 ## Regression and conditional LATE
 
@@ -133,29 +128,21 @@ uncertainty requires `s < n`; `nose` skips it. See
 
 ## Interpreting inference
 
-Intervals are **pointwise**. The framework assumes independent observations;
-cluster and survey-design inference are not supplied. At each target, observations
-with exactly equal represented distance under the selected metric share the
-average of their assigned rank weights, including every deletion's surviving
-group. Nearby distances are not merged. This includes different covariate profiles
-at equal distance; individual weights, support and effective sample size can
-change. Aligned row permutations preserve estimates and covariance up to numerical
-precision. Refit saved objects created under an earlier tie policy.
+Intervals are pointwise. The sampling framework assumes independent
+observations; cluster and survey-design inference are not supplied. Supply
+aligned nuisance predictions and inspect localization and arm support.
+Clipping and diagnostics do not establish identification or valid inference.
 
-The paper assumes a continuous distance distribution, under which the earlier
-and current rules agree almost surely. Commands warn when distance ties occur:
-inference for persistent distance ties is not established. Averaging does not
-supply a uniform mean-squared-error improvement.
+Observations at exactly equal computed distance under the selected metric
+share the average of their rank weights. Inference with persistent distance
+ties is not established. The [weight
+guide](docs/weights-and-tuning.md#exact-distance-ties) explains tie handling,
+survivor weights and realized support.
 
-Nuisance predictions must be aligned with the estimation observations.
-Propensity clipping is numerical protection, not a remedy for poor overlap.
-Diagnostics describe local support; they do not establish validity. For the
-identification, nuisance-learning and localization conditions and theoretical
-results, see the accompanying
-[paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z).
-The guides explain the corresponding inputs and outputs.
-
-<a id="optional-native-acceleration"></a>
+The [accompanying
+paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
+states the identification, nuisance-learning, localization and bias conditions
+for inference.
 
 ## Numerical behavior and engines
 

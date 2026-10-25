@@ -121,8 +121,7 @@ target, observations with exactly equal represented selected-metric distance
 share the mean of their assigned rank weights. Every deletion applies the
 `n-1` table after removing the actual observation and divides group mass among
 its survivors. No tolerance groups nearby distances. Weights, support and ESS
-can change. The paper assumes a continuous distance distribution, under which
-old and new policies agree almost surely; inference with persistent distance
+can change. The paper assumes a continuous distance distribution; inference with persistent distance
 ties is not established. See the
 [worked example](weights-and-tuning.md#exact-distance-ties).
 Diagnostics cannot verify the paper's assumptions or remove localization bias.
@@ -131,13 +130,4 @@ For conditional LATE, continue with the [binary-IV guide](conditional-late.md).
 [Notation](notation-and-conventions.md) explains shapes and result names;
 the [article index](index.md) routes the remaining workflows.
 
-## Migrating earlier CATE inputs
-
-The former `mcol()`/`mhat()` construction is removed. Supply both arm-specific
-outcome means and a propensity for AIPW, or a justified supplied signal.
-Duplicating a pooled mean is not an equivalent migration. R demo columns
-`m1_oracle` and `aipw_oracle` replace a different signal formerly called
-`rho_oracle`. Supported saved numeric snapshots continue to reuse their
-retained signals without converting them to AIPW; see the
-[saved-fit migration guide](reusing-fits.md#migrating-saved-cate-fits-after-robinson-removal)
-for snapshot and live-data postestimation boundaries.
+During active experimental development, refit saved models after package updates.

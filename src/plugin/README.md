@@ -130,16 +130,14 @@ are m by p, inverse scales are 1 by p, and the preallocated output is n by m:
 ```text
 distance_api output
 distance_batch l1|l2 X X0 inverse_scales|none output
-rank_loo ranks signals table output
-block_rank_loo ranks signals table groups output
 loo_packed_api output
 loo_packed input output
 ```
 
 Capability version 1 validates dimensions, finite inputs and positive inverse
-scales before publishing output. Both deletion operations accept n by m ranks,
+scales before publishing output. The deletion operation accepts n by m ranks,
 n by q signals and an (n-1) by 1 deletion table, returning n by (m*q) output in
-target/component blocks. `block_rank_loo` additionally accepts n by 1 integer
+target/component blocks. Grouped deletion additionally accepts n by 1 integer
 group identifiers in `1:n` and computes actual-observation deletions from the
 original signals. Canonical contiguous groups retain original member order and
 use linear work in n; supplied ranks that interleave groups or reorder members
@@ -150,8 +148,9 @@ capability version 1 to a 1 by 1 matrix, then `loo_packed` receives a balanced
 frame. Missing packed capability uses the ordinary Mata fallback in automatic
 mode and errors when native execution is required. A native execution failure
 or malformed packed result stops with its error instead of selecting fallback.
-The dispatcher does not retry through the raw operations. Raw `rank_loo` and
-`block_rank_loo` remain current, directly tested C++ ABI operations.
+Only the current packed deletion transport is exposed by the plugin; obsolete
+unpacked entry points are removed. The numerical kernels remain independent
+of transport and are tested directly.
 
 The packed input contains five exact doubles, `[1,n,m,q,grouped]`, followed by
 column-major arrays `ranks`, `signals`, `table`, and, when grouped is 1, `groups`.
@@ -163,7 +162,7 @@ with zero padding. Both frames have positive balanced dimensions (`r >= c`,
 integer bounds, checked products and sums, expected frame capacities, finite
 inputs and zero input padding before allocating kernel arrays or publishing
 output. Conformable input/output aliases are safe because all inputs are read
-first. Raw and packed operations call the same numerical kernels.
+first. Packed transport calls the directly tested numerical kernels.
 
 Balanced staging avoids Stata's expensive default stripe construction for tall
 matrices; the logical algorithm and its linear complexity are unchanged.

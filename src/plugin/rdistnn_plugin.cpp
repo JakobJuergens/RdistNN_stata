@@ -1,7 +1,7 @@
 // rdistnn_plugin.cpp
 // Stata plugin entry point for RdistNN.
 //
-// Matrix operations: distance_api, distance_batch, rank_loo and block_rank_loo.
+// Matrix operations: distance_api, distance_batch, loo_packed_api and loo_packed.
 // Current ado/Mata callers provide matrices and retain host-side rank tables.
 //
 // Compiling:
@@ -11,112 +11,13 @@
 #include "stplugin.h"
 #include "rdistnn_core.hpp"
 
-#include <climits>    // INT_MAX for rank_loo dimensions
+#include <climits>    // INT_MAX for validated payload dimensions
 #include <cmath>      // isfinite
 #include <cstring>    // strcmp
 #include <cstdio>     // snprintf
 #include <vector>
 #include <string>
 #include <exception>
-
-// Matrix API: plugin call rdistnn_plugin, rank_loo ranks signals table output
-// Matrices are supplied by Mata; ranks n x m, signals n x q, table (n-1) x 1,
-// preallocated output n x (m*q). No dataset or distance dependence.
-static ST_retcode do_rank_loo(int argc, char *argv[])
-{
-    if (argc!=5) {
-        SF_error((char *)"rdistnn_plugin rank_loo: require ranks signals table output matrix names.\n");
-        return 198;
-    }
-    const int n=SF_row(argv[1]), m=SF_col(argv[1]), q=SF_col(argv[2]);
-    if (n<2 || m<1 || q<1 || m>INT_MAX/q || SF_row(argv[2])!=n ||
-        SF_row(argv[3])!=n-1 || SF_col(argv[3])!=1 ||
-        SF_row(argv[4])!=n || SF_col(argv[4])!=m*q) {
-        SF_error((char *)"rdistnn_plugin rank_loo: incompatible matrix dimensions.\n");
-        return 198;
-    }
-    {
-        std::vector<int> ranks(static_cast<std::size_t>(n)*m);
-        std::vector<double> signal(static_cast<std::size_t>(n)*q), table(n-1);
-        ST_double value;
-        ST_retcode rc;
-        for (int j=0; j<m; ++j) for (int i=0; i<n; ++i) {
-            if ((rc=SF_mat_el(argv[1],i+1,j+1,&value))) return rc;
-            if (SF_is_missing(value) || !std::isfinite(value) || value<1 || value>n || value!=std::floor(value))
-                throw std::invalid_argument("ranks must be integer permutations of 1..n");
-            ranks[i+static_cast<std::size_t>(j)*n]=static_cast<int>(value);
-        }
-        for (int j=0; j<q; ++j) for (int i=0; i<n; ++i) {
-            if ((rc=SF_mat_el(argv[2],i+1,j+1,&value))) return rc;
-            if (SF_is_missing(value) || !std::isfinite(value))
-                throw std::invalid_argument("signals must be finite and nonmissing");
-            signal[i+static_cast<std::size_t>(j)*n]=value;
-        }
-        for (int i=0; i<n-1; ++i) {
-            if ((rc=SF_mat_el(argv[3],i+1,1,&value))) return rc;
-            if (SF_is_missing(value) || !std::isfinite(value))
-                throw std::invalid_argument("table must be finite and nonmissing");
-            table[i]=value;
-        }
-        std::vector<double> out(static_cast<std::size_t>(n)*m*q);
-        rdistnn::rank_loo(ranks.data(),signal.data(),table.data(),n,m,q,out.data());
-        for (double v: out) if (!std::isfinite(v) || SF_is_missing(v))
-            throw std::overflow_error("nonfinite prefix/suffix sum");
-        for (int j=0; j<m*q; ++j) for (int i=0; i<n; ++i)
-            if ((rc=SF_mat_store(argv[4],i+1,j+1,out[i+static_cast<std::size_t>(j)*n]))) return rc;
-    }
-    return 0;
-}
-
-// Original-signal duplicate-block deletions. Groups are n x 1 integer IDs;
-// all matrices are read and validated before publishing any output cell.
-static ST_retcode do_block_rank_loo(int argc, char *argv[])
-{
-    if (argc!=6)
-        throw std::invalid_argument("block_rank_loo requires ranks signals table groups output");
-    const int n=SF_row(argv[1]), m=SF_col(argv[1]), q=SF_col(argv[2]);
-    if (n<2 || m<1 || q<1 || m>INT_MAX/q || SF_row(argv[2])!=n ||
-        SF_row(argv[3])!=n-1 || SF_col(argv[3])!=1 ||
-        SF_row(argv[4])!=n || SF_col(argv[4])!=1 ||
-        SF_row(argv[5])!=n || SF_col(argv[5])!=m*q)
-        throw std::invalid_argument("block_rank_loo has incompatible matrix dimensions");
-    std::vector<int> ranks(static_cast<std::size_t>(n)*m), groups(n);
-    std::vector<double> signal(static_cast<std::size_t>(n)*q), table(n-1);
-    ST_double value;
-    ST_retcode rc;
-    for (int j=0;j<m;++j) for (int i=0;i<n;++i) {
-        if ((rc=SF_mat_el(argv[1],i+1,j+1,&value))) return rc;
-        if (SF_is_missing(value) || !std::isfinite(value) || value<1 || value>n || value!=std::floor(value))
-            throw std::invalid_argument("ranks must be integer permutations of 1..n");
-        ranks[i+static_cast<std::size_t>(j)*n]=static_cast<int>(value);
-    }
-    for (int i=0;i<n;++i) {
-        if ((rc=SF_mat_el(argv[4],i+1,1,&value))) return rc;
-        if (SF_is_missing(value) || !std::isfinite(value) || value<1 || value>n || value!=std::floor(value))
-            throw std::invalid_argument("groups must be integer identifiers in 1..n");
-        groups[i]=static_cast<int>(value);
-    }
-    for (int j=0;j<q;++j) for (int i=0;i<n;++i) {
-        if ((rc=SF_mat_el(argv[2],i+1,j+1,&value))) return rc;
-        if (SF_is_missing(value) || !std::isfinite(value))
-            throw std::invalid_argument("signals must be finite and nonmissing");
-        signal[i+static_cast<std::size_t>(j)*n]=value;
-    }
-    for (int i=0;i<n-1;++i) {
-        if ((rc=SF_mat_el(argv[3],i+1,1,&value))) return rc;
-        if (SF_is_missing(value) || !std::isfinite(value))
-            throw std::invalid_argument("table must be finite and nonmissing");
-        table[i]=value;
-    }
-    std::vector<double> out(static_cast<std::size_t>(n)*m*q);
-    rdistnn::block_rank_loo(ranks.data(),signal.data(),table.data(),groups.data(),n,m,q,out.data());
-    for (double v:out)
-        if (!std::isfinite(v) || SF_is_missing(v))
-            throw std::overflow_error("nonfinite original-signal block deletion");
-    for (int j=0;j<m*q;++j) for (int i=0;i<n;++i)
-        if ((rc=SF_mat_store(argv[5],i+1,j+1,out[i+static_cast<std::size_t>(j)*n]))) return rc;
-    return 0;
-}
 
 // Near-square staging prevents default Stata row/column stripe construction
 // from dominating long, thin matrices. Physical cells are row-major; payload
@@ -322,13 +223,11 @@ STDLL stata_call(int argc, char *argv[])
         for (int i=0;i<argc;++i)
             if (!argv[i] || argv[i][0]=='\0')
                 throw std::invalid_argument("plugin arguments must be nonempty");
-        if (std::strcmp(argv[0],"rank_loo")==0) return do_rank_loo(argc,argv);
-        if (std::strcmp(argv[0],"block_rank_loo")==0) return do_block_rank_loo(argc,argv);
         if (std::strcmp(argv[0],"loo_packed")==0) return do_loo_packed(argc,argv);
         if (std::strcmp(argv[0],"loo_packed_api")==0) return do_loo_packed_api(argc,argv);
         if (std::strcmp(argv[0],"distance_batch")==0) return do_distance_batch(argc,argv);
         if (std::strcmp(argv[0],"distance_api")==0) return do_distance_api(argc,argv);
-        throw std::invalid_argument("unknown operation; supported: rank_loo block_rank_loo loo_packed loo_packed_api distance_batch distance_api");
+        throw std::invalid_argument("unknown operation; supported: loo_packed loo_packed_api distance_batch distance_api");
     } catch (const std::bad_alloc&) {
         SF_error((char*)"rdistnn_plugin: insufficient memory; reduce the batch size.\n");
         return 909;

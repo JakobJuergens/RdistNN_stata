@@ -39,7 +39,7 @@ test_section "rdistnn_jk_cov_from_ranks: [det] deterministic repeated calls"
 mata {
     rseed(721)
     _X = rnormal(24, 2, 0, 1)
-    _ranks = rdistnn_ranks(_X, (0.2, -0.3), "l2")
+    _ranks = rdistnn_localization_ranks(rdistnn_distance_matrix(_X,(0.2, -0.3),"l2"))
     _signal = rnormal(24, 3, 0, 1)
     _V1 = rdistnn_jk_cov_from_ranks(_ranks, _signal, 2, 5, "asymp")
     _V2 = rdistnn_jk_cov_from_ranks(_ranks, _signal, 2, 5, "asymp")

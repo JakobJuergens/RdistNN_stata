@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-17
+*! version 0.1.5  2026-10-25
 // Pair exact input values with row indices: ordinary data signatures ignore order.
 program define _rdistnn_sample_signature, rclass
     version 17

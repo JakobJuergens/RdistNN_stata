@@ -41,7 +41,7 @@ void pmpe_influence_oracle()
 }
 end
 
-test_section "premerge postestimation: original sample geometry and frozen signals"
+test_section "postestimation: original sample geometry and frozen signals"
 foreach family in cate np clate {
     rdnn_dgp_basic, n(48) seed(733)
     gen long source_id = _n
@@ -66,7 +66,7 @@ foreach family in cate np clate {
     local present : list posof "plot_data" in matrices
     local nr = r(n_rows)
     matrix PMPE_K = r(plot_data)
-    test_assert "[premerge `family'] if/in and complete-case sample determine kernel size" `present'>0 & `n'==37 & `nr'==2*`n' & rowsof(PMPE_K)==2*`n' & colsof(PMPE_K)==5 & PMPE_K[1,1]==2 & PMPE_K[`=`n'+1',1]==1
+    test_assert "[`family'] if/in and complete-case sample determine kernel size" `present'>0 & `n'==37 & `nr'==2*`n' & rowsof(PMPE_K)==2*`n' & colsof(PMPE_K)==5 & PMPE_K[1,1]==2 & PMPE_K[`=`n'+1',1]==1
     // Independent geometry and k=1 combinatorics: C(n-r,s-1)/C(n,s).
     // The oracle deliberately does not call any rdistnn rank/weight helper.
     mata {
@@ -95,7 +95,7 @@ foreach family in cate np clate {
         }
         st_numscalar("PMPE_geometry_ok", PMPE_derror<1e-12 & PMPE_rerror==0 & PMPE_werror<1e-12 & PMPE_cerror<1e-12)
     }
-    test_assert "[premerge `family'] kernel distances/ranks/weights/cumulative shares match independent metric distance and observation-ID oracle" scalar(PMPE_geometry_ok)==1
+    test_assert "[`family'] kernel distances/ranks/weights/cumulative shares match independent metric distance and observation-ID oracle" scalar(PMPE_geometry_ok)==1
     if "`family'"!="np" {
         quietly `family'_dnn_plot, type(influence) targets(2 1 2) nlabel(0) ///
             name(pmpe_influence) replace nodraw
@@ -104,13 +104,13 @@ foreach family in cate np clate {
         local present : list posof "plot_data" in matrices
         matrix PMPE_I = r(plot_data)
         local icols = cond("`family'"=="clate",9,7)
-        test_assert "[premerge `family'] influence has exact selected sample rows and family schema" `present'>0 & `nr'==2*`n' & rowsof(PMPE_I)==2*`n' & colsof(PMPE_I)==`icols'
+        test_assert "[`family'] influence has exact selected sample rows and family schema" `present'>0 & `nr'==2*`n' & rowsof(PMPE_I)==2*`n' & colsof(PMPE_I)==`icols'
         mata: pmpe_influence_oracle()
-        test_assert "[premerge `family'] influence preserves original dataset IDs and exact component/score/weight identities" scalar(PMPE_influence_ok)==1
+        test_assert "[`family'] influence preserves original dataset IDs and exact component/score/weight identities" scalar(PMPE_influence_ok)==1
     }
     _pmpe_unchanged, data("`restricted'")
     local unchanged = r(ok)
-    test_assert "[premerge `family'] observation views preserve all original variables and e()" `unchanged'==1
+    test_assert "[`family'] observation views preserve all original variables and e()" `unchanged'==1
 
     // Edits outside the actual estimation sample must not invalidate a fit.
     replace y = y+123 in 1
@@ -118,21 +118,21 @@ foreach family in cate np clate {
     quietly `family'_dnn_plot, type(weights) view(kernel) targets(2 1) name(pmpe_outside) replace nodraw
     matrix PMPE_OUTSIDE = r(plot_data)
     mata: st_numscalar("PMPE_error",all(st_matrix("PMPE_OUTSIDE"):==st_matrix("PMPE_K")))
-    test_assert "[premerge `family'] excluded-row edits leave sample geometry usable and unchanged" scalar(PMPE_error)==1
+    test_assert "[`family'] excluded-row edits leave sample geometry usable and unchanged" scalar(PMPE_error)==1
     // A missingness repair does not retroactively add an observation to e(sample).
     replace y = 1 in 13
     capture noisily `family'_dnn_plot, type(weights) view(kernel) name(pmpe_repair) replace nodraw
     local repair_rc = _rc
-    test_assert "[premerge `family'] repaired formerly marked-out row does not change stored estimation sample" `repair_rc'==0
+    test_assert "[`family'] repaired formerly marked-out row does not change stored estimation sample" `repair_rc'==0
     gsort -source_id
     quietly `family'_dnn_plot, type(estimates) name(pmpe_stored) replace nodraw
     local matrices : r(matrices)
     local present : list posof "plot_data" in matrices
     matrix PMPE_STORED = r(plot_data)
-    test_assert "[premerge `family'] stored estimate view remains independent of changed dataset order" `present'>0 & rowsof(PMPE_STORED)==2 & colsof(PMPE_STORED)==10
+    test_assert "[`family'] stored estimate view remains independent of changed dataset order" `present'>0 & rowsof(PMPE_STORED)==2 & colsof(PMPE_STORED)==10
 }
 
-test_section "premerge postestimation: supplied nuisance signals remain frozen"
+test_section "postestimation: supplied nuisance signals remain frozen"
 foreach family in cate clate {
     rdnn_dgp_basic, n(40) seed(380)
     gen byte a = D
@@ -156,12 +156,12 @@ foreach family in cate clate {
         if (st_global("e(cmd)")=="clate_dnn") PMPE_nierror=max((max(abs(PMPE_ni[,8..9]-(PMPE_py,PMPE_pd))), max(abs(PMPE_ni[,6]-(PMPE_py:-st_matrix("PMPE_E")[1,1]:*PMPE_pd)))))
         st_numscalar("PMPE_error",PMPE_nierror)
     }
-    test_assert "[premerge `family'] nuisance-route influence reconstructs the independently supplied signals" scalar(PMPE_error)<1e-12
+    test_assert "[`family'] nuisance-route influence reconstructs the independently supplied signals" scalar(PMPE_error)<1e-12
     // Derived variables never supplied to the fit may change freely.
     replace phi_y = 1e6
     capture noisily `family'_dnn_plot, type(influence) name(pmpe_unused) replace nodraw
     local derived_rc = _rc
-    test_assert "[premerge `family'] unrelated derived signal is not part of supplied-nuisance signature" `derived_rc'==0
+    test_assert "[`family'] unrelated derived signal is not part of supplied-nuisance signature" `derived_rc'==0
     // Fitted numeric observations and frozen signals remain authoritative.
     replace m0 = m0+.001 in 1
     quietly `family'_dnn_plot, type(influence) name(pmpe_nuisancechanged) replace nodraw

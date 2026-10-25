@@ -1,6 +1,6 @@
 // test-mata-distances.do
 // Tests for Mata distance and ranking functions:
-//   rdistnn_l2dist, rdistnn_order, rdistnn_ranks,
+//   rdistnn_distance_matrix, rdistnn_order, rdistnn_localization_ranks,
 //   rdistnn_mahal_geometry, rdistnn_distance_matrix
 //
 // Tags: [smoke] [edge] [inv] [known] [agree]
@@ -13,14 +13,14 @@ do "tests/test_framework.do"
 quietly do "tests/fixtures/r_priority_fixtures.do"
 
 // ════════════════════════════════════════════════════════════
-test_section "rdistnn_l2dist: [smoke] basic properties"
+test_section "rdistnn_distance_matrix: [smoke] basic properties"
 // ════════════════════════════════════════════════════════════
 
-// [smoke] all L2 squared distances are non-negative
+// [smoke] all L2 distances are non-negative
 mata {
     rseed(1)
     _X = rnormal(50, 2, 0, 1)
-    _d = rdistnn_l2dist(_X, (0, 0))
+    _d = rdistnn_distance_matrix(_X,(0, 0))
     st_numscalar("_r", min(_d))
 }
 test_assert "[smoke] L2 distances non-negative" scalar(_r) >= 0
@@ -28,28 +28,28 @@ test_assert "[smoke] L2 distances non-negative" scalar(_r) >= 0
 // [edge] self-distance is exactly zero
 mata {
     _X = (1, 2 \ 3, 4 \ 5, 6)
-    _d = rdistnn_l2dist(_X, (3, 4))   // row 2 = evaluation point
+    _d = rdistnn_distance_matrix(_X,(3, 4))   // row 2 = evaluation point
     st_numscalar("_r", _d[2])
 }
 test_assert "[edge] L2 self-distance is 0" scalar(_r) == 0
 
-// [edge] 1-D case: d[i] = (x[i] - x0)^2 exactly
+// [edge] 1-D case: d[i] = abs(x[i] - x0) exactly
 mata {
     _X   = (1 \ 2 \ 3 \ 4 \ 5)
-    _d   = rdistnn_l2dist(_X, (3))
-    _exp = (4 \ 1 \ 0 \ 1 \ 4)
+    _d   = rdistnn_distance_matrix(_X,(3))
+    _exp = (2 \ 1 \ 0 \ 1 \ 2)
     st_numscalar("_r", mreldif(_d, _exp))
 }
-test_assert "[edge] 1D L2 distances match (x-x0)^2" scalar(_r) < 1e-12
+test_assert "[edge] 1D L2 distances match abs(x-x0)" scalar(_r) < 1e-12
 
 // [inv] translation: adding same vector to X and x0 leaves distances unchanged
 mata {
     rseed(2)
     _X  = rnormal(30, 2, 0, 1)
     _x0 = (0.5, -0.5)
-    _d1 = rdistnn_l2dist(_X, _x0)
+    _d1 = rdistnn_distance_matrix(_X,_x0)
     _sh = (3.7, -2.1)
-    _d2 = rdistnn_l2dist(_X :+ _sh, _x0 + _sh)
+    _d2 = rdistnn_distance_matrix(_X :+ _sh,_x0 + _sh)
     st_numscalar("_r", mreldif(_d1, _d2))
 }
 test_assert "[inv] L2 translation-invariance" scalar(_r) < 1e-12
@@ -62,7 +62,7 @@ test_section "rdistnn_order: [smoke] permutation properties"
 mata {
     rseed(3)
     _X   = rnormal(30, 2, 0, 1)
-    _d   = rdistnn_l2dist(_X, (0, 0))
+    _d   = rdistnn_distance_matrix(_X,(0, 0))
     _rnk = rdistnn_order(_d)
     _n   = rows(_rnk)
     st_numscalar("_r", mreldif(sort(_rnk, 1), (1::_n)))
@@ -73,7 +73,7 @@ test_assert "[smoke] rdistnn_order returns permutation of 1..n" scalar(_r) == 0
 mata {
     // obs at (3,0): nearest to x0=(3,0); 5 obs at x=1..5, y=0
     _X   = (1,0 \ 2,0 \ 3,0 \ 4,0 \ 5,0)
-    _d   = rdistnn_l2dist(_X, (3, 0))
+    _d   = rdistnn_distance_matrix(_X,(3, 0))
     _rnk = rdistnn_order(_d)
     st_numscalar("_r", _rnk[3])   // obs 3 should be rank 1
 }
@@ -85,8 +85,8 @@ mata {
     rseed(4)
     _X    = rnormal(40, 2, 0, 1)
     _x0   = (0.3, -0.7)
-    _d2   = rdistnn_l2dist(_X, _x0)
-    _d    = sqrt(_d2)
+    _d    = rdistnn_distance_matrix(_X,_x0)
+    _d2   = _d:^2
     _rnk2 = rdistnn_order(_d2)
     _rnkd = rdistnn_order(_d)
     st_numscalar("_r", max(abs(_rnk2 - _rnkd)))
@@ -155,31 +155,31 @@ mata {
 test_assert "[known] diagonal-cov Mahal matches closed form" scalar(_r) < 1e-10
 
 // ════════════════════════════════════════════════════════════
-test_section "rdistnn_ranks: [agree] dispatch"
+test_section "rdistnn_localization_ranks: [agree] dispatch"
 // ════════════════════════════════════════════════════════════
 
-// [agree] rdistnn_ranks("l2") matches rdistnn_order(rdistnn_l2dist(...))
+// [agree] rdistnn_localization_ranks("l2") matches rdistnn_order(rdistnn_distance_matrix(...))
 mata {
     rseed(8)
     _X   = rnormal(40, 2, 0, 1)
     _x0  = (0.1, -0.2)
-    _r1  = rdistnn_ranks(_X, _x0, "l2")
-    _r2  = rdistnn_order(rdistnn_l2dist(_X, _x0))
+    _r1  = rdistnn_localization_ranks(rdistnn_distance_matrix(_X,_x0,"l2"))
+    _r2  = rdistnn_order(rdistnn_distance_matrix(_X,_x0))
     st_numscalar("_r", max(abs(_r1 - _r2)))
 }
-test_assert "[agree] rdistnn_ranks l2 = order(l2dist)" scalar(_r) == 0
+test_assert "[agree] rdistnn_localization_ranks l2 = order(l2dist)" scalar(_r) == 0
 
-// [agree] rdistnn_ranks("mahalanobis") matches manual Mahal pipeline
+// [agree] rdistnn_localization_ranks("mahalanobis") matches manual Mahal pipeline
 mata {
     rseed(9)
     _X    = rnormal(40, 2, 0, 1)
     _x0   = (0.2, 0.1)
-    _r1   = rdistnn_ranks(_X, _x0, "mahalanobis")
+    _r1   = rdistnn_localization_ranks(rdistnn_distance_matrix(_X,_x0,"mahalanobis"))
     _Sinv = rdistnn_mahal_geometry(_X)
     _r2   = rdistnn_order(rdistnn_distance_matrix(_X, _x0, "mahalanobis", _Sinv))
     st_numscalar("_r", max(abs(_r1 - _r2)))
 }
-test_assert "[agree] rdistnn_ranks mahal = order(whitened distances)" scalar(_r) == 0
+test_assert "[agree] rdistnn_localization_ranks mahal = order(whitened distances)" scalar(_r) == 0
 
 // A fitted whitening geometry requires n >= 2 and supports deficient rank.
 cap mata: rdistnn_mahal_geometry((1, 2))
@@ -224,9 +224,9 @@ test_assert "[errors] ordinary missing quantile value rejected" _rc == 198
 cap mata: rdistnn_weighted_quantile((1 \ .a \ 2), (.2 \ .3 \ .5), .5)
 test_assert "[errors] extended missing quantile value rejected" _rc == 198
 cap mata: rdistnn_weighted_quantile((1 \ 2), (1), .5)
-test_assert "[errors] quantile value/weight length mismatch rejected" _rc == 198
+test_assert "[errors] quantile value/weight length mismatch uses503" _rc == 503
 cap mata: rdistnn_weighted_quantile(J(0, 1, .), J(0, 1, .), .5)
-test_assert "[errors] empty quantile input rejected" _rc == 198
+test_assert "[errors] empty quantile input uses2000" _rc == 2000
 cap mata: rdistnn_weighted_quantile((1 \ 2), (.5 \ .5), .)
 test_assert "[errors] missing quantile probability rejected" _rc == 198
 cap mata: rdistnn_weighted_quantile((1 \ 2), (.5 \ .5), -.1)
