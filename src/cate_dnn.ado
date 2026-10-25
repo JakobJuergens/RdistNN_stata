@@ -1,4 +1,4 @@
-*! version 0.0.9  2026-07-12  Jakob Juergens
+*! version 0.1.5  2026-10-25  Jakob Juergens
 *! Conditional average treatment effect via distributional nearest neighbors
 
 program define cate_dnn, eclass
@@ -40,8 +40,7 @@ program define cate_dnn, eclass
     local outcome `input_var'
     local xvars `xcols'
     if "`xvars'" == "" {
-        di as error "xcols() is required."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"xcols() is required."')
     }
     local kx : word count `xvars'
     local treat_var `tcol'
@@ -53,18 +52,13 @@ program define cate_dnn, eclass
 
     // ── resolve evaluation targets ────────────────────────────────────
     if ("`x0'" == "") == ("`x0matrix'" == "") {
-        di as error "Specify exactly one of x0() or x0matrix()."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Specify exactly one of x0() or x0matrix()."')
     }
 
     tempname targets_mat neff_mat
     local target_source "x0"
     if "`x0matrix'" != "" {
-        capture confirm matrix `x0matrix'
-        if _rc {
-            di as error "x0matrix() must name an existing numeric Stata matrix."
-            exit 198
-        }
+        confirm matrix `x0matrix'
         matrix `targets_mat' = `x0matrix'
         local target_source "X0"
     }
@@ -84,17 +78,14 @@ program define cate_dnn, eclass
     local ntargets = rowsof(`targets_mat')
     local ntarget_cols = colsof(`targets_mat')
     if `ntargets' < 1 {
-        di as error "x0matrix() must contain at least one target row."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"x0matrix() must contain at least one target row."')
     }
     if `ntarget_cols' != `kx' {
-        di as error "Target matrix must have `kx' columns (one per covariate in xcols()); got `ntarget_cols'."
-        exit 198
+        _rdistnn_messages error, rc(503) message(`"Target matrix must have `kx' columns (one per covariate in xcols()); got `ntarget_cols'."')
     }
     mata: st_numscalar("r(target_missing)", hasmissing(st_matrix("`targets_mat'")))
     if scalar(r(target_missing)) {
-        di as error "Evaluation targets may not contain missing values."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Evaluation targets may not contain missing values."')
     }
 
     local target_names ""
@@ -109,27 +100,23 @@ program define cate_dnn, eclass
     local score_method ""
     if "`pseudo_flag'" != "" {
         if "`treat_var'`propensity_var'`m0_var'`m1_var'" != "" {
-            di as error "pseudo_outcome cannot be combined with nuisance options."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"pseudo_outcome cannot be combined with nuisance options."')
         }
         local score_method "pseudo_outcome"
         local outcome ""
     }
     else {
         if "`treat_var'" == "" | "`propensity_var'" == "" {
-            di as error "tcol() and ecol() are required when constructing a pseudo-outcome."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"tcol() and ecol() are required when constructing a pseudo-outcome."')
         }
         if "`m0_var'" == "" | "`m1_var'" == "" {
-            di as error "Supply both m0col() and m1col() for AIPW, or use pseudooutcome."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"Supply both m0col() and m1col() for AIPW, or use pseudooutcome."')
         }
         local score_method "aipw"
     }
 
     if missing(`clip') | `clip' <= 0 | `clip' >= .5 | 1-`clip'>=1 {
-        di as error "clip() must be a finite number strictly between 0 and 0.5, with 1-clip() < 1."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"clip() must be a finite number strictly between 0 and 0.5, with 1-clip() < 1."')
     }
 
     // ── mark sample ──────────────────────────────────────────────────
@@ -137,13 +124,11 @@ program define cate_dnn, eclass
     if "`score_method'" != "pseudo_outcome" {
         quietly count if `touse' & missing(`propensity_var')
         if r(N) > 0 {
-            di as error "ecol() must contain finite values in [0,1]; missing values are not allowed."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"ecol() must contain finite values in [0,1]; missing values are not allowed."')
         }
         quietly count if `touse' & (`propensity_var' < 0 | `propensity_var' > 1)
         if r(N) > 0 {
-            di as error "ecol() must lie in [0,1] before clipping."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"ecol() must lie in [0,1] before clipping."')
         }
     }
     if "`score_method'" == "pseudo_outcome" {
@@ -156,8 +141,7 @@ program define cate_dnn, eclass
     // ── validate ──────────────────────────────────────────────────────
     quietly count if `touse'
     if r(N) == 0 {
-        di as error "No observations."
-        exit 2000
+        error 2000
     }
     local n = r(N)
 
@@ -167,26 +151,22 @@ program define cate_dnn, eclass
 
     if "`distance'" == "" local distance "l2"
     if !inlist("`distance'", "l2", "mahalanobis", "l1", "l1_scaled", "l2_scaled") {
-        di as error "distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis."')
     }
 
     if "`method'" == "" local method "exact"
     if !inlist("`method'", "exact", "asymp") {
-        di as error "method() must be exact or asymp."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"method() must be exact or asymp."')
     }
 
     // ── resolve scalar or grid tuning ────────────────────────────────
     local tuning_mode = lower("`tuningmode'")
     if "`tuning_mode'" == "" local tuning_mode "default"
     if !inlist("`tuning_mode'", "default", "grid") {
-        di as error "tuningmode() must be default or grid."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"tuningmode() must be default or grid."')
     }
     if "`distance'" == "mahalanobis" & `n' < 2 {
-        di as error "distance(mahalanobis) requires at least two complete estimation observations."
-        exit 2001
+        _rdistnn_messages error, rc(2001) message(`"distance(mahalanobis) requires at least two complete estimation observations."')
     }
     tempname candidate_mat grid_est grid_se grid_diag target_diag
     quietly _rdistnn_tuning_plan, n(`n') kx(`kx') k(`k') s(`s') lambda(`lambda') ///
@@ -206,8 +186,7 @@ program define cate_dnn, eclass
     if "`score_method'" != "pseudo_outcome" {
         quietly count if `touse' & !inlist(`treat_var', 0, 1)
         if r(N) > 0 {
-            di as error "tcol() must be coded 0/1."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"tcol() must be coded 0/1."')
         }
 
         tempvar eclip rho_var

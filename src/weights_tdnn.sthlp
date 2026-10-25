@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0 18oct2026}{...}
+{* *! version 0.1.5  2026-10-25}{...}
 {title:weights_tdnn — Signed two-scale rank weights}
 
 {p 4 4 2}
@@ -23,10 +23,9 @@ Asymptotic tables use Beta increments with normalization enabled by default.
 Weights may be negative and must not be interpreted as probabilities.
 
 {pstd}
-The support formula describes the unaveraged rank table. Averaging assigned
-weights across exact-distance groups can extend nonzero observation weights to
-the end of a group crossing that edge. Use actual returned weights for realized
-support and concentration; rank-only tables do not contain target-specific groups.
+Exact-distance averaging can extend support beyond the nominal rank cutoff.
+Final observation weights determine realized support and concentration; see
+{help weights_dnn##geometry:distance ties}.
 
 {p 4 4 2}
 At each target, observations with exactly equal represented selected-metric

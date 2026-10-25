@@ -1,9 +1,9 @@
 # Error reporting and testing guidance
 
 This note records the reporting and testing contract for implementation and
-maintenance. Shared messages, native boundaries and supported public notice
-and reuse paths implement this contract. One-off validators can retain their
-existing messages; changes to them must follow this guidance.
+maintenance. Package-owned custom errors use the existing ado and Mata message
+owners throughout validation, fitting and reuse. Native validation and runtime
+errors retain their host behavior; the boundaries below define their roles.
 Use [AGENTS.md](../AGENTS.md) for editing rules,
 [CONTRIBUTING.md](../CONTRIBUTING.md) for commands and checks, and
 [the test map](../tests/README.md) for suite selection. Record newly adopted
@@ -52,6 +52,66 @@ ownership: by default these commands destructively rename the source matrix.
 Use `copy` only when the original must remain available, rather than retaining
 every matrix as a workaround. See the [returned results manual](https://www.stata.com/manuals/preturn.pdf).
 
+## Package version identity
+
+`rdistnn.pkg`'s single `d Version:` declaration owns the package version. The
+README, first release-note heading, overview help and every installed `.ado`
+and `.sthlp` source stamp must agree with it, including the full development
+suffix. Private ado files containing Mata definitions follow the same rule.
+Use exactly one `*! version VERSION  YYYY-MM-DD` comment at the start of each
+ado file; help keeps `{smcl}` first and wraps that stamp in a SMCL comment on
+the second line. Other descriptive `*!` notes may remain. Do not maintain
+independent per-command revision counters; Git records individual histories.
+
+This is a package policy. Stata's [which manual](https://www.stata.com/manuals/rwhich.pdf)
+describes `*!` lines as notes reporting file revisions, rather than executable
+interpreter controls. Its [version manual](https://www.stata.com/manuals/pversion.pdf)
+describes the separate command-language setting. Keep executable `version 17`
+statements, saved-model schema numbers, native API versions and `v 3` package-file
+syntax in their own roles. Neither the package version nor a comment stamp alone
+establishes executable provenance; retain commit/archive and installed identities.
+
+Windows `net install` can convert text payloads from LF to CRLF. Record raw
+archive/source and installed hashes; when comparing ado/help content, permit
+only that explicit line-ending conversion and verify the complete text. Native
+binary payloads still require byte equality. A changed text hash alone does
+not establish a different implementation, and a matching version alone does
+not establish matching content.
+
+The existing package-hygiene owner supplies both stamp validation and the
+explicit `--sync-version-stamps` operation. Read the version from the manifest;
+never hardcode a second current version in a checker. Synchronization preserves
+executable bytes, line endings, authors and other comments, and rejects ambiguous
+headers before writing any file. Its ISO date records synchronization, separately
+from the package's publication date. Run it after each development or production
+version change; use [RELEASING.md](../RELEASING.md) for the commands.
+
+CI must reject stale, missing, duplicate, misplaced and malformed stamps in public
+commands, private helpers and help files. Source archives apply the same shared
+validator to their own manifest and payload, without relying on checkout versions.
+Regression controls cover production and development versions, read-only checking,
+idempotent synchronization, preserved executable/schema declarations and unchanged
+historical records/pins. For a comment-only correction, compare executable bodies
+and check metadata visibility in Stata; reserve numerical-suite reruns for changes
+to executable inputs.
+
+## Current user documentation
+
+During active experimental development, describe current inputs and outputs
+and briefly tell users to refit saved models after updates. Release notes own
+retired options and schemas; current tutorials do not need migration catalogues.
+Preserve published replication pins and current saved-state/reuse requirements.
+
+Use the existing division between a first-fit walkthrough, task guides and full
+installed command help. Give long shared explanations one primary home, while
+retaining short interpretation limits beside outputs and complete local syntax,
+result shapes and command-specific constraints in help. Source deduplication is
+not by itself a shorter reading path. This applies the companion's
+[documentation-role policy](https://github.com/JakobJuergens/RdistNN/blob/master/markdown_notes/design/11_examples_vignettes_and_pkgdown_policy.md),
+based on [R Packages' workflow guidance](https://r-pkgs.org/vignettes.html)
+and [Diataxis' documentation roles](https://diataxis.fr/), to Stata's installed
+help and runnable do-files.
+
 ## Severity and actionable messages
 
 | Situation | Required policy |
@@ -97,27 +157,68 @@ thresholds, tie tolerances, jitter or statistical guarantees.
 
 ## Stata, Mata and plugin signaling
 
-Use standard return codes with explanatory text: for example, 198 for invalid
-syntax/options, 301 for absent estimation results, and 498 for package-specific
-state/statistical problems. Preserve meaningful file, memory and Break codes;
-plugin allocation failure should not masquerade as invalid syntax. Do not
-replace `e()` or `r()` with a transient last-error store.
+Use Stata's established return codes for the actual cause. Its
+[error manual](https://www.stata.com/manuals/perror.pdf) groups syntax, stored
+results, statistical, matrix, file, resource and Mata failures. Do not invent a
+package code registry or replace `e()`/`r()` with a transient last-error store.
 
-Fatal ado errors use `display as error` and exit with the selected code. Mata
-fatal helpers choose the error display level, render dynamic text literally
-and terminate; ordinary user errors should not require a raw Mata traceback.
-A custom explanation does not need a second generic "invalid syntax" message.
-The shared fatal Mata renderer uses `display(message, 1)` for literal text;
-`display(message)` interprets SMCL. Preserve native `syntax`, `confirm`, file,
-resource and low-level invariant signaling when it already expresses the cause.
-Keep plugin `SF_error()` for failures, not routine nonfatal advisories, and
-contain every native exception at the ABI with allocation-safe failure handling.
+| Cause | Code and boundary |
+| --- | --- |
+| Invalid option combination, range, rank contents or finite-value requirement | 198, with a package explanation when native syntax does not express the constraint |
+| Native type or existence validation | Let `syntax` and `confirm` report their own code; for example, integer confirmation can return 7 and a missing named matrix returns 111 |
+| No active estimates for a requested operation | 301 |
+| Incomplete current fitted state, unavailable retained feature or package-specific statistical/numerical limitation | 498 with an explanation and appropriate refit, retention or rescaling action |
+| Purely incompatible matrix dimensions | 503; distinguish shape from malformed numlist/option contents |
+| Empty usable sample or insufficient observations | 2000 or 2001 respectively when that is the actual cause |
+| Break, file, allocation or unexpected runtime failure | Preserve the original code, including 1, file codes, 909 and native Mata runtime codes |
+
+Native [confirm](https://www.stata.com/manuals/pconfirm.pdf) already supplies
+messages and codes for ordinary verification. Do not capture and relabel those
+as generic 198. A custom guard can use a standard code with more context; a
+custom explanation needs no second generic message. A bare native `error 198`,
+`error 301` or `error 2000` remains appropriate when its standard message is
+sufficient. A combined malformed-request guard is not automatically a pure
+matrix-conformability failure.
+
+All custom ado fatal messages go through `_rdistnn_messages error`, which owns
+`display as error _asis` and termination. All custom Mata guards go through
+`rdistnn_fail(rc, message)`, which selects error output, calls literal
+`display(message, 1)` and exits with the chosen code. Do not introduce parallel
+`display as error` or `errprintf()` sites. Native Mata errors and invariants
+retain their native signaling. The separate ado/Mata owners reflect host
+language boundaries, rather than an incomplete migration. See the Mata
+[error](https://www.stata.com/manuals/m-5error.pdf),
+[display](https://www.stata.com/manuals/m-5display.pdf) and
+[errprintf](https://www.stata.com/manuals/m-5errprintf.pdf) manuals.
+
+There are exactly two direct ado rendering roles: the message owner itself
+and the core loader's pre-helper plugin-declaration failure. The latter prints
+a fixed literal explanation and its original code, then exits without trying
+to load another helper under a possible resource failure. No blanket exception
+exists for historical or one-off validators. C++ keeps native `SF_error()` for
+failures and contains exceptions at the ABI with allocation-safe handling;
+routine advisories belong to public orchestration.
+
+Both renderers normalize ASCII control characters and preserve dynamic text
+literally. The ado owner uses native Unicode string replacement without a Mata
+dependency, so cold validation works before numerical modules load. Bound
+individual dynamic values at their existing context owner rather than
+truncating an entire remedy. Use compound quotes when passing dynamic text.
 
 Nonfatal warnings/notes use text output with an explicit `warning:` or `note:`
 prefix and respect `quietly`. Reserve error output for errors: it remains
 visible under `quietly`, whereas `capture` may suppress it. Save `_rc` before
 cleanup or another command can overwrite it; `capture noisily` preserves
 output while allowing handling. Propagate Break (1) and genuine resource errors.
+These are native [display](https://www.stata.com/manuals/pdisplay.pdf) and
+[capture](https://www.stata.com/manuals/pcapture.pdf) semantics.
+
+Program and matrix presence probes recognize only native missing-object 111;
+Confidence-bound presence assertions recognize only success 0 or false assertion 9. Save and
+propagate every other result before another command overwrites `_rc`. Keep the
+explicit existing loader for multi-program plot files: ordinary ado autoload
+does not make their auxiliary programs available. Do not replace it with a
+new general loader or treat every probe failure as an absent helper.
 
 Interpret recovery codes at the operation that generated them. Optional plugin
 declaration recognizes missing/nonloadable binaries at that dynamic-load
@@ -130,7 +231,17 @@ Check optional returned-matrix presence through `r(matrices)` before copying.
 Copying an absent `r(geometry)` can succeed with a missing `1 x 1` placeholder,
 so the assignment return code is not a presence test. Once a return is present,
 copy failures propagate; do not turn allocation or Break into optional absence.
+For ordinary temporary matrix names, `confirm matrix` can check existence;
+inspect its saved result before output generation or returned-result commands.
 Keep complete current fitted-state validation at the shared report/reuse owners.
+
+The existing source/package-hygiene check enforces custom-renderer ownership
+while permitting native validation and standard signals. It is an architecture
+guard, not a Stata parser or runtime proof. Runtime regressions exercise cold
+commands, literal quoted/control text, actual native codes, quiet/capture
+channels and caller-state preservation. Use the existing message and optional
+boundary suites, and inject only the host operation when testing unsafe resource
+or Break outcomes; do not add production fault switches or phrase-locked tests.
 
 At native bridges, retrieve or decode output only after a successful native
 return. On failure, clear owned temporary matrices and propagate the original
@@ -251,6 +362,24 @@ public boundary available. Reuse established fixtures, independent references
 and caller-state comparators; do not add copied corruption runners or one-off
 frameworks. Register suites once and update family filters and test maps.
 
+Name suites and section labels for the current observable behavior rather than
+an audit, merge milestone or superseded rule. The test map covers every runtime
+suite explicitly or through a meaningful filename pattern. Add a short purpose
+comment where numerical references or neighboring owners need explanation;
+descriptive assertion/section labels carry the individual scenario contract.
+Keep independent kernel references separate from public orchestration checks.
+
+Split unrelated responsibilities when that improves ownership and focused
+execution; a large cohesive suite does not need splitting merely for its size.
+Moved suites create their own deterministic data and load their own helpers,
+restore instrumented providers/selectors and work through an exact master-runner
+filter. Preserve assertion bodies, independent oracles, tolerances and actual
+engine requirements; verify independent runs and a combined ordered run. Update
+registration, current crosswalks and execution examples together. Preserve
+historical release records and frozen fixture provenance. This applies the
+companion's [test-design policy](https://github.com/JakobJuergens/RdistNN/blob/master/markdown_notes/design/09_testing_and_regression_policy.md)
+to Stata's explicit runner and session-state model.
+
 Source instrumentation uses unique temporary files/directories with cleanup
 that also runs after an unexpected fixture error. Keep dated session receipt
 paths out of executable tests and restore provider definitions and search paths
@@ -293,6 +422,34 @@ repeated grouping, per-observation condition allocation and unbounded output.
 Timings are review evidence, not flaky wall-clock CI thresholds or permission
 to weaken mathematical checks. Use [CONTRIBUTING.md](../CONTRIBUTING.md#verification)
 for final verification appropriate to the changed source.
+
+## Removing unused implementations and tests
+
+Check production reachability before pruning. Ado autoload, explicitly loaded
+multi-program modules, typed Mata calls and function-pointer lookups are roots
+that a plain name count can miss. In particular, `rdistnn_loo_prefix()` remains
+active through `findexternal("rdistnn_loo_prefix()")`; its accumulation helpers
+remain necessary. The official [findexternal manual](https://www.stata.com/manuals/m-5findexternal.pdf)
+documents the function-name suffix used by that lookup.
+
+Remove an unused private adapter together with its reload guard and tests of
+its obsolete shape. Preserve substantive cases by calling the current shared
+localization, public command or native transport. Numerical oracles stay
+independent, and invalid current saved-state tests remain necessary. This
+applies the companion's [test-maintenance policy](https://github.com/JakobJuergens/RdistNN/blob/master/markdown_notes/design/09_testing_and_regression_policy.md)
+without imposing R's loading conventions on Stata.
+
+Apply the same rule to repository/tooling tests: protect the current runner,
+archive and validation behavior rather than maintaining a catalogue of removed
+symbols or workflow filenames. A deliberate invalid-schema/policy fixture still
+tests the current state boundary; it does not provide historical compatibility.
+
+The current plugin exposes packed deletion transport only. Its numerical
+kernels remain directly testable; automatic Mata execution when optional native
+capability is absent remains supported current behavior. It is separate from
+compatibility with earlier plugins or package objects. Instrument performance
+at the actual operation and prove counters with positive controls before
+accepting zero work. Retain timings outside CI pass/fail thresholds.
 
 ## Developer tooling contracts
 

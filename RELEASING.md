@@ -22,8 +22,9 @@ commit, even a small documentation or implementation change. Drafting a version
 in uncommitted changes does not advance this sequence. Read the current version
 from `rdistnn.pkg`'s `Version` and the current `RELEASE_NOTES.md` heading; keep
 them synchronized. For example, development after production `0.1.2` starts at
-`0.1.2.9000`, then `0.1.2.9001`. The publication date records publication, rather
-than each local commit, and individual ado revision headers retain their own histories.
+`0.1.2.9000`, then `0.1.2.9001`. The distribution date records publication,
+rather than each local commit. Source comment stamps record the package version
+and the date on which those stamps were synchronized.
 
 For each production merge, default to `0.1.(x+1)` unless the maintainer
 explicitly selects another version. Prepare that production version in the
@@ -65,15 +66,35 @@ existing `v0.1.0` release.
 Keep `rdistnn.pkg`'s `Version` and `Distribution-Date` metadata aligned with
 the release notes and actual publication date. Its `v 3` line identifies the
 Stata package-file format.
-The command-specific `*! version` headers have their own revision histories;
-do not rewrite all of them merely to match a package release tag.
+Every installed ado/help file has one `*! version` comment stamp matching the
+complete package version, including private Mata modules and development
+suffixes. This package uses one version owner rather than independent file
+revision counters. Executable `version 17` statements, saved-model schema
+numbers, native protocol versions and the package-format `v 3` remain independent.
 
 `rdistnn.pkg` owns the current package version. The README, first release-note
-heading and installed `help rdistnn` declare the same version; other articles
+heading, installed `help rdistnn` and all ado/help stamps declare the same version; other articles
 and command help route readers to these common owners. The package hygiene
 check verifies current declarations. Keep production installation pins,
 historical release records, fixture provenance, saved-model schemas and Stata
 language `version` statements in their own roles when updating metadata.
+
+After updating the current version owners for any development commit or
+production candidate, synchronize the source stamps before verification:
+
+```bash
+python3 tools/ci/package_hygiene.py --sync-version-stamps
+bash tools/ci/pkg_check.sh
+```
+
+The synchronizer reads `rdistnn.pkg`, updates only source version comments and
+preserves authors, executable bodies and other notes. Its date defaults to today;
+use `--stamp-date YYYY-MM-DD` for an explicit date. Ambiguous duplicate or misplaced
+stamps fail before any file is changed. Ordinary checking is read-only and rejects
+stale, absent, duplicated or malformed stamps. Archive validation applies the same
+rule using the archive's own package version and source payload. Review the
+[design contract](markdown_notes/implementation_guidance.md#package-version-identity)
+when extending these checks. Preserve released tags, assets and historical notes.
 
 Keep the R and Stata package version families roughly aligned with shared
 functional milestones. Stata may trail the R reference as corresponding
@@ -84,12 +105,12 @@ does not promise identical feature coverage. Review the
 version and retain its explicit R-only and experimental boundaries.
 
 The current version-pinned Stata release is
-[`v0.1.4`](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.4).
+[`v0.1.5`](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.5).
 The tag selects the verified production snapshot; its source ZIP, four
 platform plugins and checksum files are attached to the release. Install with:
 
 ```stata
-net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/v0.1.4/") replace
+net install rdistnn, from("https://raw.githubusercontent.com/JakobJuergens/RdistNN_stata/v0.1.5/") replace
 ```
 
 The tag fixes the installation source at the released commit. Keep the ordinary

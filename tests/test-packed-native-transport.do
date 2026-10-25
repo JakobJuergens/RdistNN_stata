@@ -27,7 +27,7 @@ test_assert "rank bridge executes packed native multi-target and multi-component
 test_assert "unframing restores logical column-major matrices" PT_RESTORE
 
 // Empty unavailable bridge output cannot retry a raw operation. Actual native
-// execution failures propagate; test-message-reporting covers those separately.
+// execution failures propagate; test-native-failure-contracts covers those separately.
 mata: mata drop rdistnn_native_loo()
 mata:
 real matrix rdistnn_native_loo(real matrix ranks, real matrix signal, real colvector table, | real colvector groups)
@@ -59,9 +59,8 @@ test_assert "required native auto mode rejects unavailable packed bridge output"
 global rdistnn_use_plugin "`packed_prior_use_plugin'"
 quietly do "src/_rdistnn_native_transport.ado"
 
-// A plugin without current packed capability must not select raw transport.
-// This stub changes only capability discovery; the real current raw endpoints
-// remain available, so the prior compatibility bridge makes these tests fail.
+// Capability absence selects the portable engine only in automatic mode.
+// Force both required-native cases through the same current capability probe.
 mata: mata drop rdistnn_native_packed_api()
 mata:
 real scalar rdistnn_native_packed_api()

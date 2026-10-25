@@ -25,9 +25,9 @@ probability construction, averaging or signed-blending boundaries.
 | R quantile near-tie ranks/estimates, analytic extreme fitted scales, failed-scale guards and scaled L1 recovery | `test-geometry-numerical-stability.do`, `fixtures/r_geometry_fixtures.do` |
 | Actual R C++ and forced fallback L1/L2/scaled distances/ranks, large offsets, double-accumulation ties, scalar/batch and duplicate targets | `test-native-distances.do`, `fixtures/r_native_distance_fixtures.do` |
 | Forced native/Mata geometry across all five estimators and both weight methods, fitted scales, grids/covariance, candidates and cold saved prediction | `test-native-distances-estimators.do` |
-| Exact-distance ranks across current estimators/engines, subsets and restored predictions | `test-canonical-ties.do` |
-| Exact-distance block averaging, survivor-weight redistribution after actual deletion, full paired/cross-target covariance, permutation invariance, all forced engines, range guards, saved reuse and target-specific plots; R's `test-duplicate-block-averaging.R` | `test-duplicate-blocks.do`; independent explicit deletion and regrouping references cover every metric, both weight methods and signed TDNN. |
-| Exact-distance group weights, signed/unnormalized mass, top-k boundary slots, actual deletions, target-specific reuse and legacy-policy rejection | `test-distance-ties.do`, `test-distance-tie-r-parity.do`, `fixtures/r_distance_tie_fixtures.do`; fixtures generated from sibling R with explicit subset/deletion references. |
+| Exact-distance ranks across current estimators/engines, subsets and restored predictions | `test-distance-tie-invariance.do` |
+| Exact-distance block averaging, survivor-weight redistribution after actual deletion, full paired/cross-target covariance, permutation invariance, all forced engines, range guards, saved reuse and target-specific plots; R's `test-distance-block-averaging.R` | `test-duplicate-blocks.do`; independent explicit deletion and regrouping references cover every metric, both weight methods and signed TDNN. |
+| Exact-distance group weights, signed/unnormalized mass, top-k boundary slots, actual deletions, target-specific reuse and unsupported-policy rejection | `test-distance-ties.do`, `test-distance-tie-r-parity.do`, `fixtures/r_distance_tie_fixtures.do`; fixtures generated from sibling R with explicit subset/deletion references. |
 | Corrupted cached groups rejected before reporting-only consumers, covariance, diagnostics and plots, including empty active data/cold Mata and preserved state after rejection | `test-cached-model-guard.do`; complements R retained-state corruption/reuse tests. |
 | TDNN exact/asymptotic signed rank tables, support-aware covariance, scalar/batch equivalence and saved-state reuse | `test-tdnn.do`, `test-tdnn-saved.do` |
 | Mata/plugin equivalence and signed-target parsing | `test-weights-dnn-plugin.do` |
@@ -67,7 +67,7 @@ instrument arms for CLATE, and the public CLATE tables relabel them.
 | Target/candidate diagnostics, retained data/state and contributions | `test-estimator-diagnostics.do` |
 | Plot options/data, dashboards, sample guards and exported graphics | `test-estimator-plots.do`; inspect rendered SVG/PNG as well as returned data. |
 | Numeric serialization, candidates, cold restores and all-engine prediction | `test-saved-prediction.do`, `test-candidates.do`, `test-snapshot-observations.do`; `generate_r_reuse_fixtures.R` supplies independent frozen-deletion joint covariance. PLQR keeps moments separate from supplied theta. |
-| CLATE edge cases and complete interleaved component covariance | `test-premerge-clate.do`; 35 seeded cases from `generate_r_clate_audit_fixtures.R` check subset-enumeration/integrated-Beta deletion oracles. |
+| CLATE edge cases and complete interleaved component covariance | `test-clate-edge-contracts.do`; 35 seeded cases from `generate_r_clate_audit_fixtures.R` check subset-enumeration/integrated-Beta deletion oracles. |
 | Fresh/restored diagnostic equality across all five geometries, methods and score routes | `test-diagnostic-route-contracts.do` |
 | Shared fresh/restored contribution recovery and concentration | `test-diagnostic-contribution-range.do`; independent rational references cover finite-operand subtraction overflow, tiny weights, zero support and overflowing totals. |
 | Caller state, genuine returns, cold restores and confidence bands | `test-reporting-export-contracts.do`, `test-observation-reconstruction.do`, `test-state-helpers.do` |
@@ -98,9 +98,10 @@ ported as superficial assertions:
 When one of these features is added to Stata, promote its corresponding R
 contract into the shared table and add deterministic behavioral tests.
 
-| Cross-cutting reporting behavior | R `test-error-reporting.R` | Stata `test-message-reporting.do` |
+| Cross-cutting contract | R test owner | Stata test owner |
 | --- | --- | --- |
-| Host-native signaling, literal/bounded details and caller policy | Specific conditions/handlers and warning promotion | Standard codes and ordinary/quiet/capture channels |
-| Group reuse | Call-local preparation and validated retained groups | Public-grid preparation counters and saved prediction reuse |
-| Native failure classification | Missing capability versus execution/resource failure | Bridge host injection and standalone C++ exception controls |
-| Ratio batch reporting | Bounded issue summaries with retained statuses | 100-target summaries and explicit `nose` control |
+| Host-native signaling, literal/bounded details and caller policy | `test-error-reporting.R`, `test-reporting-recovery.R`: conditions/handlers and warning promotion | `test-message-reporting.do`: standard codes and ordinary/quiet/capture channels |
+| Group reuse | `test-distance-tie-localization.R`: call-local preparation and validated retained groups | `test-group-reuse.do`: public-grid preparation counters and saved prediction reuse |
+| Engine selection and failure propagation | `test-compiled-fallback-parity.R`: explicit compiled/portable selection; `test-reporting-recovery.R`: unexpected callback/resource failures propagate | `test-native-failure-contracts.do`: native capability/execution/copy boundaries; standalone C++ tests provide separate kernel/protocol controls |
+| Plot failure propagation | `test-reporting-recovery.R`, `test-plot-recovery-contract.R`: recognized optional recovery, unexpected failure and warning controls | `test-plot-failure-contracts.do`: bound probes and required-panel failures |
+| Ratio batch reporting | `test-error-reporting.R`: bounded issue summaries with retained statuses | `test-message-reporting.do`: 100-target summaries and explicit `nose` control |

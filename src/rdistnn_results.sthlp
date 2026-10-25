@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0  2026-10-18}{...}
+{* *! version 0.1.5  2026-10-25}{...}
 {title:rdistnn_results — Extract fitted results without drawing a graph}
 {pstd}
 After {help np_dnn}, {help np_tdnn}, {help cate_dnn}, {help clate_dnn} or {help plqr_dnn}:
@@ -17,7 +17,7 @@ These are reconstructed from validated saved ranks, distances and groups.
 Realized support and concentration can differ from the rank table. Weight
 reconstruction warns that inference with persistent distance ties is not
 established. Schema 4 and exact_distance_block_averaging_v1 are required;
-refit older models. See {help weights_dnn} for survivor redistribution.
+see {help weights_dnn##geometry} for survivor redistribution.
 {title:Returned results}
 {pstd}
 r(fit) and r(se_fit) are q by m matrices: one row per component, one column
@@ -46,12 +46,10 @@ not coefficients. Other fits return quantity=estimate. r(level) is a percentage.
 Undefined CLATE targets remain in canonical tables; unavailable uncertainty
 remains missing. Confidence limits are pointwise, not simultaneous.
 {pstd}
-Reporting requires current fitted state. Weights and influence use its numeric
-model snapshot. Refit objects from older development versions.
-Current snapshots are structurally validated before observation-level
-extraction; refit an incomplete or inconsistent snapshot. Validation errors
-preserve the active data and e(). Replaying stored numeric estimates does not
-reconstruct an older model with current weights.
+Reporting requires complete current fitted state. Weights and influence use
+its numeric model snapshot. Invalid state requires refitting; errors preserve
+active data and e(). During experimental development, refit saved models after
+package updates.
 For grid extraction, first use {help rdistnn_candidate}; the existing
 estimator-specific diagnostics commands retain all-candidate table exports.
 {title:See also}

@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 program define np_tdnn_diagnostics, rclass
     version 17
     syntax [, TARGETS(numlist integer >=1) DETAIL SAVING(string asis) REPLACE]

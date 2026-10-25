@@ -6,32 +6,11 @@ This is the compact command map for RdistNN. Start with the
 syntax and result reference. The articles supply interpretation and runnable
 examples.
 
-## Workflow support
-
-| Task | Command | Guide/example |
-|---|---|---|
-| AIPW or supplied-score CATE | `cate_dnn` | [CATE and regression](cate-and-regression.md), [do-file](../examples/cate-and-regression.do) |
-| Nonparametric conditional means | `np_dnn` | [CATE and regression](cate-and-regression.md), same do-file |
-| Single/batch normalized rank weights | `weights_dnn` | [Weights/tuning](weights-and-tuning.md), [do-file](../examples/weights-and-tuning.do) |
-| Two-scale conditional means and signed weights | `np_tdnn`, `weights_tdnn` | [Two-scale regression](two-scale-regression.md), [do-file](../examples/two-scale-regression.do) |
-| Two-scale signed diagnostics and plots | `np_tdnn_diagnostics`, `np_tdnn_plot` | [Two-scale regression](two-scale-regression.md) |
-| Binary-IV or paired-signal ratios | `clate_dnn` | [Conditional LATE](conditional-late.md), [do-file](../examples/clate.do) |
-| Experimental supplied-theta score moments | `plqr_dnn` | [PLQR moments](plqr-moments.md), [do-file](../examples/plqr-moments.do) |
-| Stored target/candidate diagnostic reports | `cate_dnn_diagnostics`, `clate_dnn_diagnostics`, `np_dnn_diagnostics` | [Reporting](diagnostics-and-reporting.md) |
-| Estimates, geometry and scientific graph views | `cate_dnn_plot`, `clate_dnn_plot`, `np_dnn_plot` | [Visualization](visualising-fits.md), [do-file](../examples/diagnostics-and-plots.do) |
-
-The [R documentation crosswalk](r-documentation-crosswalk.md) maps every R
-article/reference family and identifies absent functionality. The separate
-[R-to-Stata test crosswalk](https://github.com/JakobJuergens/RdistNN_stata/blob/master/tests/R_TEST_CROSSWALK.md)
-records numerical and behavioral coverage. R-only general local GMM,
-custom registries, ratio confidence-set inversion, PLQR coefficient inference
-and paper-replication facilities are not Stata commands.
-
-Saved-fit workflows use `rdistnn_results` for graph-free numeric tables,
-`rdistnn_candidate, candidate(id) store(name)` for standalone candidate fits,
-and `rdistnn_predict, x0matrix(NEW) sefit` for new targets. These preserve
-active data/results by default; `post` explicitly activates a derived fit.
-See [reusing fits](reusing-fits.md) for serialization and PLQR moment scope.
+Choose a task and runnable example in the [article index](index.md).
+The [R crosswalk](r-documentation-crosswalk.md) identifies language-specific
+boundaries. For saved results, `rdistnn_results` extracts tables,
+`rdistnn_candidate` creates a standalone candidate and `rdistnn_predict`
+evaluates new targets; see [reusing fits](reusing-fits.md).
 
 ## Localization and command contracts
 
@@ -55,9 +34,9 @@ A sensitivity grid retains its specified default rather than optimizing an
 order. Infeasible nondefault rows remain visible in metadata; candidate plots
 require available rows. See [weights and tuning](weights-and-tuning.md).
 
-The support formula refers to the unaveraged rank table. Exact-distance
-averaging can give observations beyond that edge nonzero weight when their
-group crosses it. Calculate realized support and concentration from the final weights.
+Exact-distance ties can extend support beyond the nominal rank cutoff; use
+final observation weights for support and concentration. See the
+[weight rule](weights-and-tuning.md#exact-distance-ties).
 
 The [notation guide](notation-and-conventions.md) explains row/column order,
 complete-case samples, temporary r() results, stored e() matrices and

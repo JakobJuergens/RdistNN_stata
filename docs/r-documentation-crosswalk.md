@@ -1,7 +1,8 @@
 # R documentation coverage and Stata equivalents
 
-This map covers the **0.1.4** interfaces of both packages. The version-pinned
-release is **v0.1.4**. The reference inventory
+This map covers the current **0.1.5** Stata interfaces and the
+**0.1.5** production R interfaces. The version-pinned
+release is **v0.1.5**. The reference inventory
 is R's [article source directory](https://github.com/JakobJuergens/RdistNN/tree/master/vignettes)
 and [pkgdown reference index](https://github.com/JakobJuergens/RdistNN/blob/master/_pkgdown.yml).
 The current map follows all 13 articles and 15 reference families, including
@@ -65,14 +66,13 @@ survivors. This includes distinct covariate profiles and zero-weight ranks
 beyond nominal support; signed and unnormalized mass is preserved. Shared-engine
 tests compare actual averaged weights, estimates and covariance against explicit
 deletions across R/C++ and Mata/native. Cached per-target groups and the selected
-policy are validated; saved fits from earlier policies require refitting.
+policy are validated; incomplete or inconsistent saved fits require refitting.
 Bare supplied ranks/orders use strict-order semantics unless distances accompany
 them. Stata freezes fitted geometry on every deletion route; R additionally
 retains deletion-refitted NP/TDNN/CATE/PLQR `loo` routes. Paired ratios freeze
 geometry and share the same weights for both signals in both packages.
 
-The paper assumes a continuous distance distribution, under which old and new
-rules agree almost surely. Persistent distance-tie inference and a uniform
+The paper assumes a continuous distance distribution. Persistent distance-tie inference and a uniform
 MSE improvement are not established.
 
 | R convention | Stata convention |

@@ -270,7 +270,8 @@ for capability in \
 	"rdistnn_jackknife_engine" \
 	"rdistnn_use_plugin" \
 	"distance_api" \
-	"rank_loo"; do
+	"loo_packed_api" \
+	"loo_packed"; do
 	if grep -qF "$capability" "$PLATFORM_DOC"; then
 		echo "  OK       $PLATFORM_DOC contains: $capability"
 	else

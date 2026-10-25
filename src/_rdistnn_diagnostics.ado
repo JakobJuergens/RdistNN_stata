@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-17  Jakob Juergens
+*! version 0.1.5  2026-10-25  Jakob Juergens
 *! Shared target/candidate selection and localization diagnostics
 
 program define _rdistnn_diagnostics, rclass
@@ -7,16 +7,13 @@ program define _rdistnn_diagnostics, rclass
         CANDIDATES(numlist integer >=1) ALLCandidates DETAIL SAVING(string asis) REPLACE VALIDATED]
 
     if "`e(cmd)'" != "`command'" {
-        di as error "`command'_diagnostics requires active `command' estimates."
-        exit 301
+        _rdistnn_messages error, rc(301) message(`"`command'_diagnostics requires active `command' estimates."')
     }
     if "`candidates'" != "" & "`allcandidates'" != "" {
-        di as error "Specify either candidates() or allcandidates, not both."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Specify either candidates() or allcandidates, not both."')
     }
     if "`targets'" != "" & "`candidates'`allcandidates'" != "" {
-        di as error "targets() cannot be combined with candidate diagnostics."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"targets() cannot be combined with candidate diagnostics."')
     }
 
     if "`validated'"=="" _rdistnn_model_check
@@ -47,8 +44,7 @@ program define _rdistnn_diagnostics, rclass
         local selected_rows ""
         foreach j of local selected {
             if `j' > `total' {
-                di as error "targets() entries must be in 1..`total'."
-                exit 198
+                _rdistnn_messages error, rc(198) message(`"targets() entries must be in 1..`total'."')
             }
             local rowname : word `j' of `source_rows'
             local selected_rows "`selected_rows' `rowname'"
@@ -71,21 +67,18 @@ program define _rdistnn_diagnostics, rclass
     }
     else {
         if "`e(tuning_mode)'" != "grid" {
-            di as error "Candidate diagnostics require `command', tuningmode(grid)."
-            exit 498
+            _rdistnn_messages error, rc(498) message(`"Candidate diagnostics require `command', tuningmode(grid)."')
         }
         foreach required in tuning_candidates tuning_diagnostics {
             if !`: list required in stored' {
-                di as error "Active estimates do not contain e(`required')."
-                exit 498
+                _rdistnn_messages error, rc(498) message(`"Active estimates do not contain e(`required')."')
             }
         }
         matrix `profiles' = e(tuning_candidates)
         matrix `raw' = e(tuning_diagnostics)
         local total = rowsof(`profiles')
         if rowsof(`raw') != `total' | colsof(`profiles') != 8 | colsof(`raw') != 5 {
-            di as error "Active estimates contain incompatible candidate diagnostics."
-            exit 498
+            _rdistnn_messages error, rc(498) message(`"Active estimates contain incompatible candidate diagnostics."')
         }
         local selected "`candidates'"
         if "`allcandidates'" != "" {
@@ -96,8 +89,7 @@ program define _rdistnn_diagnostics, rclass
         local selected_rows ""
         foreach j of local selected {
             if `j' > `total' {
-                di as error "candidates() entries must be in 1..`total'."
-                exit 198
+                _rdistnn_messages error, rc(198) message(`"candidates() entries must be in 1..`total'."')
             }
             local selected_rows "`selected_rows' candidate`j'"
         }

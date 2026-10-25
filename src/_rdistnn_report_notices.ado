@@ -1,3 +1,4 @@
+*! version 0.1.5  2026-10-25
 version 17
 // One public reporting boundary reads already validated fit facts. Numerical
 // kernels and quiet nested consumers do not own notice frequency.

@@ -1,5 +1,25 @@
 # Release Notes
 
+## 0.1.5 — 2026-10-25
+
+- Reject inconsistent paired component means, covariance and status records
+  before reporting or saved prediction, preserving legitimate unavailable
+  numerical results and disabled uncertainty.
+- Reuse CLATE diagnostic weights for default and repeated computed orders
+  while preserving every public tuning row and numerical result.
+- Route package-owned ado/Mata errors through shared renderers and standard
+  cause-specific Stata codes. Preserve syntax, confirmation, resource and
+  Break errors, quiet/capture behavior, bounded details and caller state.
+- Remove unused private Mata adapters and unpacked native deletion operations;
+  retain the packed interface, active prefix engine and numerical kernels.
+- Synchronize every installed ado/help version stamp with the package version,
+  keeping interpreter, saved-model and protocol versions independent.
+- Organize focused runtime suites and current guides while retaining independent
+  numerical references, engine checks, scientific limits and refit guidance.
+  Keep release-procedure links usable from the curated source archive.
+- CLATE retains its documented pointwise inference conditions. Experimental
+  PLQR evaluates moments at supplied coefficients without coefficient inference.
+
 ## 0.1.4 — 2026-10-23
 
 - Validate complete current saved state before reporting, prediction and

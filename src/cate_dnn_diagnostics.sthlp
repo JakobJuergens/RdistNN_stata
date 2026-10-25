@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.2.1  2026-10-17}{...}
+{* *! version 0.1.5  2026-10-25}{...}
 {viewerjumpto "Syntax" "cate_dnn_diagnostics##syntax"}{...}
 {viewerjumpto "Interpretation" "cate_dnn_diagnostics##interpretation"}{...}
 {viewerjumpto "Options" "cate_dnn_diagnostics##options"}{...}
@@ -33,10 +33,9 @@ n_nonzero_weight counts every represented nonzero weight, including tiny
 positive weights. Larger s tightens localization.
 
 {pstd}
-The support formula describes the unaveraged rank table. Averaging assigned
-weights across exact-distance groups can extend nonzero observation weights to
-the end of a group crossing that edge. Use actual returned weights for realized
-support and concentration; rank-only tables do not contain target-specific groups.
+Exact-distance averaging can extend support beyond the nominal rank cutoff.
+Final observation weights determine realized support and concentration; see
+{help weights_dnn##geometry:distance ties}.
 
 {pstd}
 radius_rank_k and radius_rank_s are distances to those nearest ranks under

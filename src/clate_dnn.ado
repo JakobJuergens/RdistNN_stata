@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-17  Jakob Juergens
+*! version 0.1.5  2026-10-25  Jakob Juergens
 *! Conditional LATE with supplied binary-IV nuisance predictions
 
 program define clate_dnn, eclass
@@ -25,45 +25,37 @@ program define clate_dnn, eclass
     local input `varlist'
     local xvars `xcols'
     if "`xvars'"=="" {
-        di as error "xcols() is required."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"xcols() is required."')
     }
     if missing(`clip') | `clip'<=0 | `clip'>=.5 | 1-`clip'>=1 {
-        di as error "clip() must be finite and strictly between zero and 0.5, with 1-clip() < 1."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"clip() must be finite and strictly between zero and 0.5, with 1-clip() < 1."')
     }
     if missing(`denominatortol') | `denominatortol'<0 {
-        di as error "denominatortol() must be finite and nonnegative."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"denominatortol() must be finite and nonnegative."')
     }
     if "`training'"=="" local training "supplied"
     if !inlist("`training'","supplied","oracle","full_sample","oob","cross_fit") {
-        di as error "training() must be supplied, oracle, full_sample, oob, or cross_fit."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"training() must be supplied, oracle, full_sample, oob, or cross_fit."')
     }
     local route "augmented_iv"
     local nuisance_vars `dcol' `acol' `ecol' `my0col' `my1col' `md0col' `md1col'
     if "`pseudooutcome'"!="" {
         local route "paired_signals"
         if "`denominator'"=="" | "`nuisance_vars'`onesided'"!="" {
-            di as error "pseudooutcome requires denominator() and cannot be combined with nuisance options or onesided."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"pseudooutcome requires denominator() and cannot be combined with nuisance options or onesided."')
         }
     }
     else {
         if "`denominator'"!="" {
-            di as error "denominator() requires pseudooutcome."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"denominator() requires pseudooutcome."')
         }
         foreach arg in dcol acol ecol my0col my1col md1col {
             if "``arg''"=="" {
-                di as error "`arg'() is required for augmented IV signals."
-                exit 198
+                _rdistnn_messages error, rc(198) message(`"`arg'() is required for augmented IV signals."')
             }
         }
         if "`md0col'"=="" & "`onesided'"=="" {
-            di as error "md0col() is required unless onesided is specified."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"md0col() is required unless onesided is specified."')
         }
     }
 
@@ -73,8 +65,7 @@ program define clate_dnn, eclass
             if "``prob''"!="" {
                 quietly count if `touse' & (missing(``prob'') | ``prob''<0 | ``prob''>1)
                 if r(N)>0 {
-                    di as error "`prob'() must contain finite predictions in [0,1] before clipping."
-                    exit 198
+                    _rdistnn_messages error, rc(198) message(`"`prob'() must contain finite predictions in [0,1] before clipping."')
                 }
             }
         }
@@ -82,21 +73,18 @@ program define clate_dnn, eclass
         foreach binary in dcol acol {
             quietly count if `touse' & !inlist(``binary'',0,1)
             if r(N)>0 {
-                di as error "`binary'() must be coded 0/1."
-                exit 198
+                _rdistnn_messages error, rc(198) message(`"`binary'() must be coded 0/1."')
             }
         }
         if "`onesided'"!="" {
             quietly count if `touse' & `dcol'>`acol'
             if r(N)>0 {
-                di as error "onesided requires D <= A on the estimation sample."
-                exit 198
+                _rdistnn_messages error, rc(198) message(`"onesided requires D <= A on the estimation sample."')
             }
             if "`md0col'"!="" {
                 quietly count if `touse' & `md0col'!=0
                 if r(N)>0 {
-                    di as error "md0col() must be zero when onesided is specified."
-                    exit 198
+                    _rdistnn_messages error, rc(198) message(`"md0col() must be zero when onesided is specified."')
                 }
             }
         }
@@ -123,24 +111,18 @@ program define clate_dnn, eclass
     }
     quietly count if `touse' & (missing(`phiy') | missing(`phid'))
     if r(N)>0 {
-        di as error "Inputs produce non-finite augmented signals; rescale outcome inputs."
-        exit 498
+        _rdistnn_messages error, rc(498) message(`"Inputs produce non-finite augmented signals; rescale outcome inputs."')
     }
 
     local kx : word count `xvars'
     if ("`x0'" == "") == ("`x0matrix'" == "") {
-        di as error "Specify exactly one of x0() or x0matrix()."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Specify exactly one of x0() or x0matrix()."')
     }
 
     tempname targets_mat neff_mat
     local target_source "x0"
     if "`x0matrix'" != "" {
-        capture confirm matrix `x0matrix'
-        if _rc {
-            di as error "x0matrix() must name an existing numeric Stata matrix."
-            exit 198
-        }
+        confirm matrix `x0matrix'
         matrix `targets_mat' = `x0matrix'
         local target_source "X0"
     }
@@ -160,17 +142,14 @@ program define clate_dnn, eclass
     local ntargets = rowsof(`targets_mat')
     local ntarget_cols = colsof(`targets_mat')
     if `ntargets' < 1 {
-        di as error "x0matrix() must contain at least one target row."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"x0matrix() must contain at least one target row."')
     }
     if `ntarget_cols' != `kx' {
-        di as error "Target matrix must have `kx' columns (one per covariate in xcols()); got `ntarget_cols'."
-        exit 198
+        _rdistnn_messages error, rc(503) message(`"Target matrix must have `kx' columns (one per covariate in xcols()); got `ntarget_cols'."')
     }
     mata: st_numscalar("r(target_missing)", hasmissing(st_matrix("`targets_mat'")))
     if scalar(r(target_missing)) {
-        di as error "Evaluation targets may not contain missing values."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Evaluation targets may not contain missing values."')
     }
 
     local target_names ""
@@ -187,23 +166,19 @@ program define clate_dnn, eclass
     }
     if "`distance'"=="" local distance "l2"
     if !inlist("`distance'","l2","mahalanobis","l1","l1_scaled","l2_scaled") {
-        di as error "distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"distance() must be l1, l2, l1_scaled, l2_scaled, or mahalanobis."')
     }
     if "`method'"=="" local method "exact"
     if !inlist("`method'","exact","asymp") {
-        di as error "method() must be exact or asymp."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"method() must be exact or asymp."')
     }
     local tuning_mode=lower("`tuningmode'")
     if "`tuning_mode'"=="" local tuning_mode "default"
     if !inlist("`tuning_mode'","default","grid") {
-        di as error "tuningmode() must be default or grid."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"tuningmode() must be default or grid."')
     }
     if "`distance'"=="mahalanobis" & `n'<2 {
-        di as error "distance(mahalanobis) requires at least two complete estimation observations."
-        exit 2001
+        _rdistnn_messages error, rc(2001) message(`"distance(mahalanobis) requires at least two complete estimation observations."')
     }
     tempname candidate_mat grid_est grid_se grid_diag target_diag
     quietly _rdistnn_tuning_plan, n(`n') kx(`kx') k(`k') s(`s') lambda(`lambda') ///

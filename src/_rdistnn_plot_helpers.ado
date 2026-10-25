@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-14  Jakob Juergens
+*! version 0.1.5  2026-10-25  Jakob Juergens
 // Shared CATE/CLATE/NP plot builders, loaded explicitly to give both commands access.
 // Keep these routines outside public ado-local subroutine namespaces.
 // Loading is guarded by program list in each public plot command.
@@ -12,8 +12,7 @@ program define _cate_dnn_plot_estimates, rclass
     if "`style'" == "" local style "auto"
     local style = lower("`style'")
     if !inlist("`style'", "auto", "profile", "pointrange", "forest") {
-        di as error "style() must be auto, profile, pointrange, or forest."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"style() must be auto, profile, pointrange, or forest."')
     }
     local nameopt "name(`name')"
     if "`replace'" != "" local nameopt "name(`name', replace)"
@@ -43,8 +42,7 @@ program define _cate_dnn_plot_estimates, rclass
         local emats : e(matrices)
         foreach field in estimates se_targets {
             if !`: list field in emats' {
-                di as error "Current fitted results require e(`field'); refit `e(cmd)' with the current package."
-                exit 498
+                _rdistnn_messages error, rc(498) message(`"Current fitted results require e(`field'); refit `e(cmd)' with the current package."')
             }
         }
         matrix `bmat' = e(estimates)'
@@ -58,8 +56,7 @@ program define _cate_dnn_plot_estimates, rclass
     }
     else {
         if "`e(tuning_mode)'" != "grid" {
-            di as error "Candidate estimate plots require the active estimator to use tuningmode(grid)."
-            exit 498
+            _rdistnn_messages error, rc(498) message(`"Candidate estimate plots require the active estimator to use tuningmode(grid)."')
         }
         matrix `candidate_meta' = e(tuning_candidates)
         matrix `grid_est' = e(tuning_estimates)
@@ -77,12 +74,10 @@ program define _cate_dnn_plot_estimates, rclass
         }
         foreach g of local selected {
             if `g' > `gmax' {
-                di as error "candidates() entries must be in 1..`gmax'."
-                exit 198
+                _rdistnn_messages error, rc(198) message(`"candidates() entries must be in 1..`gmax'."')
             }
             if el(`candidate_meta', `g', 6) != 1 {
-                di as error "Candidate `g' is unavailable; select a candidate with status=1."
-                exit 498
+                _rdistnn_messages error, rc(498) message(`"Candidate `g' is unavailable; select a candidate with status=1."')
             }
         }
         mata: st_matrix("`plotmat'", rdistnn_plot_est_grid(st_matrix("`targets_mat'"), st_matrix("`candidate_meta'"), st_matrix("`grid_est'"), st_matrix("`grid_se'"), strtoreal(tokens("`selected'"))', `z'))
@@ -144,8 +139,7 @@ program define _cate_dnn_plot_estimates, rclass
     }
     if "`style'" == "profile" & "`varying'" == "" {
         restore
-        di as error "style(profile) requires targets varying in exactly one coordinate or xindex()."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"style(profile) requires targets varying in exactly one coordinate or xindex()."')
     }
 
     // Keep the confidence fill visible in StataNow 19; lcolor(none)
@@ -166,7 +160,9 @@ program define _cate_dnn_plot_estimates, rclass
         }
         if "`style'" == "profile" {
             capture assert missing(ci_lower) | missing(ci_upper) if candidate_id == `g'
-            if _rc {
+            local bounds_rc=_rc
+            if !inlist(`bounds_rc',0,9) exit `bounds_rc'
+            if `bounds_rc'==9 {
                 local plots `"`plots' (rarea ci_lower ci_upper `axis' if candidate_id==`g', sort color(gs12%45))"'
                 local ++layercount
             }
@@ -177,7 +173,9 @@ program define _cate_dnn_plot_estimates, rclass
             quietly gen double __y`plotnum' = target_id + ///
                 (`plotnum' - (`ng' + 1)/2) * .12
             capture assert missing(ci_lower) | missing(ci_upper) if candidate_id == `g'
-            if _rc {
+            local bounds_rc=_rc
+            if !inlist(`bounds_rc',0,9) exit `bounds_rc'
+            if `bounds_rc'==9 {
                 local plots `"`plots' (rcap ci_lower ci_upper __y`plotnum' if candidate_id==`g', horizontal pstyle(p`ps'))"'
                 local ++layercount
             }
@@ -186,7 +184,9 @@ program define _cate_dnn_plot_estimates, rclass
         }
         else {
             capture assert missing(ci_lower) | missing(ci_upper) if candidate_id == `g'
-            if _rc {
+            local bounds_rc=_rc
+            if !inlist(`bounds_rc',0,9) exit `bounds_rc'
+            if `bounds_rc'==9 {
                 local plots `"`plots' (rcap ci_lower ci_upper `axis' if candidate_id==`g', pstyle(p`ps'))"'
                 local ++layercount
             }
@@ -234,8 +234,7 @@ program define _cate_dnn_plot_tuning, rclass
         CANDIDATES(numlist integer >=1) ALLCandidates REPLACE NODRAW]
 
     if "`e(tuning_mode)'" != "grid" {
-        di as error "type(tuning) requires the active estimator to use tuningmode(grid)."
-        exit 498
+        _rdistnn_messages error, rc(498) message(`"type(tuning) requires the active estimator to use tuningmode(grid)."')
     }
     local nameopt "name(`name')"
     if "`replace'" != "" local nameopt "name(`name', replace)"
@@ -270,8 +269,7 @@ program define _cate_dnn_plot_tuning, rclass
     }
     foreach g of local selected {
         if `g' > `gmax' | el(`meta', `g', 6) != 1 {
-            di as error "Selected tuning candidates must be available rows in 1..`gmax'."
-            exit 498
+            _rdistnn_messages error, rc(498) message(`"Selected tuning candidates must be available rows in 1..`gmax'."')
         }
     }
     local ng : word count `selected'
@@ -293,7 +291,9 @@ program define _cate_dnn_plot_tuning, rclass
     clear
     quietly svmat double `plot', names(col)
     capture assert missing(ci_lower) | missing(ci_upper)
-    local hasse = (_rc != 0)
+    local bounds_rc=_rc
+    if !inlist(`bounds_rc',0,9) exit `bounds_rc'
+    local hasse = (`bounds_rc'==9)
     if `hasse' {
         twoway (rcap ci_lower ci_upper s, lcolor(gs9)) ///
             (connected estimate s, sort mcolor(black) lcolor(black)) ///
@@ -365,8 +365,7 @@ program define _cate_dnn_plot_diagnostics, rclass
     }
     else {
         if "`e(tuning_mode)'" != "grid" {
-            di as error "Candidate diagnostic plots require the active estimator to use tuningmode(grid)."
-            exit 498
+            _rdistnn_messages error, rc(498) message(`"Candidate diagnostic plots require the active estimator to use tuningmode(grid)."')
         }
         matrix `meta' = e(tuning_candidates)
         matrix `diag' = e(tuning_diagnostics)
@@ -380,8 +379,7 @@ program define _cate_dnn_plot_diagnostics, rclass
         }
         foreach g of local selected {
             if `g' > `gmax' | el(`meta', `g', 6) != 1 {
-                di as error "Selected diagnostic candidates must be available rows in 1..`gmax'."
-                exit 498
+                _rdistnn_messages error, rc(498) message(`"Selected diagnostic candidates must be available rows in 1..`gmax'."')
             }
         }
         mata: st_matrix("`plot'", (st_matrix("`meta'")[strtoreal(tokens("`selected'"))',8], st_matrix("`diag'")[strtoreal(tokens("`selected'"))',(1,2,4)], st_matrix("`meta'")[strtoreal(tokens("`selected'"))',3]))
@@ -449,15 +447,13 @@ program define _cate_dnn_plot_overlap, rclass
     if "`view'" == "" local view "mass"
     local view = lower("`view'")
     if !inlist("`view'", "mass", "armess", "propensity") {
-        di as error "For type(overlap), view() must be mass, armess, or propensity."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"For type(overlap), view() must be mass, armess, or propensity."')
     }
     if "`sharelimits'" == "" local sharelimits ".1 .9"
     local lower : word 1 of `sharelimits'
     local upper : word 2 of `sharelimits'
     if `lower' < 0 | `upper' > 1 | `lower' >= `upper' {
-        di as error "sharelimits() must contain two increasing values in [0,1]."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"sharelimits() must contain two increasing values in [0,1]."')
     }
     local nameopt "name(`name')"
     if "`replace'" != "" local nameopt "name(`name', replace)"
@@ -517,8 +513,7 @@ program define _cate_dnn_plot_overlap, rclass
     quietly count
     if r(N)==0 {
         restore
-        di as error "Selected overlap diagnostics are unavailable for this fit."
-        exit 498
+        _rdistnn_messages error, rc(498) message(`"Selected overlap diagnostics are unavailable for this fit."')
     }
     local nplot = r(N)
 
@@ -547,8 +542,7 @@ program define _cate_dnn_plot_overlap, rclass
         quietly count if overlap_available == 1
         if r(N) == 0 {
             restore
-            di as error "Overlap mass is unavailable for a precomputed pseudo-outcome fit."
-            exit 498
+            _rdistnn_messages error, rc(498) message(`"Overlap mass is unavailable for a precomputed pseudo-outcome fit."')
         }
         if "`axis'" != "target_id" & `nplot' >= 4 {
             twoway (line treated_mass `axis', sort lcolor(navy)) ///
@@ -574,8 +568,7 @@ program define _cate_dnn_plot_overlap, rclass
         quietly count if arm_ess_available == 1
         if r(N) == 0 {
             restore
-            di as error "Arm-specific ESS is unavailable for a precomputed pseudo-outcome fit."
-            exit 498
+            _rdistnn_messages error, rc(498) message(`"Arm-specific ESS is unavailable for a precomputed pseudo-outcome fit."')
         }
         graph bar treated_ess control_ess, over(target_id) ///
             ytitle("Normalized within-arm ESS") ///
@@ -586,8 +579,7 @@ program define _cate_dnn_plot_overlap, rclass
         quietly count if propensity_available == 1
         if r(N) == 0 {
             restore
-            di as error "Propensity diagnostics are unavailable for a precomputed pseudo-outcome fit."
-            exit 498
+            _rdistnn_messages error, rc(498) message(`"Propensity diagnostics are unavailable for a precomputed pseudo-outcome fit."')
         }
         twoway (rcap propensity_q10 propensity_q90 `axis', lcolor(navy)) ///
             (scatter propensity_mean `axis', mcolor(navy) msymbol(O)), ///
@@ -621,12 +613,10 @@ program define _cate_dnn_plot_weights, rclass
     if "`view'" == "" local view "profile"
     local view = lower("`view'")
     if !inlist("`view'", "profile", "cumulative", "kernel") {
-        di as error "For type(weights), view() must be profile, cumulative, or kernel."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"For type(weights), view() must be profile, cumulative, or kernel."')
     }
     if "`view'" != "profile" & "`candidates'`allcandidates'" != "" {
-        di as error "Candidate comparisons are available only with view(profile)."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Candidate comparisons are available only with view(profile)."')
     }
     local nameopt "name(`name')"
     if "`replace'" != "" local nameopt "name(`name', replace)"
@@ -643,8 +633,7 @@ program define _cate_dnn_plot_weights, rclass
     local candidate_mode = ("`candidates'`allcandidates'" != "")
 
     if e(model_version)!=4 {
-        di as error "Weight reconstruction requires a current saved model; refit with the current package."
-        exit 498
+        _rdistnn_messages error, rc(498) message(`"Weight reconstruction requires a current saved model; refit with the current package."')
     }
     findfile "_rdistnn_model_decode.ado"
     quietly run "`r(fn)'"
@@ -653,8 +642,7 @@ program define _cate_dnn_plot_weights, rclass
         local selected "0"
         if `candidate_mode' {
             if "`e(tuning_mode)'" != "grid" {
-                di as error "Candidate weight plots require the active estimator to use tuningmode(grid)."
-                exit 498
+                _rdistnn_messages error, rc(498) message(`"Candidate weight plots require the active estimator to use tuningmode(grid)."')
             }
             matrix `meta' = e(tuning_candidates)
             local gmax = rowsof(`meta')
@@ -667,8 +655,7 @@ program define _cate_dnn_plot_weights, rclass
             }
             foreach g of local selected {
                 if `g' > `gmax' | el(`meta', `g', 6) != 1 {
-                    di as error "Selected weight candidates must be available rows in 1..`gmax'."
-                    exit 498
+                    _rdistnn_messages error, rc(498) message(`"Selected weight candidates must be available rows in 1..`gmax'."')
                 }
             }
         }
@@ -814,8 +801,7 @@ program define _cate_dnn_plot_dashboard, rclass
         }
     }
     if `npanels' == 0 {
-        di as error "No dashboard panel could be constructed from the active fit."
-        exit 498
+        _rdistnn_messages error, rc(498) message(`"No dashboard panel could be constructed from the active fit."')
     }
     local dashboard_title "DNN CATE dashboard"
     if "`e(cmd)'" == "clate_dnn" local dashboard_title "DNN CLATE dashboard"

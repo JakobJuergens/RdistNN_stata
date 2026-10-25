@@ -1,3 +1,4 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Adaptive PLQR predicate: retain certified ordinary comparisons, otherwise
 // sum the binary64 products exactly with separate base-2^26 magnitudes.
@@ -10,13 +11,12 @@ void rdistnn_plqr_exact_piece(real colvector limbs, real scalar piece,
 {
     real scalar index,value,next_value,carry
     if(piece==0) return
-    if(bit<0) exit(error(498))
+    if(bit<0) rdistnn_fail(498,"Internal PLQR comparison exponent is invalid; report a reproducible example.")
     index=floor(bit/26)+1
     value=piece*rdistnn_power2(mod(bit,26))
     while(value!=0) {
         if(index>rows(limbs)) {
-            errprintf("Internal PLQR exact comparison capacity exceeded.\n")
-            exit(error(498))
+            rdistnn_fail(498,"Internal PLQR exact comparison capacity exceeded.")
         }
         next_value=limbs[index]+value
         carry=floor(next_value/67108864)
@@ -90,8 +90,7 @@ real colvector rdistnn_plqr_indicator(real matrix D, real colvector theta,
     if(n<1 | q<1 | q>2147483647 | rows(theta)!=q | rows(g)!=n |
         rows(y)!=n | hasmissing(D) | hasmissing(theta) |
         hasmissing(g) | hasmissing(y)) {
-        errprintf("PLQR comparisons require finite aligned regressors, coefficients, nuisance values and outcomes.\n")
-        exit(error(198))
+        rdistnn_fail(198,"PLQR comparisons require finite aligned regressors, coefficients, nuisance values and outcomes.")
     }
     gate=rdistnn_power2(1022); tiny=rdistnn_power2(-1074)
     threshold=D*theta:+g

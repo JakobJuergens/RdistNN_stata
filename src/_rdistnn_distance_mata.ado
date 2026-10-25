@@ -1,34 +1,19 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Fitted geometry, distance evaluation and stable rank ordering.
-capture mata: mata drop rdistnn_l2dist()
 capture mata: mata drop rdistnn_order()
 capture mata: mata drop rdistnn_type7()
 capture mata: mata drop rdistnn_sample_sd()
 capture mata: mata drop rdistnn_fit_geometry()
-capture mata: mata drop rdistnn_ranks()
 capture mata: mata drop rdistnn_scaled_difference()
 capture mata: mata drop rdistnn_distance_power2()
 capture mata: mata drop rdistnn_scaled_norm_row()
 capture mata: mata drop rdistnn_l2_range_row()
 capture mata: mata drop rdistnn_distance_matrix()
 capture mata: mata drop rdistnn_ranks_from_dmat()
-capture mata: mata drop rdistnn_ranks_matrix()
 capture mata: mata drop rdistnn_physical_distances()
 mata:
-// ── rdistnn_l2dist ────────────────────────────────────────────────────
-// Compute squared L2 distances from each row of X to the vector x0.
-// Returns an n-vector of squared distances (unsorted).
-//
-// Arguments:
-//   X  : n x kx real matrix of covariate values
-//   x0 : 1 x kx (or kx x 1) evaluation point
-//
-real colvector rdistnn_l2dist(real matrix X, real rowvector x0)
-{
-    real matrix  D
-    D = X :- x0
-    return(rowsum(D :* D))
-}
+
 
 // ── rdistnn_order ─────────────────────────────────────────────────────
 // Return the integer rank order (1 = nearest) of each observation
@@ -143,25 +128,6 @@ real matrix rdistnn_fit_geometry(real matrix X, string scalar distance,
     return(scales)
 }
 
-// ── rdistnn_ranks ─────────────────────────────────────────────────────
-// Compute the integer rank vector for X evaluated at x0, dispatching
-// on the distance metric.  Encapsulates the L2 / Mahalanobis branch so
-// that inline mata { } blocks in .ado files need no if-else braces.
-//
-// Arguments:
-//   X        : n x kx matrix
-//   x0       : 1 x kx evaluation point
-//   distance : "l2" (default) or "mahalanobis"
-//
-// Returns: n-vector of integer ranks (1 = nearest).
-//
-real colvector rdistnn_ranks(real matrix X, real rowvector x0,
-    | string scalar distance, real matrix geometry)
-{
-    if(args()<3) distance="l2"
-    if(args()<4) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
-    return(rdistnn_order(rdistnn_distance_matrix(X,x0,distance,geometry)))
-}
 
 // Shared scalar recovery for scaled L1/L2; valid final differences may fit
 // even when the raw subtraction is a Mata missing value.
@@ -399,8 +365,7 @@ real matrix rdistnn_ranks_from_dmat(real matrix dmat)
     real matrix ranks
 
     if (rows(dmat) < 1 | cols(dmat) < 1) {
-        errprintf("rdistnn_ranks_from_dmat: dmat must be nonempty.\n")
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_ranks_from_dmat: dmat must be nonempty.")
     }
     ranks = J(rows(dmat), cols(dmat), .)
     for (j = 1; j <= cols(dmat); j++) {
@@ -409,16 +374,6 @@ real matrix rdistnn_ranks_from_dmat(real matrix dmat)
     return(ranks)
 }
 
-// Rank every observation separately for each row of X0. The returned n x m
-// matrix has one full rank permutation per target column.
-real matrix rdistnn_ranks_matrix(real matrix X, real matrix X0,
-                                  | string scalar distance, real matrix geometry)
-{
-    if (args() < 3) distance = "l2"
-    if (args() < 4) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
-    return(rdistnn_ranks_from_dmat(
-        rdistnn_distance_matrix(X, X0, distance, geometry)))
-}
 
 // Physical radius always uses ordinary original-coordinate Euclidean distance.
 // Its internal dispatch must not overwrite the fitted metric's engine marker.

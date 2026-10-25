@@ -1,3 +1,4 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Version-4 numeric snapshot decoding. No score reconstruction or posting.
 capture mata: mata drop rdistnn_model_invalid()
@@ -159,9 +160,9 @@ void rdistnn_model_validate()
 {
     string scalar cmd,method,distance,field,se_method,expected_se
     string rowvector vars,xvars,required,signature_vars
-    real scalar n,p,m,q,k,s,j,i,r,a,b,c,first,group,columns,clip,tol
-    real matrix X,T,S,R,D,I,G,ids,groups,B,H,V,C,notices
-    real colvector ord,variance,ties,weak
+    real scalar n,p,m,q,k,s,j,h,i,r,a,b,c,first,group,columns,clip,tol
+    real matrix X,T,S,R,D,I,G,ids,groups,B,H,V,C,P,K,notices
+    real colvector ord,variance,ties,weak,component_missing
     cmd=st_global("e(cmd)"); method=st_global("e(method)")
     distance=st_global("e(distance)")
     if(st_numscalar("e(model_version)")!=4 |
@@ -287,10 +288,42 @@ void rdistnn_model_validate()
                 if(any(V[j,]:<.)) rdistnn_model_invalid("unavailable ratio covariance row")
             }
         }
-        C=st_matrix("e(components)")
-        if(rows(C)!=m | cols(C)!=2) rdistnn_model_invalid("paired component dimensions")
-        C=st_matrix("e(component_vcov)")
-        if(rows(C)!=2*m | cols(C)!=2*m) rdistnn_model_invalid("paired covariance dimensions")
+        P=st_matrix("e(components)")
+        if(rows(P)!=m | cols(P)!=2) rdistnn_model_invalid("paired component dimensions")
+        // Status 2 covers either unavailable components or a finite-component
+        // ratio overflow. Zero denominators with finite components use status 1.
+        component_missing=rowsum(P:>=.):>0
+        if(any(component_missing:&(C[,1]:!=2)) |
+            any((C[,1]:==1):&(component_missing:|(P[,2]:!=0))) |
+            any((!component_missing):&(P[,2]:==0):&(C[,1]:!=1)) |
+            any(C[,2]:!=(P[,2]:<0))) {
+            rdistnn_model_invalid("paired component availability or denominator status")
+        }
+        K=st_matrix("e(component_vcov)")
+        if(rows(K)!=2*m | cols(K)!=2*m) rdistnn_model_invalid("paired covariance dimensions")
+        if(any(K:!=K') | any(diagonal(K):<0)) rdistnn_model_invalid("paired covariance values")
+        if(se_method=="none") {
+            if(any(K:<.)) rdistnn_model_invalid("disabled paired component uncertainty")
+        }
+        else if(hasmissing(K)) {
+            // A failed component marks both of its target's rows unavailable.
+            // A gradient/ratio variance failure may retain a finite block.
+            for(j=1;j<=m;j++) {
+                a=2*j-1; b=2*j
+                if(hasmissing(K[|a,a \ b,b|])) {
+                    if(C[j,4]!=3 | any(K[a..b,]:<.) | any(K[,a..b]:<.)) {
+                        rdistnn_model_invalid("paired component covariance availability")
+                    }
+                }
+            }
+            // Finite component variances require their cross-covariance; rows
+            // for unavailable components were checked above. No PSD refit/test.
+            for(j=1;j<2*m;j++) if(K[j,j]<.) {
+                for(h=j+1;h<=2*m;h++) if(K[h,h]<. & K[j,h]>=.) {
+                    rdistnn_model_invalid("paired cross-covariance availability")
+                }
+            }
+        }
     }
     k=st_numscalar("e(k)"); s=st_numscalar("e(s)")
     if(hasmissing((k,s)) | k<1 | k!=floor(k) | s<k | s>n | s!=floor(s)) {

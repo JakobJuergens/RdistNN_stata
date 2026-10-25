@@ -1,23 +1,15 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Rank laws and observation-level weights; exact tables mirror R and C++.
 capture mata: mata drop rdistnn_exact_component()
 capture mata: mata drop rdistnn_exact_table()
-capture mata: mata drop rdistnn_log_binomial()
 capture mata: mata drop rdistnn_weights_exact()
 capture mata: mata drop rdistnn_beta_interval()
 capture mata: mata drop rdistnn_weights_asymp()
 capture mata: mata drop rdistnn_weights_from_ranks()
 capture mata: mata drop rdistnn_weights_from_rmat()
-capture mata: mata drop rdistnn_weights()
 mata:
-// ── rdistnn_log_binomial ────────────────────────────────────────────────────────────
-// Log binomial coefficient ln(C(n,k)) via lnfactorial().
-// Returns -1e300 (effectively -inf) for out-of-support inputs.
-real scalar rdistnn_log_binomial(real scalar n, real scalar k)
-{
-    if (k < 0 | k > n | n < 0) return(-1e300)
-    return(lnfactorial(n) - lnfactorial(k) - lnfactorial(n-k))
-}
+
 
 real colvector rdistnn_exact_component(real scalar n, real scalar s, real scalar l)
 {
@@ -94,8 +86,7 @@ real colvector rdistnn_weights_exact(real colvector ranks,
     real scalar n
     n=rows(ranks)
     if(k<1 | k>s | s>n | k!=floor(k) | s!=floor(s)) {
-        errprintf("rdistnn_weights_exact: require 1 <= k <= s <= n.\n")
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_weights_exact: require 1 <= k <= s <= n.")
     }
     table=rdistnn_exact_table(n,k,s)
     return(table[ranks])
@@ -167,7 +158,7 @@ real colvector rdistnn_weights_asymp(real colvector ranks,
 
 // ── rdistnn_weights_from_ranks ────────────────────────────────────────
 // Compute DNN weights directly from a precomputed rank vector.
-// Factored out of rdistnn_weights() so the jackknife can reuse it
+// Shared rank-table evaluation for fitting and deletion calculations.
 // without recomputing distances.
 //
 // Arguments:
@@ -190,8 +181,7 @@ real colvector rdistnn_weights_from_ranks(real colvector ranks,
         return(rdistnn_weights_asymp(ranks, k, s))
     }
     else {
-        errprintf("rdistnn_weights_from_ranks: unknown method '%s'. Use 'exact' or 'asymp'.\n", method)
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_weights_from_ranks: unknown method '"+rdistnn_message_value(method)+"'. Use 'exact' or 'asymp'.")
     }
 }
 
@@ -211,8 +201,7 @@ real matrix rdistnn_weights_from_rmat(real matrix ranks,
     if (args() < 4 | method == "") method = "exact"
     m = cols(ranks)
     if (m < 1) {
-        errprintf("rdistnn_weights_from_rmat: ranks must have at least one column.\n")
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_weights_from_rmat: ranks must have at least one column.")
     }
 
     // The rank-weight table is independent of the target permutation.
@@ -225,37 +214,4 @@ real matrix rdistnn_weights_from_rmat(real matrix ranks,
     return(W)
 }
 
-// ── rdistnn_weights ───────────────────────────────────────────────────
-// Top-level: compute DNN weights for X evaluated at x0.
-//
-// Arguments:
-//   X        : n x kx matrix
-//   x0       : 1 x kx evaluation point
-//   k        : number selected within each s-subset
-//   s        : kernel order
-//   method   : "exact" (default) or "asymp"
-//   distance : "l2" (default) or "mahalanobis"
-//   geometry : optional current fitted scale or packed whitening geometry
-//
-// Returns: n-vector of DNN weights.
-//
-real colvector rdistnn_weights(real matrix X, real rowvector x0,
-                                real scalar k, real scalar s,
-                                | string scalar method,
-                                  string scalar distance,
-                                  real matrix geometry)
-{
-    real colvector dist, ranks
-    real matrix groups
-
-    if (args() < 5 | method == "")   method   = "exact"
-    if (args() < 6 | distance == "") distance = "l2"
-
-    if (args() < 7 | rows(geometry) == 0) geometry=rdistnn_fit_geometry(X,distance,"sd",J(1,0,.),1e-12)
-    dist=rdistnn_distance_matrix(X,x0,distance,geometry)
-    ranks = rdistnn_order(dist)
-    groups=rdistnn_distance_groups(ranks,dist,1)
-    rdistnn_distance_warning(groups)
-    return(rdistnn_weights_from_rmat(ranks,k,s,method,dist,groups))
-}
 end

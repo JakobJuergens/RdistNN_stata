@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-17
+*! version 0.1.5  2026-10-25
 program define _rdistnn_report_header
     version 17
     local title "DNN Nonparametric Regression"

@@ -1,11 +1,11 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Validate the current numeric snapshot before any cached consumer reads it.
 // Cold report/diagnostic calls may have neither a dataset nor a Mata library.
 program define _rdistnn_model_check
     version 17
     if e(model_version)!=4 | "`e(tie_rule)'"!="exact_distance_block_averaging_v1" {
-        di as error "Saved fits require the current exact-distance averaging policy; refit with the current package."
-        exit 498
+        _rdistnn_messages error, rc(498) message(`"Saved fits require the current exact-distance averaging policy; refit with the current package."')
     }
     tempname core_ready
     mata: st_numscalar("`core_ready'",findexternal("rdistnn_distance_groups()")!=NULL)

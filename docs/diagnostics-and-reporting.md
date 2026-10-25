@@ -104,9 +104,9 @@ ESS, maximum absolute weight and top-five absolute-mass share, and a degenerate
 flag if any target reaches the threshold. Inspect target rows for each profile.
 See [weights and tuning](weights-and-tuning.md).
 
-The support formula refers to the unaveraged rank table. Exact-distance
-averaging can give observations beyond that edge nonzero weight when their
-group crosses it. Calculate realized support and concentration from the final weights.
+Exact-distance ties can extend support beyond the nominal rank cutoff; use
+final observation weights for support and concentration. See the
+[weight rule](weights-and-tuning.md#exact-distance-ties).
 
 For CATE the score contributions are `w_i*(rho_i-tau_hat)`. For CLATE they
 are `w_i*(phi_y_i-theta_hat*phi_d_i)`. These are fitted score residuals,
@@ -243,52 +243,52 @@ Numerical clipping does not establish overlap.
 
 ## Warnings and failures
 
-Ordinary `warning:` and `note:` output follows Stata's `quietly` control.
-Fatal errors remain visible under `quietly`; use `capture` to handle their
-return code, or `capture noisily` to retain their explanation while handling
-`_rc`. Save `_rc` before cleanup commands. Invalid options use code 198;
-incomplete or inconsistent saved models use 498 and identify the state that
-requires refitting. Resource and Break codes retain their original meanings.
+Warnings and notes respect `quietly`. Inspect support diagnostics for tie or
+weak-localization notices, and `e(status)` plus `e(components)` for unavailable
+CLATE output. Negative first stages are descriptive when a signed ratio is
+defined; `nose` does not warn about omitted uncertainty. Infeasible optional
+candidates retain their rows/reasons in `e(tuning_candidates)`.
 
-Exact-distance tie advisories retain the continuous-distance qualification.
-Weights, candidates, prediction and plots reuse the selected geometry's groups;
-these notices do not change the distance or introduce a tolerance. Independent
-calls can each display an advisory. A saved model must pass its current-state
-checks before its retained groups are reused.
+Fatal errors remain visible under `quietly`. Use `capture` to handle a return
+code, or `capture noisily` to retain its explanation, and save `_rc` before
+cleanup. Invalid saved state requires refitting. Unexpected native, resource,
+file and Break failures preserve their original codes.
 
-Notice facts remain accessible under `quietly`. Fits retain
-`e(target_notices)`, with one row per original target and columns
+### Return codes and automation
+
+| Cause | Code |
+| --- | --- |
+| Invalid option combination | 198 |
+| Failed native integer confirmation | 7 |
+| Missing named matrix | 111 |
+| Incompatible matrix dimensions | 503 |
+| No active estimates | 301 |
+| Incomplete/inconsistent saved state | 498 |
+| Native allocation failure | 909 |
+
+Native `syntax`/`confirm` and runtime errors follow
+[Stata's return-code conventions](https://www.stata.com/manuals/perror.pdf).
+Automatic acceleration can use Mata when a required capability is absent;
+execution or malformed-output failures stop. For a diagnostic rerun, explicitly
+select `global rdistnn_distance_engine mata` or
+`global rdistnn_jackknife_engine mata`; unexpected native failures use 498.
+
+### Read notice facts under quiet execution
+
+Fits retain `e(target_notices)` with one row per original target and columns
 `distance_ties` and `weak_localization`, plus `e(n_tied_targets)` and
-`e(n_weak_targets)`. The weak flag uses the same concentration guide as the
-notice: at least `.9*n` with `n>=2`, using signed concentration for TDNN.
-Current saved-state validation checks flags and counts against the retained
-groups and diagnostics. Missing or inconsistent fields require refitting.
+`e(n_weak_targets)`. The weak guide is concentration at least `.9*n`, `n>=2`;
+TDNN uses signed concentration rather than probability-weight ESS. Neither is
+a validity test. Distance-tie notices retain the continuous-distance inference
+qualification. Independent calls can each issue notices; there is no
+session-level suppression. CLATE gives one bounded summary per issue family,
+with at most five example target IDs and an omitted count.
 
-Fit/replay, `rdistnn_results`, `rdistnn_predict`, `rdistnn_candidate` and standalone
-weights return `r(n_tied_targets)` and `r(n_weak_targets)`. Result extraction
-counts unique selected targets; prediction/candidate counts describe the
-derived batch. Nonposting operations preserve the original `e()` totals.
-Copy `r()` results before another command overwrites them. Plot and diagnostic
-commands do not promise these two `r()` counters; use the fit's `e()` facts or
-selected result extraction. No session-level notice suppression is applied.
-
-CLATE reports one bounded summary for each issue family, with at most five
-example target IDs and an omitted count. Inspect every row of `e(status)` and
-`e(components)` for details, including when all ratios are unavailable. Negative
-first stages are descriptive notes when signed ratios remain defined. `nose`
-does not warn about the uncertainty intentionally omitted.
-
-Automatic native dispatch may use Mata when a required capability is absent.
-An execution, resource or malformed-output failure stops with an explanation;
-it does not silently retry as a missing accelerator. Select
-`global rdistnn_distance_engine mata` or
-`global rdistnn_jackknife_engine mata` explicitly when needed. Allocation
-failure in the plugin returns 909; unexpected native failures return 498.
-
-Independent estimator replays and saved prediction/candidate calls report their
-own applicable notices. Near-uniform DNN weights trigger the existing
-`ESS >= .9*n` descriptive guide; inspect diagnostics and consider stronger
-localization. TDNN uses inverse squared-weight concentration with explicit
-signed-weight wording, rather than interpreting it as probability-weight ESS.
-Neither guide is a validity test. Infeasible optional grid candidates remain
-in `e(tuning_candidates)` with their reason codes and one bounded warning.
+Fit/replay, `rdistnn_results`, `rdistnn_predict`, `rdistnn_candidate` and
+standalone weights return `r(n_tied_targets)` and `r(n_weak_targets)`.
+Extraction counts unique selected targets; prediction/candidate counts describe
+the derived batch. Nonposting operations preserve the original `e()` totals.
+Copy `r()` before another command replaces it. Plot/diagnostic commands do not
+promise these two `r()` counters; use `e()` facts or selected result extraction.
+Current-state validation checks notice flags/counts against groups and
+diagnostics; invalid state requires refitting.

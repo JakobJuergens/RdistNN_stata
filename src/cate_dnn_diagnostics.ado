@@ -1,4 +1,4 @@
-*! version 0.1.2  2026-10-17  Jakob Juergens
+*! version 0.1.5  2026-10-25  Jakob Juergens
 *! Postestimation diagnostics tables for cate_dnn
 
 program define cate_dnn_diagnostics, rclass

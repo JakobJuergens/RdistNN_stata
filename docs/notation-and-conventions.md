@@ -69,11 +69,10 @@ Signed and unnormalized mass is preserved, while weights, support and ESS can ch
 Every jackknife deletion removes the actual observation, updates ranks and
 averages the `n-1` table within surviving groups using their remaining sizes.
 Aligned row permutations preserve estimates and covariance up to numerical
-precision. The paper assumes a continuous distance distribution, under which
-old and new policies agree almost surely. Commands warn because inference with
+precision. The paper assumes a continuous distance distribution. Commands warn because inference with
 persistent distance ties is not established; no uniform MSE improvement is
 claimed. Bare rank/order utilities use strict orders unless supplied distances
-define the groups. Refit saved fits created under earlier policies.
+define the groups.
 
 ## Names that mean different things
 

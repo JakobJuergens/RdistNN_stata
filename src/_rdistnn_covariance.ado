@@ -1,24 +1,12 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Shared numeric covariance policy; estimator adapters own statistical factors.
-capture mata: mata drop rdistnn_cov_symmetrize()
 capture mata: mata drop rdistnn_covariance()
 capture mata: mata drop rdistnn_cov_crossprod()
 capture mata: mata drop rdistnn_cov_recover()
 
 mata:
 
-real matrix rdistnn_cov_symmetrize(real matrix V)
-{
-    real scalar i,j,a,b,mid
-    for(i=1;i<rows(V);i++) for(j=i+1;j<=cols(V);j++) {
-        a=V[i,j]; b=V[j,i]
-        if(a==b) mid=a
-        else if((a>=0)==(b>=0)) mid=a+(b-a)/2
-        else mid=a/2+b/2
-        V[i,j]=V[j,i]=mid
-    }
-    return(V)
-}
 
 real matrix rdistnn_cov_crossprod(real matrix Z, real matrix low)
 {

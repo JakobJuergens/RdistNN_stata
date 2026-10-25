@@ -1,3 +1,4 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Matrix-input diagnostics shared by fresh commands and saved numeric models.
 // Parsing, labels, display and estimator inference policy stay with callers.
@@ -32,7 +33,7 @@ real rowvector rdistnn_score_share(real colvector w, real colvector left,
     real scalar n,i,total,top,power,value,remaining,step
     real colvector active,ids,weights,l,r,raw,contrib,mantissa,exponent,direction,ord
     real rowvector a,b,c,parts
-    if(rows(w)!=rows(left) | rows(w)!=rows(right)) exit(error(198))
+    if(rows(w)!=rows(left) | rows(w)!=rows(right)) rdistnn_fail(503,"Score contributions and weights must have aligned observation rows.")
     if(args()>=4) contribution=J(rows(w),1,.)
     if(hasmissing(w) | any(w:<0)) return((0,.))
     active=selectindex(w:>0)
@@ -165,8 +166,7 @@ real matrix rdistnn_clate_diagnostics(real matrix diag, real matrix W,
         cols(signals)!=2 | cols(theta)!=m |
         (rows(A)!=0 & (rows(A)!=n | cols(A)!=1)) |
         (rows(e)!=0 & (rows(e)!=n | cols(e)!=1))) {
-        errprintf("rdistnn_clate_diagnostics: incompatible input dimensions.\n")
-        exit(error(198))
+        rdistnn_fail(503,"rdistnn_clate_diagnostics: incompatible input dimensions.")
     }
     out=diag
     out[,12..19]=J(m,8,.)

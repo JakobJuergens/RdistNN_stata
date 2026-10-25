@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-17
+*! version 0.1.5  2026-10-25
 // Full-target reporting, independent of the estimable subset posted in e(b).
 program define _rdistnn_report, rclass
     version 17

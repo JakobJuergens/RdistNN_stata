@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.1.0 18oct2026}{...}
+{* *! version 0.1.5  2026-10-25}{...}
 {title:np_tdnn_diagnostics — Signed-weight diagnostics}
 
 {p 4 4 2}

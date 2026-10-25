@@ -1,3 +1,4 @@
+*! version 0.1.5  2026-10-25
 version 17
 // Shared gateway for the Mata core. Load dependencies in order;
 // each module owns its functions and reload guards. Estimator commands continue
@@ -21,7 +22,7 @@ if ("$rdistnn_plugin_ok" == "") {
         global rdistnn_plugin_ok 0
     }
     else {
-        display as error "Native plugin declaration failed (return code `plugin_rc'). Resolve the execution or resource error and rerun the command."
+        display as error _asis "Native plugin declaration failed (return code `plugin_rc'). Resolve the execution or resource error and rerun the command."
         exit `plugin_rc'
     }
 }

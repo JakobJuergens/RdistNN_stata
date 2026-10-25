@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-17  Jakob Juergens
+*! version 0.1.5  2026-10-25  Jakob Juergens
 *! Save diagnostic tables while preserving the caller's data on errors
 
 program define _rdistnn_diagnostics_save

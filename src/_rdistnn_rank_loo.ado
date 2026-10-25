@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-18
+*! version 0.1.5  2026-10-25
 version 17
 // Arbitrary-rank-table deletions and DNN covariance adapters; TDNN reuses tables.
 foreach fn in naive_table prefix plugin from_ranks from_table {
@@ -88,16 +88,14 @@ real matrix rdistnn_loo_from_table(real matrix ranks, real matrix signal,
         hasmissing(ranks) | min(ranks)<1 | max(ranks)>n |
         any(ranks:!=floor(ranks)) | rows(table)!=n-1 |
         cols(table)!=1 | hasmissing(table) | (center!=0 & center!=1)) {
-        errprintf("Rank-table deletions require finite aligned signals, rank permutations and n-1 weights.\n")
-        exit(error(198))
+        rdistnn_fail(198,"Rank-table deletions require finite aligned signals, rank permutations and n-1 weights.")
     }
     for(j=1;j<=m;j++) {
         seen=J(n,1,0)
         for(i=1;i<=n;i++) {
             r=ranks[i,j]
             if(seen[r]) {
-                errprintf("Each ranks column must be a permutation of 1..n.\n")
-                exit(error(198))
+                rdistnn_fail(198,"Each ranks column must be a permutation of 1..n.")
             }
             seen[r]=1
         }
@@ -165,8 +163,7 @@ real matrix rdistnn_loo_from_ranks(real matrix ranks, real matrix signal,
     n=rows(ranks)
     if((method!="exact" & method!="asymp") | n<2 | missing(k) |
         missing(s) | k<1 | k!=floor(k) | s<k | s>=n | s!=floor(s)) {
-        errprintf("rdistnn_loo_from_ranks: require 1 <= k <= s < n and exact/asymp weights.\n")
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_loo_from_ranks: require 1 <= k <= s < n and exact/asymp weights.")
     }
     if(args()<7) table=rdistnn_weights_from_ranks((1::(n-1)),k,s,method)
     else table=precomputed_table
@@ -228,14 +225,12 @@ real matrix rdistnn_jk_cov_from_ranks(real colvector ranks,
 
     n = rows(ranks)
     if (rows(signal) != n) {
-        errprintf("rdistnn_jk_cov_from_ranks: rows(signal) must equal rows(ranks).\n")
-        exit(error(198))
+        rdistnn_fail(503,"rdistnn_jk_cov_from_ranks: rows(signal) must equal rows(ranks).")
     }
 
     q = cols(signal)
     if (q < 1) {
-        errprintf("rdistnn_jk_cov_from_ranks: signal must have at least one column.\n")
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_jk_cov_from_ranks: signal must have at least one column.")
     }
 
     if(args()>=6 & rows(DX)>0) {
@@ -265,12 +260,10 @@ real matrix rdistnn_jk_cov_multi_from_ranks(real matrix ranks,
     n = rows(ranks)
     m = cols(ranks)
     if (rows(signal) != n | cols(signal) != 1) {
-        errprintf("rdistnn_jk_cov_multi_from_ranks: signal must be an n x 1 vector matching ranks.\n")
-        exit(error(198))
+        rdistnn_fail(503,"rdistnn_jk_cov_multi_from_ranks: signal must be an n x 1 vector matching ranks.")
     }
     if (m < 1) {
-        errprintf("rdistnn_jk_cov_multi_from_ranks: ranks must have at least one target column.\n")
-        exit(error(198))
+        rdistnn_fail(198,"rdistnn_jk_cov_multi_from_ranks: ranks must have at least one target column.")
     }
 
     if(args()>=6 & rows(DX)>0) {

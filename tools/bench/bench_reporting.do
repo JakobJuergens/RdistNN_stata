@@ -22,35 +22,32 @@ capture mkdir "`shadow'"
 mata:
 void bench_copy(string scalar source, string scalar destination, real scalar blocks)
 {
-    real scalar input,output,in_notice,depth
+    real scalar input,output
     string scalar line
     input=fopen(source,"r"); unlink(destination); output=fopen(destination,"w")
-    in_notice=0; depth=0
     while((line=fget(input))!=J(0,0,"")) {
         if(blocks) {
-            if(strpos(line,"void rdistnn_distance_warning(")) in_notice=1
-            if(in_notice & strpos(line,"rdistnn_duplicate_rows(DX[,j])")) {
-                line=subinstr(line,"rdistnn_duplicate_rows(DX[,j])","bench_notice_duplicates(DX[,j])")
-            }
+            line=subinstr(line,"sorted=X[order","st_numscalar("+char(34)+"BENCH_DUPLICATE_SORTS"+char(34)+",st_numscalar("+char(34)+"BENCH_DUPLICATE_SORTS"+char(34)+")+1); sorted=X[order")
             line=subinstr(line,"n=rows(ranks); m=cols(ranks)","st_numscalar("+char(34)+"BENCH_GROUP_CALLS"+char(34)+",st_numscalar("+char(34)+"BENCH_GROUP_CALLS"+char(34)+")+1); n=rows(ranks); m=cols(ranks)")
-            if(in_notice & line=="}") in_notice=0
         }
         else line=subinstr(line,"st_global("+char(34)+"rdistnn_last_distance_engine"+char(34)+","+char(34)+char(34)+")","st_numscalar("+char(34)+"BENCH_DISTANCE_CALLS"+char(34)+",st_numscalar("+char(34)+"BENCH_DISTANCE_CALLS"+char(34)+")+1); st_global("+char(34)+"rdistnn_last_distance_engine"+char(34)+","+char(34)+char(34)+")")
         fput(output,line)
     }
     fclose(input); fclose(output)
 }
-real scalar bench_notice_duplicates(real matrix X)
-{
-    st_numscalar("BENCH_NOTICE_SORTS",st_numscalar("BENCH_NOTICE_SORTS")+1)
-    return(rdistnn_duplicate_rows(X))
-}
 bench_copy(st_local("installation")+"/src/_rdistnn_blocks.ado",st_local("shadow")+"/_rdistnn_blocks.ado",1)
 bench_copy(st_local("installation")+"/src/_rdistnn_distance_mata.ado",st_local("shadow")+"/_rdistnn_distance_mata.ado",0)
 end
 adopath ++ "`shadow'"
+quietly run "`shadow'/_rdistnn_blocks.ado"
+quietly run "`shadow'/_rdistnn_distance_mata.ado"
+// Positive controls prove all counters are attached to current source.
+scalar BENCH_GROUP_CALLS=0
+scalar BENCH_DISTANCE_CALLS=0
+scalar BENCH_DUPLICATE_SORTS=0
+mata: BENCH_CONTROL=rdistnn_distance_matrix((1\2\3),0,"l2"); BENCH_CONTROL=rdistnn_distance_groups((1::3),(0\0\1),1); BENCH_CONTROL=rdistnn_duplicate_rows((1\1\2)); assert(st_numscalar("BENCH_GROUP_CALLS")==1 & st_numscalar("BENCH_DUPLICATE_SORTS")==1 & st_numscalar("BENCH_DISTANCE_CALLS")==1)
 tempname timing
-postfile `timing' str8 phase long n int m byte tied str6 engine str8 output_mode str10 route byte repetition double seconds long group_calls distance_calls notice_sorts str12 actual_distance str12 actual_deletion using "`output'/`phase'/timings.dta", replace every(1)
+postfile `timing' str8 phase long n int m byte tied str6 engine str8 output_mode str10 route byte repetition double seconds long group_calls distance_calls duplicate_sorts str12 actual_distance str12 actual_deletion using "`output'/`phase'/timings.dta", replace every(1)
 foreach n in 64 2000 32000 {
     local m=cond(`n'==64,1,cond(`n'==2000,8,16))
     foreach tied in 0 1 {
@@ -73,7 +70,7 @@ foreach n in 64 2000 32000 {
                         // it does not refit geometry outside the timed operation.
                         scalar BENCH_GROUP_CALLS=0
                         scalar BENCH_DISTANCE_CALLS=0
-                        scalar BENCH_NOTICE_SORTS=0
+                        scalar BENCH_DUPLICATE_SORTS=0
                         timer clear 91
                         timer on 91
                         if "`route'"=="fit" `prefix' np_dnn y, xcols(x1) x0matrix(BENCH_TARGETS) s(8) nose
@@ -82,13 +79,14 @@ foreach n in 64 2000 32000 {
                             if `n'*`m'<=11000 `prefix' np_dnn_plot, type(dashboard) name(bench_reporting) replace nodraw
                             else {
                                 // Stata/SE's graph mkmat transport caps rows at
-                                // 11,000. Exercise the real three Mata panel
-                                // preparations at larger geometries instead.
+                                // 11,000. Exercise current public diagnostics and numeric
+                                // estimate/kernel preparation at larger geometries.
                                 quietly findfile "_rdistnn_model_mata.ado"
                                 quietly run "`r(fn)'"
-                                capture program list _rdistnn_report_notices
-                                if !_rc `prefix' _rdistnn_report_notices
-                                `prefix' mata: BENCH_PANEL_W=rdistnn_model_weights((1..`m')); BENCH_PANEL_D=rdistnn_plot_target_diag(st_matrix("e(diagnostics)"),st_matrix("e(targets)")); BENCH_PANEL_E=rdistnn_plot_est_default(st_matrix("e(targets)"),st_matrix("e(estimates)")',st_matrix("e(se_targets)")',8,invnormal(.975))
+                                `prefix' np_dnn_diagnostics
+                                matrix BENCH_PANEL_D=r(diagnostics)
+                                assert rowsof(BENCH_PANEL_D)==`m' & colsof(BENCH_PANEL_D)>1
+                                `prefix' mata: BENCH_PANEL_W=rdistnn_model_weights((1..`m')); BENCH_PANEL_E=rdistnn_plot_est_default(st_matrix("e(targets)"),st_matrix("e(estimates)")',st_matrix("e(se_targets)")',8,invnormal(.975))
                             }
                         }
                         timer off 91
@@ -99,20 +97,21 @@ foreach n in 64 2000 32000 {
                         if "`route'"=="dashboard" local actual_distance "cached"
                         local groups=BENCH_GROUP_CALLS
                         local distances=BENCH_DISTANCE_CALLS
-                        local notice_sorts=BENCH_NOTICE_SORTS
+                        local duplicate_sorts=BENCH_DUPLICATE_SORTS
                         // Numerical receipts are outside timing and retain every
-                        // weight/rank/group plus estimates/covariance/candidate rows.
+                        // rank/group plus estimates/covariance/candidate rows. Weights
+                        // are reconstructed from retained geometry outside timing.
                         // Intentional nose matches the reporting-cost R benchmark;
                         // deletion-engine parity has separate runtime/native gates.
                         if `repetition'==1 {
-                            mata: BENCH_W=_np_W; BENCH_R=st_matrix("e(model_ranks)"); BENCH_G=st_matrix("e(model_groups)"); BENCH_D=st_matrix("e(model_distances)"); BENCH_B=st_matrix("e(estimates)"); BENCH_V=st_matrix("e(estimate_vcov)"); BENCH_C=BENCH_CE=BENCH_CD=J(0,0,.)
+                            mata: BENCH_R=st_matrix("e(model_ranks)"); BENCH_G=st_matrix("e(model_groups)"); BENCH_D=st_matrix("e(model_distances)"); BENCH_W=rdistnn_weights_from_rmat(BENCH_R,st_numscalar("e(k)"),st_numscalar("e(s)"),st_global("e(method)"),BENCH_D,BENCH_G); BENCH_B=st_matrix("e(estimates)"); BENCH_V=st_matrix("e(estimate_vcov)"); BENCH_C=BENCH_CE=BENCH_CD=J(0,0,.)
                             if inlist("`route'","grid","dashboard") {
                                 mata: BENCH_C=st_matrix("e(tuning_candidates)"); BENCH_CE=st_matrix("e(tuning_estimates)"); BENCH_CD=st_matrix("e(tuning_diagnostics)")
                             }
                             mata: mata matsave "`output'/`phase'/`n'-`tied'-`engine'-`output_mode'-`route'.mmat" BENCH_W BENCH_R BENCH_G BENCH_D BENCH_B BENCH_V BENCH_C BENCH_CE BENCH_CD, replace
                         }
                         quietly timer list 91
-                        post `timing' ("`phase'") (`n') (`m') (`tied') ("`engine'") ("`output_mode'") ("`route'") (`repetition') (r(t91)) (`groups') (`distances') (`notice_sorts') ("`actual_distance'") ("`actual_deletion'")
+                        post `timing' ("`phase'") (`n') (`m') (`tied') ("`engine'") ("`output_mode'") ("`route'") (`repetition') (r(t91)) (`groups') (`distances') (`duplicate_sorts') ("`actual_distance'") ("`actual_deletion'")
                     }
                 }
             }

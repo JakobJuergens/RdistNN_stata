@@ -89,7 +89,7 @@ foreach family in cate clate np {
     else test_assert "[`family' diagnostics] selected saving returns usable common localization" 0
     local fullcols = cond("`family'"=="np",20,28)
     local compactcols = cond("`family'"=="np",6,7)
-    test_assert "[`family' diagnostics] legacy full/compact tables retain fields and IDs" rowsof(DIAG_FULL)==2 & colsof(DIAG_FULL)==`fullcols' & DIAG_FULL[1,1]==3 & DIAG_FULL[2,1]==1 & rowsof(DIAG_COMPACT)==2 & colsof(DIAG_COMPACT)==`compactcols'
+    test_assert "[`family' diagnostics] current full/compact tables retain fields and IDs" rowsof(DIAG_FULL)==2 & colsof(DIAG_FULL)==`fullcols' & DIAG_FULL[1,1]==3 & DIAG_FULL[2,1]==1 & rowsof(DIAG_COMPACT)==2 & colsof(DIAG_COMPACT)==`compactcols'
     if "`family'"=="clate" {
         local fullnames : colnames DIAG_FULL
         test_assert "[clate diagnostics] selected components and statuses retain full schema" rowsof(DIAG_COMPONENTS)==2 & colsof(DIAG_COMPONENTS)==9 & DIAG_COMPONENTS[1,1]==3 & DIAG_COMPONENTS[2,1]==1 & rowsof(DIAG_STATUS)==2 & colsof(DIAG_STATUS)==5 & strpos("`fullnames'","instrument_1_mass")>0
@@ -105,7 +105,7 @@ foreach family in cate clate np {
     local scope "`r(scope)'"
     local selected "`r(selected)'"
     local nrows = r(n_rows)
-    test_assert "[`family' diagnostics] candidates retain legacy schemas and requested order" `rc'==0 & rowsof(DIAG_CAND)==2 & colsof(DIAG_CAND)==13 & rowsof(DIAG_CANDCOMPACT)==2 & colsof(DIAG_CANDCOMPACT)==10 & DIAG_CAND[1,1]==3 & DIAG_CAND[2,1]==1 & "`scope'"=="candidates" & `nrows'==2 & "`selected'"=="3 1"
+    test_assert "[`family' diagnostics] candidates retain current schemas and requested order" `rc'==0 & rowsof(DIAG_CAND)==2 & colsof(DIAG_CAND)==13 & rowsof(DIAG_CANDCOMPACT)==2 & colsof(DIAG_CANDCOMPACT)==10 & DIAG_CAND[1,1]==3 & DIAG_CAND[2,1]==1 & "`scope'"=="candidates" & `nrows'==2 & "`selected'"=="3 1"
     if `rc'==0 {
         mata: st_numscalar("diag_candidate_error", max(abs(st_matrix("DIAG_CAND") - (st_matrix("DIAG_META")[(3,1),], st_matrix("DIAG_CANDRAW")[(3,1),]))))
         test_assert "[`family' diagnostics] selected candidate metadata and diagnostics unchanged" scalar(diag_candidate_error)<1e-12

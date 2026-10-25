@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.0.9  2026-10-17}{...}
+{* *! version 0.1.5  2026-10-25}{...}
 {viewerjumpto "Syntax"          "cate_dnn##syntax"}{...}
 {viewerjumpto "Description"     "cate_dnn##description"}{...}
 {viewerjumpto "Sample and targets" "cate_dnn##sample"}{...}
@@ -77,7 +77,7 @@ exactly equal represented selected-metric distance share the mean of their
 assigned rank weights, including each deletion's surviving group. No tolerance
 groups nearby distances. Aligned row permutations preserve estimates and
 covariance up to numerical precision. The paper assumes a continuous distance
-distribution, under which old and new rules agree almost surely; inference with
+distribution; inference with
 persistent distance ties is not established. Reported order fractions
 are descriptive and do not establish inference conditions.
 
@@ -95,14 +95,12 @@ are available: a precomputed pseudo-outcome or a full AIPW score. Nuisance model
 the command only consumes their prediction variables.
 
 {pstd}
-With {opt pseudooutcome}, the positional variable is used directly as R's
-{cmd:pseudo_outcome}; no outcome or nuisance variables are supplied.  The full
-AIPW pseudo-outcome is
+With {opt pseudooutcome}, the positional variable is localized unchanged as
+R's {cmd:pseudo_outcome}; no outcome or nuisance variables are supplied.
+Its construction, causal interpretation and inferential justification are the
+caller's responsibility. The full AIPW pseudo-outcome is
 
 {phang2}phi_i = D_i*(Y_i-m1_i)/eclip_i - (1-D_i)*(Y_i-m0_i)/(1-eclip_i) + (m1_i-m0_i){p_end}
-
-{pstd}
-The normalized Robinson pseudo-outcome is not implemented because it falls outside the accompanying paper's theoretical results.
 
 {pstd}
 For nuisance-based paths, eclip_i = min(max(e_i, clip), 1-clip), where
@@ -256,10 +254,9 @@ The order must satisfy 1 <= k <= s. Uniform-weight cases s=1 or k=s do not
 localize. A default order that is infeasible for the sample raises an error.
 
 {pstd}
-The support formula describes the unaveraged rank table. Averaging assigned
-weights across exact-distance groups can extend nonzero observation weights to
-the end of a group crossing that edge. Use actual returned weights for realized
-support and concentration; rank-only tables do not contain target-specific groups.
+Exact-distance averaging can extend support beyond the nominal rank cutoff.
+Final observation weights determine realized support and concentration; see
+{help weights_dnn##geometry:distance ties}.
 
 {phang}
 {opt tuningmode(string)} selects {cmd:default}, which evaluates only the
@@ -323,29 +320,11 @@ and interval bounds in the common reporting matrices.
 {title:Distance scaling}
 
 {pstd}
-{cmd:distance(l1)} uses Manhattan distance. {cmd:distance(l2)} uses Euclidean
-distance (default). {cmd:l1_scaled} and {cmd:l2_scaled} divide each coordinate
-by a scale fitted on the complete estimation sample before computing the
-corresponding distance. {cmd:scalerule(sd)} is the default; alternatives are
-{cmd:mad} (median absolute deviation, constant 1.4826), {cmd:iqr} (R type-7
-quartiles), {cmd:range}, and {cmd:custom}. Sample SD uses the n-1 divisor and
-requires two observations. Supply {cmd:scalevec(numlist)} only with
-{cmd:scalerule(custom)}, with one finite scale per covariate. Custom values
-are absolute scales, not inverse scales. Each scale is floored at the positive
-finite {cmd:scaleeps()} (default 1e-12), including constant covariates and zero
-custom scales. Scaling controls do not change unscaled or Mahalanobis metrics.
-The fitted scales or Mahalanobis whitening factor remain fixed across
-jackknife deletions and saved-model predictions. Ranks use represented selected-metric distance then original row index.
-At each target, observations with exactly equal distance share the mean of their
-assigned rank weights, including different covariate profiles and zero-weight
-ranks beyond nominal support. No tolerance or rounding groups nearby distances.
-Each deletion removes the actual observation before averaging the n-1 table
-over each remaining group using its survivor count. Signed and unnormalized
-mass is preserved; individual weights, support and ESS can change. Aligned row
-permutations preserve estimates and covariance up to numerical precision.
-The paper assumes a continuous distance distribution, under which old and new
-rules agree almost surely. Inference with persistent distance ties and a uniform
-MSE improvement are not established; outcomes and nuisances do not define groups.
+Scaled L1/L2 distances use scales fitted on the estimation sample; scales and
+Mahalanobis geometry remain fixed during jackknife deletion and saved prediction.
+See {help weights_dnn##geometry:distance geometry and tie averaging} for scale
+choices, numerical floors and survivor weights. Inference with persistent
+distance ties is not established.
 
 {marker results}{...}
 {title:Stored results}
@@ -559,23 +538,3 @@ post explicitly activates a derived fit; store() retains a named one.
 Fits without the current required numeric snapshot need refitting.
 Derived fits preserve current descriptive metadata; default reuse preserves
 the original parent's e().
-
-{title:Migration from earlier CATE inputs}
-
-{pstd}
-The pooled-mean options {cmd:mcol()} and {cmd:mhat()} have been removed.
-Use propensity and both arm-specific outcome means for AIPW construction, or
-an externally justified signal with {opt pseudooutcome}. A pooled outcome
-mean cannot be substituted for both arm means. Supplied signals are localized
-unchanged; construction, causal interpretation and inference remain the
-caller's responsibility.
-
-{pstd}
-Refit objects from older development versions. Postestimation requires the
-current numeric snapshot; retired fit schemas are not reconstructed.
-The paper's residualized-slope equation is distinct from the removed normalized
-pseudo-outcome; no residualized-slope estimator is added here. Same-sample
-nuisance accuracy and stability, localization bias and pointwise inference
-retain the qualifications in {it:Inference contract}.
-For the detailed cross-interface migration explanation, see
-{browse "https://github.com/JakobJuergens/RdistNN_stata/blob/master/docs/reusing-fits.md#migrating-saved-cate-fits-after-robinson-removal":the saved-fit guide}.

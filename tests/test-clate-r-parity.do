@@ -45,7 +45,8 @@ forvalues case=1/4 {
     mata: st_numscalar("cl_diff",max(abs(st_matrix("CD")[,4..8]-st_matrix("R_cl_diag`case'")[,14..18])))
     test_assert "R first-stage uncertainty and paired component diagnostics case `case'" scalar(cl_diff)<1e-9
     // Test actual reference weight arrays, including stable ties.
-    mata: st_matrix("CLW",rdistnn_weights(st_data(.,"x1 x2"),st_matrix("R_cl_targets")[1,.],`k',4,"`method'","`distance'"))
+    quietly weights_dnn x1 x2, x0matrix(R_cl_targets) k(`k') s(4) method(`method') distance(`distance')
+    mata: st_matrix("CLW",st_matrix("r(weights)")[,1])
     mata: st_numscalar("cl_diff",max(abs(st_matrix("CLW")-st_matrix("R_cl_weights`case'")[,1])))
     test_assert "R weight array case `case'" scalar(cl_diff)<1e-12
 }

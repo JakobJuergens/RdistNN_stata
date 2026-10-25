@@ -24,7 +24,7 @@ real scalar ca_matrix_equal(real matrix actual, real matrix expected,
 }
 end
 
-test_section "premerge CLATE: R goldens and independent paired-delete oracles"
+test_section "CLATE edge contracts: R goldens and independent paired-delete oracles"
 forvalues case=1/`ca_cases' {
     clear
     svmat double CA_input`case'
@@ -64,7 +64,7 @@ forvalues case=1/`ca_cases' {
     }
 }
 
-test_section "premerge shared singular Mahalanobis: independent geometry and reductions"
+test_section "shared singular Mahalanobis: independent geometry and reductions"
 clear
 svmat double CA_input12
 rename (CA_input121 CA_input122 CA_input123 CA_input124) (x1 x2 py pd)
@@ -83,7 +83,7 @@ mata {
     ca_factor=ca_geometry[|3,1 \ rows(ca_geometry),cols(ca_geometry)|]/ca_geometry[1,1]
     st_numscalar("ca_equal",ca_matrix_equal(ca_factor*ca_factor',ca_mp,2e-12))
     st_numscalar("ca_distance_ok",ca_matrix_equal(rdistnn_distance_matrix(st_data(.,"x1 x2"),(0,1),"mahalanobis"),ca_expected_distance,2e-12))
-    st_numscalar("ca_rank_ok",all(rdistnn_ranks(st_data(.,"x1 x2"),(0,1),"mahalanobis"):==ca_expected_rank))
+    st_numscalar("ca_rank_ok",all(rdistnn_localization_ranks(rdistnn_distance_matrix(st_data(.,"x1 x2"),(0,1),"mahalanobis")):==ca_expected_rank))
     st_numscalar("ca_weight_ok",ca_matrix_equal(st_data(.,"ca_singular_w"),ca_expected_weight,2e-12))
 }
 test_assert "singular whitening factor Gram matches Moore-Penrose rank-one formula" scalar(ca_equal)==1
@@ -97,7 +97,7 @@ cate_dnn py, xcols(x1 x2) x0matrix(CA_targets12) s(3) distance(mahalanobis) pseu
 mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(estimates)"),st_matrix("CA_theta12"),2e-12) & ca_matrix_equal(st_matrix("e(V)"),st_matrix("CA_V12"),2e-11))
 test_assert "off-span singular CATE estimates and full covariance match R ratio with unit denominator" scalar(ca_equal)==1
 
-test_section "premerge CLATE: affine signal identities and target permutation"
+test_section "CLATE edge contracts: affine signal identities and target permutation"
 clear
 svmat double CA_input1
 rename (CA_input11 CA_input12 CA_input13 CA_input14) (x1 x2 py pd)
@@ -138,7 +138,7 @@ test_assert "target permutation carries interleaved full component covariance" s
 mata: st_numscalar("ca_equal",ca_matrix_equal(st_matrix("e(theta_vcov)")[,1],st_matrix("e(theta_vcov)")[,3],2e-12))
 test_assert "duplicate targets retain identical covariance columns" scalar(ca_equal)==1
 
-test_section "premerge CLATE: grid feasibility default and complete status masks"
+test_section "CLATE edge contracts: grid feasibility default and complete status masks"
 clate_dnn py, denominator(pd) pseudooutcome xcols(x1 x2) ///
     x0matrix(CA_targets1) k(2) tuningmode(grid) ///
     sgrid(1 4 4 7 8 9) sdefault(4)
@@ -163,7 +163,7 @@ test_assert "nose grid permits s=n default" e(s)==8 & el(CA_noseMeta,3,4)==1
 mata: st_numscalar("ca_equal",all(st_matrix("e(tuning_se)"):>=.) & all(st_matrix("CA_noseStatus")[,6]:==1) & all(st_matrix("CA_noseStatus")[,7]:==0))
 test_assert "nose grid consistently marks covariance uncomputed" scalar(ca_equal)==1
 
-test_section "premerge CLATE: nuisance relabeling and sample boundary validation"
+test_section "CLATE edge contracts: nuisance relabeling and sample boundary validation"
 clear
 svmat double CA_input26
 rename (CA_input261 CA_input262 CA_input263 CA_input264 CA_input265 ///
@@ -211,7 +211,7 @@ local target_rc = _rc
 test_assert "missing target coordinate rejected" `target_rc'==198
 
 
-test_section "premerge CLATE: relative denominator status at ordinary cutoffs"
+test_section "CLATE edge contracts: relative denominator status at ordinary cutoffs"
 clear
 set obs 6
 gen double cr_x=_n
@@ -240,7 +240,7 @@ test_assert "zero denominator remains undefined and is not a relative near-zero 
 
 // A positive binary common scale makes the independent reference safe without
 // taking abs() of the original large negative value. Row 6 has zero weight.
-test_section "premerge CLATE: finite negative denominator magnitudes"
+test_section "CLATE edge contracts: finite negative denominator magnitudes"
 replace cr_den=1
 replace cr_den=-8e307-8e307 in 6
 scalar cr_small_relative=(1/4)/(4e307)
@@ -298,7 +298,7 @@ test_assert "relative flag preserves estimates and all paired component covarian
 
 // Each route evaluates the known relative magnitudes (tiny, one), with original
 // signals retained and duplicate/reordered target identities kept explicitly.
-test_section "premerge CLATE: relative status survives prediction candidates and cold restore"
+test_section "CLATE edge contracts: relative status survives prediction candidates and cold restore"
 clear
 set obs 6
 gen double cr_x=_n

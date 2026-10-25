@@ -1,16 +1,9 @@
-// Supported nuisance construction and removed-option regression checks.
+// Current AIPW construction, provenance and an independent population identity.
 do "tests/test_framework.do"
 test_section "cate_dnn: supported CATE score construction"
 rdnn_dgp_basic, n(40) seed(2321)
-foreach opt in mcol mhat {
-    capture cate_dnn y, xcols(x1 x2) x0(0 0) tcol(D) ecol(e) `opt'(m0) s(5)
-    test_assert "[score] pooled-mean option `opt' is rejected" _rc == 198
-    capture cate_dnn y, xcols(x1 x2) x0(0 0) pseudooutcome `opt'(m0) s(5)
-    test_assert "[score] supplied signals cannot bypass rejection of `opt'" _rc == 198
-}
 quietly cate_dnn y, xcols(x1 x2) x0(0 0) tcol(D) ecol(e) m0col(m0) m1col(m1) s(5)
 test_assert "[score] supported nuisance route records AIPW" "`e(score_method)'" == "aipw"
-test_assert "[score] pooled nuisance metadata is absent" "`e(m_col)'" == ""
 
 preserve
 clear

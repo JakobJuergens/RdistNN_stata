@@ -1,9 +1,9 @@
 # Website copy for the Stata companion
 
 Ready-to-adapt text for the software section of jakobjuergens.com, describing
-production source version `0.1.4`, published on 2026-10-23. Installation
+production source version `0.1.5`, published on 2026-10-25. Installation
 and user guides are available from the repository. The current version-pinned
-release is [`v0.1.4`](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.4),
+release is [`v0.1.5`](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.5),
 with a verified source ZIP, platform-specific plugins and checksum files.
 
 ## Software entry
@@ -21,14 +21,14 @@ PLQR moment evaluation is experimental and does not provide coefficient inferenc
 - [R companion](https://github.com/JakobJuergens/RdistNN)
 - [Accompanying research](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
 
-## 0.1.4 production-update announcement draft
+## 0.1.5 production-update announcement draft
 
-RdistNN for Stata 0.1.4 validates complete current saved-model state before
-reporting or reuse and preserves native execution failures without reading
-unavailable output. Current models use schema 4; earlier saved models require
-refitting. Shared helpers reuse retained localization groups across supported
-workflows and preserve numerical behavior for tiny treatment-arm weight mass
-and paired cross-covariances.
+RdistNN for Stata 0.1.5 strengthens validation of paired saved results,
+reuses default and aliased CLATE tuning weights, and consolidates package-owned
+error rendering while preserving native failures and caller state. Current
+models use schema 4; earlier or incomplete saved models require refitting.
+Focused tests and shorter guides retain independent numerical references and
+the documented scientific limits.
 
 Exact represented distance ties continue to receive averaged localization
 weights, including after jackknife deletion. The paper assumes a continuous
@@ -45,13 +45,13 @@ Task-oriented guides, eight standalone examples and installed help support
 treatment-effect and regression workflows. The paper supplies the underlying
 inference conditions; numerical invariance does not establish those conditions.
 Portable ado/Mata calculations and optional native acceleration remain available
-on their supported platforms. Version 0.1.4 is available from production
-`master` and the version-pinned `v0.1.4` release.
+on their supported platforms. Version 0.1.5 is available from production
+`master` and the version-pinned `v0.1.5` release.
 
 [Source updates](https://github.com/JakobJuergens/RdistNN_stata/blob/master/RELEASE_NOTES.md) ·
 [Tagged releases](https://github.com/JakobJuergens/RdistNN_stata/releases)
 
-Use the [verified release URL](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.4)
+Use the [verified release URL](https://github.com/JakobJuergens/RdistNN_stata/releases/tag/v0.1.5)
 for version-pinned downloads and the repository README as the primary Stata
 documentation entry point; the Stata companion has no separate hosted
 documentation site.

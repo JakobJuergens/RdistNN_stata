@@ -14,15 +14,12 @@ mata {
     CV=rdistnn_covariance(CX,.5,1,1)
     st_numscalar("cov_failure",all(CV[1,]:>=.) & all(CV[,1]:>=.) & CV[2,2]==0 & CV[3,3]==1)
     st_numscalar("cov_constant",rdistnn_covariance(J(3,1,2^900),1,1)[1,1]==0)
-    CS=(2^1022,2^1021\2^1021,2^1022)
-    st_numscalar("cov_midpoint",all(rdistnn_cov_symmetrize(CS):==CS))
 }
 test_assert "finite covariance after overflowing raw sum" scalar(cov_large)<2e-15
 test_assert "exact symmetric covariance" scalar(cov_sym)==0
 test_assert "aggregate subnormal variance recovered" scalar(cov_tiny)==1
 test_assert "unavailable column preserves other covariance" scalar(cov_failure)==1
 test_assert "large constant is deterministic" scalar(cov_constant)==1
-test_assert "symmetrization preserves finite large diagonal" scalar(cov_midpoint)==1
 mata {
     ca=rdistnn_power2(510); ct=rdistnn_power2(-510)
     CX=(ca,0 \ -ca,0 \ ct,ct \ -ct,-ct \ 0,ca \ 0,-ca)

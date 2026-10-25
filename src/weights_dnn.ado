@@ -1,4 +1,4 @@
-*! version 0.1.0  2026-10-18  Jakob Juergens
+*! version 0.1.5  2026-10-25  Jakob Juergens
 *! Exact/asymptotic DNN weights for one target or a target matrix
 program define weights_dnn, rclass
     version 17
@@ -16,8 +16,7 @@ program define weights_dnn, rclass
         _rdistnn_messages error, rc(198) message("k() must be a positive integer; got `k'.") hint("Set k() to at least 1.")
     }
     if ("`x0'"=="")==("`x0matrix'"=="") {
-        di as error "Specify exactly one of x0() and x0matrix()."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"Specify exactly one of x0() and x0matrix()."')
     }
     tempname targets weights ranks distances groups row_ids neff geometry target_notices notice_counts
     if "`x0matrix'"!="" {
@@ -33,31 +32,26 @@ program define weights_dnn, rclass
     }
     local m=rowsof(`targets')
     if colsof(`targets')!=`kx' | `m'<1 {
-        di as error "x0matrix() must have one target per row and one column per covariate."
-        exit 198
+        _rdistnn_messages error, rc(503) message(`"x0matrix() must have one target per row and one column per covariate."')
     }
     if "`generate'"!="" {
         confirm new variable `generate'
         if `m'!=1 {
-            di as error "generate() requires a single target; use r(weights) for a batch."
-            exit 198
+            _rdistnn_messages error, rc(198) message(`"generate() requires a single target; use r(weights) for a batch."')
         }
     }
     if "`distance'"=="" local distance "l2"
     if "`method'"=="" local method "exact"
     if "`scalerule'"=="" local scalerule "sd"
     if !inlist("`method'","exact","asymp") {
-        di as error "method() must be exact or asymp."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"method() must be exact or asymp."')
     }
     if "`distance'"=="mahalanobis" & `kx'<2 {
-        di as error "distance(mahalanobis) requires at least 2 covariates."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"distance(mahalanobis) requires at least 2 covariates."')
     }
     if `s'==0 local s=floor(.4*`n'^((`kx'+1)/(`kx'+2)))
     if `s'<`k' | `s'>`n' {
-        di as error "s() must satisfy k <= s <= n."
-        exit 198
+        _rdistnn_messages error, rc(198) message(`"s() must satisfy k <= s <= n."')
     }
     findfile "_rdistnn_mata.ado"
     quietly run "`r(fn)'"

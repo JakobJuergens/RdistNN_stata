@@ -7,26 +7,29 @@ test_section "jackknife engines: native matrix bridge and fallbacks"
 matrix JP_R=(1\2\3\4)
 matrix JP_S=(2,1 \ 1,-1 \ 4,2 \ 3,1)
 matrix JP_W=(2/3\1/3\0)
-matrix JP_L=J(4,2,73)
-capture plugin call rdistnn_plugin, rank_loo JP_R JP_S JP_W JP_L
+mata {
+    JP_PAYLOAD=(1\4\1\2\0)\vec(st_matrix("JP_R"))\vec(st_matrix("JP_S"))\vec(st_matrix("JP_W"))
+    st_matrix("JP_F",rdistnn_native_frame(JP_PAYLOAD))
+    st_matrix("JP_D",rdistnn_native_frame(J(8,1,73)))
+}
+capture plugin call rdistnn_plugin, loo_packed JP_F JP_D
 local native_rc=_rc
-test_assert "native rank_loo matrix bridge available" `native_rc'==0
+test_assert "native packed deletion bridge available" `native_rc'==0
 if `native_rc'==0 {
-    mata: st_numscalar("_je_literal",max(abs(st_matrix("JP_L")-(2,0\8/3,4/3\5/3,1/3\5/3,1/3))))
+    mata: st_matrix("JP_L",rdistnn_native_unframe(st_matrix("JP_D"),4,2)); st_numscalar("_je_literal",max(abs(st_matrix("JP_L")-(2,0\8/3,4/3\5/3,1/3\5/3,1/3))))
     test_assert "native bridge preserves paired literal deletions" scalar(_je_literal)<1e-12
-    matrix JP_L=J(4,2,73)
-    matrix JP_BAD=(1\1\3\4)
-    capture plugin call rdistnn_plugin, rank_loo JP_BAD JP_S JP_W JP_L
-    local bad_rc=_rc
-    mata: st_numscalar("_je_unchanged",all(st_matrix("JP_L"):==73))
-    test_assert "native bridge rejects duplicate ranks before output writes" `bad_rc'==198 & scalar(_je_unchanged)
-    matrix JP_BAD=(1\2\3\4.5)
-    capture plugin call rdistnn_plugin, rank_loo JP_BAD JP_S JP_W JP_L
-    test_assert "native bridge rejects noninteger ranks" _rc==198
-    matrix JP_BAD=(1\2\3\.)
-    capture plugin call rdistnn_plugin, rank_loo JP_BAD JP_S JP_W JP_L
-    test_assert "native bridge rejects missing ranks" _rc==198
-    capture plugin call rdistnn_plugin, rank_loo JP_R JP_S JP_W
+    foreach fault in duplicate noninteger missing {
+        matrix JP_BAD=(1\2\3\4)
+        if "`fault'"=="duplicate" matrix JP_BAD[2,1]=1
+        if "`fault'"=="noninteger" matrix JP_BAD[4,1]=4.5
+        if "`fault'"=="missing" matrix JP_BAD[4,1]=.
+        mata: JP_PAYLOAD=(1\4\1\2\0)\vec(st_matrix("JP_BAD"))\vec(st_matrix("JP_S"))\vec(st_matrix("JP_W")); st_matrix("JP_F",rdistnn_native_frame(JP_PAYLOAD)); st_matrix("JP_D",rdistnn_native_frame(J(8,1,73))); JP_D_BEFORE=st_matrix("JP_D")
+        capture plugin call rdistnn_plugin, loo_packed JP_F JP_D
+        local bad_rc=_rc
+        mata: st_numscalar("_je_unchanged",all(st_matrix("JP_D"):==JP_D_BEFORE))
+        test_assert "native bridge rejects `fault' ranks before output writes" `bad_rc'==198 & scalar(_je_unchanged)
+    }
+    capture plugin call rdistnn_plugin, loo_packed JP_F
     test_assert "native bridge rejects missing matrix argument" _rc==198
 }
 

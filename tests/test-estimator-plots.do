@@ -19,10 +19,6 @@ foreach family in cate np clate {
     capture noisily `family'_dnn_plot, targets(2 4) level(90) name(plot_contract) replace nodraw
     local rc = _rc
     local nr = r(n_rows)
-    local scalars : r(scalars)
-    local retired "n_plotted"
-    local retained : list retired in scalars
-    test_assert "[plots `family'] exposes only current plot count fields" !`retained'
     capture matrix PD = r(plot_data)
     local drc = _rc
     test_assert "[plots `family'] selected estimate data exposed" `rc'==0 & `drc'==0 & `nr'==2

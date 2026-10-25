@@ -1,9 +1,11 @@
-*! version 0.2.0  2026-10-17  Jakob Juergens
+*! version 0.1.5  2026-10-25  Jakob Juergens
 *! Stata-native postestimation plots for np_dnn
 program define np_dnn_plot, rclass
     version 17
     capture program list _rdistnn_plot_dispatch
-    if _rc {
+    local dispatch_rc=_rc
+    if !inlist(`dispatch_rc',0,111) exit `dispatch_rc'
+    if `dispatch_rc'==111 {
         findfile "_rdistnn_plot_dispatch.ado"
         quietly run "`r(fn)'"
     }

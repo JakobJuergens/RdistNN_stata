@@ -229,7 +229,7 @@ capture noisily np_dnn y_np, xcols(x1 x2) x0(0 0) x0matrix(X0_np)
 test_assert "[errors] x0() and x0matrix() are mutually exclusive" _rc == 198
 matrix X0_bad_np = (0,0,0)
 capture noisily np_dnn y_np, xcols(x1 x2) x0matrix(X0_bad_np)
-test_assert "[errors] target column mismatch is rejected" _rc == 198
+test_assert "[errors] target column mismatch uses503" _rc == 503
 matrix X0_missing_np = (0,. )
 capture noisily np_dnn y_np, xcols(x1 x2) x0matrix(X0_missing_np)
 test_assert "[errors] missing target values are rejected" _rc == 198

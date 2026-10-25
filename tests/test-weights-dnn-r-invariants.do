@@ -11,7 +11,7 @@ weights_dnn x1 x2, x0(0.2 -0.3) k(3) s(8) method(exact) generate(w_cmd_ex)
 mata {
     _X = st_data(., "x1 x2")
     _w_cmd = st_data(., "w_cmd_ex")
-    _ranks = rdistnn_ranks(_X, (0.2, -0.3), "l2")
+    _ranks = rdistnn_localization_ranks(rdistnn_distance_matrix(_X,(0.2, -0.3),"l2"))
     _w_ref = rdistnn_weights_from_ranks(_ranks, 3, 8, "exact")
     st_numscalar("_weights_exact_diff", max(abs(_w_cmd - _w_ref)))
 }
@@ -21,7 +21,7 @@ weights_dnn x1 x2, x0(0.2 -0.3) k(3) s(8) method(asymp) generate(w_cmd_ap)
 mata {
     _X = st_data(., "x1 x2")
     _w_cmd = st_data(., "w_cmd_ap")
-    _ranks = rdistnn_ranks(_X, (0.2, -0.3), "l2")
+    _ranks = rdistnn_localization_ranks(rdistnn_distance_matrix(_X,(0.2, -0.3),"l2"))
     _w_ref = rdistnn_weights_from_ranks(_ranks, 3, 8, "asymp")
     st_numscalar("_weights_asymp_diff", max(abs(_w_cmd - _w_ref)))
 }
