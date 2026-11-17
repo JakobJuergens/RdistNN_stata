@@ -318,7 +318,12 @@ done
 
 if command -v file >/dev/null 2>&1; then
 	PLUGIN_FORMAT="$(file src/rdistnn.plugin)"
-	if printf '%s\n' "$PLUGIN_FORMAT" | grep -qE 'PE32[+].*x86-64.*Windows'; then
+	# file(1) wording and field order vary by version (5.45: "PE32+ executable
+	# (DLL) ... x86-64, for MS Windows"; 5.46: "PE32+ executable for MS Windows
+	# 6.00 (DLL), x86-64"), so require each property independently.
+	if printf '%s\n' "$PLUGIN_FORMAT" | grep -qF 'PE32+' &&
+		printf '%s\n' "$PLUGIN_FORMAT" | grep -qF 'x86-64' &&
+		printf '%s\n' "$PLUGIN_FORMAT" | grep -qF 'Windows'; then
 		echo "  OK       bundled plugin is Windows x86-64 PE"
 	else
 		echo "  INVALID  bundled plugin format: $PLUGIN_FORMAT"
