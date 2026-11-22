@@ -26,7 +26,7 @@ group crosses it. Calculate realized support and concentration from the final we
 weights without enumerating subsets. `method(asymp)` uses a different,
 generally full-support approximation. Changing the method changes weights
 and can change estimates; the exact support cutoff does not apply to the
-approximation. The [paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
+approximation. The [paper](https://arxiv.org/abs/2610.38965)
 gives the construction and theoretical results. Floating-point asymptotic
 tails can have zero entries; full support is not a numerical guarantee.
 

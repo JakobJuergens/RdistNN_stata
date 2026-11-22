@@ -59,7 +59,7 @@ It does not solve
 for a coefficient, estimate a conditional density, or report coefficient
 standard errors, confidence intervals, p-values or significance tests.
 Its API may change. The
-{browse "https://jakobjuergens.com/research/#orthogonal-inference-conditional-z":paper}
+{browse "https://arxiv.org/abs/2610.38965":paper}
 gives statistical background.
 
 {pstd}

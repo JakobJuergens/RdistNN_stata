@@ -191,7 +191,7 @@ scale: do not divide them by ESS. ESS measures weight concentration, not the
 number of compliers. Cross-target covariance does not imply simultaneous coverage.
 
 {pstd}
-The {browse "https://jakobjuergens.com/research/#orthogonal-inference-conditional-z":paper}
+The {browse "https://arxiv.org/abs/2610.38965":paper}
 gives the IV identifying assumptions and deletion-stability conditions for
 inference. A training label, supported k or weight method does not establish
 them. Jackknife uncertainty does not remove target bias.

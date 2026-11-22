@@ -2,6 +2,15 @@
 
 ## 0.1.5 — 2026-10-25
 
+### Documentation update (2026-11-22)
+
+- Add the public conditional Z-estimation paper citation, arXiv:2610.38965,
+  to the README, installed help, guides and package description. Route paper
+  replication to the R companion's study-specific bundle and retain Stata
+  examples as simulated tutorials.
+
+### Release changes (2026-10-25)
+
 - Reject inconsistent paired component means, covariance and status records
   before reporting or saved prediction, preserving legitimate unavailable
   numerical results and disabled uncertainty.

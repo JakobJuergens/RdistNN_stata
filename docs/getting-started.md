@@ -4,7 +4,7 @@ This walkthrough fits conditional average treatment effects (CATE) and
 conditional means at selected covariate profiles. It uses simulated data with
 **oracle nuisance values**. In an application, supply aligned predictions
 from your own outcome and treatment models; the package does not fit them.
-The [paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
+The [paper](https://arxiv.org/abs/2610.38965)
 gives the statistical assumptions and results.
 
 ## Install and open help

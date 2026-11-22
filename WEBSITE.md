@@ -19,7 +19,7 @@ PLQR moment evaluation is experimental and does not provide coefficient inferenc
 
 - [Repository and getting started](https://github.com/JakobJuergens/RdistNN_stata)
 - [R companion](https://github.com/JakobJuergens/RdistNN)
-- [Accompanying research](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
+- [Accompanying research](https://arxiv.org/abs/2610.38965)
 
 ## 0.1.5 production-update announcement draft
 

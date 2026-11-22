@@ -14,7 +14,7 @@ d supplied theta vector and does not perform local root solving or coefficient
 d inference.
 d
 d Companion to the R package RdistNN and the conditional Z-estimation paper;
-d current working-paper citation metadata is maintained in RdistNN.
+d Paper: Juergens (2026), arXiv:2610.38965; https://arxiv.org/abs/2610.38965
 d Supported supplied-prediction binary-IV CLATE with paired
 d frozen-score covariance, CATE-style tuning, diagnostics and native plots.
 d

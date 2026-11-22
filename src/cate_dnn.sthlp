@@ -159,7 +159,7 @@ sample for comparisons when required columns have different missingness.
 AIPW orthogonality controls first-order population nuisance drift; it does not
 validate arbitrary same-sample nuisance estimates. Valid full-sample reuse additionally requires
 the nuisance-rate and full-state stability conditions in the
-{browse "https://jakobjuergens.com/research/#orthogonal-inference-conditional-z":accompanying paper}.
+{browse "https://arxiv.org/abs/2610.38965":accompanying paper}.
 The command cannot diagnose whether a learner meets those conditions.
 
 {pstd}
@@ -520,7 +520,9 @@ fits and {help rdistnn_results} supplies graph-free tables.
 {title:References}
 
 {phang}
-Juergens, J. {browse "https://jakobjuergens.com/research/#orthogonal-inference-conditional-z":Orthogonal Inference for Conditional Z-Estimation without Cross-Fitting}.
+Juergens, Jakob R. (2026).
+{browse "https://arxiv.org/abs/2610.38965":Orthogonal Inference for Conditional Z-Estimation without Cross-Fitting: A Distributional Nearest-Neighbor Approach}.
+arXiv:2610.38965. DOI: {browse "https://doi.org/10.48550/arXiv.2610.38965":10.48550/arXiv.2610.38965}.
 
 {pstd}
 See also {help rdistnn}, {help np_dnn}, {help weights_dnn},

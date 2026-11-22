@@ -6,7 +6,7 @@ rank-shift jackknife covariance. It does not find a coefficient, estimate a
 threshold density, or report coefficient standard errors, confidence
 intervals, p-values or significance tests. The PLQR interface is experimental
 and can change. For statistical background, see the
-[paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z).
+[paper](https://arxiv.org/abs/2610.38965).
 
 Use [examples/plqr-moments.do](../examples/plqr-moments.do) for complete seeded
 data generation and extraction, or `help plqr_dnn` in an installed package.

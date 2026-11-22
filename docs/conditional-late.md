@@ -12,7 +12,7 @@ Installed users can run `help clate_dnn` without this article.
 The reporting covariates in `xcols()` can be a subset of the adjustment
 variables used by the nuisance models. The causal target and identifying
 assumptions are given in the
-[paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z).
+[paper](https://arxiv.org/abs/2610.38965).
 Conditional LATE generally differs from population CATE and residualized IV.
 
 At each target, observations with exactly equal represented selected-metric
@@ -233,7 +233,7 @@ preserve active estimates by default. See [reusing fits](reusing-fits.md),
 ## Inference conditions and limits
 
 For the causal target, IV assumptions and conditions on nuisance learning and
-localization, see the [paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z).
+localization, see the [paper](https://arxiv.org/abs/2610.38965).
 `clate_dnn` accepts supplied predictions and holds their signals fixed for
 uncertainty calculations; it does not fit or refit nuisance learners.
 

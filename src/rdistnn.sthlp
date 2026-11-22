@@ -5,6 +5,7 @@
 {viewerjumpto "Workflow" "rdistnn##workflow"}{...}
 {viewerjumpto "Inference" "rdistnn##inference"}{...}
 {viewerjumpto "Articles" "rdistnn##articles"}{...}
+{viewerjumpto "Citation and paper replication" "rdistnn##citation"}{...}
 {viewerjumpto "Warnings and failures" "rdistnn##failures"}{...}
 
 {title:Title}
@@ -19,6 +20,11 @@ estimation, nonparametric and two-scale regression, and shared reporting.
 Shared methods follow the RdistNN contract and are checked against independent
 references and across engines. The Stata companion has its own documented
 public surface.
+
+{pstd}
+The accompanying paper is
+{browse "https://arxiv.org/abs/2610.38965":Orthogonal Inference for Conditional Z-Estimation without Cross-Fitting: A Distributional Nearest-Neighbor Approach}
+(Juergens, 2026; arXiv:2610.38965).
 
 {marker commands}{...}
 {title:Commands}
@@ -120,7 +126,7 @@ refit nuisances, remove localization bias or verify the design, nuisance-rate,
 delete-one stability, variance or undersmoothing conditions. Supplied predictions
 may use a fuller adjustment state than the variables defining localization.
 For identification, nuisance-learning and localization conditions, see the
-{browse "https://jakobjuergens.com/research/#orthogonal-inference-conditional-z":paper}
+{browse "https://arxiv.org/abs/2610.38965":paper}
 and the estimator-specific help.
 
 {pstd}
@@ -141,6 +147,21 @@ are retained with statuses; pointwise Wald inference is not weak-IV-uniform.
 PLQR evaluates score moments at thetaeval and supplies moment covariance;
 it does not solve coefficients or provide coefficient inference. Weighted NP
 outcome quantiles describe the outcome distribution, not a confidence interval.
+
+{marker citation}{...}
+{title:Citation and paper replication}
+
+{pstd}
+Juergens, Jakob R. (2026).
+{it:Orthogonal Inference for Conditional Z-Estimation without Cross-Fitting: A Distributional Nearest-Neighbor Approach}.
+{browse "https://arxiv.org/abs/2610.38965":arXiv:2610.38965}.
+DOI: {browse "https://doi.org/10.48550/arXiv.2610.38965":10.48550/arXiv.2610.38965}.
+
+{pstd}
+The R companion provides the
+{browse "https://JakobJuergens.github.io/RdistNN/articles/paper-affine-replication.html":paper replication bundle}
+for saved displays, simulations and the SIPP application. Stata's examples
+are simulated tutorials; the paper replication workflows require R.
 
 {marker articles}{...}
 {title:Articles, examples and installation}

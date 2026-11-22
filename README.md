@@ -9,6 +9,9 @@ support and tuning sensitivity. For causal estimation, you supply nuisance
 predictions; the package constructs the adjusted signals and performs local
 estimation.
 
+The package accompanies [*Orthogonal Inference for Conditional Z-Estimation
+without Cross-Fitting: A Distributional Nearest-Neighbor Approach*](https://arxiv.org/abs/2610.38965).
+
 [Get started](docs/getting-started.md)
 · [Command guide](docs/command-guide.md)
 · [R companion](https://github.com/JakobJuergens/RdistNN)
@@ -140,7 +143,7 @@ guide](docs/weights-and-tuning.md#exact-distance-ties) explains tie handling,
 survivor weights and realized support.
 
 The [accompanying
-paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
+paper](https://arxiv.org/abs/2610.38965)
 states the identification, nuisance-learning, localization and bias conditions
 for inference.
 
@@ -161,6 +164,17 @@ Asymptotic Beta tables retain a known rounding limitation at extremely small
 tail masses, including possible R/Stata support differences. See the
 [weight guide](docs/weights-and-tuning.md#numerical-limits) before interpreting
 calculations at those scales.
+
+## Citation and paper replication
+
+Juergens, Jakob R. (2026). *Orthogonal Inference for Conditional Z-Estimation
+without Cross-Fitting: A Distributional Nearest-Neighbor Approach*.
+[arXiv:2610.38965](https://arxiv.org/abs/2610.38965).
+DOI: [10.48550/arXiv.2610.38965](https://doi.org/10.48550/arXiv.2610.38965).
+
+The R companion provides the [paper replication bundle](https://JakobJuergens.github.io/RdistNN/articles/paper-affine-replication.html)
+for saved displays, simulations and the SIPP application. Stata's examples
+are simulated tutorials; the paper replication workflows require R.
 
 ## Further reading and help
 

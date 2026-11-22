@@ -53,9 +53,12 @@ records the unresolved asymptotic-tail support limitation.
 
 ## Theory and development
 
-The [paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
+The [paper](https://arxiv.org/abs/2610.38965)
 gives the statistical assumptions and results. The estimator guides explain
 how to supply inputs, inspect local support and interpret uncertainty outputs.
+
+See the [citation and replication guidance](../README.md#citation-and-paper-replication)
+for the full arXiv reference and R's study-specific replication bundle.
 
 For development and verification, see
 [CONTRIBUTING.md](https://github.com/JakobJuergens/RdistNN_stata/blob/master/CONTRIBUTING.md).

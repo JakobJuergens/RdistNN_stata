@@ -69,7 +69,7 @@ cate_dnn Y, xcols(x1 x2) x0matrix(X0) tcol(D) ///
 ```
 
 This constructs the AIPW signal described in the
-[paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
+[paper](https://arxiv.org/abs/2610.38965)
 and averages it locally. The fit also retains treatment support, propensity
 and within-arm effective-sample-size diagnostics.
 
@@ -192,7 +192,7 @@ For Mahalanobis, uncertainty is conditional on the full-sample covariance
 metric; it does not re-estimate that metric on each deletion. No nuisance
 learner is refit.
 
-The [paper](https://jakobjuergens.com/research/#orthogonal-inference-conditional-z)
+The [paper](https://arxiv.org/abs/2610.38965)
 gives the identification, nuisance-learning and localization conditions for
 inference. The jackknife does not check them or remove localization bias.
 
